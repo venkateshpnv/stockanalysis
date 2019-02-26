@@ -21,13 +21,16 @@ time.sleep(2)
 elem.send_keys(Keys.RETURN)
 
 time.sleep(20)
+html_src=driver.page_source
+print(html_src)
+
 #try:
 #    element = WebDriverWait(driver, 100).until(EC.title_contains((By.ID, stock)))
 #finally:
 #    driver.close()
 
 assert "No results found." not in driver.page_source
-time.sleep(100)
+time.sleep(5)
 driver.close()
 
 
