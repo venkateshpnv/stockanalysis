@@ -116,10 +116,25 @@ def populate_stock(html_page):
     l=soup.find(id='lblLTP').get_text()
     stk.bscs.price = l
     
-    # Face Value
-    l=soup.find(id='Face Value').get_text()
-    stk.bscs.face_value = l
+    # Promoter Stake
+    divTag = soup.find_all("div", {"class": "col-md-6", "align": "left"})
+    for tag in divTag:
+        div2 = tag.find_all("div", {"class": "com-mid-share-table"})
+        for tag2 in div2:
+            div3 = tag.find("div", {"class": "float-lt com-mid-share-tab2"})
+            print("1")
+            for lis in div3:
+                print("2")
+                for li in lis:
+                    print("3")
+                    print(li.text)
+#    l=soup.find(id='lblLTP').get_text()
+#    stk.bscs.price = l
     
+    # Face Value
+    l=soup.find(id='lblFaceValue').get_text()
+    stk.bscs.face_value = l
+
 #        #now we want to print only the text part of the anchor. 
 #        #find all the elements of a, i.e anchor 
 #        for i in l.findAll("a"): 
