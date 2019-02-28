@@ -7,6 +7,12 @@ from selenium.webdriver.support import expected_conditions as EC
 import requests 
 from bs4 import BeautifulSoup 
 
+YEARS  = 0
+SALES  = 1
+PROFIT = 2
+CASH   = 3
+BOOK   = 4
+
 class Basics:
     def __init__(self):
         self.name   = 'DEADCOW'
@@ -32,31 +38,20 @@ class Ratios:
 
 class Figures:
     def __init(self):
+        self.years = 10
         self.ttm_eps = 0
         # Long Term Debt
         self.lt_debt = 0
 
-        # sales info
-        self.ttm_sales  = 0
-        self.past_sales = 0
-        self.mid_sales  = 0
-        self.sales_growth = 0
-
-        # profit info
-        self.ttm_profit  = 0
-        self.past_profit = 0
-        self.mid_profit  = 0
+        # row 0 - year
+        # row 1 - sales
+        # row 2 - profit
+        # row 3 - free cash flow
+        # row 4 - book value
+        self.figures = [[0] * self.years  for i in range(5)] # ten years of sales
+        self.sales_growth  = 0
         self.profit_growth = 0
-
-        # cash flow info
-        self.ttm_cash  = 0
-        self.past_cash = 0
-        self.mid_cash  = 0
         self.cash_growth = 0
-
-        self.ttm_book  = 0
-        self.past_book = 0
-        self.mid_book  = 0
         self.book_growth = 0
 
 class Numbers:
@@ -72,7 +67,7 @@ class Numbers:
         # current eps
         self.eps = 0
         # Total earnings for 20 yrs
-        self.eps_20yr = []
+        self.eps_20yr = [0] * 20
        
         # start and end years
         self.fig_yr  = 2018
@@ -97,12 +92,12 @@ class Stock:
 def populate_stock(html_page):
     stk = Stock()
     # we need a parser,Python built-in HTML parser is enough . 
-    soup=BeautifulSoup(html_page,'html.parser')     
-    
+    soup=BeautifulSoup(html_page,'html.parser')      
     # l is the list which contains all the text i.e news 
     #l=soup.find("ul",{"class":"searchNews"}) 
     #l=soup.body.find('div', attrs={'class':'lblCompany'}).text
 
+############# BASICS ##################
     #Company Name
     l=soup.find(id='lblCompany').get_text()
     stk.bscs.name = l
@@ -115,26 +110,88 @@ def populate_stock(html_page):
     # Price
     l=soup.find(id='lblLTP').get_text()
     stk.bscs.price = l
-    
-    # Promoter Stake
-    divTag = soup.find_all("div", {"class": "col-md-6", "align": "left"})
-    for tag in divTag:
-        div2 = tag.find_all("div", {"class": "com-mid-share-table"})
-        for tag2 in div2:
-            div3 = tag.find("div", {"class": "float-lt com-mid-share-tab2"})
-            print("1")
-            for lis in div3:
-                print("2")
-                for li in lis:
-                    print("3")
-                    print(li.text)
-#    l=soup.find(id='lblLTP').get_text()
-#    stk.bscs.price = l
-    
+ 
     # Face Value
     l=soup.find(id='lblFaceValue').get_text()
     stk.bscs.face_value = l
 
+    #soup=BeautifulSoup(html_page,'lxml')     
+    # Promoter Stake
+    #divTag = soup.find("div", {"class": "col-md-6", "align": "left"})
+    divTag = soup.find("div", {"class": "com-mid-share-wrap", "align": "right"})
+    #print(divTag)
+    divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
+    #print(divTag2)
+    pshare = divTag2.ul.li.get_text()
+    stk.bscs.promoter_stake = pshare.lstrip()
+
+    pshare = divTag2.ul.li.find_next_sibling("li").find_next_sibling("li").get_text()
+    stk.bscs.pub_stake = pshare.lstrip()
+############# BASICS ##################
+
+
+############# FIGURES ################## 
+    annual_cons = soup.find("table", {"id": "tblAnnualCons", "class": "table table-bordered table-striped"})
+    #print(annual_cons)
+    #f = open("annual_cons.html", "w")
+    #f.write(str(annual_cons.prettify()))
+    #f.close()
+
+    tr = annual_cons.findNext("tr")
+    years = tr.find("div", {"class": "in-tab-main-wrap"})
+    years = years.find("div", {"class": "CHead"})
+    #populate(years, YEARS)
+
+    #years = annual_cons.find("div", {"class": "in-tab-main-wrap"})
+    #print(years)
+    #f = open("years.html", "w")
+    #f.write(str(years.prettify()))
+    #f.close()
+
+    tr = tr.findNext("tr")
+    #tr = annual_cons.tr.find_next_sibling("tr")
+    #print(tr)
+    #f = open("tr.html", "w")
+    #f.write(str(tr.prettify()))
+    #f.close()
+
+    # Retrieve Sales
+    div = tr.find("div", {"class": "CHead"})
+    #populate(div, SALES)
+
+    # Retrieve Profit After Taxes
+    for i in range(26):
+        div = div.find_next("div", {"class": "CHead"})
+    #populate(div, PROFIT)
+    #f = open("profit.html", "w")
+    #f.write(str(div.prettify()))
+    #f.close()
+
+    # Retrieve TTM EPS
+    for i in range(5):
+        div = div.find_next("div", {"class": "CHead"})
+    stk.fig.ttm_eps = div.find(id='TTM_EPS').get_text()
+    print(stk.fig.ttm_eps)
+
+    sales = annual_cons.find("div", {"class": "in-tab-col4", "style":"font-weight: 600", "align":"left"})
+    #populate(sales, SALES)
+
+    profit = annual_cons.find("div", {"class": "accordion-toggle", "style": "width: 100", "align": "left"})
+    #profit = annual_cons.find("div", {"class": "in-tab-col4", "style":"font-weight:bold", "align":"left"})
+    #print(profit)
+############# FIGURES ################## 
+#    for tag in divTag:
+#        div2 = tag.find_all("div", {"class": "com-mid-share-table"})
+#        for tag2 in div2:
+#            div3 = tag.find("div", {"class": "float-lt com-mid-share-tab2"})
+#            #print(div3.text)
+#            print(1)
+#            for lis in div3:
+#                li = lis.find("li")
+#                #print(lis.text)
+##    l=soup.find(id='lblLTP').get_text()
+##    stk.bscs.price = l
+    
 #        #now we want to print only the text part of the anchor. 
 #        #find all the elements of a, i.e anchor 
 #        for i in l.findAll("a"): 
@@ -159,12 +216,14 @@ def print_stock_info(stk):
     print("Symbol: %r" %(stk.bscs.symbol))
     print("Price: %r" %(stk.bscs.price))
     print("Face Value: %r" %(stk.bscs.face_value))
+    print("Promoter Stake: %r" %(stk.bscs.promoter_stake))
+    print("Public Stake: %r" %(stk.bscs.pub_stake))
 
 # Get stock information from the URL
 def get_stock_info():
     html = get_html("hello")
     stk = populate_stock(html)
-    print_stock_info(stk)
+    #print_stock_info(stk)
 
 get_stock_info()
 
