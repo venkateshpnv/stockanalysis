@@ -7,11 +7,17 @@ from selenium.webdriver.support import expected_conditions as EC
 import requests 
 from bs4 import BeautifulSoup 
 
+MAX_YEARS = 20
+
 YEARS  = 0
 SALES  = 1
 PROFIT = 2
 CASH   = 3
 BOOK   = 4
+
+# Number of figures we are tracking data for.
+# Update this if you add new entries
+indices = 5
 
 class Basics:
     def __init__(self):
@@ -37,22 +43,29 @@ class Ratios:
         self.IC = 0
 
 class Figures:
+    # row 0 - year
+    # row 1 - sales
+    # row 2 - profit
+    # row 3 - free cash flow
+    # row 4 - book value
+    # 20 years of data of sales, profit etc
+    #entries = [[0] * MAX_YEARS for i in range(indices)]
+    entries = []
+    # number of years of data we have for each field.
+    # ex: 10 years of book value, 8 years of cash flow etc.
+    #fig_years = [0] * (indices)
+    fig_years = []
+
     def __init(self):
-        self.years = 10
         self.ttm_eps = 0
         # Long Term Debt
         self.lt_debt = 0
-
-        # row 0 - year
-        # row 1 - sales
-        # row 2 - profit
-        # row 3 - free cash flow
-        # row 4 - book value
-        self.figures = [[0] * self.years  for i in range(5)] # ten years of sales
         self.sales_growth  = 0
         self.profit_growth = 0
         self.cash_growth = 0
         self.book_growth = 0
+        #self.entries = [0]
+        #self.fig_years = [0]
 
 class Numbers:
     def __init__(self):
@@ -89,6 +102,29 @@ class Stock:
         self.fig  = Figures()
         self.num  = Numbers()
 
+def populate(stk, div, row, convert):
+    entry = []
+    f = open("figs.html", "w")
+    st = "############################## Row %r #######################" %(row)
+    f.write(st)
+    f.write(str(div.prettify()))
+    f.close()
+
+    i = 0
+    div_tags = div.find_all("div")
+    for tag in div_tags:
+        entry.append(tag.get_text().lstrip().rstrip().replace(",", ""))
+        i += 1
+
+    entry.reverse()
+    if convert:
+        entry = list(map(float, entry))
+    stk.fig.entries.append(entry)
+    print(stk.fig.entries[row])
+
+    stk.fig.fig_years.append(i)
+    print(stk.fig.fig_years[row])
+
 def populate_stock(html_page):
     stk = Stock()
     # we need a parser,Python built-in HTML parser is enough . 
@@ -119,9 +155,7 @@ def populate_stock(html_page):
     # Promoter Stake
     #divTag = soup.find("div", {"class": "col-md-6", "align": "left"})
     divTag = soup.find("div", {"class": "com-mid-share-wrap", "align": "right"})
-    #print(divTag)
     divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
-    #print(divTag2)
     pshare = divTag2.ul.li.get_text()
     stk.bscs.promoter_stake = pshare.lstrip()
 
@@ -140,7 +174,7 @@ def populate_stock(html_page):
     tr = annual_cons.findNext("tr")
     years = tr.find("div", {"class": "in-tab-main-wrap"})
     years = years.find("div", {"class": "CHead"})
-    #populate(years, YEARS)
+    populate(stk, years, YEARS, 0)
 
     #years = annual_cons.find("div", {"class": "in-tab-main-wrap"})
     #print(years)
@@ -157,12 +191,12 @@ def populate_stock(html_page):
 
     # Retrieve Sales
     div = tr.find("div", {"class": "CHead"})
-    #populate(div, SALES)
+    populate(stk, div, SALES, 1)
 
     # Retrieve Profit After Taxes
     for i in range(26):
         div = div.find_next("div", {"class": "CHead"})
-    #populate(div, PROFIT)
+    populate(stk, div, PROFIT, 1)
     #f = open("profit.html", "w")
     #f.write(str(div.prettify()))
     #f.close()
@@ -173,29 +207,43 @@ def populate_stock(html_page):
     stk.fig.ttm_eps = div.find(id='TTM_EPS').get_text()
     print(stk.fig.ttm_eps)
 
-    sales = annual_cons.find("div", {"class": "in-tab-col4", "style":"font-weight: 600", "align":"left"})
-    #populate(sales, SALES)
+    # Retrieve Operating Cash Flow
+    cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
+    #print(cash_flow)
+    #f = open("cash.html", "w")
+    #f.write(str(cash_flow.prettify()))
+    #f.close()
 
-    profit = annual_cons.find("div", {"class": "accordion-toggle", "style": "width: 100", "align": "left"})
-    #profit = annual_cons.find("div", {"class": "in-tab-col4", "style":"font-weight:bold", "align":"left"})
-    #print(profit)
+    tr = cash_flow.findNext("tr")
+    tr = tr.findNext("tr")
+    #print(tr)
+    #f = open("cash2.html", "w")
+    #f.write(str(tr.prettify()))
+    #f.close()
+    div = tr.find("div", {"class": "CHead"})
+    #print(div)
+    populate(stk, div, CASH, 1)
+
+    # Retrieve Book Value
+    book_value = soup.find("section", {"id": "Financial"})
+    #print(book_value)
+    #f = open("book.html", "w")
+    #f.write(str(book_value.prettify()))
+    #f.close()
+
+    tr = book_value.findNext("tr")
+    for i in range(5):
+        tr = tr.findNext("tr")
+    #print(tr)
+    #f = open("book2.html", "w")
+    #f.write(str(tr.prettify()))
+    #f.close()
+    div = tr.find("div", {"class": "CHead"})
+    #print(div)
+    populate(stk, div, BOOK, 1)
+
 ############# FIGURES ################## 
-#    for tag in divTag:
-#        div2 = tag.find_all("div", {"class": "com-mid-share-table"})
-#        for tag2 in div2:
-#            div3 = tag.find("div", {"class": "float-lt com-mid-share-tab2"})
-#            #print(div3.text)
-#            print(1)
-#            for lis in div3:
-#                li = lis.find("li")
-#                #print(lis.text)
-##    l=soup.find(id='lblLTP').get_text()
-##    stk.bscs.price = l
-    
-#        #now we want to print only the text part of the anchor. 
-#        #find all the elements of a, i.e anchor 
-#        for i in l.findAll("a"): 
-#            print(i.text) 
+
     return stk
 
 #Return a html page for a given URL
