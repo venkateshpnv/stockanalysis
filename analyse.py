@@ -130,8 +130,6 @@ def populate_stock(html_page):
     # we need a parser,Python built-in HTML parser is enough . 
     soup=BeautifulSoup(html_page,'html.parser')      
     # l is the list which contains all the text i.e news 
-    #l=soup.find("ul",{"class":"searchNews"}) 
-    #l=soup.body.find('div', attrs={'class':'lblCompany'}).text
 
 ############# BASICS ##################
     #Company Name
@@ -153,7 +151,6 @@ def populate_stock(html_page):
 
     #soup=BeautifulSoup(html_page,'lxml')     
     # Promoter Stake
-    #divTag = soup.find("div", {"class": "col-md-6", "align": "left"})
     divTag = soup.find("div", {"class": "com-mid-share-wrap", "align": "right"})
     divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
     pshare = divTag2.ul.li.get_text()
@@ -197,49 +194,25 @@ def populate_stock(html_page):
     for i in range(26):
         div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, PROFIT, 1)
-    #f = open("profit.html", "w")
-    #f.write(str(div.prettify()))
-    #f.close()
 
     # Retrieve TTM EPS
     for i in range(5):
         div = div.find_next("div", {"class": "CHead"})
     stk.fig.ttm_eps = div.find(id='TTM_EPS').get_text()
-    print(stk.fig.ttm_eps)
 
     # Retrieve Operating Cash Flow
     cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
-    #print(cash_flow)
-    #f = open("cash.html", "w")
-    #f.write(str(cash_flow.prettify()))
-    #f.close()
-
     tr = cash_flow.findNext("tr")
     tr = tr.findNext("tr")
-    #print(tr)
-    #f = open("cash2.html", "w")
-    #f.write(str(tr.prettify()))
-    #f.close()
     div = tr.find("div", {"class": "CHead"})
-    #print(div)
     populate(stk, div, CASH, 1)
 
     # Retrieve Book Value
     book_value = soup.find("section", {"id": "Financial"})
-    #print(book_value)
-    #f = open("book.html", "w")
-    #f.write(str(book_value.prettify()))
-    #f.close()
-
     tr = book_value.findNext("tr")
     for i in range(5):
         tr = tr.findNext("tr")
-    #print(tr)
-    #f = open("book2.html", "w")
-    #f.write(str(tr.prettify()))
-    #f.close()
     div = tr.find("div", {"class": "CHead"})
-    #print(div)
     populate(stk, div, BOOK, 1)
 
 ############# FIGURES ################## 
