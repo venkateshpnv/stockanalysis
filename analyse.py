@@ -64,36 +64,36 @@ class Figures:
         self.profit_growth = 0
         self.cash_growth = 0
         self.book_growth = 0
+        self.growth = 0
         #self.entries = [0]
         #self.fig_years = [0]
 
 class Numbers:
-    def __init__(self):
-        # figures in percentages
-        self.discount_rate = 0
-        self.growth_1to5   = 0
-        self.growth_6to8   = 0
-        self.growth_9to10  = 0
-        self.growth_11to15 = 0
-        self.growth_16to20 = 0
+    # figures in percentages
+    discount_rate = 0
+    growth_1to5   = 0
+    growth_6to8   = 0
+    growth_9to10  = 0
+    growth_11to15 = 0
+    growth_16to20 = 0
 
-        # current eps
-        self.eps = 0
-        # Total earnings for 20 yrs
-        self.eps_20yr = [0] * 20
+    # current eps
+    eps = 0
+    # Total earnings for 20 yrs
+    eps_20yr = []
        
-        # start and end years
-        self.fig_yr  = 2018
-        self.cur_yr  = 2019
-        self.term_yr = 2029
+    # start and end years
+    fig_yr  = 2018
+    cur_yr  = 2019
+    term_yr = 2029
 
-        # DCP price and return rate
-        self.dcf_price = 0
-        self.margin_of_safety = 0
-        # return rate at DCF price
-        self.dcf_return_rate  = 0
-        # return rate at current price
-        self.cp_return_rate   = 0
+    # DCF price and return rate
+    dcf_price = 0
+    margin_of_safety = 0
+    # return rate at DCF price
+    dcf_return_rate  = 0
+    # return rate at current price
+    cp_return_rate   = 0
 
 class Stock:
     def __init__(self):
@@ -120,10 +120,10 @@ def populate(stk, div, row, convert):
     if convert:
         entry = list(map(float, entry))
     stk.fig.entries.append(entry)
-    print(stk.fig.entries[row])
+    #print(stk.fig.entries[row])
 
     stk.fig.fig_years.append(i)
-    print(stk.fig.fig_years[row])
+    #print(stk.fig.fig_years[row])
 
 def populate_stock(html_page):
     stk = Stock()
@@ -143,7 +143,7 @@ def populate_stock(html_page):
 
     # Price
     l=soup.find(id='lblLTP').get_text()
-    stk.bscs.price = l
+    stk.bscs.price = float(l)
  
     # Face Value
     l=soup.find(id='lblFaceValue').get_text()
@@ -198,7 +198,7 @@ def populate_stock(html_page):
     # Retrieve TTM EPS
     for i in range(5):
         div = div.find_next("div", {"class": "CHead"})
-    stk.fig.ttm_eps = div.find(id='TTM_EPS').get_text()
+    stk.fig.ttm_eps = float(div.find(id='TTM_EPS').get_text())
 
     # Retrieve Operating Cash Flow
     cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
@@ -244,9 +244,91 @@ def print_stock_info(stk):
 def get_stock_info():
     html = get_html("hello")
     stk = populate_stock(html)
-    #print_stock_info(stk)
+    print_stock_info(stk)
+    return stk
 
-get_stock_info()
+def calculate_growth(fig, row):
+    years = fig.fig_years[row]
+    first = fig.entries[row][0]
+    last  = fig.entries[row][years-1]
+    return (last/first)**(1/years)-1
+
+# Calcuate numbers
+def calculate_numbers(stk, disc_rate):
+    growth  = [0] * (indices-1)
+    fig = stk.fig
+
+    stk.fig.sales_growth  = growth[SALES-1]  = calculate_growth(fig, SALES)
+    stk.fig.profit_growth = growth[PROFIT-1] = calculate_growth(fig, PROFIT)
+    stk.fig.cash_growth   = growth[CASH-1]   = calculate_growth(fig, CASH)
+    stk.fig.book_growth   = growth[BOOK-1]   = calculate_growth(fig, BOOK)
+    stk.fig.growth = min(growth)
+    #print(growth)
+
+    # Calculating 20 years future earnings
+    # High growth period
+    stk.num.growth_1to5 = stk.fig.growth
+    # Decremental growth period
+    stk.num.growth_6to8 = stk.num.growth_1to5 * 0.7
+    stk.num.growth_9to10 = stk.num.growth_6to8 * 0.8
+    # Terminal growth
+    stk.num.growth_11to15 = stk.num.growth_9to10 * 0.5
+    stk.num.growth_16to20 = stk.num.growth_11to15 * 0.8
+    print("Growth Rates")
+    print("1-5 : %r" %(stk.num.growth_1to5))
+    print("6-8 : %r" %(stk.num.growth_6to8))
+    print("9-10 : %r" %(stk.num.growth_9to10))
+    print("11-15 : %r" %(stk.num.growth_11to15))
+    print("16-20 : %r" %(stk.num.growth_16to20))
+
+    eps = stk.fig.ttm_eps
+    growth = stk.num.growth_1to5
+    discount = stk.num.discount_rate
+
+    print(eps)
+    for i in range(5):
+        eps = eps * ((1 + growth) / (1 + discount))
+        stk.num.eps_20yr.append(eps)
+
+    growth = stk.num.growth_6to8
+    for i in range(5,8):
+        eps = eps * ((1 + growth) / (1 + discount))
+        stk.num.eps_20yr.append(eps)
+
+    growth = stk.num.growth_9to10
+    for i in range(8,10):
+        eps = eps * ((1 + growth) / (1 + discount))
+        stk.num.eps_20yr.append(eps)
+
+    growth = stk.num.growth_11to15
+    for i in range(10,15):
+        eps = eps * ((1 + growth) / (1 + discount))
+        stk.num.eps_20yr.append(eps)
+
+    growth = stk.num.growth_16to20
+    for i in range(15,20):
+        eps = eps * ((1 + growth) / (1 + discount))
+        stk.num.eps_20yr.append(eps)
+
+    print("EPS after 5 years  : %r " % (stk.num.eps_20yr[4]))
+    print("EPS after 10 years : %r " % (stk.num.eps_20yr[9]))
+    print("EPS after 20 years : %r " % (stk.num.eps_20yr[19]))
+    print("Earnings for 5 years  : %r " % (sum(stk.num.eps_20yr[0:4])))
+    print("Earnings for 10 years : %r " % (sum(stk.num.eps_20yr[0:9])))
+    print("Earnings for 20 years : %r " % (sum(stk.num.eps_20yr)))
+    print("Len : %r" %(len(stk.num.eps_20yr)))
+
+    tot_eps = sum(stk.num.eps_20yr)
+    tot_eps = tot_eps * ((1 - 0.08) ** 20)
+    print("Earnings for 20 years at 8 percent inflation: %r" %(tot_eps))
+    print("Price at 50 percent MoS: %r" %(tot_eps * 0.5))
+    stk.num.dcf_price = tot_eps * 0.5
+
+def main():
+    stock = get_stock_info()
+    calculate_numbers(stock, 8)
+
+main()
 
 #def news(): 
 #    # the target we want to open     
