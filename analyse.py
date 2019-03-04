@@ -7,6 +7,9 @@ from selenium.webdriver.support import expected_conditions as EC
 import requests 
 from bs4 import BeautifulSoup 
 
+import csv
+import xlrd
+
 MAX_YEARS = 20
 
 YEARS  = 0
@@ -101,6 +104,82 @@ class Stock:
         self.bscs = Basics()
         self.fig  = Figures()
         self.num  = Numbers()
+
+def get_stock_page(stock):
+    driver = webdriver.Firefox()
+    #driver.get("http://www.google.com")
+    #elem = driver.find_element_by_name("q")
+    driver.get("http://www.ratestar.in/home")
+    old_url = driver.current_url
+    elem = driver.find_element_by_name("txtStock")
+    #driver.get("http://www.python.org")
+    #assert "Python" in driver.title
+    #elem = driver.find_element_by_name("q")
+    
+    #stock='LT Foods Ltd.'
+    elem.clear()
+    elem.send_keys(stock, Keys.ARROW_DOWN)
+    time.sleep(2)
+    elem.send_keys(Keys.RETURN)
+    
+    time.sleep(20)
+    html_src=driver.page_source
+    #print(str(html_src))
+
+    if driver.current_url == old_url:
+        print("Unable to parse %r" %(stock))
+        f = open("unparsed_stocks.txt", "a")
+        f.write(stock)
+        f.write("\n")
+        f.close()
+    else:
+        #print("Found stock %r" %(stock))
+        html_file = "html_pages/%s.html" %(stock)  
+        f = open(html_file, "w")
+        f.write(html_src)
+        f.close()
+ 
+#    try:
+#        element = WebDriverWait(driver, 100).until(EC.title_contains((By.ID, stock)))
+#        element = WebDriverWait(driver, 100).until(EC.presence_of_element_located((By.ID, 'IdOfMyElement')))
+#        element = WebDriverWait(driver, 100).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
+#        html_file = "html_pages/%s.html" %(stock)  
+#        f = open(html_file, "w")
+#        f.write(html_src)
+#        f.close()
+#    finally:
+#        print("Unable to parse %r" %(stock))
+#        f = open("unparsed_stocks.txt", "a")
+#        f.write(stock)
+#        f.write("\n")
+#        f.close()
+
+    driver.close()
+    
+    #try:
+    #    element = WebDriverWait(driver, 100).until(EC.title_contains((By.ID, stock)))
+    #finally:
+    #    driver.close()
+    
+    #assert "No results found." not in driver.page_source
+    #time.sleep(5)
+
+def get_all_stocks_html():
+    wb = xlrd.open_workbook("BSE_Stocks.xls")
+    sheet = wb.sheet_by_index(0)
+    sheet.cell_value(0,0)
+    for i in range(1,sheet.nrows):
+    #for i in range(1,10):
+        print(sheet.cell_value(i, 2))
+        get_stock_page(sheet.cell_value(i,2))
+        
+#    f = open('NSE_Stocks.csv')
+#    #f = open('BSE_Stocks.csv')
+#    csv_f = csv.reader(f)
+#    for row in csv_f:
+#        print(row)
+#        #print(row[1])
+#        #print(row[0], row[1], row[2],)
 
 def populate(stk, div, row, convert):
     entry = []
@@ -219,18 +298,6 @@ def populate_stock(html_page):
 
     return stk
 
-#Return a html page for a given URL
-def get_html(url):
-    return open("./log.html")
-
-#    #open with GET method 
-#    resp=requests.get(url) 
-#
-#    #http_respone 200 means OK status 
-#    assert resp.status_code!=200,"Failed to open Web Page" 
-#
-#    return resp.text
-
 #Print Stock Info
 def print_stock_info(stk):
     print("Name: %r" %(stk.bscs.name))
@@ -239,13 +306,6 @@ def print_stock_info(stk):
     print("Face Value: %r" %(stk.bscs.face_value))
     print("Promoter Stake: %r" %(stk.bscs.promoter_stake))
     print("Public Stake: %r" %(stk.bscs.pub_stake))
-
-# Get stock information from the URL
-def get_stock_info():
-    html = get_html("hello")
-    stk = populate_stock(html)
-    print_stock_info(stk)
-    return stk
 
 def calculate_growth(fig, row):
     years = fig.fig_years[row]
@@ -324,10 +384,32 @@ def calculate_numbers(stk, disc_rate):
     print("Price at 50 percent MoS: %r" %(tot_eps * 0.5))
     stk.num.dcf_price = tot_eps * 0.5
 
-def main():
-    stock = get_stock_info()
-    calculate_numbers(stock, 8)
+#Return a html page for a given URL
+def get_html(url):
+    return open("./log.html")
 
+#    #open with GET method
+#    resp=requests.get(url)
+#
+#    #http_respone 200 means OK status
+#    assert resp.status_code!=200,"Failed to open Web Page"
+#
+#    return resp.text
+
+# Get stock information of "stock_name"
+def get_stock_info(stock_name):
+    html = get_html("hello")
+    stk = populate_stock(html)
+    print_stock_info(stk)
+    return stk
+
+
+def main():
+#    stock_name = " "
+#    stock = get_stock_info(stock_name)
+#    calculate_numbers(stock, 8)
+
+     get_all_stocks_html()
 main()
 
 #def news(): 
