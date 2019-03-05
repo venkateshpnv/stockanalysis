@@ -1,14 +1,26 @@
 import time
+
+#Web Driver
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+# Parsing HTML
 import requests 
 from bs4 import BeautifulSoup 
 
+# Excel operations
 import csv
 import xlrd
+import xlwt
+from xlwt import Workbook, Formula
+
+# Date
+import datetime
+from datetime import date
+import arrow
 
 MAX_YEARS = 20
 
@@ -17,6 +29,13 @@ SALES  = 1
 PROFIT = 2
 CASH   = 3
 BOOK   = 4
+
+# Percentage change in growth over a period of time
+gr1to5_percent   = 1
+gr6to8_percent   = 0.8
+gr9to10_percent  = 0.7
+gr11to15_percent = 0.5
+gr16to20_percent = 0.8
 
 # Number of figures we are tracking data for.
 # Update this if you add new entries
@@ -74,6 +93,7 @@ class Figures:
 class Numbers:
     # figures in percentages
     discount_rate = 0
+    inflation     = 0
     growth_1to5   = 0
     growth_6to8   = 0
     growth_9to10  = 0
@@ -104,6 +124,190 @@ class Stock:
         self.bscs = Basics()
         self.fig  = Figures()
         self.num  = Numbers()
+
+def write_to_excel(stk):
+    wb = xlwt.Workbook()
+    style_bold = xlwt.Style.easyxf("font: bold 1;")
+    #style2 = xlwt.Style.easyxf("font: bold 1, fore_colour green;")
+    #style2 = xlwt.Style.easyxf('pattern: pattern solid, fore_colour green;')
+    #style3 = xlwt.Style.easyxf("""
+    #    font: name Arial;
+    #    borders: left thin, top thin, bottom thick;
+    #    pattern: pattern solid, fore_colour light_green;
+    #    """, num_format_str='YYYY-MM-DD')
+
+    style_percent = xlwt.Style.easyxf(num_format_str="0.00%")
+    style_decimal = xlwt.Style.easyxf(num_format_str="0.00")
+    #TODO bold decimal style
+
+    sheet = wb.add_sheet(stk.bscs.name)
+
+    i = 0
+    sheet.write(i, 0, "Date", style_bold)
+    sheet.write(i, 1, arrow.now().format('DD-MM-YYYY'))
+    #sheet.write(0, 1, str(date.today()))
+
+    i = 2
+    sheet.write(i, 0, "Basics")
+
+    i += 1 #row 4
+    sheet.write(i, 0, "Name")
+    sheet.write(i, 1, stk.bscs.name)
+    sheet.write(i, 3, "Promoter Stake")
+    sheet.write(i, 4, stk.bscs.promoter_stake)
+
+    i += 1 #row 5
+    sheet.write(i, 0, "Symbol")
+    sheet.write(i, 1, stk.bscs.symbol)
+    sheet.write(i, 3, "Public Stake")
+    sheet.write(i, 4, stk.bscs.pub_stake)
+
+    i += 1 #row 6
+    sheet.write(i, 0, "Price")
+    sheet.write(i, 1, stk.bscs.price)
+
+    i += 1 #row 7
+    sheet.write(i, 0, "Face Value")
+    sheet.write(i, 1, stk.bscs.face_value)
+
+    i += 1 #row 8
+    sheet.write(i, 0, "P/E")
+    sheet.write(i, 1, stk.bscs.price/stk.fig.ttm_eps)
+
+
+    i = 10 #row 11
+    sheet.write(i, 0, "Growth Rate(1-5 Years)")
+    sheet.write(i, 1, stk.num.growth_1to5, style_percent)
+
+    i += 1 #row 12
+    sheet.write(i, 0, "Growth Rate(6-8 Years)")
+    # TODO replace 0.7, 0.8 with variables.
+    sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
+
+    i += 1 #row 13
+    sheet.write(i, 0, "Growth Rate(9-10 Years)")
+    sheet.write(i, 1, Formula("B12 * 0.8"), style_percent)
+
+    i += 1 #row 14
+    sheet.write(i, 0, "Terminal Growth Rate(10-15 Years)")
+    sheet.write(i, 1, Formula("B13 * 0.5"), style_percent)
+
+    i += 1 #row 15
+    sheet.write(i, 0, "Terminal Growth Rate(16-20 Years)")
+    sheet.write(i, 1, Formula("B14 * 0.8"), style_percent)
+
+    i += 1 #row 16
+    sheet.write(i, 0, "Discount Rate")
+    sheet.write(i, 1, stk.num.discount_rate, style_percent)
+
+    i += 1 #row 17
+    sheet.write(i, 0, "Inflation")
+    sheet.write(i, 1, stk.num.inflation, style_percent)
+
+    i += 1 #row 18
+    sheet.write(i, 0, "Margin of Safety")
+    sheet.write(i, 1, stk.num.margin_of_safety, style_percent)
+
+    # Earning Calculation
+    i = 21 #row 22
+    sheet.write(i, 0, "Year")
+    now = datetime.datetime.now()
+    now = int(now.year) - 1 # Year 2018
+    sheet.write(i, 1, now)
+
+    i += 1 #row 23
+    sheet.write(i, 0, "EPS")
+    sheet.write(i, 1, stk.fig.ttm_eps)
+
+    i += 1 #row 24
+    sheet.write(i, 0, "Growth Value")
+    for j in range(1,11):
+        sheet.write(i, j, now+j, style_bold)
+
+    i += 1 #row 25
+    sheet.write(i, 1, Formula("$B$23 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 2, Formula("$B$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 3, Formula("$C$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 4, Formula("$D$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 5, Formula("$E$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 6, Formula("$F$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 7, Formula("$G$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 8, Formula("$H$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 9, Formula("$I$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 10, Formula("$J$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
+
+
+    i = 26 #row 27
+    sheet.write(i, 0, "Terminal Value")
+    for j in range(11,21):
+        sheet.write(i, j-10, now+j, style_bold)
+
+    i += 1 #row 28
+    sheet.write(i, 1, Formula("$K$25 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 2, Formula("$B$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 3, Formula("$C$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 4, Formula("$D$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 5, Formula("$E$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 6, Formula("$F$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 7, Formula("$G$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 8, Formula("$H$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 9, Formula("$I$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+    sheet.write(i, 10, Formula("$J$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+
+    i += 2 #row 30
+    sheet.write(i, 0, "EPS by Year")
+
+    # Earnings by 2024
+    i += 1 #row 31
+    now += 1 #2024
+    yr = "%r" %(now + 5)
+    sheet.write(i, 0, yr)
+    sheet.write(i, 1, Formula("SUM($B$25:$F$25)"), style_decimal)
+
+    # Earnings by 2029
+    i += 1 #row 32
+    yr = "%r" % (now + 10)
+    sheet.write(i, 0, yr)
+    sheet.write(i, 1, Formula("SUM($B$25:$K$25)"), style_decimal)
+
+    i += 1 #row 33
+    yr = "EPS by %r at %r percent inflation" % (now + 5, (stk.num.inflation)*100)
+    sheet.write(i, 0, yr)
+    sheet.write(i, 1, Formula("$B$31 * ((1-$B$17)^5)"), style_decimal)
+
+    i += 2 #row 35
+    sheet.write(i, 0, "Earnings after 20 years")
+    sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
+
+    i += 1 #row 36
+    sheet.write(i, 0, "Today's Value with Inflation")
+    sheet.write(i, 1, Formula("$B$35 * ((1-$B$17)^20)"), style_decimal)
+
+    i += 1 #row 37
+    sheet.write(i, 0, "Price with Margin of Safety")
+    sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
+    sheet.write(i, 2, "Profit", style_bold)
+
+    i += 1 #row 38
+    sheet.write(i, 0, "Value of MoS Price after 20 years with inflation")
+    sheet.write(i, 1, Formula("$B$37*((1+$B$17)^20)"), style_decimal)
+    sheet.write(i, 2, Formula("$B$35-$B$38"), style_decimal)
+
+    i += 1  # row 39
+    sheet.write(i, 0, "Current Price", style_bold)
+    sheet.write(i, 1, stk.bscs.price, style_bold)
+
+    i += 1 #row 40
+    sheet.write(i, 0, "Rate of return at Current Price")
+    sheet.write(i, 1, Formula("($B$35/$B$39)^0.05-1"), style_percent)
+    #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
+
+    i += 1 #row 41
+    sheet.write(i, 0, "Rate of return at MoS Price")
+    sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
+    #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
+
+    wb.save("DCF.xls")
 
 def get_stock_page(stock):
     driver = webdriver.Firefox()
@@ -168,9 +372,9 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    for i in range(1,sheet.nrows):
+    for i in range(621,sheet.nrows):
     #for i in range(1,10):
-        print(sheet.cell_value(i, 2))
+        print("%r: %r" %(i, sheet.cell_value(i, 2)))
         get_stock_page(sheet.cell_value(i,2))
         
 #    f = open('NSE_Stocks.csv')
@@ -314,7 +518,7 @@ def calculate_growth(fig, row):
     return (last/first)**(1/years)-1
 
 # Calcuate numbers
-def calculate_numbers(stk, disc_rate):
+def calculate_numbers(stk):
     growth  = [0] * (indices-1)
     fig = stk.fig
 
@@ -329,11 +533,11 @@ def calculate_numbers(stk, disc_rate):
     # High growth period
     stk.num.growth_1to5 = stk.fig.growth
     # Decremental growth period
-    stk.num.growth_6to8 = stk.num.growth_1to5 * 0.7
-    stk.num.growth_9to10 = stk.num.growth_6to8 * 0.8
+    stk.num.growth_6to8 = stk.num.growth_1to5 * gr6to8_percent
+    stk.num.growth_9to10 = stk.num.growth_6to8 * gr9to10_percent
     # Terminal growth
-    stk.num.growth_11to15 = stk.num.growth_9to10 * 0.5
-    stk.num.growth_16to20 = stk.num.growth_11to15 * 0.8
+    stk.num.growth_11to15 = stk.num.growth_9to10 * gr11to15_percent
+    stk.num.growth_16to20 = stk.num.growth_11to15 * gr16to20_percent
     print("Growth Rates")
     print("1-5 : %r" %(stk.num.growth_1to5))
     print("6-8 : %r" %(stk.num.growth_6to8))
@@ -384,6 +588,8 @@ def calculate_numbers(stk, disc_rate):
     print("Price at 50 percent MoS: %r" %(tot_eps * 0.5))
     stk.num.dcf_price = tot_eps * 0.5
 
+    write_to_excel(stk)
+
 #Return a html page for a given URL
 def get_html(url):
     return open("./log.html")
@@ -405,11 +611,15 @@ def get_stock_info(stock_name):
 
 
 def main():
-#    stock_name = " "
-#    stock = get_stock_info(stock_name)
-#    calculate_numbers(stock, 8)
+    stock_name = " "
+    stock = get_stock_info(stock_name)
+    stock.num.inflation = 0.08
+    stock.num.discount_rate = 0.0
+    stock.num.margin_of_safety = 0.5
+    calculate_numbers(stock)
 
-     get_all_stocks_html()
+#     get_all_stocks_html()
+
 main()
 
 #def news(): 
