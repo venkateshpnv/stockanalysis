@@ -286,20 +286,20 @@ def write_to_excel(stk):
     i += 1 #row 37
     sheet.write(i, 0, "Price with Margin of Safety")
     sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
+
+    i += 1  # row 38
+    sheet.write(i, 0, "Current Price", style_bold)
+    sheet.write(i, 1, stk.bscs.price, style_bold)
     sheet.write(i, 2, "Profit", style_bold)
 
-    i += 1 #row 38
+    i += 1 #row 39
     sheet.write(i, 0, "Value of MoS Price after 20 years with inflation")
     sheet.write(i, 1, Formula("$B$37*((1+$B$17)^20)"), style_decimal)
     sheet.write(i, 2, Formula("$B$35-$B$38"), style_decimal)
 
-    i += 1  # row 39
-    sheet.write(i, 0, "Current Price", style_bold)
-    sheet.write(i, 1, stk.bscs.price, style_bold)
-
     i += 1 #row 40
     sheet.write(i, 0, "Rate of return at Current Price")
-    sheet.write(i, 1, Formula("($B$35/$B$39)^0.05-1"), style_percent)
+    sheet.write(i, 1, Formula("($B$35/$B$38)^0.05-1"), style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
 
     i += 1 #row 41
@@ -322,7 +322,10 @@ def get_stock_page(stock):
     
     #stock='LT Foods Ltd.'
     elem.clear()
-    elem.send_keys(stock, Keys.ARROW_DOWN)
+    for i in range(len(stock)):
+        elem.send_keys(str(stock[i]))
+        time.sleep(200.0/1000.0)
+    #elem.send_keys(stock, Keys.ARROW_DOWN)
     time.sleep(2)
     elem.send_keys(Keys.RETURN)
     
@@ -372,7 +375,7 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    for i in range(621,sheet.nrows):
+    for i in range(2023,sheet.nrows):
     #for i in range(1,10):
         print("%r: %r" %(i, sheet.cell_value(i, 2)))
         get_stock_page(sheet.cell_value(i,2))
@@ -611,14 +614,14 @@ def get_stock_info(stock_name):
 
 
 def main():
-    stock_name = " "
-    stock = get_stock_info(stock_name)
-    stock.num.inflation = 0.08
-    stock.num.discount_rate = 0.0
-    stock.num.margin_of_safety = 0.5
-    calculate_numbers(stock)
+#    stock_name = " "
+#    stock = get_stock_info(stock_name)
+#    stock.num.inflation = 0.08
+#    stock.num.discount_rate = 0.0
+#    stock.num.margin_of_safety = 0.5
+#    calculate_numbers(stock)
 
-#     get_all_stocks_html()
+     get_all_stocks_html()
 
 main()
 

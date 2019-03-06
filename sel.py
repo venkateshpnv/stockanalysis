@@ -14,9 +14,17 @@ elem = driver.find_element_by_name("txtStock")
 #assert "Python" in driver.title
 #elem = driver.find_element_by_name("q")
 
-stock='LT Foods Ltd.'
+#stock='LT Foods Ltd.'
+stock='ABB'
+s=''
 elem.clear()
-elem.send_keys(stock, Keys.ARROW_DOWN)
+for i in  range(len(stock)):
+    s += stock[i]
+    elem.send_keys(str(stock[i]))
+    # Wait 100 msec
+    time.sleep(100.0/1000.0)
+
+#elem.send_keys(stock, Keys.ARROW_DOWN)
 time.sleep(2)
 elem.send_keys(Keys.RETURN)
 
