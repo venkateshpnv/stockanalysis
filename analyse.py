@@ -47,8 +47,13 @@ class Basics:
         self.symbol = 'DEAD'
         self.price  = 0
         self.promoter_stake = 0
+        self.corp_stake     = 0
         self.pub_stake      = 0
+        self.fii_stake      = 0
+        self.dii_stake      = 0
+        self.others_stake   = 0
         self.face_value     = 0
+        self.volume         = 0
 
 class Ratios:
     def __init(self):
@@ -124,6 +129,35 @@ class Stock:
         self.bscs = Basics()
         self.fig  = Figures()
         self.num  = Numbers()
+
+#Supportive calls
+def p2f(x):
+    try:
+        val = float(x.strip('%'))
+    except ValueError:
+        return 0
+    return val
+
+def str_to_int(x):
+    try:
+        val = int(x)
+    except ValueError:
+        return 0
+    return val
+
+def str_to_float(x):
+    try:
+        val = float(x)
+    except ValueError:
+        return 0
+    return val
+
+def str_to_float_valid(x):
+    try:
+        val = float(x)
+        return True
+    except ValueError:
+        return False
 
 def write_to_excel(stk):
     wb = xlwt.Workbook()
@@ -324,7 +358,7 @@ def get_stock_page(stock):
     elem.clear()
     for i in range(len(stock)):
         elem.send_keys(str(stock[i]))
-        time.sleep(200.0/1000.0)
+        time.sleep(100.0/1000.0)
     #elem.send_keys(stock, Keys.ARROW_DOWN)
     time.sleep(2)
     elem.send_keys(Keys.RETURN)
@@ -375,7 +409,7 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    for i in range(2023,sheet.nrows):
+    for i in range(3934,sheet.nrows):
     #for i in range(1,10):
         print("%r: %r" %(i, sheet.cell_value(i, 2)))
         get_stock_page(sheet.cell_value(i,2))
@@ -390,26 +424,55 @@ def get_all_stocks_html():
 
 def populate(stk, div, row, convert):
     entry = []
-    f = open("figs.html", "w")
-    st = "############################## Row %r #######################" %(row)
-    f.write(st)
-    f.write(str(div.prettify()))
-    f.close()
+    #f = open("figs.html", "w")
+    #st = "############################## Row %r #######################" %(row)
+    #f.write(st)
+    #f.write(str(div.prettify()))
+    #f.close()
 
     i = 0
-    div_tags = div.find_all("div")
-    for tag in div_tags:
-        entry.append(tag.get_text().lstrip().rstrip().replace(",", ""))
+    div2 = div.find_next("div")
+    #print(div2)
+
+    while True:
+        c = str(div2['class'])
+        # If end of class? stop
+        if c == "['clear']":
+            print("Found Clear Class")
+            break
+        # If html page does not display? skip
+        if div2.has_attr("style"):
+            print("Has attr style")
+            style = str(div2['style'])
+            print("Style : %r " %(style))
+            if style == 'display: none;':
+                print("Skipping: %r" %(div2))
+                div2 = div2.find_next("div")
+                print("Next: %r" %(div2))
+                continue
+
+        val = div2.get_text().lstrip().rstrip().replace(",","")
+        #If the value is valid? append else skip
+        if str_to_float_valid(val):
+            entry.append(str_to_float(val))
+        div2 = div2.find_next("div")
         i += 1
 
+    #div_tags = div.find_all("div")
+    #for tag in div_tags:
+    #    entry.append(tag.get_text().lstrip().rstrip().replace(",", ""))
+    #    i += 1
+
+    #print(div.prettify())
     entry.reverse()
+    print(entry)
+    print("Years : %r" %(i))
     if convert:
         entry = list(map(float, entry))
     stk.fig.entries.append(entry)
-    #print(stk.fig.entries[row])
 
     stk.fig.fig_years.append(i)
-    #print(stk.fig.fig_years[row])
+    print("************* Returning *******************")
 
 def populate_stock(html_page):
     stk = Stock()
@@ -429,21 +492,67 @@ def populate_stock(html_page):
 
     # Price
     l=soup.find(id='lblLTP').get_text()
-    stk.bscs.price = float(l)
+    stk.bscs.price = str_to_float(l)
  
     # Face Value
     l=soup.find(id='lblFaceValue').get_text()
-    stk.bscs.face_value = l
+    try:
+        stk.bscs.face_value = int(l)
+    except ValueError:
+        stk.bscs.face_value = 10
+
+    # Volume
+    l=soup.find(id='lblVolume').get_text()
+    try:
+        stk.bscs.volume = int(l)
+    except ValueError:
+        stk.bscs.volume = 0
+
+    stk.bscs.volume = l
+    print("Volume %r" %(stk.bscs.volume))
 
     #soup=BeautifulSoup(html_page,'lxml')     
     # Promoter Stake
     divTag = soup.find("div", {"class": "com-mid-share-wrap", "align": "right"})
-    divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
-    pshare = divTag2.ul.li.get_text()
-    stk.bscs.promoter_stake = pshare.lstrip()
+    divTag2 = divTag
+    for i in range(7):
+        divTag2 = divTag2.find_next("div")
+    #divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
+    li = divTag2.ul.li
+    pshare = li.get_text()
+    stk.bscs.promoter_stake = p2f(pshare.lstrip())
+    li = li.find_next("li")
+    # Corporate Stake
+    pshare = li.get_text()
+    stk.bscs.corp_stake = p2f(pshare.lstrip())
+    li = li.find_next("li")
+    # Public Stake
+    pshare = li.get_text()
+    stk.bscs.pub_stake = p2f(pshare.lstrip())
 
-    pshare = divTag2.ul.li.find_next_sibling("li").find_next_sibling("li").get_text()
-    stk.bscs.pub_stake = pshare.lstrip()
+    divTag = divTag.find_next("div", {"class": "com-mid-share-table-wrap", "align": "right"})
+    divTag2 = divTag
+    for i in range(3):
+        divTag2 = divTag2.find_next("div")
+
+    li = divTag2.ul.li
+    # FII Stake
+    #pshare = divTag2.ul.li.get_text()
+    pshare = li.get_text()
+    stk.bscs.fii_stake = p2f(pshare.lstrip())
+    li = li.find_next("li")
+    # DII Stake
+    #pshare = divTag2.ul.li.find_next_sibling("li").get_text()
+    pshare = li.get_text()
+    stk.bscs.dii_stake = p2f(pshare.lstrip())
+    li = li.find_next("li")
+    #Others Stake
+    #pshare = divTag2.ul.li.find_next_sibling("li").find_next_sibling("li").get_text()
+    pshare = li.get_text()
+    stk.bscs.others_stake = p2f(pshare.lstrip())
+
+
+
 ############# BASICS ##################
 
 
@@ -453,10 +562,22 @@ def populate_stock(html_page):
     #f = open("annual_cons.html", "w")
     #f.write(str(annual_cons.prettify()))
     #f.close()
+    if not annual_cons:
+        print("No Consolidated results. Checking for standalone results")
+        annual_cons = soup.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
+        if not annual_cons:
+            print("No Standalone results. Checking Annual")
+            annual_cons = soup.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
+            if not annual_cons:
+                assert "No Annual Results found"
 
     tr = annual_cons.findNext("tr")
-    years = tr.find("div", {"class": "in-tab-main-wrap"})
-    years = years.find("div", {"class": "CHead"})
+
+    #years = tr.find("div", {"class": "in-tab-main-wrap"})
+    #years = years.find_next("div", {"class": "CHead"})
+    years = tr.find_next("div")
+    for i in range(3):
+        years = years.find_next("div")
     populate(stk, years, YEARS, 0)
 
     #years = annual_cons.find("div", {"class": "in-tab-main-wrap"})
@@ -473,10 +594,12 @@ def populate_stock(html_page):
     #f.close()
 
     # Retrieve Sales
+    print("Sales")
     div = tr.find("div", {"class": "CHead"})
     populate(stk, div, SALES, 1)
 
     # Retrieve Profit After Taxes
+    print("PAT")
     for i in range(26):
         div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, PROFIT, 1)
@@ -484,10 +607,23 @@ def populate_stock(html_page):
     # Retrieve TTM EPS
     for i in range(5):
         div = div.find_next("div", {"class": "CHead"})
-    stk.fig.ttm_eps = float(div.find(id='TTM_EPS').get_text())
+    eps = div.find(id='TTM_EPS')
+    if not eps:
+        eps = div.find(id='TTM_Stn_EPS')
+        if not eps:
+            assert "Unable to find TTM EPS"
+    eps = eps.get_text()
+    stk.fig.ttm_eps = str_to_float(eps)
+    print("TTM EPS: %r" %(eps))
 
     # Retrieve Operating Cash Flow
     cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
+    if not cash_flow:
+        cash_flow = soup.find("table", {"id": "tbl_CashFlowStd"})
+        if not cash_flow:
+            cash_flow = soup.find("table", {"id": "Cash"})
+            assert "No Cash Flow numbers"
+    print(cash_flow)
     tr = cash_flow.findNext("tr")
     tr = tr.findNext("tr")
     div = tr.find("div", {"class": "CHead"})
@@ -512,7 +648,11 @@ def print_stock_info(stk):
     print("Price: %r" %(stk.bscs.price))
     print("Face Value: %r" %(stk.bscs.face_value))
     print("Promoter Stake: %r" %(stk.bscs.promoter_stake))
+    print("Corporate Stake: %r" %(stk.bscs.corp_stake))
     print("Public Stake: %r" %(stk.bscs.pub_stake))
+    print("FII Stake: %r" % (stk.bscs.fii_stake))
+    print("DII Stake: %r" % (stk.bscs.dii_stake))
+    print("Others Stake: %r" % (stk.bscs.others_stake))
 
 def calculate_growth(fig, row):
     years = fig.fig_years[row]
@@ -596,6 +736,9 @@ def calculate_numbers(stk):
 #Return a html page for a given URL
 def get_html(url):
     return open("./log.html")
+    #return open("./manpasand.html")
+    #return open("./html_pages/YES BANK LTD..html")
+    #return open("./html_pages/ADF FOODS LTD. .html")
 
 #    #open with GET method
 #    resp=requests.get(url)
@@ -614,14 +757,14 @@ def get_stock_info(stock_name):
 
 
 def main():
-#    stock_name = " "
-#    stock = get_stock_info(stock_name)
-#    stock.num.inflation = 0.08
-#    stock.num.discount_rate = 0.0
-#    stock.num.margin_of_safety = 0.5
-#    calculate_numbers(stock)
+    stock_name = " "
+    stock = get_stock_info(stock_name)
+    stock.num.inflation = 0.08
+    stock.num.discount_rate = 0.0
+    stock.num.margin_of_safety = 0.5
+    calculate_numbers(stock)
 
-     get_all_stocks_html()
+#     get_all_stocks_html()
 
 main()
 
