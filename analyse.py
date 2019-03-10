@@ -22,6 +22,9 @@ import datetime
 from datetime import date
 import arrow
 
+#Regular Expressions
+import re
+
 MAX_YEARS = 20
 
 YEARS  = 0
@@ -438,13 +441,13 @@ def populate(stk, div, row, convert):
         c = str(div2['class'])
         # If end of class? stop
         if c == "['clear']":
-            print("Found Clear Class")
+            #print("Found Clear Class")
             break
         # If html page does not display? skip
         if div2.has_attr("style"):
-            print("Has attr style")
+            #print("Has attr style")
             style = str(div2['style'])
-            print("Style : %r " %(style))
+            #print("Style : %r " %(style))
             if style == 'display: none;':
                 print("Skipping: %r" %(div2))
                 div2 = div2.find_next("div")
@@ -556,20 +559,25 @@ def populate_stock(html_page):
 ############# BASICS ##################
 
 
-############# FIGURES ################## 
-    annual_cons = soup.find("table", {"id": "tblAnnualCons", "class": "table table-bordered table-striped"})
-    #print(annual_cons)
-    #f = open("annual_cons.html", "w")
-    #f.write(str(annual_cons.prettify()))
-    #f.close()
+############# FIGURES ##################
+    #Get Annual Results.
+    #Prefer consolidated.
+
+    annual = soup.find("section", {"id":"Annual"})
+
+    annual_cons = annual.find("table", {"id": "tblAnnualCons", "class": "table table-bordered table-striped"})
     if not annual_cons:
         print("No Consolidated results. Checking for standalone results")
-        annual_cons = soup.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
+        annual_cons = annual.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
         if not annual_cons:
             print("No Standalone results. Checking Annual")
-            annual_cons = soup.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
+            annual_cons = annual.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
             if not annual_cons:
                 assert "No Annual Results found"
+
+    f = open("man_annaul_cons.html", "w")
+    f.write(str(annual_cons.prettify()))
+    f.close()
 
     tr = annual_cons.findNext("tr")
 
@@ -599,9 +607,15 @@ def populate_stock(html_page):
     populate(stk, div, SALES, 1)
 
     # Retrieve Profit After Taxes
+    #print(annual_cons)
     print("PAT")
-    for i in range(26):
-        div = div.find_next("div", {"class": "CHead"})
+    #for i in range(26):
+    #    div = div.find_next("div", {"class": "CHead"})
+    #exp = r'PAT'
+    div = annual_cons.find("div",
+                           #{"class":"float-lt in-tab-col3"},
+                           text=re.compile(r'Employee Cost'))
+    print(div.parent)
     populate(stk, div, PROFIT, 1)
 
     # Retrieve TTM EPS
@@ -617,19 +631,21 @@ def populate_stock(html_page):
     print("TTM EPS: %r" %(eps))
 
     # Retrieve Operating Cash Flow
+    print("Cash Flow")
     cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
     if not cash_flow:
         cash_flow = soup.find("table", {"id": "tbl_CashFlowStd"})
         if not cash_flow:
             cash_flow = soup.find("table", {"id": "Cash"})
             assert "No Cash Flow numbers"
-    print(cash_flow)
+    #print(cash_flow)
     tr = cash_flow.findNext("tr")
     tr = tr.findNext("tr")
     div = tr.find("div", {"class": "CHead"})
     populate(stk, div, CASH, 1)
 
     # Retrieve Book Value
+    print("Book Value")
     book_value = soup.find("section", {"id": "Financial"})
     tr = book_value.findNext("tr")
     for i in range(5):
@@ -735,8 +751,8 @@ def calculate_numbers(stk):
 
 #Return a html page for a given URL
 def get_html(url):
-    return open("./log.html")
-    #return open("./manpasand.html")
+    #return open("./log.html")
+    return open("./manpasand.html")
     #return open("./html_pages/YES BANK LTD..html")
     #return open("./html_pages/ADF FOODS LTD. .html")
 
@@ -759,6 +775,7 @@ def get_stock_info(stock_name):
 def main():
     stock_name = " "
     stock = get_stock_info(stock_name)
+    return
     stock.num.inflation = 0.08
     stock.num.discount_rate = 0.0
     stock.num.margin_of_safety = 0.5
