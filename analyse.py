@@ -27,11 +27,27 @@ import re
 
 MAX_YEARS = 20
 
-YEARS  = 0
-SALES  = 1
-PROFIT = 2
-CASH   = 3
-BOOK   = 4
+# Number of figures we are tracking data for.
+indices=0
+YEARS = indices
+indices+=1
+SALES = indices
+indices+=1
+#Profit Before Taxes
+PBT = indices
+indices+=1
+TAX = indices
+indices+=1
+#Profit After Taxes
+PAT = indices
+indices+=1
+#Unadjusted EPS
+EPS = indices
+indices+=1
+CASH = indices
+indices+=1
+BOOK = indices
+indices+=1
 
 # Percentage change in growth over a period of time
 gr1to5_percent   = 1
@@ -39,10 +55,6 @@ gr6to8_percent   = 0.8
 gr9to10_percent  = 0.7
 gr11to15_percent = 0.5
 gr16to20_percent = 0.8
-
-# Number of figures we are tracking data for.
-# Update this if you add new entries
-indices = 5
 
 class Basics:
     def __init__(self):
@@ -95,8 +107,11 @@ class Figures:
         self.cash_growth = 0
         self.book_growth = 0
         self.growth = 0
-        #self.entries = [0]
-        #self.fig_years = [0]
+        #self.entries = [[0] * MAX_YEARS for i in range(indices)]
+        #self.entries = [[0 for i in range(MAX_YEARS)] for j in range(indices)]
+        self.entries = [0 for i in range(indices)]
+        #self.fig_years = [indices]
+        self.fig_years = [0 for i in range(indices)]
 
 class Numbers:
     # figures in percentages
@@ -112,7 +127,7 @@ class Numbers:
     eps = 0
     # Total earnings for 20 yrs
     eps_20yr = []
-       
+
     # start and end years
     fig_yr  = 2018
     cur_yr  = 2019
@@ -425,6 +440,14 @@ def get_all_stocks_html():
 #        #print(row[1])
 #        #print(row[0], row[1], row[2],)
 
+def calculate_PAT(stk):
+    entry=[]
+    for i in range(stk.fig.fig_years[PBT]):
+        entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
+    stk.fig.entries.insert(PBT, entry)
+    print("PAT:")
+    print(stk.fig.entries[PBT])
+
 def populate(stk, div, row, convert):
     entry = []
     #f = open("figs.html", "w")
@@ -456,8 +479,10 @@ def populate(stk, div, row, convert):
 
         val = div2.get_text().lstrip().rstrip().replace(",","")
         #If the value is valid? append else skip
-        if str_to_float_valid(val):
+        if convert == 1 and str_to_float_valid(val):
             entry.append(str_to_float(val))
+        else:
+            entry.append(val)
         div2 = div2.find_next("div")
         i += 1
 
@@ -466,16 +491,25 @@ def populate(stk, div, row, convert):
     #    entry.append(tag.get_text().lstrip().rstrip().replace(",", ""))
     #    i += 1
 
-    #print(div.prettify())
     entry.reverse()
-    print(entry)
-    print("Years : %r" %(i))
     if convert:
         entry = list(map(float, entry))
-    stk.fig.entries.append(entry)
+    #stk.fig.entries.append(entry)
+    stk.fig.entries.insert(row, entry)
+    #print("Entries:")
+    #print(stk.fig.entries[row])
 
-    stk.fig.fig_years.append(i)
+    #stk.fig.fig_years.append(i)
+    stk.fig.fig_years.insert(row, i)
+    #print("Years : %r" % (stk.fig.fig_years[row]))
     print("************* Returning *******************")
+
+def populate_item(stk, pattern, annual_cons, row, convert):
+    div = annual_cons.find("div",
+                           text=pattern)
+    div = div.parent
+    div = div.find_next("div", {"class": "CHead"})
+    populate(stk, div, row, convert)
 
 def populate_stock(html_page):
     stk = Stock()
@@ -575,68 +609,50 @@ def populate_stock(html_page):
             if not annual_cons:
                 assert "No Annual Results found"
 
-    f = open("man_annaul_cons.html", "w")
-    f.write(str(annual_cons.prettify()))
-    f.close()
+    #Years
+    print("YEARS: %r" %(YEARS))
+    pattern = re.compile(r'Description\n')
+    populate_item(stk, pattern, annual_cons, YEARS, 0)
+    print(stk.fig.entries[YEARS])
+    #Sales
+    print("SALES: %r"%(SALES))
+    pattern = re.compile(r'Net Sales')
+    populate_item(stk, pattern, annual_cons, SALES, 1)
+    print(stk.fig.entries[SALES])
+    #Profit Before Taxes
+    print("PBT: %r" %(PBT))
+    pattern = re.compile(r'PBT\n')
+    populate_item(stk, pattern, annual_cons, PBT, 1)
+    print(stk.fig.entries[PBT])
+    #Tax
+    print("TAX: %r" %(TAX))
+    pattern = re.compile(r'Tax\n')
+    populate_item(stk, pattern, annual_cons, TAX, 1)
+    print(stk.fig.entries[TAX])
 
-    tr = annual_cons.findNext("tr")
+    print("PAT: %r" %(PAT))
+    calculate_PAT(stk)
 
-    #years = tr.find("div", {"class": "in-tab-main-wrap"})
-    #years = years.find_next("div", {"class": "CHead"})
-    years = tr.find_next("div")
-    for i in range(3):
-        years = years.find_next("div")
-    populate(stk, years, YEARS, 0)
+    #EPS
+    print("EPS: %r, indices: %r" %(EPS, indices))
+    pattern = re.compile(r'Unadjusted EPS\n')
+    populate_item(stk, pattern, annual_cons, EPS, 1)
+    print(stk.fig.entries[EPS])
 
-    #years = annual_cons.find("div", {"class": "in-tab-main-wrap"})
-    #print(years)
-    #f = open("years.html", "w")
-    #f.write(str(years.prettify()))
-    #f.close()
-
-    tr = tr.findNext("tr")
-    #tr = annual_cons.tr.find_next_sibling("tr")
-    #print(tr)
-    #f = open("tr.html", "w")
-    #f.write(str(tr.prettify()))
-    #f.close()
-
-    # Retrieve Sales
-    print("Sales")
-    div = tr.find("div", {"class": "CHead"})
-    populate(stk, div, SALES, 1)
-
-    # Retrieve Profit After Taxes
-    #print(annual_cons)
-    print("PAT")
-    #for i in range(26):
-    #    div = div.find_next("div", {"class": "CHead"})
-    #exp = r'PAT'
-    div = annual_cons.find("div",
-                           #{"class":"float-lt in-tab-col3"},
-                           text=re.compile(r'Employee Cost'))
-    print(div.parent)
-    populate(stk, div, PROFIT, 1)
-
-    # Retrieve TTM EPS
-    for i in range(5):
-        div = div.find_next("div", {"class": "CHead"})
-    eps = div.find(id='TTM_EPS')
-    if not eps:
-        eps = div.find(id='TTM_Stn_EPS')
-        if not eps:
-            assert "Unable to find TTM EPS"
-    eps = eps.get_text()
-    stk.fig.ttm_eps = str_to_float(eps)
-    print("TTM EPS: %r" %(eps))
+    stk.fig.ttm_eps = stk.fig.entries[EPS-1][-1]
+    print("TTM EPS: %r" %(stk.fig.ttm_eps))
 
     # Retrieve Operating Cash Flow
     print("Cash Flow")
-    cash_flow = soup.find("table", {"id": "tbl_CashFlowCons"})
+    cash = soup.find("section", {"id":"Cash"})
+    f = open("man_cash.html", "w")
+    f.write(cash)
+    f.close()
+    cash_flow = cash.find("table", {"id": "tbl_CashFlowCons"})
     if not cash_flow:
-        cash_flow = soup.find("table", {"id": "tbl_CashFlowStd"})
+        cash_flow = cash.find("table", {"id": "tbl_CashFlowStd"})
         if not cash_flow:
-            cash_flow = soup.find("table", {"id": "Cash"})
+            cash_flow = cash.find("table", {"id": "Cash"})
             assert "No Cash Flow numbers"
     #print(cash_flow)
     tr = cash_flow.findNext("tr")
