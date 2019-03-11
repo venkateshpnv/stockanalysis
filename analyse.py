@@ -25,6 +25,10 @@ import arrow
 #Regular Expressions
 import re
 
+#List Files
+import os
+import glob
+
 MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
@@ -156,8 +160,8 @@ class Stock:
 
 #Supportive calls
 def PRINT_DBG(x):
-    #None
-    print(x)
+    None
+    #print(x)
 def PRINT(x):
     print(x)
 
@@ -208,7 +212,7 @@ def write_to_excel(stk):
     style_decimal = xlwt.Style.easyxf(num_format_str="0.00")
     #TODO bold decimal style
 
-    sheet = wb.add_sheet(stk.bscs.name)
+    sheet = wb.add_sheet(stk.bscs.symbol)
 
     i = 0
     sheet.write(i, 0, "Date", style_bold)
@@ -392,7 +396,7 @@ def write_to_excel(stk):
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
 
-    excel = "excel_files/%s.xls" %(stk.bscs.symbol)
+    excel = "excel_files/%s.xls" %(stk.bscs.name)
 
     PRINT("Writing to %s"%(excel))
     wb.save(excel)
@@ -557,7 +561,10 @@ def populate_stock(html_page):
 
 ############# BASICS ##################
     #Company Name
-    l=soup.find(id='lblCompany').get_text()
+    try:
+        l=soup.find(id='lblCompany').get_text()
+    except:
+        return None
     stk.bscs.name = l
 
     # Ticker
@@ -567,8 +574,13 @@ def populate_stock(html_page):
 
     # Price
     l=soup.find(id='lblLTP').get_text()
-    stk.bscs.price = str_to_float(l)
- 
+    try:
+        stk.bscs.price = str_to_float(l)
+    except ValueError:
+        stk.bscs.price = 0
+    if stk.bscs.price < 1:
+        return None
+
     # Face Value
     l=soup.find(id='lblFaceValue').get_text()
     try:
@@ -583,7 +595,9 @@ def populate_stock(html_page):
     except ValueError:
         stk.bscs.volume = 0
 
-    stk.bscs.volume = l
+    if stk.bscs.volume < 50000:
+        return None
+
     PRINT_DBG("Volume %r" %(stk.bscs.volume))
 
     #soup=BeautifulSoup(html_page,'lxml')     
@@ -697,6 +711,9 @@ def populate_stock(html_page):
 
     stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
     PRINT_DBG("TTM EPS: %r" %(stk.fig.ttm_eps))
+    if stk.fig.ttm_eps <= 0:
+        PRINT("Negative EPS")
+        return None
 
     # Retrieve Operating Cash Flow
     PRINT_DBG("Cash Flow")
@@ -789,7 +806,9 @@ def calculate_growth(fig, row):
     except:
         return 0
     # Negative growth
-    if last < 0:
+    if last <= 0:
+        return 0
+    if first == 0:
         return 0
     # Ease calculation for negatives
     if first < 0:
@@ -811,7 +830,10 @@ def calculate_numbers(stk):
     i+=1
     stk.fig.book_growth   = growth[i]   = calculate_growth(fig, BOOK)
     PRINT_DBG("Growth of entries: %r"%(growth))
-    stk.fig.growth = min(i for i in growth if i > 0)
+    try:
+        stk.fig.growth = min(i for i in growth if i > 0)
+    except ValueError:
+        stk.fig.growth = 0
 
     # Calculating 20 years future earnings
     # High growth period
@@ -823,11 +845,11 @@ def calculate_numbers(stk):
     stk.num.growth_11to15 = round(stk.num.growth_9to10 * gr11to15_percent, 2)
     stk.num.growth_16to20 = round(stk.num.growth_11to15 * gr16to20_percent, 2)
     PRINT("Growth Rates")
-    PRINT("1-5 : %r" %(stk.num.growth_1to5))
-    PRINT("6-8 : %r" %(stk.num.growth_6to8))
-    PRINT("9-10 : %r" %(stk.num.growth_9to10))
-    PRINT("11-15 : %r" %(stk.num.growth_11to15))
-    PRINT("16-20 : %r" %(stk.num.growth_16to20))
+    PRINT("1-5 : {0:.2%}" .format(stk.num.growth_1to5))
+    PRINT("6-8 : {0:.2%}" .format(stk.num.growth_6to8))
+    PRINT("9-10 : {0:.2%}" .format(stk.num.growth_9to10))
+    PRINT("11-15 : {0:.2%}" .format(stk.num.growth_11to15))
+    PRINT("16-20 : {0:.2%}" .format(stk.num.growth_16to20))
 
     eps = stk.fig.ttm_eps
     growth = stk.num.growth_1to5
@@ -868,22 +890,30 @@ def calculate_numbers(stk):
 
     sym = u"\u20B9"
     tot_eps = sum(stk.num.eps_20yr)
-    stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
-    stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5,2)
-    stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
-    stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
-    PRINT("Earnings for 20 years at %r percent inflation: %r%r" %(stk.num.inflation, sym, tot_eps))
-    PRINT("Price at 50 percent MoS: %s%r" %(sym, stk.num.dcf_price))
-    PRINT("Current Price: %s%r" %(sym, stk.bscs.price))
-    PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
-    PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
+    if tot_eps <= 0:
+        tot_eps = 0
+        stk.num.inflated_eps_price = 0
+        stk.num.dcf_price = 0
+        stk.num.cp_return_rate = 0
+        stk.num.dcf_return_rate = 0
+    else:
+        stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
+        stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
+        stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
+        stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
+        PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, sym, stk.num.inflated_eps_price))
+        PRINT("Price at 50 percent MoS: %s%r" %(sym, stk.num.dcf_price))
+        PRINT("Current Price: %s%r" %(sym, stk.bscs.price))
+        PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
+        PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
+    if stk.bscs.price <= stk.num.dcf_price:# or stk.num.cp_return_rate > 0.09:
         write_to_excel(stk)
 
 #Return a html page for a given URL
 def get_html(url):
-    return open("./log.html")
+    return open(url)
+    #return open("./log.html")
     #return open("./manpasand.html")
     #return open("./html_pages/YES BANK LTD..html")
     #return open("./html_pages/ADF FOODS LTD. .html")
@@ -897,20 +927,29 @@ def get_html(url):
 #    return resp.text
 
 # Get stock information of "stock_name"
-def get_stock_info(stock_name):
-    html = get_html("hello")
+def get_stock_info(stock_page):
+    html = open(stock_page)
     stk = populate_stock(html)
-    print_stock_info(stk)
+    html.close()
     return stk
 
 
 def main():
-    stock_name = " "
-    stock = get_stock_info(stock_name)
-    stock.num.inflation = 0.08
-    stock.num.discount_rate = 0.0
-    stock.num.margin_of_safety = 0.5
-    calculate_numbers(stock)
+    files = glob.glob("./html_pages/*")
+    for stock_page in files:
+        print(stock_page)
+        stock = get_stock_info(stock_page)
+        if not stock:
+            continue
+        if stock.bscs.volume < 50000:
+            continue
+        if stock.bscs.price < 1:
+            continue
+        print_stock_info(stock)
+        stock.num.inflation = 0.08
+        stock.num.discount_rate = 0.0
+        stock.num.margin_of_safety = 0.5
+        calculate_numbers(stock)
 
 #     get_all_stocks_html()
 
