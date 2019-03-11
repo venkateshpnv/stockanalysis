@@ -26,8 +26,10 @@ import arrow
 import re
 
 #List Files
-import os
+#import os
 import glob
+
+import math
 
 MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
@@ -59,8 +61,8 @@ indices+=1
 
 # Percentage change in growth over a period of time
 gr1to5_percent   = 1
-gr6to8_percent   = 0.8
-gr9to10_percent  = 0.7
+gr6to8_percent   = 0.7
+gr9to10_percent  = 0.8
 gr11to15_percent = 0.5
 gr16to20_percent = 0.8
 
@@ -688,7 +690,7 @@ def populate_stock(html_page):
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, SALES, 1)
         #populate_item(stk, pattern, annual_cons, SALES, 1)
-    PRINT(stk.fig.entries[SALES])
+    PRINT_DBG(stk.fig.entries[SALES])
     #Profit Before Taxes
     PRINT_DBG("PBT: %r" %(PBT))
     pattern = re.compile(r'PBT\n')
@@ -710,7 +712,7 @@ def populate_stock(html_page):
     PRINT_DBG(stk.fig.entries[EPS])
 
     stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
-    PRINT_DBG("TTM EPS: %r" %(stk.fig.ttm_eps))
+    PRINT("TTM EPS: %r" %(stk.fig.ttm_eps))
     if stk.fig.ttm_eps <= 0:
         PRINT("Negative EPS")
         return None
@@ -797,25 +799,29 @@ def print_stock_info(stk):
 
 def calculate_growth(fig, row):
     years = len(fig.entries[row])
+    mid_len = math.floor(years/2)
     first = fig.entries[row][0]
+    mid   = fig.entries[row][mid_len]
     last  = fig.entries[row][-1]
+
     PRINT_DBG("growth years: %r"%(years))
     try:
         val = int(first)
+        val = int(mid)
         val = int(last)
     except:
         return 0
     # Negative growth
     if last <= 0:
         return 0
-    if first == 0:
-        return 0
     # Ease calculation for negatives
-    if first < 0:
+    if first <= 0:
         first = 1
         last += abs(first)+1
-    growth = round(((last/first)**(1/years)-1), 2) * years / 10
-    return growth
+    g1 = round(((last/first)**(1/years)-1), 2) * years / 10
+    #g2 = round(((last/mid)**(1/mid_len)-1), 2) * mid_len / 10
+    return g1
+    #return min(g1,g2)
 
 # Calcuate numbers
 def calculate_numbers(stk):
@@ -854,32 +860,42 @@ def calculate_numbers(stk):
     eps = stk.fig.ttm_eps
     growth = stk.num.growth_1to5
     discount = stk.num.discount_rate
+    stk.num.eps_20yr=[]
 
-    PRINT_DBG(eps)
+    PRINT("EPS: %r"%(eps))
+    PRINT("growth: %r"%(growth))
+    PRINT("discount: %r"%(discount))
     for i in range(5):
         eps = eps * ((1 + growth) / (1 + discount))
         stk.num.eps_20yr.append(round(eps,2))
-
+    PRINT(stk.num.eps_20yr)
     growth = stk.num.growth_6to8
+    PRINT("growth: %r" % (growth))
     for i in range(5,8):
         eps = eps * ((1 + growth) / (1 + discount))
         stk.num.eps_20yr.append(round(eps,2))
 
+    PRINT(stk.num.eps_20yr)
     growth = stk.num.growth_9to10
+    PRINT("growth: %r" % (growth))
     for i in range(8,10):
         eps = eps * ((1 + growth) / (1 + discount))
         stk.num.eps_20yr.append(round(eps,2))
-
+    PRINT(stk.num.eps_20yr)
     growth = stk.num.growth_11to15
+    PRINT("growth: %r" % (growth))
     for i in range(10,15):
         eps = eps * ((1 + growth) / (1 + discount))
         stk.num.eps_20yr.append(round(eps,2))
 
+    PRINT(stk.num.eps_20yr)
     growth = stk.num.growth_16to20
+    PRINT("growth: %r" % (growth))
     for i in range(15,20):
         eps = eps * ((1 + growth) / (1 + discount))
         stk.num.eps_20yr.append(round(eps,2))
 
+    PRINT("20 yrs yearly EPS: %r"%(stk.num.eps_20yr))
     PRINT("EPS after 5 years  : %r " % (round(stk.num.eps_20yr[4],2)))
     PRINT("EPS after 10 years : %r " % (round(stk.num.eps_20yr[9],2)))
     PRINT("EPS after 20 years : %r " % (round(stk.num.eps_20yr[19],2)))
@@ -907,7 +923,7 @@ def calculate_numbers(stk):
         PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
         PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    if stk.bscs.price <= stk.num.dcf_price:# or stk.num.cp_return_rate > 0.09:
+    if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
         write_to_excel(stk)
 
 #Return a html page for a given URL
@@ -936,6 +952,10 @@ def get_stock_info(stock_page):
 
 def main():
     files = glob.glob("./html_pages/*")
+    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
+    #files = glob.glob("./html_pages/LT FOODS LTD..html")
+    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
+    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
     for stock_page in files:
         print(stock_page)
         stock = get_stock_info(stock_page)
@@ -950,6 +970,7 @@ def main():
         stock.num.discount_rate = 0.0
         stock.num.margin_of_safety = 0.5
         calculate_numbers(stock)
+        stock=None
 
 #     get_all_stocks_html()
 
