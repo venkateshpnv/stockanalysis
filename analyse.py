@@ -26,6 +26,8 @@ import arrow
 import re
 
 MAX_YEARS = 20
+#Sales, PAT, Cash Flow, Book Value
+GROWTH_PARAMS = 4
 
 # Number of figures we are tracking data for.
 indices=0
@@ -47,6 +49,8 @@ indices+=1
 CASH = indices
 indices+=1
 BOOK = indices
+indices+=1
+DtoE = indices
 indices+=1
 
 # Percentage change in growth over a period of time
@@ -96,7 +100,7 @@ class Figures:
     # number of years of data we have for each field.
     # ex: 10 years of book value, 8 years of cash flow etc.
     #fig_years = [0] * (indices)
-    fig_years = []
+    #fig_years = []
 
     def __init(self):
         self.ttm_eps = 0
@@ -111,7 +115,7 @@ class Figures:
         #self.entries = [[0 for i in range(MAX_YEARS)] for j in range(indices)]
         self.entries = [0 for i in range(indices)]
         #self.fig_years = [indices]
-        self.fig_years = [0 for i in range(indices)]
+        #self.fig_years = [0 for i in range(indices)]
 
 class Numbers:
     # figures in percentages
@@ -135,6 +139,8 @@ class Numbers:
 
     # DCF price and return rate
     dcf_price = 0
+    # Inflated EPS Price
+    inflated_eps_price = 0
     margin_of_safety = 0
     # return rate at DCF price
     dcf_return_rate  = 0
@@ -149,6 +155,16 @@ class Stock:
         self.num  = Numbers()
 
 #Supportive calls
+def PRINT_DBG(x):
+    #None
+    print(x)
+def PRINT(x):
+    print(x)
+
+def goto(linenum):
+    global line
+    line=linenum
+
 def p2f(x):
     try:
         val = float(x.strip('%'))
@@ -224,21 +240,38 @@ def write_to_excel(stk):
 
     i += 1 #row 8
     sheet.write(i, 0, "P/E")
-    sheet.write(i, 1, stk.bscs.price/stk.fig.ttm_eps)
+    sheet.write(i, 1, round(stk.bscs.price/stk.fig.ttm_eps,2))
 
 
     i = 10 #row 11
     sheet.write(i, 0, "Growth Rate(1-5 Years)")
     sheet.write(i, 1, stk.num.growth_1to5, style_percent)
 
+    sheet.write(i, 4, "Book Value", style_bold)
+    sheet.write(i, 5, "Sales", style_bold)
+    sheet.write(i, 6, "Cash Flow", style_bold)
+    sheet.write(i, 7, "PAT", style_bold)
+
+
     i += 1 #row 12
     sheet.write(i, 0, "Growth Rate(6-8 Years)")
     # TODO replace 0.7, 0.8 with variables.
     sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
 
+    sheet.write(i, 3, "Years", style_bold)
+    sheet.write(i, 4, len(stk.fig.entries[BOOK]))
+    sheet.write(i, 5, len(stk.fig.entries[SALES]))
+    sheet.write(i, 6, len(stk.fig.entries[CASH]))
+    sheet.write(i, 7, len(stk.fig.entries[PAT]))
+
     i += 1 #row 13
     sheet.write(i, 0, "Growth Rate(9-10 Years)")
     sheet.write(i, 1, Formula("B12 * 0.8"), style_percent)
+    sheet.write(i, 3, "Growth Rate", style_bold)
+    sheet.write(i, 4, stk.fig.book_growth, style_percent)
+    sheet.write(i, 5, stk.fig.sales_growth, style_percent)
+    sheet.write(i, 6, stk.fig.cash_growth, style_percent)
+    sheet.write(i, 7, stk.fig.profit_growth, style_percent)
 
     i += 1 #row 14
     sheet.write(i, 0, "Terminal Growth Rate(10-15 Years)")
@@ -359,7 +392,10 @@ def write_to_excel(stk):
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
 
-    wb.save("DCF.xls")
+    excel = "excel_files/%s.xls" %(stk.bscs.symbol)
+
+    PRINT("Writing to %s"%(excel))
+    wb.save(excel)
 
 def get_stock_page(stock):
     driver = webdriver.Firefox()
@@ -383,16 +419,16 @@ def get_stock_page(stock):
     
     time.sleep(20)
     html_src=driver.page_source
-    #print(str(html_src))
+    #PRINT_DBG(str(html_src))
 
     if driver.current_url == old_url:
-        print("Unable to parse %r" %(stock))
+        PRINT_DBG("Unable to parse %r" %(stock))
         f = open("unparsed_stocks.txt", "a")
         f.write(stock)
         f.write("\n")
         f.close()
     else:
-        #print("Found stock %r" %(stock))
+        #PRINT_DBG("Found stock %r" %(stock))
         html_file = "html_pages/%s.html" %(stock)  
         f = open(html_file, "w")
         f.write(html_src)
@@ -407,7 +443,7 @@ def get_stock_page(stock):
 #        f.write(html_src)
 #        f.close()
 #    finally:
-#        print("Unable to parse %r" %(stock))
+#        PRINT_DBG("Unable to parse %r" %(stock))
 #        f = open("unparsed_stocks.txt", "a")
 #        f.write(stock)
 #        f.write("\n")
@@ -429,24 +465,24 @@ def get_all_stocks_html():
     sheet.cell_value(0,0)
     for i in range(3934,sheet.nrows):
     #for i in range(1,10):
-        print("%r: %r" %(i, sheet.cell_value(i, 2)))
+        PRINT_DBG("%r: %r" %(i, sheet.cell_value(i, 2)))
         get_stock_page(sheet.cell_value(i,2))
         
 #    f = open('NSE_Stocks.csv')
 #    #f = open('BSE_Stocks.csv')
 #    csv_f = csv.reader(f)
 #    for row in csv_f:
-#        print(row)
-#        #print(row[1])
-#        #print(row[0], row[1], row[2],)
+#        PRINT_DBG(row)
+#        #PRINT_DBG(row[1])
+#        #PRINT_DBG(row[0], row[1], row[2],)
 
 def calculate_PAT(stk):
     entry=[]
-    for i in range(stk.fig.fig_years[PBT]):
+    for i in range(len(stk.fig.entries[PBT])):
         entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
     stk.fig.entries.insert(PBT, entry)
-    print("PAT:")
-    print(stk.fig.entries[PBT])
+    PRINT_DBG("PAT:")
+    PRINT_DBG(stk.fig.entries[PBT])
 
 def populate(stk, div, row, convert):
     entry = []
@@ -458,23 +494,23 @@ def populate(stk, div, row, convert):
 
     i = 0
     div2 = div.find_next("div")
-    #print(div2)
+    #PRINT_DBG(div2)
 
     while True:
         c = str(div2['class'])
         # If end of class? stop
         if c == "['clear']":
-            #print("Found Clear Class")
+            #PRINT_DBG("Found Clear Class")
             break
         # If html page does not display? skip
         if div2.has_attr("style"):
-            #print("Has attr style")
+            #PRINT_DBG("Has attr style")
             style = str(div2['style'])
-            #print("Style : %r " %(style))
+            #PRINT_DBG("Style : %r " %(style))
             if style == 'display: none;':
-                print("Skipping: %r" %(div2))
+                PRINT_DBG("Skipping: %r" %(div2))
                 div2 = div2.find_next("div")
-                print("Next: %r" %(div2))
+                PRINT_DBG("Next: %r" %(div2))
                 continue
 
         val = div2.get_text().lstrip().rstrip().replace(",","")
@@ -496,20 +532,22 @@ def populate(stk, div, row, convert):
         entry = list(map(float, entry))
     #stk.fig.entries.append(entry)
     stk.fig.entries.insert(row, entry)
-    #print("Entries:")
-    #print(stk.fig.entries[row])
+    #PRINT_DBG("Entries:")
+    #PRINT_DBG(stk.fig.entries[row])
 
     #stk.fig.fig_years.append(i)
-    stk.fig.fig_years.insert(row, i)
-    #print("Years : %r" % (stk.fig.fig_years[row]))
-    print("************* Returning *******************")
+    #stk.fig.fig_years.insert(row, i)
+    #PRINT_DBG("Years : %r" % (stk.fig.fig_years[row]))
 
-def populate_item(stk, pattern, annual_cons, row, convert):
-    div = annual_cons.find("div",
-                           text=pattern)
+def populate_item(stk, pattern, section, row, convert):
+    div = section.find("div", text=pattern)
+    if not div:
+        print("No Match")
+        return False
     div = div.parent
     div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, row, convert)
+    return True
 
 def populate_stock(html_page):
     stk = Stock()
@@ -546,7 +584,7 @@ def populate_stock(html_page):
         stk.bscs.volume = 0
 
     stk.bscs.volume = l
-    print("Volume %r" %(stk.bscs.volume))
+    PRINT_DBG("Volume %r" %(stk.bscs.volume))
 
     #soup=BeautifulSoup(html_page,'lxml')     
     # Promoter Stake
@@ -600,175 +638,253 @@ def populate_stock(html_page):
     annual = soup.find("section", {"id":"Annual"})
 
     annual_cons = annual.find("table", {"id": "tblAnnualCons", "class": "table table-bordered table-striped"})
-    if not annual_cons:
-        print("No Consolidated results. Checking for standalone results")
+    if annual_cons:
+        if annual_cons.has_attr("style") and str(annual_cons['style']) == 'display: none;':
+            annual_cons = annual.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
+            if not annual_cons:
+                PRINT_DBG("No Standalone results. Checking Annual")
+                annual_cons = annual.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
+                if not annual_cons:
+                    assert "No Annual Results found"
+    else:
+        PRINT_DBG("No Consolidated results. Checking for standalone results")
         annual_cons = annual.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
         if not annual_cons:
-            print("No Standalone results. Checking Annual")
+            PRINT_DBG("No Standalone results. Checking Annual")
             annual_cons = annual.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
             if not annual_cons:
                 assert "No Annual Results found"
 
+    PRINT_DBG(annual_cons)
     #Years
-    print("YEARS: %r" %(YEARS))
+    PRINT_DBG("YEARS: %r" %(YEARS))
     pattern = re.compile(r'Description\n')
     populate_item(stk, pattern, annual_cons, YEARS, 0)
-    print(stk.fig.entries[YEARS])
+    PRINT_DBG(stk.fig.entries[YEARS])
     #Sales
-    print("SALES: %r"%(SALES))
+    PRINT("SALES: %r"%(SALES))
     pattern = re.compile(r'Net Sales')
-    populate_item(stk, pattern, annual_cons, SALES, 1)
-    print(stk.fig.entries[SALES])
+    if populate_item(stk, pattern, annual_cons, SALES, 1) is False:
+        pattern = re.compile(r'Net Interest Income')
+        div = annual_cons.find(text=pattern)
+        PRINT_DBG(div.parent.parent)
+        if div is None:
+            return None
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, SALES, 1)
+        #populate_item(stk, pattern, annual_cons, SALES, 1)
+    PRINT(stk.fig.entries[SALES])
     #Profit Before Taxes
-    print("PBT: %r" %(PBT))
+    PRINT_DBG("PBT: %r" %(PBT))
     pattern = re.compile(r'PBT\n')
     populate_item(stk, pattern, annual_cons, PBT, 1)
-    print(stk.fig.entries[PBT])
+    PRINT_DBG(stk.fig.entries[PBT])
     #Tax
-    print("TAX: %r" %(TAX))
+    PRINT_DBG("TAX: %r" %(TAX))
     pattern = re.compile(r'Tax\n')
     populate_item(stk, pattern, annual_cons, TAX, 1)
-    print(stk.fig.entries[TAX])
+    PRINT_DBG(stk.fig.entries[TAX])
 
-    print("PAT: %r" %(PAT))
+    PRINT_DBG("PAT: %r" %(PAT))
     calculate_PAT(stk)
 
     #EPS
-    print("EPS: %r, indices: %r" %(EPS, indices))
+    PRINT_DBG("EPS: %r, indices: %r" %(EPS, indices))
     pattern = re.compile(r'Unadjusted EPS\n')
     populate_item(stk, pattern, annual_cons, EPS, 1)
-    print(stk.fig.entries[EPS])
+    PRINT_DBG(stk.fig.entries[EPS])
 
-    stk.fig.ttm_eps = stk.fig.entries[EPS-1][-1]
-    print("TTM EPS: %r" %(stk.fig.ttm_eps))
+    stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
+    PRINT_DBG("TTM EPS: %r" %(stk.fig.ttm_eps))
 
     # Retrieve Operating Cash Flow
-    print("Cash Flow")
+    PRINT_DBG("Cash Flow")
     cash = soup.find("section", {"id":"Cash"})
-    f = open("man_cash.html", "w")
-    f.write(cash)
-    f.close()
     cash_flow = cash.find("table", {"id": "tbl_CashFlowCons"})
-    if not cash_flow:
+    if cash_flow:
+        if cash_flow.has_attr("style") and str(cash_flow['style']) == 'display: none;':
+            cash_flow = cash.find("table", {"id": "tbl_CashFlowStd"})
+            if not cash_flow:
+                cash_flow = cash.find("table", {"id": "Cash"})
+                if not cash_flow:
+                    assert "No Cash Flow numbers"
+    else:
         cash_flow = cash.find("table", {"id": "tbl_CashFlowStd"})
         if not cash_flow:
             cash_flow = cash.find("table", {"id": "Cash"})
-            assert "No Cash Flow numbers"
-    #print(cash_flow)
-    tr = cash_flow.findNext("tr")
-    tr = tr.findNext("tr")
-    div = tr.find("div", {"class": "CHead"})
+            if not cash_flow:
+                assert "No Cash Flow numbers"
+
+    pattern = re.compile(r'Cash From Operating Activity')
+    div = cash_flow.find(text=pattern)
+    div = div.parent.parent
+    div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, CASH, 1)
+    PRINT_DBG(stk.fig.entries[CASH])
 
+    fin_ratios = soup.find("section", {"id": "Financial"})
+    #f = open("man_fin_ratios.html", "w")
+    #f.write(fin_ratios.prettify())
+    #f.close()
+    fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Cons"})
+    if fin:
+        if fin.has_attr("style") and str(fin['style']) == 'display: none;':
+            print("Fin Ratios Display None")
+            fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
+            if not fin:
+                assert "No Fin Ratios Found"
+    else:
+        fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
+        if not fin:
+            assert "No Fin Ratios Found"
+
+#label: BOOK
     # Retrieve Book Value
-    print("Book Value")
-    book_value = soup.find("section", {"id": "Financial"})
-    tr = book_value.findNext("tr")
-    for i in range(5):
-        tr = tr.findNext("tr")
-    div = tr.find("div", {"class": "CHead"})
-    populate(stk, div, BOOK, 1)
+    PRINT_DBG("Book Value")
+    pattern = re.compile(r'Book Value')
+    div = fin.find(text=pattern)
+    if not div:
+        populate_dummy(stk, BOOK)
+    else:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, BOOK, 1)
+        PRINT_DBG(stk.fig.entries[BOOK])
 
-############# FIGURES ################## 
+    # Retrieve Total Debt/Equity
+    PRINT_DBG("Total Debt/Equity")
+    pattern = re.compile(r'Total Debt/Equity')
+    div = fin.find(text=pattern)
+    if div:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, DtoE, 1)
+        PRINT_DBG(stk.fig.entries[DtoE])
 
+############# FIGURES ##################
     return stk
 
 #Print Stock Info
 def print_stock_info(stk):
-    print("Name: %r" %(stk.bscs.name))
-    print("Symbol: %r" %(stk.bscs.symbol))
-    print("Price: %r" %(stk.bscs.price))
-    print("Face Value: %r" %(stk.bscs.face_value))
-    print("Promoter Stake: %r" %(stk.bscs.promoter_stake))
-    print("Corporate Stake: %r" %(stk.bscs.corp_stake))
-    print("Public Stake: %r" %(stk.bscs.pub_stake))
-    print("FII Stake: %r" % (stk.bscs.fii_stake))
-    print("DII Stake: %r" % (stk.bscs.dii_stake))
-    print("Others Stake: %r" % (stk.bscs.others_stake))
+    PRINT("Name: %r" %(stk.bscs.name))
+    PRINT("Symbol: %r" %(stk.bscs.symbol))
+    PRINT("Price: %r" %(stk.bscs.price))
+    PRINT("Face Value: %r" %(stk.bscs.face_value))
+    PRINT("Promoter Stake: %r" %(stk.bscs.promoter_stake))
+    PRINT("Corporate Stake: %r" %(stk.bscs.corp_stake))
+    PRINT("Public Stake: %r" %(stk.bscs.pub_stake))
+    PRINT("FII Stake: %r" % (stk.bscs.fii_stake))
+    PRINT("DII Stake: %r" % (stk.bscs.dii_stake))
+    PRINT("Others Stake: %r" % (stk.bscs.others_stake))
 
 def calculate_growth(fig, row):
-    years = fig.fig_years[row]
+    years = len(fig.entries[row])
     first = fig.entries[row][0]
-    last  = fig.entries[row][years-1]
-    return (last/first)**(1/years)-1
+    last  = fig.entries[row][-1]
+    PRINT_DBG("growth years: %r"%(years))
+    try:
+        val = int(first)
+        val = int(last)
+    except:
+        return 0
+    # Negative growth
+    if last < 0:
+        return 0
+    # Ease calculation for negatives
+    if first < 0:
+        first = 1
+        last += abs(first)+1
+    growth = round(((last/first)**(1/years)-1), 2) * years / 10
+    return growth
 
 # Calcuate numbers
 def calculate_numbers(stk):
-    growth  = [0] * (indices-1)
+    growth  = [0] * (GROWTH_PARAMS)
     fig = stk.fig
-
-    stk.fig.sales_growth  = growth[SALES-1]  = calculate_growth(fig, SALES)
-    stk.fig.profit_growth = growth[PROFIT-1] = calculate_growth(fig, PROFIT)
-    stk.fig.cash_growth   = growth[CASH-1]   = calculate_growth(fig, CASH)
-    stk.fig.book_growth   = growth[BOOK-1]   = calculate_growth(fig, BOOK)
-    stk.fig.growth = min(growth)
-    #print(growth)
+    i = 0
+    stk.fig.sales_growth  = growth[i]  = calculate_growth(fig, SALES)
+    i+=1
+    stk.fig.profit_growth = growth[i] = calculate_growth(fig, PAT)
+    i+=1
+    stk.fig.cash_growth   = growth[i]   = calculate_growth(fig, CASH)
+    i+=1
+    stk.fig.book_growth   = growth[i]   = calculate_growth(fig, BOOK)
+    PRINT_DBG("Growth of entries: %r"%(growth))
+    stk.fig.growth = min(i for i in growth if i > 0)
 
     # Calculating 20 years future earnings
     # High growth period
     stk.num.growth_1to5 = stk.fig.growth
     # Decremental growth period
-    stk.num.growth_6to8 = stk.num.growth_1to5 * gr6to8_percent
-    stk.num.growth_9to10 = stk.num.growth_6to8 * gr9to10_percent
+    stk.num.growth_6to8 = round(stk.num.growth_1to5 * gr6to8_percent, 2)
+    stk.num.growth_9to10 = round(stk.num.growth_6to8 * gr9to10_percent, 2)
     # Terminal growth
-    stk.num.growth_11to15 = stk.num.growth_9to10 * gr11to15_percent
-    stk.num.growth_16to20 = stk.num.growth_11to15 * gr16to20_percent
-    print("Growth Rates")
-    print("1-5 : %r" %(stk.num.growth_1to5))
-    print("6-8 : %r" %(stk.num.growth_6to8))
-    print("9-10 : %r" %(stk.num.growth_9to10))
-    print("11-15 : %r" %(stk.num.growth_11to15))
-    print("16-20 : %r" %(stk.num.growth_16to20))
+    stk.num.growth_11to15 = round(stk.num.growth_9to10 * gr11to15_percent, 2)
+    stk.num.growth_16to20 = round(stk.num.growth_11to15 * gr16to20_percent, 2)
+    PRINT("Growth Rates")
+    PRINT("1-5 : %r" %(stk.num.growth_1to5))
+    PRINT("6-8 : %r" %(stk.num.growth_6to8))
+    PRINT("9-10 : %r" %(stk.num.growth_9to10))
+    PRINT("11-15 : %r" %(stk.num.growth_11to15))
+    PRINT("16-20 : %r" %(stk.num.growth_16to20))
 
     eps = stk.fig.ttm_eps
     growth = stk.num.growth_1to5
     discount = stk.num.discount_rate
 
-    print(eps)
+    PRINT_DBG(eps)
     for i in range(5):
         eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(eps)
+        stk.num.eps_20yr.append(round(eps,2))
 
     growth = stk.num.growth_6to8
     for i in range(5,8):
         eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(eps)
+        stk.num.eps_20yr.append(round(eps,2))
 
     growth = stk.num.growth_9to10
     for i in range(8,10):
         eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(eps)
+        stk.num.eps_20yr.append(round(eps,2))
 
     growth = stk.num.growth_11to15
     for i in range(10,15):
         eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(eps)
+        stk.num.eps_20yr.append(round(eps,2))
 
     growth = stk.num.growth_16to20
     for i in range(15,20):
         eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(eps)
+        stk.num.eps_20yr.append(round(eps,2))
 
-    print("EPS after 5 years  : %r " % (stk.num.eps_20yr[4]))
-    print("EPS after 10 years : %r " % (stk.num.eps_20yr[9]))
-    print("EPS after 20 years : %r " % (stk.num.eps_20yr[19]))
-    print("Earnings for 5 years  : %r " % (sum(stk.num.eps_20yr[0:4])))
-    print("Earnings for 10 years : %r " % (sum(stk.num.eps_20yr[0:9])))
-    print("Earnings for 20 years : %r " % (sum(stk.num.eps_20yr)))
-    print("Len : %r" %(len(stk.num.eps_20yr)))
+    PRINT("EPS after 5 years  : %r " % (round(stk.num.eps_20yr[4],2)))
+    PRINT("EPS after 10 years : %r " % (round(stk.num.eps_20yr[9],2)))
+    PRINT("EPS after 20 years : %r " % (round(stk.num.eps_20yr[19],2)))
+    PRINT("Earnings for 5 years  : %r " % (round(sum(stk.num.eps_20yr[0:4]),2)))
+    PRINT("Earnings for 10 years : %r " % (round(sum(stk.num.eps_20yr[0:9]),2)))
+    PRINT("Earnings for 20 years : %r " % (round(sum(stk.num.eps_20yr),2)))
+    #PRINT("Len : %r" %(len(stk.num.eps_20yr)))
 
+    sym = u"\u20B9"
     tot_eps = sum(stk.num.eps_20yr)
-    tot_eps = tot_eps * ((1 - 0.08) ** 20)
-    print("Earnings for 20 years at 8 percent inflation: %r" %(tot_eps))
-    print("Price at 50 percent MoS: %r" %(tot_eps * 0.5))
-    stk.num.dcf_price = tot_eps * 0.5
+    stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
+    stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5,2)
+    stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
+    stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
+    PRINT("Earnings for 20 years at %r percent inflation: %r%r" %(stk.num.inflation, sym, tot_eps))
+    PRINT("Price at 50 percent MoS: %s%r" %(sym, stk.num.dcf_price))
+    PRINT("Current Price: %s%r" %(sym, stk.bscs.price))
+    PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
+    PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    write_to_excel(stk)
+    if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
+        write_to_excel(stk)
 
 #Return a html page for a given URL
 def get_html(url):
-    #return open("./log.html")
-    return open("./manpasand.html")
+    return open("./log.html")
+    #return open("./manpasand.html")
     #return open("./html_pages/YES BANK LTD..html")
     #return open("./html_pages/ADF FOODS LTD. .html")
 
@@ -791,7 +907,6 @@ def get_stock_info(stock_name):
 def main():
     stock_name = " "
     stock = get_stock_info(stock_name)
-    return
     stock.num.inflation = 0.08
     stock.num.discount_rate = 0.0
     stock.num.margin_of_safety = 0.5
@@ -801,32 +916,32 @@ def main():
 
 main()
 
-#def news(): 
-#    # the target we want to open     
+#def news():
+#    # the target we want to open
 #    url='http://www.ratestar.in/company/daawat/532783/LT-Foods-Ltd-132783'
-#    
-#    #open with GET method 
-#    resp=requests.get(url) 
-#    
-#    #http_respone 200 means OK status 
-#    if resp.status_code==200: 
-#        print("Successfully opened the web page") 
-#    
-#        # we need a parser,Python built-in HTML parser is enough . 
-#        soup=BeautifulSoup(resp.text,'html.parser')     
 #
-#        # l is the list which contains all the text i.e news 
-#        #l=soup.find("ul",{"class":"searchNews"}) 
+#    #open with GET method
+#    resp=requests.get(url)
+#
+#    #http_respone 200 means OK status
+#    if resp.status_code==200:
+#        PRINT_DBG("Successfully opened the web page")
+#
+#        # we need a parser,Python built-in HTML parser is enough .
+#        soup=BeautifulSoup(resp.text,'html.parser')
+#
+#        # l is the list which contains all the text i.e news
+#        #l=soup.find("ul",{"class":"searchNews"})
 #        #l=soup.body.find('div', attrs={'class':'lblCompany'}).text
 #        l=soup.find(id='lblLTP').get_text()
-#        print(l)
-#    
-##        #now we want to print only the text part of the anchor. 
-##        #find all the elements of a, i.e anchor 
-##        for i in l.findAll("a"): 
-##            print(i.text) 
-#    else: 
-#        print("Error") 
-#        
+#        PRINT_DBG(l)
+#
+##        #now we want to PRINT_DBG only the text part of the anchor.
+##        #find all the elements of a, i.e anchor
+##        for i in l.findAll("a"):
+##            PRINT_DBG(i.text)
+#    else:
+#        PRINT_DBG("Error")
+#
 #news()
 
