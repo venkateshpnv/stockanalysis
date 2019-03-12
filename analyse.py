@@ -34,6 +34,9 @@ import glob
 
 import math
 
+#Print Line number
+from inspect import currentframe
+
 MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
@@ -204,6 +207,10 @@ def str_to_float_valid(x):
         return True
     except ValueError:
         return False
+
+def get_linenumber():
+    cf = currentframe()
+    return cf.f_back.f_lineno
 
 style_bold = xlwt.Style.easyxf("font: bold 1;")
 #style2 = xlwt.Style.easyxf("font: bold 1, fore_colour green;")
@@ -722,7 +729,7 @@ def get_all_stocks_html():
     sheet.cell_value(0,0)
     with open("unparsed_stocks.txt") as f:
         for line in f:
-            print(line)
+            PRINT(line)
             get_stock_page(line)
 
 #    for i in range(3986,sheet.nrows):
@@ -804,7 +811,7 @@ def populate(stk, div, row, convert):
 def populate_item(stk, pattern, section, row, convert):
     div = section.find("div", text=pattern)
     if not div:
-        print("No Match")
+        PRINT("No Match")
         return False
     div = div.parent
     div = div.find_next("div", {"class": "CHead"})
@@ -917,7 +924,8 @@ def populate_stock(html_page):
                 PRINT_DBG("No Standalone results. Checking Annual")
                 annual_cons = annual.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
                 if not annual_cons:
-                    assert "No Annual Results found"
+                    PRINT("Unable to find annual results, skipping this stock")
+                    return None
     else:
         PRINT_DBG("No Consolidated results. Checking for standalone results")
         annual_cons = annual.find("table", {"id": "tblAnnualStd", "class": "table table-bordered table-striped"})
@@ -925,7 +933,8 @@ def populate_stock(html_page):
             PRINT_DBG("No Standalone results. Checking Annual")
             annual_cons = annual.find("table", {"id": "tblAnnual", "class": "table table-bordered table-striped"})
             if not annual_cons:
-                assert "No Annual Results found"
+                PRINT("Unable to find annual results, skipping this stock")
+                return None
 
     PRINT_DBG(annual_cons)
     #Years
@@ -983,13 +992,15 @@ def populate_stock(html_page):
             if not cash_flow:
                 cash_flow = cash.find("table", {"id": "Cash"})
                 if not cash_flow:
-                    assert "No Cash Flow numbers"
+                    PRINT("Unable to find cash flow info, skipping stock")
+                    return None
     else:
         cash_flow = cash.find("table", {"id": "tbl_CashFlowStd"})
         if not cash_flow:
             cash_flow = cash.find("table", {"id": "Cash"})
             if not cash_flow:
-                assert "No Cash Flow numbers"
+                PRINT("Unable to find cash flow info, skipping stock")
+                return None
 
     pattern = re.compile(r'Cash From Operating Activity')
     div = cash_flow.find(text=pattern)
@@ -1005,16 +1016,18 @@ def populate_stock(html_page):
     fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Cons"})
     if fin:
         if fin.has_attr("style") and str(fin['style']) == 'display: none;':
-            print("Fin Ratios Display None")
+            PRINT("Fin Ratios Display None")
             fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
             if not fin:
-                assert "No Fin Ratios Found"
+                PRINT("Unable to find Financial Ratios, skipping stock")
+                return None
     else:
         fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
         if not fin:
-            assert "No Fin Ratios Found"
+            PRINT("Unable to find Financial Ratios, skipping stock")
+            return None
 
-#label: BOOK
+    #label: BOOK
     # Retrieve Book Value
     PRINT_DBG("Book Value")
     pattern = re.compile(r'Book Value')
@@ -1218,11 +1231,15 @@ def get_stock_info(stock_page):
     return stk
 
 def main():
-#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./html_pages/*")
+#    files = glob.glob("./html_pages/Nila Spaces Ltd.html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-    files = glob.glob("./html_pages/LT FOODS LTD..html")
+#    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
+
+    i=0
+    j=0
 
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
@@ -1231,7 +1248,7 @@ def main():
 
 
     for stock_page in files:
-        print(stock_page)
+        PRINT(stock_page)
         stock = get_stock_info(stock_page)
         if not stock:
             continue
@@ -1250,10 +1267,15 @@ def main():
             excel = "excel_files/%s.xls" % (stock.bscs.name)
             PRINT("Writing to %s" % (excel))
             com.save(excel)
+            j+=1
 
         stock=None
         com=None
+        i+=1
 
+    PRINT("Stocks Calculated: %r") %(i)
+    PRINT("Stocks DCF Eligible: %r") %(j)
+    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
     all_stk.save("excel_files/All_Stocks.xls")
 #     get_all_stocks_html()
 
