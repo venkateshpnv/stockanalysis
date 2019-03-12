@@ -469,9 +469,9 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    for i in range(3934,sheet.nrows):
+    for i in range(3986,sheet.nrows):
     #for i in range(1,10):
-        PRINT_DBG("%r: %r" %(i, sheet.cell_value(i, 2)))
+        PRINT("%r: %r" %(i, sheet.cell_value(i, 2)))
         get_stock_page(sheet.cell_value(i,2))
         
 #    f = open('NSE_Stocks.csv')
@@ -951,28 +951,28 @@ def get_stock_info(stock_page):
 
 
 def main():
-    files = glob.glob("./html_pages/*")
-    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-    #files = glob.glob("./html_pages/LT FOODS LTD..html")
-    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
-    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-    for stock_page in files:
-        print(stock_page)
-        stock = get_stock_info(stock_page)
-        if not stock:
-            continue
-        if stock.bscs.volume < 50000:
-            continue
-        if stock.bscs.price < 1:
-            continue
-        print_stock_info(stock)
-        stock.num.inflation = 0.08
-        stock.num.discount_rate = 0.0
-        stock.num.margin_of_safety = 0.5
-        calculate_numbers(stock)
-        stock=None
+#    files = glob.glob("./html_pages/*")
+#    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
+#    #files = glob.glob("./html_pages/LT FOODS LTD..html")
+#    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
+#    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
+#    for stock_page in files:
+#        print(stock_page)
+#        stock = get_stock_info(stock_page)
+#        if not stock:
+#            continue
+#        if stock.bscs.volume < 50000:
+#            continue
+#        if stock.bscs.price < 1:
+#            continue
+#        print_stock_info(stock)
+#        stock.num.inflation = 0.08
+#        stock.num.discount_rate = 0.0
+#        stock.num.margin_of_safety = 0.5
+#        calculate_numbers(stock)
+#        stock=None
 
-#     get_all_stocks_html()
+     get_all_stocks_html()
 
 main()
 
