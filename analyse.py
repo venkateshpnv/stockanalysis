@@ -1,11 +1,14 @@
-import time
+import conf
 
+import time
 #Web Driver
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+#from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.select import Select
 
 # Parsing HTML
 import requests 
@@ -59,6 +62,9 @@ indices+=1
 DtoE = indices
 indices+=1
 
+#Rupee ASCII in excel
+RUPEE = u"\u20B9"
+
 # Percentage change in growth over a period of time
 gr1to5_percent   = 1
 gr6to8_percent   = 0.7
@@ -84,9 +90,9 @@ class Ratios:
     def __init(self):
         self.book_value = 0
         # Percentages
-        self.ROA = 0
-        self.ROE = 0
-        self.ROCE = 0
+        self.conf.ROA = 0
+        self.conf.ROE = 0
+        self.conf.ROCE = 0
 
         # Debt/Equity
         self.DtoE = 0
@@ -199,22 +205,241 @@ def str_to_float_valid(x):
     except ValueError:
         return False
 
-def write_to_excel(stk):
-    wb = xlwt.Workbook()
-    style_bold = xlwt.Style.easyxf("font: bold 1;")
-    #style2 = xlwt.Style.easyxf("font: bold 1, fore_colour green;")
-    #style2 = xlwt.Style.easyxf('pattern: pattern solid, fore_colour green;')
-    #style3 = xlwt.Style.easyxf("""
-    #    font: name Arial;
-    #    borders: left thin, top thin, bottom thick;
-    #    pattern: pattern solid, fore_colour light_green;
-    #    """, num_format_str='YYYY-MM-DD')
+style_bold = xlwt.Style.easyxf("font: bold 1;")
+#style2 = xlwt.Style.easyxf("font: bold 1, fore_colour green;")
+#style2 = xlwt.Style.easyxf('pattern: pattern solid, fore_colour green;')
+#style3 = xlwt.Style.easyxf("""
+#    font: name Arial;
+#    borders: left thin, top thin, bottom thick;
+#    pattern: pattern solid, fore_colour light_green;
+#    """, num_format_str='YYYY-MM-DD')
 
-    style_percent = xlwt.Style.easyxf(num_format_str="0.00%")
-    style_decimal = xlwt.Style.easyxf(num_format_str="0.00")
-    #TODO bold decimal style
+style_percent = xlwt.Style.easyxf(num_format_str="0.00%")
+style_decimal = xlwt.Style.easyxf(num_format_str="0.00")
+#TODO bold decimal style
+style_wrap = xlwt.XFStyle()
+style_wrap.alignment.wrap = 1
+style_wrap.font.bold = 1
+style_wrap.font.height = 10 * 20 #(10 pt)
 
-    sheet = wb.add_sheet(stk.bscs.symbol)
+def add_header(sheet):
+    i=1
+    #Company
+    sheet.col(i).width = 15*367
+    sheet.write(0, i, "Company", style_wrap)
+    conf.COMP=i
+
+    i+=1
+    #Symbol
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Symbol", style_wrap)
+    conf.SYM=i
+
+    i+=1
+    #Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Current Price", style_wrap)
+    conf.CUR_PR=i
+
+    i+=1
+    #DCF Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "DCF Price", style_wrap)
+    conf.DCF_PR=i
+
+    i+=1
+    #MoS @50% Price
+    sheet.col(i).width = 5*367
+    #mos = "MoS Price @%r" %(stk.num.margin_of_safety)
+    sheet.write(0, i, "MoS Price @50", style_wrap)
+    conf.MOS_PR=i
+
+    i+=1
+    #Sale Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Sale Price", style_wrap)
+    conf.SAL_PR=i
+
+    i+=1
+    #Return Rate @ Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Cur Price Ret Rate", style_wrap)
+    conf.CUR_RT=i
+
+    i+=1
+    #Return Rate @ MoS Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "MoS Price Ret Rate", style_wrap)
+    conf.MOS_RT=i
+
+    i+=1
+    #Volume
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Volume", style_wrap)
+    conf.VOL=i
+
+    i += 1
+    #Years of Data
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Years of Data", style_wrap)
+    conf.YR_DAT=i
+
+    i+=1
+    # 10 yr Sales Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "10 yr Sales Gr", style_wrap)
+    conf.TEN_SAL=i
+
+    i+=1
+    # 10 yr Profit Growth
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "10 yr Profit Gr", style_wrap)
+    conf.TEN_PR=i
+
+    i+=1
+    #10 yr Book Value Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "10 yr Book Gr", style_wrap)
+    conf.TEN_BK=i
+
+    i+=1
+    # 10 yr Cash Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "10 yr Cash Gr", style_wrap)
+    conf.TEN_CSH=i
+
+    i+=1
+    # 5 yr Sales Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "5 yr Sales Gr", style_wrap)
+    conf.FIVE_SAL=i
+
+    i+=1
+    # 5 yr Profit Growth
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "5 yr Profit Gr", style_wrap)
+    conf.FIVE_PR=i
+
+    i+=1
+    # 5 yr Book Value Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "5 yr Book Gr", style_wrap)
+    conf.FIVE_BK=i
+
+    i+=1
+    # 5 yr Cash Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "5 yr Cash Gr", style_wrap)
+    conf.FIVE_CSH=i
+
+    i+=1
+    # 3 yr Sales Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "3 yr Sales Gr", style_wrap)
+    conf.THREE_SAL=i
+
+    i+=1
+    # 3 yr Profit Growth
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "3 yr Profit Gr", style_wrap)
+    conf.THREE_PR=i
+
+    i+=1
+    # 3 yr Book Value Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "3 yr Book Gr", style_wrap)
+    conf.THREE_BK=i
+
+    i+=1
+    # 3 yr Cash Growth
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "3 yr Cash Gr", style_wrap)
+    conf.THREE_CSH=i
+
+    i+=1
+    # Face Value
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Face Value", style_wrap)
+    conf.FV=i
+
+    i+=1
+    # P/E
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "P/E", style_wrap)
+    conf.PE=i
+
+    i+=1
+    # DtoTE
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "DtoTE", style_wrap)
+    conf.DTOTE=i
+
+    i+=1
+    # Interest Coverage
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Intr Covr", style_wrap)
+    conf.INT_C=i
+
+    i+=1
+    # Profit Margin
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Profit Mgn", style_wrap)
+    conf.PRF_M=i
+
+    i+=1
+    # RoE
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "RoE", style_wrap)
+    conf.ROE=i
+
+    i+=1
+    # RoA
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "RoA", style_wrap)
+    conf.ROA=i
+
+    i+=1
+    # RoCE
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "RoCE", style_wrap)
+    conf.ROCE=i
+
+    i+=1
+    # Market Cap in Cr
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Market Cap", style_wrap)
+    conf.MCAP=i
+
+    i+=1
+    # conf.FII
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "conf.FII", style_wrap)
+    conf.FII=i
+
+    i+=1
+    # conf.DII
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "conf.DII", style_wrap)
+    conf.DII=i
+
+    i+=1
+    # Promoter Stake
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Prom Stake", style_wrap)
+    conf.PRM_S=i
+
+
+#com : Company Work Book
+#ash : All Stocks Work Sheet
+#stk : Stock information
+def write_to_excel(com, ash, stk):
+    #wb = xlwt.Workbook()
+
+    #open a company sheet
+    sheet = com.add_sheet(stk.bscs.symbol)
+    sheet.col(0).width = 28*367
+    sheet.col(1).width = 10*367
+    sheet.col(3).width = 10*367
 
     i = 0
     sheet.write(i, 0, "Date", style_bold)
@@ -227,26 +452,40 @@ def write_to_excel(stk):
     i += 1 #row 4
     sheet.write(i, 0, "Name")
     sheet.write(i, 1, stk.bscs.name)
+    ash.write(conf.COUNT, conf.COMP, stk.bscs.name)
+
     sheet.write(i, 3, "Promoter Stake")
-    sheet.write(i, 4, stk.bscs.promoter_stake)
+    sheet.write(i, 4, stk.bscs.promoter_stake, style_percent)
+    ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake, style_percent)
+    ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake, style_percent)
+    ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake, style_percent)
 
     i += 1 #row 5
     sheet.write(i, 0, "Symbol")
     sheet.write(i, 1, stk.bscs.symbol)
+    ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol)
+
     sheet.write(i, 3, "Public Stake")
-    sheet.write(i, 4, stk.bscs.pub_stake)
+    sheet.write(i, 4, stk.bscs.pub_stake, style_percent)
 
     i += 1 #row 6
     sheet.write(i, 0, "Price")
     sheet.write(i, 1, stk.bscs.price)
+    ash.write(conf.COUNT, conf.CUR_PR, stk.bscs.price)
+
+    sheet.write(i, 3, "Volume")
+    sheet.write(i, 4, stk.bscs.volume)
+    ash.write(conf.COUNT, conf.VOL, stk.bscs.volume)
 
     i += 1 #row 7
     sheet.write(i, 0, "Face Value")
     sheet.write(i, 1, stk.bscs.face_value)
+    ash.write(conf.COUNT, conf.FV, stk.bscs.face_value)
 
     i += 1 #row 8
     sheet.write(i, 0, "P/E")
     sheet.write(i, 1, round(stk.bscs.price/stk.fig.ttm_eps,2))
+    ash.write(conf.COUNT, conf.PE, round(stk.bscs.price/stk.fig.ttm_eps,2))
 
 
     i = 10 #row 11
@@ -269,6 +508,7 @@ def write_to_excel(stk):
     sheet.write(i, 5, len(stk.fig.entries[SALES]))
     sheet.write(i, 6, len(stk.fig.entries[CASH]))
     sheet.write(i, 7, len(stk.fig.entries[PAT]))
+    ash.write(conf.COUNT, conf.YR_DAT, len(stk.fig.entries[SALES]))
 
     i += 1 #row 13
     sheet.write(i, 0, "Growth Rate(9-10 Years)")
@@ -328,12 +568,12 @@ def write_to_excel(stk):
     sheet.write(i, 10, Formula("$J$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
 
 
-    i = 26 #row 27
+    i +=2  #row 28
     sheet.write(i, 0, "Terminal Value")
     for j in range(11,21):
         sheet.write(i, j-10, now+j, style_bold)
 
-    i += 1 #row 28
+    i += 1 #row 29
     sheet.write(i, 1, Formula("$K$25 * ((1+$B$14)/(1+$B$16))"), style_decimal)
     sheet.write(i, 2, Formula("$B$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
     sheet.write(i, 3, Formula("$C$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
@@ -345,63 +585,67 @@ def write_to_excel(stk):
     sheet.write(i, 9, Formula("$I$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
     sheet.write(i, 10, Formula("$J$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
 
-    i += 2 #row 30
+    i += 2 #row 32
     sheet.write(i, 0, "EPS by Year")
 
     # Earnings by 2024
-    i += 1 #row 31
+    i += 1 #row 33
     now += 1 #2024
     yr = "%r" %(now + 5)
     sheet.write(i, 0, yr)
     sheet.write(i, 1, Formula("SUM($B$25:$F$25)"), style_decimal)
 
     # Earnings by 2029
-    i += 1 #row 32
+    i += 1 #row 34
     yr = "%r" % (now + 10)
     sheet.write(i, 0, yr)
     sheet.write(i, 1, Formula("SUM($B$25:$K$25)"), style_decimal)
 
-    i += 1 #row 33
+    i += 1 #row 35
     yr = "EPS by %r at %r percent inflation" % (now + 5, (stk.num.inflation)*100)
     sheet.write(i, 0, yr)
     sheet.write(i, 1, Formula("$B$31 * ((1-$B$17)^5)"), style_decimal)
 
-    i += 2 #row 35
+    i += 2 #row 36
     sheet.write(i, 0, "Earnings after 20 years")
     sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
+    ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
 
-    i += 1 #row 36
+    i += 1 #row 37
     sheet.write(i, 0, "Today's Value with Inflation")
     sheet.write(i, 1, Formula("$B$35 * ((1-$B$17)^20)"), style_decimal)
 
-    i += 1 #row 37
+    i += 1 #row 38
     sheet.write(i, 0, "Price with Margin of Safety")
     sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
+    ash.write(conf.COUNT, conf.MOS_PR, stk.num.dcf_price, style_decimal)
 
-    i += 1  # row 38
+    i += 1  # row 39
     sheet.write(i, 0, "Current Price", style_bold)
     sheet.write(i, 1, stk.bscs.price, style_bold)
     sheet.write(i, 2, "Profit", style_bold)
 
-    i += 1 #row 39
+    i += 1 #row 40
     sheet.write(i, 0, "Value of MoS Price after 20 years with inflation")
     sheet.write(i, 1, Formula("$B$37*((1+$B$17)^20)"), style_decimal)
     sheet.write(i, 2, Formula("$B$35-$B$38"), style_decimal)
 
-    i += 1 #row 40
+    i += 1 #row 4
     sheet.write(i, 0, "Rate of return at Current Price")
     sheet.write(i, 1, Formula("($B$35/$B$38)^0.05-1"), style_percent)
+    ash.write(conf.COUNT, conf.CUR_RT, stk.num.cp_return_rate, style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
 
     i += 1 #row 41
     sheet.write(i, 0, "Rate of return at MoS Price")
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
+    ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
 
-    excel = "excel_files/%s.xls" %(stk.bscs.name)
+#    excel = "excel_files/%s.xls" %(stk.bscs.name)
 
-    PRINT("Writing to %s"%(excel))
-    wb.save(excel)
+#    PRINT("Writing to %s"%(excel))
+#    wb.save(excel)
 
 def get_stock_page(stock):
     driver = webdriver.Firefox()
@@ -419,6 +663,13 @@ def get_stock_page(stock):
     for i in range(len(stock)):
         elem.send_keys(str(stock[i]))
         time.sleep(100.0/1000.0)
+        #s = Select(elem)
+        #driver.find_element_by_css_selector("button.btn.btn-default").click()
+        #opts = WebDriverWait(driver, 10).until(
+        #    EC.element_to_be_clickable((By.ID, "txtStock")))
+        #print(opts.text)
+        #attr=driver.find_element_by_name('txtStock').get_attribute('innerHTML')
+        #attr=elem.get_attribute('innerHTML')
     #elem.send_keys(stock, Keys.ARROW_DOWN)
     time.sleep(2)
     elem.send_keys(Keys.RETURN)
@@ -428,8 +679,8 @@ def get_stock_page(stock):
     #PRINT_DBG(str(html_src))
 
     if driver.current_url == old_url:
-        PRINT_DBG("Unable to parse %r" %(stock))
-        f = open("unparsed_stocks.txt", "a")
+        PRINT("Unable to parse %r" %(stock))
+        f = open("unparsed_stocks2.txt", "a")
         f.write(stock)
         f.write("\n")
         f.close()
@@ -469,10 +720,15 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    for i in range(3986,sheet.nrows):
-    #for i in range(1,10):
-        PRINT("%r: %r" %(i, sheet.cell_value(i, 2)))
-        get_stock_page(sheet.cell_value(i,2))
+    with open("unparsed_stocks.txt") as f:
+        for line in f:
+            print(line)
+            get_stock_page(line)
+
+#    for i in range(3986,sheet.nrows):
+#    #for i in range(1,10):
+#        PRINT("%r: %r" %(i, sheet.cell_value(i, 2)))
+#        get_stock_page(sheet.cell_value(i,2))
         
 #    f = open('NSE_Stocks.csv')
 #    #f = open('BSE_Stocks.csv')
@@ -627,12 +883,12 @@ def populate_stock(html_page):
         divTag2 = divTag2.find_next("div")
 
     li = divTag2.ul.li
-    # FII Stake
+    # conf.FII Stake
     #pshare = divTag2.ul.li.get_text()
     pshare = li.get_text()
     stk.bscs.fii_stake = p2f(pshare.lstrip())
     li = li.find_next("li")
-    # DII Stake
+    # conf.DII Stake
     #pshare = divTag2.ul.li.find_next_sibling("li").get_text()
     pshare = li.get_text()
     stk.bscs.dii_stake = p2f(pshare.lstrip())
@@ -793,8 +1049,8 @@ def print_stock_info(stk):
     PRINT("Promoter Stake: %r" %(stk.bscs.promoter_stake))
     PRINT("Corporate Stake: %r" %(stk.bscs.corp_stake))
     PRINT("Public Stake: %r" %(stk.bscs.pub_stake))
-    PRINT("FII Stake: %r" % (stk.bscs.fii_stake))
-    PRINT("DII Stake: %r" % (stk.bscs.dii_stake))
+    PRINT("conf.FII Stake: %r" % (stk.bscs.fii_stake))
+    PRINT("conf.DII Stake: %r" % (stk.bscs.dii_stake))
     PRINT("Others Stake: %r" % (stk.bscs.others_stake))
 
 def calculate_growth(fig, row):
@@ -818,13 +1074,23 @@ def calculate_growth(fig, row):
     if first <= 0:
         first = 1
         last += abs(first)+1
-    g1 = round(((last/first)**(1/years)-1), 2) * years / 10
+    growth = round(((last/first)**(1/years)-1), 2) * years / 10
     #g2 = round(((last/mid)**(1/mid_len)-1), 2) * mid_len / 10
-    return g1
+
+#   if len(fig.entries[row]) >= 5:
+#       first = fig.entries[-5]
+#        g5 = round(((last / first) ** (1/5) - 1), 2) * 5/10
+#        ash.write()
+#    if len(fig.entries[row]) >= 3:
+#        first = fig.entries[-3]
+#        g3 = round(((last / first) ** (1/3) - 1), 2) * 3/10
+
+    return growth
     #return min(g1,g2)
 
 # Calcuate numbers
-def calculate_numbers(stk):
+def calculate_dcf(com, ash, stk):
+#    global conf.COUNT
     growth  = [0] * (GROWTH_PARAMS)
     fig = stk.fig
     i = 0
@@ -904,7 +1170,6 @@ def calculate_numbers(stk):
     PRINT("Earnings for 20 years : %r " % (round(sum(stk.num.eps_20yr),2)))
     #PRINT("Len : %r" %(len(stk.num.eps_20yr)))
 
-    sym = u"\u20B9"
     tot_eps = sum(stk.num.eps_20yr)
     if tot_eps <= 0:
         tot_eps = 0
@@ -917,14 +1182,17 @@ def calculate_numbers(stk):
         stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
         stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
         stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
-        PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, sym, stk.num.inflated_eps_price))
-        PRINT("Price at 50 percent MoS: %s%r" %(sym, stk.num.dcf_price))
-        PRINT("Current Price: %s%r" %(sym, stk.bscs.price))
+        PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, RUPEE, stk.num.inflated_eps_price))
+        PRINT("Price at 50 percent MoS: %s%r" %(RUPEE, stk.num.dcf_price))
+        PRINT("Current Price: %s%r" %(RUPEE, stk.bscs.price))
         PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
         PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
     if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
-        write_to_excel(stk)
+        conf.COUNT+=1
+        write_to_excel(com, ash, stk)
+        return True
+    return False
 
 #Return a html page for a given URL
 def get_html(url):
@@ -949,30 +1217,45 @@ def get_stock_info(stock_page):
     html.close()
     return stk
 
-
 def main():
 #    files = glob.glob("./html_pages/*")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-#    #files = glob.glob("./html_pages/LT FOODS LTD..html")
+    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-#    for stock_page in files:
-#        print(stock_page)
-#        stock = get_stock_info(stock_page)
-#        if not stock:
-#            continue
-#        if stock.bscs.volume < 50000:
-#            continue
-#        if stock.bscs.price < 1:
-#            continue
-#        print_stock_info(stock)
-#        stock.num.inflation = 0.08
-#        stock.num.discount_rate = 0.0
-#        stock.num.margin_of_safety = 0.5
-#        calculate_numbers(stock)
-#        stock=None
 
-     get_all_stocks_html()
+    # All Stocks Excel File
+    all_stk = xlwt.Workbook()
+    ash = all_stk.add_sheet("All Stocks")
+    add_header(ash)
+
+
+    for stock_page in files:
+        print(stock_page)
+        stock = get_stock_info(stock_page)
+        if not stock:
+            continue
+        if stock.bscs.volume < 50000:
+            continue
+        if stock.bscs.price < 1:
+            continue
+        print_stock_info(stock)
+        stock.num.inflation = 0.08
+        stock.num.discount_rate = 0.0
+        stock.num.margin_of_safety = 0.5
+
+        #Company Excel File
+        com = xlwt.Workbook()
+        if calculate_dcf(com, ash, stock):
+            excel = "excel_files/%s.xls" % (stock.bscs.name)
+            PRINT("Writing to %s" % (excel))
+            com.save(excel)
+
+        stock=None
+        com=None
+
+    all_stk.save("excel_files/All_Stocks.xls")
+#     get_all_stocks_html()
 
 main()
 
