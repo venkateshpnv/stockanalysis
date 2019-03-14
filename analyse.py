@@ -420,13 +420,13 @@ def add_header(sheet):
     i+=1
     # conf.FII
     sheet.col(i).width = 4*367
-    sheet.write(0, i, "conf.FII", style_wrap)
+    sheet.write(0, i, "FII", style_wrap)
     conf.FII=i
 
     i+=1
     # conf.DII
     sheet.col(i).width = 4*367
-    sheet.write(0, i, "conf.DII", style_wrap)
+    sheet.write(0, i, "DII", style_wrap)
     conf.DII=i
 
     i+=1
@@ -463,9 +463,9 @@ def write_to_excel(com, ash, stk):
 
     sheet.write(i, 3, "Promoter Stake")
     sheet.write(i, 4, stk.bscs.promoter_stake, style_percent)
-    ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake, style_percent)
-    ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake, style_percent)
-    ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake, style_percent)
+    ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake/100, style_percent)
 
     i += 1 #row 5
     sheet.write(i, 0, "Symbol")
@@ -473,7 +473,7 @@ def write_to_excel(com, ash, stk):
     ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol)
 
     sheet.write(i, 3, "Public Stake")
-    sheet.write(i, 4, stk.bscs.pub_stake, style_percent)
+    sheet.write(i, 4, stk.bscs.pub_stake/100, style_percent)
 
     i += 1 #row 6
     sheet.write(i, 0, "Price")
@@ -616,7 +616,7 @@ def write_to_excel(com, ash, stk):
     i += 2 #row 36
     sheet.write(i, 0, "Earnings after 20 years")
     sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
-    ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
+    ash.write(conf.COUNT, conf.DCF_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
 
     i += 1 #row 37
     sheet.write(i, 0, "Today's Value with Inflation")
@@ -656,32 +656,52 @@ def write_to_excel(com, ash, stk):
 
 def get_stock_page(stock):
     driver = webdriver.Firefox()
-    #driver.get("http://www.google.com")
-    #elem = driver.find_element_by_name("q")
     driver.get("http://www.ratestar.in/home")
     old_url = driver.current_url
     elem = driver.find_element_by_name("txtStock")
-    #driver.get("http://www.python.org")
-    #assert "Python" in driver.title
-    #elem = driver.find_element_by_name("q")
-    
-    #stock='LT Foods Ltd.'
+
     elem.clear()
     for i in range(len(stock)):
         elem.send_keys(str(stock[i]))
-        time.sleep(100.0/1000.0)
+        time.sleep(1)
+        #divs = driver.find_element_by_xpath()
         #s = Select(elem)
         #driver.find_element_by_css_selector("button.btn.btn-default").click()
-        #opts = WebDriverWait(driver, 10).until(
-        #    EC.element_to_be_clickable((By.ID, "txtStock")))
-        #print(opts.text)
+        opts = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+                (By.ID, 'listPlacementStock')))
+        time.sleep(1)
+        #soup = BeautifulSoup(driver.page_source, 'html.parser')
+        #div = soup.find("div", {"id": "listPlacementStock"})
+        ##print(div.prettify())
+        #items = div.find_all("div", {"class": "autocomplete_listItem"})
+        #print(len(items))
+        #print(items)
+        print("Opts: %r : %r" %(len(opts.text), opts.text))
+
+        #if len(items) == 1:
+        if len(opts.text) == 0:
+            PRINT("Unable to parse %r" % (stock))
+            f = open("unparsed_stocks2.txt", "a")
+            f.write(stock)
+            f.write("\n")
+            f.close()
+            driver.close()
+            return
+        if not '\n' in opts.text:
+            stock_name = opts.text
+            #time.sleep(5)
+            elem.send_keys(Keys.RETURN)
+            break
+
         #attr=driver.find_element_by_name('txtStock').get_attribute('innerHTML')
         #attr=elem.get_attribute('innerHTML')
     #elem.send_keys(stock, Keys.ARROW_DOWN)
-    time.sleep(2)
-    elem.send_keys(Keys.RETURN)
+    #time.sleep(2)
+    #elem.send_keys(Keys.RETURN)
     
-    time.sleep(20)
+    #time.sleep(20)
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+        (By.ID, 'lblCompany')))
     html_src=driver.page_source
     #PRINT_DBG(str(html_src))
 
@@ -693,7 +713,7 @@ def get_stock_page(stock):
         f.close()
     else:
         #PRINT_DBG("Found stock %r" %(stock))
-        html_file = "html_pages/%s.html" %(stock)  
+        html_file = "html_pages/%s.html" %(stock_name)
         f = open(html_file, "w")
         f.write(html_src)
         f.close()
@@ -1114,7 +1134,7 @@ def calculate_dcf(com, ash, stk):
     stk.fig.cash_growth   = growth[i]   = calculate_growth(fig, CASH)
     i+=1
     stk.fig.book_growth   = growth[i]   = calculate_growth(fig, BOOK)
-    PRINT_DBG("Growth of entries: %r"%(growth))
+    PRINT("Growth of entries: %r"%(growth))
     try:
         stk.fig.growth = min(i for i in growth if i > 0)
     except ValueError:
@@ -1231,53 +1251,53 @@ def get_stock_info(stock_page):
     return stk
 
 def main():
-    files = glob.glob("./html_pages/*")
-#    files = glob.glob("./html_pages/Nila Spaces Ltd.html")
+#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-
-    i=0
-    j=0
-
-    # All Stocks Excel File
-    all_stk = xlwt.Workbook()
-    ash = all_stk.add_sheet("All Stocks")
-    add_header(ash)
-
-
-    for stock_page in files:
-        PRINT(stock_page)
-        stock = get_stock_info(stock_page)
-        if not stock:
-            continue
-        if stock.bscs.volume < 50000:
-            continue
-        if stock.bscs.price < 1:
-            continue
-        print_stock_info(stock)
-        stock.num.inflation = 0.08
-        stock.num.discount_rate = 0.0
-        stock.num.margin_of_safety = 0.5
-
-        #Company Excel File
-        com = xlwt.Workbook()
-        if calculate_dcf(com, ash, stock):
-            excel = "excel_files/%s.xls" % (stock.bscs.name)
-            PRINT("Writing to %s" % (excel))
-            com.save(excel)
-            j+=1
-
-        stock=None
-        com=None
-        i+=1
-
-    PRINT("Stocks Calculated: %r") %(i)
-    PRINT("Stocks DCF Eligible: %r") %(j)
-    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
-    all_stk.save("excel_files/All_Stocks.xls")
-#     get_all_stocks_html()
+#
+#    i=0
+#    j=0
+#
+#    # All Stocks Excel File
+#    all_stk = xlwt.Workbook()
+#    ash = all_stk.add_sheet("All Stocks")
+#    add_header(ash)
+#
+#
+#    for stock_page in files:
+#        PRINT(stock_page)
+#        stock = get_stock_info(stock_page)
+#        if not stock:
+#            continue
+#        if stock.bscs.volume < 50000:
+#            continue
+#        if stock.bscs.price < 1:
+#            continue
+#        print_stock_info(stock)
+#        stock.num.inflation = 0.08
+#        stock.num.discount_rate = 0.0
+#        stock.num.margin_of_safety = 0.5
+#
+#        #Company Excel File
+#        com = xlwt.Workbook()
+#        if calculate_dcf(com, ash, stock):
+#            excel = "excel_files/%s.xls" % (stock.bscs.name)
+#            PRINT("Writing to %s" % (excel))
+#            com.save(excel)
+#            j+=1
+#
+#        stock=None
+#        com=None
+#        i+=1
+#
+#    PRINT("Stocks Calculated: %r" %(i))
+#    PRINT("Stocks DCF Eligible: %r" %(j))
+#    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
+#    all_stk.save("excel_files/All_Stocks.xls")
+    get_all_stocks_html()
 
 main()
 
