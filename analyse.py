@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 #from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.select import Select
+from selenium.common.exceptions import TimeoutException
 
 # Parsing HTML
 import requests 
@@ -689,12 +690,12 @@ def get_stock_page(stock):
         #items = div.find_all("div", {"class": "autocomplete_listItem"})
         #print(len(items))
         #print(items)
-        print("Opts: %r : %r" %(len(opts.text), opts.text))
+        PRINT_DBG("Opts: %r : %r" %(len(opts.text), opts.text))
 
         #if len(items) == 1:
         if len(opts.text) == 0:
             PRINT("Unable to parse %r" % (stock))
-            f = open("unparsed_stocks2.txt", "a")
+            f = open("unparsed_stocks3.txt", "a")
             f.write(stock)
             f.write("\n")
             f.close()
@@ -713,19 +714,27 @@ def get_stock_page(stock):
     #elem.send_keys(Keys.RETURN)
     
     #time.sleep(20)
-    WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located(
         (By.ID, 'lblCompany')))
-    html_src=driver.page_source
+    except TimeoutException:
+        PRINT("Unable to parse %r" %(stock))
+        f = open("unparsed_stocks3.txt", "a")
+        f.write(stock)
+        f.write("\n")
+        f.close()
+        return
     #PRINT_DBG(str(html_src))
 
     if driver.current_url == old_url:
         PRINT("Unable to parse %r" %(stock))
-        f = open("unparsed_stocks2.txt", "a")
+        f = open("unparsed_stocks3.txt", "a")
         f.write(stock)
         f.write("\n")
         f.close()
     else:
         #PRINT_DBG("Found stock %r" %(stock))
+        html_src=driver.page_source
         html_file = "html_pages/%s.html" %(stock_name)
         f = open(html_file, "w")
         f.write(html_src)
@@ -760,7 +769,7 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook("BSE_Stocks.xls")
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-    with open("unparsed_stocks.txt") as f:
+    with open("unparsed_stocks2.txt") as f:
         for line in f:
             PRINT(line)
             get_stock_page(line)
