@@ -654,6 +654,19 @@ def write_to_excel(com, ash, stk):
 #    PRINT("Writing to %s"%(excel))
 #    wb.save(excel)
 
+def get_LTP(sym):
+    url="http://google.com/finance?q=BSE:%s"%(sym)
+    page = requests.get(url)
+
+    soup = BeautifulSoup(page.text, "html.parser")
+    div = soup.find("span", {"style": "font-size:157%"})
+    pr = div.text
+    pr = pr.split()[0]
+    pr = pr.lstrip().rstrip().replace(",", "")
+    pr = float(pr)
+    PRINT_DBG(pr)
+    return pr
+
 def get_stock_page(stock):
     driver = webdriver.Firefox()
     driver.get("http://www.ratestar.in/home")
@@ -1252,12 +1265,12 @@ def get_stock_info(stock_page):
 
 def main():
 #    files = glob.glob("./html_pages/*")
-    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
+#    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-#
+
 #    i=0
 #    j=0
 #
@@ -1276,11 +1289,11 @@ def main():
 #            continue
 #        if stock.bscs.price < 1:
 #            continue
+#        stock.bscs.price = get_LTP(stock.bscs.symbol)
 #        print_stock_info(stock)
 #        stock.num.inflation = 0.08
 #        stock.num.discount_rate = 0.0
 #        stock.num.margin_of_safety = 0.5
-#
 #        #Company Excel File
 #        com = xlwt.Workbook()
 #        if calculate_dcf(com, ash, stock):
