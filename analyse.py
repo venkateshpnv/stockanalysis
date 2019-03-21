@@ -175,6 +175,7 @@ def PRINT_DBG(x):
     None
     #print(x)
 def PRINT(x):
+    #None
     print(x)
 
 def goto(linenum):
@@ -463,7 +464,7 @@ def write_to_excel(com, ash, stk):
     ash.write(conf.COUNT, conf.COMP, stk.bscs.name)
 
     sheet.write(i, 3, "Promoter Stake")
-    sheet.write(i, 4, stk.bscs.promoter_stake, style_percent)
+    sheet.write(i, 4, stk.bscs.promoter_stake/100, style_percent)
     ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake/100, style_percent)
     ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake/100, style_percent)
     ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake/100, style_percent)
@@ -617,11 +618,12 @@ def write_to_excel(com, ash, stk):
     i += 2 #row 36
     sheet.write(i, 0, "Earnings after 20 years")
     sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
-    ash.write(conf.COUNT, conf.DCF_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
+    ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
 
     i += 1 #row 37
     sheet.write(i, 0, "Today's Value with Inflation")
     sheet.write(i, 1, Formula("$B$35 * ((1-$B$17)^20)"), style_decimal)
+    ash.write(conf.COUNT, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
 
     i += 1 #row 38
     sheet.write(i, 0, "Price with Margin of Safety")
@@ -661,6 +663,9 @@ def get_LTP(sym):
 
     soup = BeautifulSoup(page.text, "html.parser")
     div = soup.find("span", {"style": "font-size:157%"})
+    PRINT(div)
+    if not div:
+        return -1
     pr = div.text
     pr = pr.split()[0]
     pr = pr.lstrip().rstrip().replace(",", "")
@@ -826,7 +831,7 @@ def populate(stk, div, row, convert):
 
         val = div2.get_text().lstrip().rstrip().replace(",","")
         #If the value is valid? append else skip
-        if convert == 1 and str_to_float_valid(val):
+        if convert == 1:# and str_to_float_valid(val):
             entry.append(str_to_float(val))
         else:
             entry.append(val)
@@ -875,7 +880,8 @@ def populate_stock(html_page):
     stk.bscs.name = l
 
     # Ticker
-    l=soup.find(id='lblNSE').get_text()
+    l=soup.find(id='lblBSE').get_text()
+    #l=soup.find(id='lblNSE').get_text()
     l = l.split(": ", 1)[1]
     stk.bscs.symbol = l
 
@@ -1243,10 +1249,10 @@ def calculate_dcf(com, ash, stk):
         PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
         PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
-        conf.COUNT+=1
-        write_to_excel(com, ash, stk)
-        return True
+    #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
+    conf.COUNT+=1
+    write_to_excel(com, ash, stk)
+    return True
     return False
 
 #Return a html page for a given URL
@@ -1273,53 +1279,55 @@ def get_stock_info(stock_page):
     return stk
 
 def main():
-#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./html_pages/*")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 
-#    i=0
-#    j=0
-#
-#    # All Stocks Excel File
-#    all_stk = xlwt.Workbook()
-#    ash = all_stk.add_sheet("All Stocks")
-#    add_header(ash)
-#
-#
-#    for stock_page in files:
-#        PRINT(stock_page)
-#        stock = get_stock_info(stock_page)
-#        if not stock:
-#            continue
-#        if stock.bscs.volume < 50000:
-#            continue
-#        if stock.bscs.price < 1:
-#            continue
-#        stock.bscs.price = get_LTP(stock.bscs.symbol)
-#        print_stock_info(stock)
-#        stock.num.inflation = 0.08
-#        stock.num.discount_rate = 0.0
-#        stock.num.margin_of_safety = 0.5
-#        #Company Excel File
-#        com = xlwt.Workbook()
-#        if calculate_dcf(com, ash, stock):
-#            excel = "excel_files/%s.xls" % (stock.bscs.name)
-#            PRINT("Writing to %s" % (excel))
-#            com.save(excel)
-#            j+=1
-#
-#        stock=None
-#        com=None
-#        i+=1
-#
-#    PRINT("Stocks Calculated: %r" %(i))
-#    PRINT("Stocks DCF Eligible: %r" %(j))
-#    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
-#    all_stk.save("excel_files/All_Stocks.xls")
-    get_all_stocks_html()
+    i=0
+    j=0
+
+    # All Stocks Excel File
+    all_stk = xlwt.Workbook()
+    ash = all_stk.add_sheet("All Stocks")
+    add_header(ash)
+
+
+    for stock_page in files:
+        PRINT(stock_page)
+        stock = get_stock_info(stock_page)
+        if not stock:
+            continue
+        if stock.bscs.volume < 50000:
+            continue
+        if stock.bscs.price < 1:
+            continue
+#        val = get_LTP(stock.bscs.symbol)
+#        if val != -1:
+#            stock.bscs.price = val
+        print_stock_info(stock)
+        stock.num.inflation = 0.08
+        stock.num.discount_rate = 0.0
+        stock.num.margin_of_safety = 0.5
+        #Company Excel File
+        com = xlwt.Workbook()
+        if calculate_dcf(com, ash, stock):
+            excel = "excel_files/%s.xls" % (stock.bscs.name)
+            PRINT("Writing to %s" % (excel))
+            com.save(excel)
+            j+=1
+
+        stock=None
+        com=None
+        i+=1
+
+    PRINT("Stocks Calculated: %r" %(i))
+    PRINT("Stocks DCF Eligible: %r" %(j))
+    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
+    all_stk.save("excel_files/All_Stocks.xls")
+#    get_all_stocks_html()
 
 main()
 
