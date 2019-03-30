@@ -58,6 +58,8 @@ indices+=1
 #Profit After Taxes
 PAT = indices
 indices+=1
+PAT_M = indices
+indices+=1
 #Unadjusted EPS
 EPS = indices
 indices+=1
@@ -65,7 +67,16 @@ CASH = indices
 indices+=1
 BOOK = indices
 indices+=1
+ROA = indices
+indices+=1
+ROE = indices
+indices+=1
+ROCE = indices
+indices+=1
 DtoE = indices
+indices+=1
+#Interest Coverage
+INTR = indices
 indices+=1
 
 #Rupee ASCII in excel
@@ -91,6 +102,7 @@ class Basics:
         self.others_stake   = 0
         self.face_value     = 0
         self.volume         = 0
+        self.mcap           = 0
 
 class Ratios:
     def __init(self):
@@ -230,10 +242,25 @@ style_decimal = xlwt.Style.easyxf(num_format_str="0.00")
 #TODO bold decimal style
 style_wrap = xlwt.XFStyle()
 style_wrap.alignment.wrap = 1
+style_wrap.alignment.horz = xlwt.Alignment.HORZ_RIGHT
 style_wrap.font.bold = 1
 style_wrap.font.height = 10 * 20 #(10 pt)
 
+style_text = xlwt.XFStyle()
+style_text.alignment.wrap = 1
+style_text.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+#style_text.font.bold = 0
+style_text.font.height = 10 * 20 #(10 pt)
+
+style_num = xlwt.XFStyle()
+style_num.alignment.wrap = 1
+style_num.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+#style_text.font.bold = 0
+style_num.font.height = 10 * 20 #(10 pt)
+
 def add_header(sheet):
+    sheet.row(0).height_mismatch = True
+    sheet.row(0).height = 3*367
     i=1
     #Company
     sheet.col(i).width = 15*367
@@ -248,7 +275,7 @@ def add_header(sheet):
 
     i+=1
     #Current Price
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Current Price", style_wrap)
     conf.CUR_PR=i
 
@@ -285,7 +312,7 @@ def add_header(sheet):
 
     i+=1
     #Volume
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 7*367
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
 
@@ -297,25 +324,25 @@ def add_header(sheet):
 
     i+=1
     # 10 yr Sales Growth
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "10 yr Sales Gr", style_wrap)
     conf.TEN_SAL=i
 
     i+=1
     # 10 yr Profit Growth
-    sheet.col(i).width = 6*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "10 yr Profit Gr", style_wrap)
     conf.TEN_PR=i
 
     i+=1
     #10 yr Book Value Growth
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "10 yr Book Gr", style_wrap)
     conf.TEN_BK=i
 
     i+=1
     # 10 yr Cash Growth
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "10 yr Cash Gr", style_wrap)
     conf.TEN_CSH=i
 
@@ -381,7 +408,7 @@ def add_header(sheet):
 
     i+=1
     # DtoTE
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "DtoTE", style_wrap)
     conf.DTOTE=i
 
@@ -417,19 +444,19 @@ def add_header(sheet):
 
     i+=1
     # Market Cap in Cr
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 8*367
     sheet.write(0, i, "Market Cap", style_wrap)
     conf.MCAP=i
 
     i+=1
     # conf.FII
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "FII", style_wrap)
     conf.FII=i
 
     i+=1
     # conf.DII
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "DII", style_wrap)
     conf.DII=i
 
@@ -463,7 +490,7 @@ def write_to_excel(com, ash, stk):
     i += 1 #row 4
     sheet.write(i, 0, "Name")
     sheet.write(i, 1, stk.bscs.name)
-    ash.write(conf.COUNT, conf.COMP, stk.bscs.name)
+    ash.write(conf.COUNT, conf.COMP, stk.bscs.name, style_text)
 
     sheet.write(i, 3, "Promoter Stake")
     sheet.write(i, 4, stk.bscs.promoter_stake/100, style_percent)
@@ -474,7 +501,7 @@ def write_to_excel(com, ash, stk):
     i += 1 #row 5
     sheet.write(i, 0, "Symbol")
     sheet.write(i, 1, stk.bscs.symbol)
-    ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol)
+    ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
 
     sheet.write(i, 3, "Public Stake")
     sheet.write(i, 4, stk.bscs.pub_stake/100, style_percent)
@@ -652,7 +679,15 @@ def write_to_excel(com, ash, stk):
     sheet.write(i, 0, "Rate of return at MoS Price")
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
     ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
-    
+   
+   #Ratios
+    ash.write(conf.COUNT, conf.DTOTE, stk.fig.entries[DtoE][-1])
+    ash.write(conf.COUNT, conf.INT_C, stk.fig.entries[INTR][-1])
+    ash.write(conf.COUNT, conf.ROE, stk.fig.entries[ROE][-1])
+    ash.write(conf.COUNT, conf.ROA, stk.fig.entries[ROA][-1])
+    ash.write(conf.COUNT, conf.ROCE, stk.fig.entries[ROCE][-1])
+    ash.write(conf.COUNT, conf.PRF_M, stk.fig.entries[PAT_M][-1]/100, style_percent)
+    ash.write(conf.COUNT, conf.MCAP, stk.bscs.mcap, style_num)
     ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_PR, stk.fig.profit_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_BK, stk.fig.book_growth, style_percent)
@@ -837,7 +872,7 @@ def populate(stk, div, row, convert):
                 PRINT_DBG("Next: %r" %(div2))
                 continue
 
-        val = div2.get_text().lstrip().rstrip().replace(",","")
+        val = div2.get_text().lstrip().rstrip().replace(",","").replace("%","")
         #If the value is valid? append else skip
         if convert == 1:# and str_to_float_valid(val):
             entry.append(str_to_float(val))
@@ -920,6 +955,14 @@ def populate_stock(html_page):
         return None
 
     PRINT_DBG("Volume %r" %(stk.bscs.volume))
+
+    #Market Cap
+    try:
+        l=soup.find(id='lblMCap').get_text()
+    except:
+        return None
+    stk.bscs.mcap = l
+
 
     #soup=BeautifulSoup(html_page,'lxml')     
     # Promoter Stake
@@ -1026,6 +1069,11 @@ def populate_stock(html_page):
     PRINT_DBG("PAT: %r" %(PAT))
     calculate_PAT(stk)
 
+    #PAT Margin
+    pattern = re.compile(r'PAT Margin\n')
+    populate_item(stk, pattern, annual_cons, PAT_M, 1)
+    PRINT_DBG(stk.fig.entries[PAT_M])
+ 
     #EPS
     PRINT_DBG("EPS: %r, indices: %r" %(EPS, indices))
     pattern = re.compile(r'Unadjusted EPS\n')
@@ -1096,6 +1144,36 @@ def populate_stock(html_page):
         populate(stk, div, BOOK, 1)
         PRINT_DBG(stk.fig.entries[BOOK])
 
+    # Retrieve ROA
+    PRINT_DBG("ROA")
+    pattern = re.compile(r'ROA')
+    div = fin.find(text=pattern)
+    if div:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, ROA, 1)
+        PRINT_DBG(stk.fig.entries[ROA])
+
+    # Retrieve ROE
+    PRINT_DBG("ROE")
+    pattern = re.compile(r'ROE')
+    div = fin.find(text=pattern)
+    if div:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, ROE, 1)
+        PRINT_DBG(stk.fig.entries[ROE])
+
+    # Retrieve ROCE
+    PRINT_DBG("ROCE")
+    pattern = re.compile(r'ROCE')
+    div = fin.find(text=pattern)
+    if div:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, ROCE, 1)
+        PRINT_DBG(stk.fig.entries[ROCE])
+
     # Retrieve Total Debt/Equity
     PRINT_DBG("Total Debt/Equity")
     pattern = re.compile(r'Total Debt/Equity')
@@ -1105,6 +1183,17 @@ def populate_stock(html_page):
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, DtoE, 1)
         PRINT_DBG(stk.fig.entries[DtoE])
+
+    # Retrieve Total Debt/Equity
+    PRINT_DBG("Interest Coverage")
+    pattern = re.compile(r'Interest Cover')
+    div = fin.find(text=pattern)
+    if div:
+        div = div.parent
+        div = div.find_next("div", {"class": "CHead"})
+        populate(stk, div, INTR, 1)
+        PRINT_DBG(stk.fig.entries[INTR])
+
 
 ############# FIGURES ##################
     return stk
@@ -1287,10 +1376,10 @@ def get_stock_info(stock_page):
     return stk
 
 def main():
-#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./html_pages/*")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-    files = glob.glob("./html_pages/LT FOODS LTD..html")
+#    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 
