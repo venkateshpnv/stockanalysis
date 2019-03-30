@@ -38,6 +38,8 @@ import math
 #Print Line number
 from inspect import currentframe
 
+import datetime
+
 MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
@@ -317,53 +319,53 @@ def add_header(sheet):
     sheet.write(0, i, "10 yr Cash Gr", style_wrap)
     conf.TEN_CSH=i
 
-    i+=1
-    # 5 yr Sales Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "5 yr Sales Gr", style_wrap)
-    conf.FIVE_SAL=i
-
-    i+=1
-    # 5 yr Profit Growth
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "5 yr Profit Gr", style_wrap)
-    conf.FIVE_PR=i
-
-    i+=1
-    # 5 yr Book Value Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "5 yr Book Gr", style_wrap)
-    conf.FIVE_BK=i
-
-    i+=1
-    # 5 yr Cash Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "5 yr Cash Gr", style_wrap)
-    conf.FIVE_CSH=i
-
-    i+=1
-    # 3 yr Sales Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "3 yr Sales Gr", style_wrap)
-    conf.THREE_SAL=i
-
-    i+=1
-    # 3 yr Profit Growth
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "3 yr Profit Gr", style_wrap)
-    conf.THREE_PR=i
-
-    i+=1
-    # 3 yr Book Value Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "3 yr Book Gr", style_wrap)
-    conf.THREE_BK=i
-
-    i+=1
-    # 3 yr Cash Growth
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "3 yr Cash Gr", style_wrap)
-    conf.THREE_CSH=i
+#    i+=1
+#    # 5 yr Sales Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "5 yr Sales Gr", style_wrap)
+#    conf.FIVE_SAL=i
+#
+#    i+=1
+#    # 5 yr Profit Growth
+#    sheet.col(i).width = 6*367
+#    sheet.write(0, i, "5 yr Profit Gr", style_wrap)
+#    conf.FIVE_PR=i
+#
+#    i+=1
+#    # 5 yr Book Value Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "5 yr Book Gr", style_wrap)
+#    conf.FIVE_BK=i
+#
+#    i+=1
+#    # 5 yr Cash Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "5 yr Cash Gr", style_wrap)
+#    conf.FIVE_CSH=i
+#
+#    i+=1
+#    # 3 yr Sales Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "3 yr Sales Gr", style_wrap)
+#    conf.THREE_SAL=i
+#
+#    i+=1
+#    # 3 yr Profit Growth
+#    sheet.col(i).width = 6*367
+#    sheet.write(0, i, "3 yr Profit Gr", style_wrap)
+#    conf.THREE_PR=i
+#
+#    i+=1
+#    # 3 yr Book Value Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "3 yr Book Gr", style_wrap)
+#    conf.THREE_BK=i
+#
+#    i+=1
+#    # 3 yr Cash Growth
+#    sheet.col(i).width = 4*367
+#    sheet.write(0, i, "3 yr Cash Gr", style_wrap)
+#    conf.THREE_CSH=i
 
     i+=1
     # Face Value
@@ -650,6 +652,11 @@ def write_to_excel(com, ash, stk):
     sheet.write(i, 0, "Rate of return at MoS Price")
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
     ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
+    
+    ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_PR, stk.fig.profit_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_BK, stk.fig.book_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_CSH, stk.fig.cash_growth, style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
 
 #    excel = "excel_files/%s.xls" %(stk.bscs.name)
@@ -658,9 +665,10 @@ def write_to_excel(com, ash, stk):
 #    wb.save(excel)
 
 def get_LTP(sym):
-    url="http://google.com/finance?q=BSE:%s"%(sym)
+    url="https://finance.google.com/finance?q=%s&output=json"%(sym)
+    #url="http://google.com/finance?q=BSE:%s"%(sym)
     page = requests.get(url)
-
+    #print(page.text)
     soup = BeautifulSoup(page.text, "html.parser")
     div = soup.find("span", {"style": "font-size:157%"})
     PRINT(div)
@@ -1279,10 +1287,10 @@ def get_stock_info(stock_page):
     return stk
 
 def main():
-    files = glob.glob("./html_pages/*")
+#    files = glob.glob("./html_pages/*")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
-#    files = glob.glob("./html_pages/LT FOODS LTD..html")
+    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 
@@ -1304,9 +1312,9 @@ def main():
             continue
         if stock.bscs.price < 1:
             continue
-#        val = get_LTP(stock.bscs.symbol)
-#        if val != -1:
-#            stock.bscs.price = val
+        val = get_LTP(stock.bscs.symbol)
+        if val != -1:
+            stock.bscs.price = val
         print_stock_info(stock)
         stock.num.inflation = 0.08
         stock.num.discount_rate = 0.0
@@ -1325,8 +1333,11 @@ def main():
 
     PRINT("Stocks Calculated: %r" %(i))
     PRINT("Stocks DCF Eligible: %r" %(j))
-    PRINT("Saving DCF stocks to excel_files/All_Stocks.xls")
-    all_stk.save("excel_files/All_Stocks.xls")
+    now = datetime.datetime.now()
+    excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
+    PRINT("Saving DCF stocks to %s"%(excel))
+    all_stk.save(excel)
+    #all_stk.save("excel_files/All_Stocks.xls")
 #    get_all_stocks_html()
 
 main()
