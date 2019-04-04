@@ -32,13 +32,13 @@ import re
 #List Files
 #import os
 import glob
-
 import math
-
 #Print Line number
 from inspect import currentframe
-
 import datetime
+import json
+import pprint
+import pymongo
 
 MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
@@ -126,7 +126,8 @@ class Figures:
     # row 4 - book value
     # 20 years of data of sales, profit etc
     #entries = [[0] * MAX_YEARS for i in range(indices)]
-    entries = []
+    #entries = list()
+    entries = list()
     # number of years of data we have for each field.
     # ex: 10 years of book value, 8 years of cash flow etc.
     #fig_years = [0] * (indices)
@@ -135,7 +136,7 @@ class Figures:
     def __init(self):
         self.ttm_eps = 0
         # Long Term Debt
-        self.lt_debt = 0
+        #self.lt_debt = 0
         self.sales_growth  = 0
         self.profit_growth = 0
         self.cash_growth = 0
@@ -143,7 +144,8 @@ class Figures:
         self.growth = 0
         #self.entries = [[0] * MAX_YEARS for i in range(indices)]
         #self.entries = [[0 for i in range(MAX_YEARS)] for j in range(indices)]
-        self.entries = [0 for i in range(indices)]
+        self.entries = [[0 for i in range(1)] for j in range(indices)]
+        #self.entries = [0 for i in range(indices)]
         #self.fig_years = [indices]
         #self.fig_years = [0 for i in range(indices)]
 
@@ -179,18 +181,19 @@ class Numbers:
 
 class Stock:
     def __init__(self):
-        self.name = "Hello"
         self.bscs = Basics()
-        self.fig  = Figures()
         self.num  = Numbers()
+        self.fig  = Figures()
 
 #Supportive calls
+def PRINT_ERR(x):
+    print(x)
 def PRINT_DBG(x):
     None
     #print(x)
 def PRINT(x):
-    #None
-    print(x)
+    None
+    #print(x)
 
 def goto(linenum):
     global line
@@ -716,6 +719,100 @@ def get_LTP(sym):
     PRINT_DBG(pr)
     return pr
 
+def build_json_object(stock):
+    y=json.dumps(stock, indent=4, default=lambda x:x.__dict__)
+    #print(y)
+    obj = json.loads(y)
+    obj['fig']['Years'] = stock.fig.entries[YEARS]
+    obj['fig']['Sales'] = stock.fig.entries[SALES]
+    obj['fig']['Profit Before Taxes'] = stock.fig.entries[PBT]
+    obj['fig']['Taxes'] = stock.fig.entries[TAX]
+    obj['fig']['Profit After Taxes'] = stock.fig.entries[PAT]
+    obj['fig']['Profit Margin'] = stock.fig.entries[PAT_M]
+    obj['fig']['EPS'] = stock.fig.entries[EPS]
+    obj['fig']['Operating Cash Flow'] = stock.fig.entries[CASH]
+    obj['fig']['Book Value'] = stock.fig.entries[BOOK]
+    obj['fig']['Return on Equity'] = stock.fig.entries[ROE]
+    obj['fig']['Return on Assets'] = stock.fig.entries[ROA]
+    obj['fig']['Return on Capital Expenditure'] = stock.fig.entries[ROCE]
+    obj['fig']['Total Debt to Equity'] = stock.fig.entries[DtoE]
+    obj['fig']['Interest Coverage'] = stock.fig.entries[INTR]
+    PRINT_DBG(json.dumps(obj, indent=4, default=lambda o:o.__dict__))
+    return obj
+ 
+def get_split_data(stock):
+    driver = webdriver.Firefox()
+    driver.get("https://www.motilaloswal.com/")
+    old_url = driver.current_url
+    elem = driver.find_element_by_id("txtAutocompleteHome")
+
+    elem.clear()
+    for i in range(len(stock)):
+        elem.send_keys(str(stock[i]))
+        time.sleep(100/1000)
+
+    #divs = driver.find_element_by_xpath()
+    #s = Select(elem)
+    #driver.find_element_by_css_selector("button.btn.btn-default").click()
+    opts = WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+            (By.CLASS_NAME, 'ui-menu-item')))
+    time.sleep(1)
+    #soup = BeautifulSoup(driver.page_source, 'html.parser')
+    #div = soup.find("div", {"id": "listPlacementStock"})
+    ##print(div.prettify())
+    #items = div.find_all("div", {"class": "autocomplete_listItem"})
+    #print(len(items))
+    #print(items)
+    PRINT("Opts: %r : %r" %(len(opts.text), opts.text))
+
+    #if len(items) == 1:
+    if len(opts.text) == 0:
+        PRINT("Unable to get %r" % (stock))
+        f = open("unparsed_stocks3.txt", "a")
+        f.write(stock)
+        f.write("\n")
+        f.close()
+        driver.close()
+        return
+    if not '\n' in opts.text:
+        stock_name = opts.text
+        elem.send_keys(stock, Keys.ARROW_DOWN)
+        time.sleep(100/1000)
+        elem.send_keys(Keys.RETURN)
+#
+#        #attr=driver.find_element_by_name('txtStock').get_attribute('innerHTML')
+#        #attr=elem.get_attribute('innerHTML')
+#    #elem.send_keys(stock, Keys.ARROW_DOWN)
+#    #time.sleep(2)
+#    #elem.send_keys(Keys.RETURN)
+#    
+#    #time.sleep(20)
+#    try:
+#        WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+#        (By.ID, 'lblCompany')))
+#    except TimeoutException:
+#        PRINT("Unable to parse %r" %(stock))
+#        f = open("unparsed_stocks3.txt", "a")
+#        f.write(stock)
+#        f.write("\n")
+#        f.close()
+#        return
+#    #PRINT_DBG(str(html_src))
+#
+#    if driver.current_url == old_url:
+#        PRINT("Unable to parse %r" %(stock))
+#        f = open("unparsed_stocks3.txt", "a")
+#        f.write(stock)
+#        f.write("\n")
+#        f.close()
+#    else:
+#        #PRINT_DBG("Found stock %r" %(stock))
+#        html_src=driver.page_source
+#        html_file = "html_pages/%s.html" %(stock_name)
+#        f = open(html_file, "w")
+#        f.write(html_src)
+#        f.close()
+ 
 def get_stock_page(stock):
     driver = webdriver.Firefox()
     driver.get("http://www.ratestar.in/home")
@@ -889,8 +986,9 @@ def populate(stk, div, row, convert):
     entry.reverse()
     if convert:
         entry = list(map(float, entry))
-    #stk.fig.entries.append(entry)
-    stk.fig.entries.insert(row, entry)
+    #stk.fig.entries[row] = entry.copy()
+    stk.fig.entries.append(entry)
+    #stk.fig.entries.insert(row, entry)
     #PRINT_DBG("Entries:")
     #PRINT_DBG(stk.fig.entries[row])
 
@@ -901,7 +999,8 @@ def populate(stk, div, row, convert):
 def populate_item(stk, pattern, section, row, convert):
     div = section.find("div", text=pattern)
     if not div:
-        PRINT("No Match")
+        PRINT_ERR("No Match")
+        PRINT_ERR(pattern)
         return False
     div = div.parent
     div = div.find_next("div", {"class": "CHead"})
@@ -961,7 +1060,7 @@ def populate_stock(html_page):
         l=soup.find(id='lblMCap').get_text()
     except:
         return None
-    stk.bscs.mcap = l
+    stk.bscs.mcap = float(l.lstrip().rstrip().replace(",", ""))
 
 
     #soup=BeautifulSoup(html_page,'lxml')     
@@ -1119,12 +1218,13 @@ def populate_stock(html_page):
     #f.close()
     fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Cons"})
     if fin:
-        if fin.has_attr("style") and str(fin['style']) == 'display: none;':
-            PRINT("Fin Ratios Display None")
-            fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
-            if not fin:
-                PRINT("Unable to find Financial Ratios, skipping stock")
-                return None
+        PRINT_DBG(fin)
+        #if fin.has_attr("style") and str(fin['style']) == 'display: none;':
+        #    PRINT("Fin Ratios Display None")
+        #    fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
+        #    if not fin:
+        #        PRINT("Unable to find Financial Ratios, skipping stock")
+        #        return None
     else:
         fin = fin_ratios.find("div", {"id": "DivFinancialRatios_Std"})
         if not fin:
@@ -1137,7 +1237,8 @@ def populate_stock(html_page):
     pattern = re.compile(r'Book Value')
     div = fin.find(text=pattern)
     if not div:
-        populate_dummy(stk, BOOK)
+        PRINT_ERR("Unable to get Book Value")
+        #populate_dummy(stk, BOOK)
     else:
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
@@ -1350,7 +1451,6 @@ def calculate_dcf(com, ash, stk):
     conf.COUNT+=1
     write_to_excel(com, ash, stk)
     return True
-    return False
 
 #Return a html page for a given URL
 def get_html(url):
@@ -1368,6 +1468,19 @@ def get_html(url):
 #
 #    return resp.text
 
+def open_db():
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client['Stocks']
+    return db
+
+def close_db(db):
+    PRINT("hello")
+
+def write_to_collection(col, doc):
+    col.insert_one(doc)
+    #x = col.find_one()
+    #print(x)
+
 # Get stock information of "stock_name"
 def get_stock_info(stock_page):
     html = open(stock_page)
@@ -1378,22 +1491,22 @@ def get_stock_info(stock_page):
 def main():
     files = glob.glob("./html_pages/*")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
-#    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
+#    files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #    files = glob.glob("./html_pages/LT FOODS LTD..html")
-#    #files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
+#    files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 
     i=0
     j=0
+    db = open_db()
 
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
     add_header(ash)
 
-
     for stock_page in files:
-        PRINT(stock_page)
+        print(stock_page)
         stock = get_stock_info(stock_page)
         if not stock:
             continue
@@ -1403,6 +1516,7 @@ def main():
             continue
         val = get_LTP(stock.bscs.symbol)
         if val != -1:
+            PRINT_ERR("Unable to get LTP for %s"%(stock.bscs.name))
             stock.bscs.price = val
         print_stock_info(stock)
         stock.num.inflation = 0.08
@@ -1415,17 +1529,20 @@ def main():
             PRINT("Writing to %s" % (excel))
             com.save(excel)
             j+=1
+        obj = build_json_object(stock)
+        write_to_collection(db['Indian_Stocks'], obj)
 
         stock=None
         com=None
         i+=1
 
-    PRINT("Stocks Calculated: %r" %(i))
-    PRINT("Stocks DCF Eligible: %r" %(j))
+    print("Stocks Calculated: %r" %(i))
+    print("Stocks DCF Eligible: %r" %(j))
     now = datetime.datetime.now()
     excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-    PRINT("Saving DCF stocks to %s"%(excel))
+    print("Saving DCF stocks to %s"%(excel))
     all_stk.save(excel)
+    close_db(db)
     #all_stk.save("excel_files/All_Stocks.xls")
 #    get_all_stocks_html()
 
