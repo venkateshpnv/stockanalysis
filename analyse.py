@@ -932,11 +932,23 @@ def get_stock_split_info_yahoo(stk):
     stk.bscs.split_date = d
     stk.bscs.split_year = datetime.datetime.strptime(d, '%Y-%m-%d').year 
 
+def get_stock_split_info(stk):
+    wb = xlrd.open_workbook('split_data.xls')
+    sheet = wb.sheet_by_index(0)
+    for i in range(1,sheet.nrows):
+        if str(sheet.cell_value(i, 0)) == stk.bscs.name:
+            stk.bscs.split_date = sheet.cell_value(i,1)
+            stk.bscs.split_year = datetime.datetime.strptime(stk.bscs.split_date, '%d-%b-%Y').year
+            stk.bscs.split_factor = int(sheet.cell_value(i, 3)) / int(sheet.cell_value(i,4))
+            return
+    if stk.bscs.face_value != 10:
+        PRINT_ERR("Could not find split date for %s" %(stk.bscs.symbol))   
+
 # Get symbol name for bse symbol
 def get_symbol_name(stk):
     wb = xlrd.open_workbook(bse_stocks)
     sheet = wb.sheet_by_index(0)
-    sheet.cell_value(0,0)
+    #sheet.cell_value(0,0)
 
     for i in range(1,sheet.nrows):
         if str(int(sheet.cell_value(i, 0))) == stk.bscs.bse_symbol:
@@ -968,7 +980,8 @@ def populate_stock(html_page):
     except:
         PRINT_ERR("Unable to get Company name")
         return None
-    stk.bscs.name = l
+    stk.bscs.name = l.lstrip().rstrip().replace(".","")
+    print(stk.bscs.name)
 
     # Ticker
     l=soup.find(id='lblBSE').get_text()
@@ -979,12 +992,12 @@ def populate_stock(html_page):
     get_symbol_name(stk)
     get_stock_split_info(stk)
 
-#    # Price
-#    l = get_LTP(stk.bscs.symbol)
-#    try:
-#        stk.bscs.price = str_to_float(l)
-#    except ValueError:
-#        stk.bscs.price = 0
+    # Price
+    l = get_LTP(stk.bscs.symbol)
+    try:
+        stk.bscs.price = str_to_float(l)
+    except ValueError:
+        stk.bscs.price = 0
 #    if stk.bscs.price < 1:
 #        PRINT_ERR("Price less than 1")
 #        return None
@@ -1504,8 +1517,8 @@ def main():
 #    i=0
 #    j=0
 #
-#    # Add stock info to the database
-#    build_database(files)
+    # Add stock info to the database
+    build_database(files)
 #
 #    # All Stocks Excel File
 #    all_stk = xlwt.Workbook()
