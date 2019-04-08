@@ -75,7 +75,9 @@ for i in mydatabase.myTable.find({title: 'MongoDB and Python'})
 Count number of documents
 print(mydatabase.myTable.count({title: 'MongoDB and Python'})) 
 
-
+YahooFinancials python package
+=============================
+https://github.com/JECSand/yahoofinancials.git
 
 
 Stock Splits
