@@ -100,6 +100,7 @@ class Basics:
         self.name   = 'DEADCOW'
         self.symbol = 'DEAD'
         self.bse_symbol = 'DEAD'
+        self.sector = 'DEAD'
         self.price  = 0
         self.promoter_stake = 0
         self.corp_stake     = 0
@@ -112,7 +113,7 @@ class Basics:
         self.mcap           = 0
         self.split_date     = 0
         self.split_year     = 0
-        self.split_factor   = 0
+        self.split_factor   = 1
 
 class Ratios:
     def __init(self):
@@ -227,6 +228,8 @@ def str_to_float(x):
     try:
         val = float(x)
     except ValueError:
+        return 0
+    except TypeError:
         return 0
     return val
 
@@ -748,7 +751,7 @@ def get_stock_page(stock):
     elem.clear()
     for i in range(len(stock)):
         elem.send_keys(str(stock[i]))
-        time.sleep(1)
+        time.sleep(10/1000)
         #divs = driver.find_element_by_xpath()
         #s = Select(elem)
         #driver.find_element_by_css_selector("button.btn.btn-default").click()
@@ -806,7 +809,7 @@ def get_stock_page(stock):
     else:
         #PRINT_DBG("Found stock %r" %(stock))
         html_src=driver.page_source
-        html_file = "html_pages/%s.html" %(stock_name)
+        html_file = "html_pages/dir2/%s.html" %(stock_name)
         f = open(html_file, "w")
         f.write(html_src)
         f.close()
@@ -840,9 +843,10 @@ def get_all_stocks_html():
     wb = xlrd.open_workbook(bse_stocks)
     sheet = wb.sheet_by_index(0)
     sheet.cell_value(0,0)
-#    with open("unparsed_stocks2.txt") as f:
+#    with open("missing_files.txt") as f:
 #        for line in f:
-#            PRINT(line)
+#            line = line.replace("\n","")
+#            print(line)
 #            get_stock_page(line)
 
     for i in range(0,sheet.nrows):
@@ -860,11 +864,16 @@ def get_all_stocks_html():
 
 def calculate_PAT(stk):
     entry=[]
-    for i in range(len(stk.fig.entries[PBT])):
-        entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
-    stk.fig.entries.insert(PBT, entry)
+    try:
+        for i in range(len(stk.fig.entries[PBT])):
+            entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
+    except IndexError:
+        return
+    except TypeError:
+        return
+    stk.fig.entries.insert(PAT, entry)
     PRINT_DBG("PAT:")
-    PRINT_DBG(stk.fig.entries[PBT])
+    PRINT_DBG(stk.fig.entries[PAT])
 
 def populate(stk, div, row, convert):
     entry = []
@@ -913,8 +922,8 @@ def populate(stk, div, row, convert):
     if convert:
         entry = list(map(float, entry))
     #stk.fig.entries[row] = entry.copy()
-    stk.fig.entries.append(entry)
-    #stk.fig.entries.insert(row, entry)
+    #stk.fig.entries.append(entry)
+    stk.fig.entries.insert(row, entry)
     #PRINT_DBG("Entries:")
     #PRINT_DBG(stk.fig.entries[row])
 
@@ -939,13 +948,17 @@ def get_stock_split_info(stk):
         if str(sheet.cell_value(i, 0)) == stk.bscs.name:
             stk.bscs.split_date = sheet.cell_value(i,1)
             stk.bscs.split_year = datetime.datetime.strptime(stk.bscs.split_date, '%d-%b-%Y').year
-            stk.bscs.split_factor = int(sheet.cell_value(i, 3)) / int(sheet.cell_value(i,4))
+            try:
+                stk.bscs.split_factor = int(sheet.cell_value(i, 3)) / int(sheet.cell_value(i,4))
+            except ZeroDivisionError:
+                stk.bscs.split_factor=1
             return
     if stk.bscs.face_value != 10:
-        PRINT_ERR("Could not find split date for %s" %(stk.bscs.symbol))   
+        PRINT_ERR("Could not find split date for %s, facevalue: %r" %(stk.bscs.symbol, stk.bscs.face_value))   
 
 # Get symbol name for bse symbol
-def get_symbol_name(stk):
+# Get sector information
+def get_symbol_and_sector(stk):
     wb = xlrd.open_workbook(bse_stocks)
     sheet = wb.sheet_by_index(0)
     #sheet.cell_value(0,0)
@@ -953,6 +966,7 @@ def get_symbol_name(stk):
     for i in range(1,sheet.nrows):
         if str(int(sheet.cell_value(i, 0))) == stk.bscs.bse_symbol:
             stk.bscs.symbol = sheet.cell_value(i,1)
+            stk.bscs.sector = sheet.cell_value(i,7)
             return
     PRINT_ERR("Cant find symbol name for %s" %(stk.bscs.bse_symbol))
 
@@ -965,6 +979,7 @@ def populate_item(stk, pattern, section, row, convert):
     div = div.parent
     div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, row, convert)
+    PRINT_DBG(stk.fig.entries[row])
     return True
 
 def populate_stock(html_page):
@@ -989,8 +1004,7 @@ def populate_stock(html_page):
     l = l.split(": ", 1)[1]
     stk.bscs.bse_symbol = l
    
-    get_symbol_name(stk)
-    get_stock_split_info(stk)
+    get_symbol_and_sector(stk)
 
     # Price
     l = get_LTP(stk.bscs.symbol)
@@ -1008,6 +1022,8 @@ def populate_stock(html_page):
         stk.bscs.face_value = int(l)
     except ValueError:
         stk.bscs.face_value = 10
+
+    get_stock_split_info(stk)
 
     # Volume
     l=soup.find(id='lblVolume').get_text()
@@ -1127,17 +1143,14 @@ def populate_stock(html_page):
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, SALES, 1)
         #populate_item(stk, pattern, annual_cons, SALES, 1)
-    PRINT_DBG(stk.fig.entries[SALES])
     #Profit Before Taxes
     PRINT_DBG("PBT: %r" %(PBT))
     pattern = re.compile(r'PBT\n')
     populate_item(stk, pattern, annual_cons, PBT, 1)
-    PRINT_DBG(stk.fig.entries[PBT])
     #Tax
     PRINT_DBG("TAX: %r" %(TAX))
     pattern = re.compile(r'Tax\n')
     populate_item(stk, pattern, annual_cons, TAX, 1)
-    PRINT_DBG(stk.fig.entries[TAX])
 
     PRINT_DBG("PAT: %r" %(PAT))
     calculate_PAT(stk)
@@ -1145,16 +1158,18 @@ def populate_stock(html_page):
     #PAT Margin
     pattern = re.compile(r'PAT Margin\n')
     populate_item(stk, pattern, annual_cons, PAT_M, 1)
-    PRINT_DBG(stk.fig.entries[PAT_M])
  
     #EPS
     PRINT_DBG("EPS: %r, indices: %r" %(EPS, indices))
     pattern = re.compile(r'Unadjusted EPS\n')
     populate_item(stk, pattern, annual_cons, EPS, 1)
-    PRINT_DBG(stk.fig.entries[EPS])
 
-    stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
-    PRINT("TTM EPS: %r" %(stk.fig.ttm_eps))
+    try:
+        stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
+        PRINT("TTM EPS: %r" %(stk.fig.ttm_eps))
+    except IndexError:
+        PRINT_DBG("")
+
 #    if stk.fig.ttm_eps <= 0:
 #        PRINT_ERR("Negative EPS")
 #        return None
@@ -1188,7 +1203,6 @@ def populate_stock(html_page):
     div = div.parent.parent
     div = div.find_next("div", {"class": "CHead"})
     populate(stk, div, CASH, 1)
-    PRINT_DBG(stk.fig.entries[CASH])
 
     fin_ratios = soup.find("section", {"id": "Financial"})
     #f = open("man_fin_ratios.html", "w")
@@ -1223,7 +1237,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, BOOK, 1)
-        PRINT_DBG(stk.fig.entries[BOOK])
 
     # Retrieve ROA
     PRINT_DBG("ROA")
@@ -1233,7 +1246,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, ROA, 1)
-        PRINT_DBG(stk.fig.entries[ROA])
 
     # Retrieve ROE
     PRINT_DBG("ROE")
@@ -1243,7 +1255,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, ROE, 1)
-        PRINT_DBG(stk.fig.entries[ROE])
 
     # Retrieve ROCE
     PRINT_DBG("ROCE")
@@ -1253,7 +1264,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, ROCE, 1)
-        PRINT_DBG(stk.fig.entries[ROCE])
 
     # Retrieve Total Debt/Equity
     PRINT_DBG("Total Debt/Equity")
@@ -1263,7 +1273,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, DtoE, 1)
-        PRINT_DBG(stk.fig.entries[DtoE])
 
     # Retrieve Total Debt/Equity
     PRINT_DBG("Interest Coverage")
@@ -1273,8 +1282,6 @@ def populate_stock(html_page):
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
         populate(stk, div, INTR, 1)
-        PRINT_DBG(stk.fig.entries[INTR])
-
 
 ############# FIGURES ##################
     return stk
@@ -1454,6 +1461,9 @@ def open_db(db_name):
     return db
 
 def write_to_collection(col, doc):
+    if col.find({"bscs.symbol":doc['bscs']['symbol']}).count() > 0 :
+        print("Stock exists")
+        return
     col.insert_one(doc)
     print("Count: %r" %(col.count()))
     #x = col.find_one()
@@ -1477,37 +1487,73 @@ def update_db_symbol_id():
         collection.update({"bscs.bse_symbol": sym},
                 {"$set": {"bscs.symbol": sym_id}})
 
- 
+# Populates all html file names in a file
+def build_files(files):
+    f = open("files.txt", "w")
+    for stock in files:
+        f.write(stock)
+        f.write("\n")
+    f.close()
+
 def build_database(files):
     db = open_db('Stocks')
-    db.Indian_Stocks.drop()
+    #db.Indian_Stocks.drop()
+    f = open("files.txt", "r")
 
-    for stock_page in files:
-        print(stock_page)
-        stock = get_stock_info(stock_page)
-        if not stock:
-            PRINT_ERR("Unable to get stock info of %s" %(stock_page))
-            continue
-#        val = get_LTP(stock.bscs.symbol)
-#        if val == -1:
-#            PRINT_ERR("Unable to get LTP for %s"%(stock.bscs.name))
-#        else:
-#            stock.bscs.price = val
+    for i, stock_page in enumerate(f):
+        if i > -1:
 
-        obj = build_json_object(stock)
-        write_to_collection(db['Indian_Stocks'], obj)
- 
+            print("%d: %s" %(i, stock_page))
+            stock = get_stock_info(stock_page.replace("\n",""))
+            if not stock:
+                PRINT_ERR("Unable to get stock info of %s" %(stock_page))
+                continue
+#           val = get_LTP(stock.bscs.symbol)
+#           if val == -1:
+#               PRINT_ERR("Unable to get LTP for %s"%(stock.bscs.name))
+#           else:
+#               stock.bscs.price = val
+
+            obj = build_json_object(stock)
+            write_to_collection(db['Indian_Stocks'], obj)
+            stock = None
+            obj   = None
+
 # Get stock information of "stock_name"
 def get_stock_info(stock_page):
-    html = open(stock_page)
+    try:
+        html = open(stock_page)
+    except FileNotFoundError:
+        PRINT_ERR("Failed to open %s" %(stock_page))
+        return None
     stk = populate_stock(html)
     html.close()
     return stk
 
+#Find missing entries in the db.
+# Compare with entries in BSE_Stocks.xls
+def find_files():
+    db = open_db('Stocks')
+    wb = xlrd.open_workbook(bse_stocks)
+    sheet = wb.sheet_by_index(0)
+    f = open("missing_files.txt", "w")
+    for i in range(1,sheet.nrows):
+        obj = db.Indian_Stocks.find({"bscs.symbol":sheet.cell_value(i, 1)})
+        if obj.count() == 0:
+            print("%s Not found"%(sheet.cell_value(i, 2)))
+            f.write(sheet.cell_value(i, 2))
+            f.write("\n")
+
+    f.close()
+
+
 def main():
+#    find_files()
 #    update_db_symbol_id()
-#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./html_pages/*")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
+#    files = glob.glob("./html_pages/Krishna Capital and Securities Ltd.html")
+#    files = glob.glob("./html_pages/STERLING TOOLS LTD. .html")
 #    files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #    files = glob.glob("./html_pages/LT FOODS LTD..html")
 #    files = glob.glob("./html_pages/PIDILITE INDUSTRIES LTD..html")
@@ -1517,8 +1563,9 @@ def main():
 #    i=0
 #    j=0
 #
+    #build_files(files)
     # Add stock info to the database
-    build_database(files)
+#    build_database(files)
 #
 #    # All Stocks Excel File
 #    all_stk = xlwt.Workbook()
@@ -1558,7 +1605,7 @@ def main():
 #    print("Saving DCF stocks to %s"%(excel))
 #    all_stk.save(excel)
 #    #all_stk.save("excel_files/All_Stocks.xls")
-##    get_all_stocks_html()
+#    get_all_stocks_html()
 
 main()
 
