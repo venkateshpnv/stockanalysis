@@ -60,8 +60,7 @@ Delete one record
 >db.my_collection.remove({"title" : "SomeTitle"},1)
 
 Take Backup
-  mongodump -db mydb -out /tmp/mongo/
-
+  mongodump --db=Stocks --out=./dump
 Restore Backup
   mongorestore --dir /tmp/mongo/
 

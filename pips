@@ -3,4 +3,10 @@ bs4
 csv
 xlrd
 xlwt
-
+suds-jurko
+pymongo
+#yahoo_fin
+#pandas
+#requests_html
+#fix_yahoo_finance
+yahoofinancials
