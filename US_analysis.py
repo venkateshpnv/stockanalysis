@@ -155,12 +155,14 @@ class Figures:
     SALES = []
     PBT = []
     PAT = []
+    INTEREST = []
     TAX = []
+    EBIT = []
     PAT_M = []
     EPS = []
     BOOK = []
     LIABILITIES = []
-    #DEBT = []
+    DEBT = []
     ASSETS = []
     EQUITY = []
     SHARES = []
@@ -189,8 +191,10 @@ class Figures:
         self.YEARS = []
         self.SALES = []
         self.PBT = []
+        self.INTEREST = []
         self.PAT = []
         self.TAX = []
+        self.EBIT = []
         self.PAT_M = []
         self.EPS = []
         self.BOOK = []
@@ -224,6 +228,8 @@ class Figures:
         self.PBT.clear()
         self.PAT.clear()
         self.TAX.clear()
+        self.INTEREST.clear()
+        self.EBIT.clear()
         self.PAT_M.clear()
         self.EPS.clear()
         self.BOOK.clear()
@@ -820,6 +826,7 @@ def build_json_object(stock):
     obj['fig']['SALES'] = stock.fig.SALES
     obj['fig']['PBT'] = stock.fig.PBT
     obj['fig']['TAX'] = stock.fig.TAX
+    obj['fig']['EBIT'] = stock.fig.EBIT
     obj['fig']['PAT'] = stock.fig.PAT
     obj['fig']['PAT_M'] = stock.fig.PAT_M
     obj['fig']['EPS'] = stock.fig.EPS
@@ -942,15 +949,18 @@ def get_entries(soup, pattern):
 def get_debt(soup, pattern):
     entries = []
     l=soup.findAll(text=pattern)
+    if not l:
+        return entries
     try:
-        tags = l[2].parent.parent
+        if len(l) > 2:
+            tags = l[2].parent.parent
+            #print(tags)
+            l=tags.find_all("td")
+            for i in range(1, len(l)):
+                entries.append(str_to_float(l[i]))
+            return entries
     except AttributeError:
         return entries
-
-    l=tags.find_all("td")
-    for i in range(1, len(l)):
-        entries.append(str_to_float(l[i]))
-    return entries
 
 def lowest(a, b):
     if a < b:
@@ -1015,6 +1025,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     stock_page = "%s/%s" %(root, files[0])
     html_page  = get_html(stock_page)
     soup=BeautifulSoup(html_page,'html.parser')
+    #print(soup.prettify())
     try:
         y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
         l=y.find_all("td")
@@ -1108,12 +1119,13 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
         ppe[i] = abs(ppe[i])
         depreciation[i] = abs(depreciation[i])
         capex.append(round(ppe[i] + depreciation[i],2))
- 
+
     for f in [s for s in files if 'income' in s]:
         #income statements
         stock_page = "%s/%s" %(root, f)
         html_page  = get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
+        #print(soup.prettify())
         sales.extend(get_entries(soup, re.compile('^ Sales $')))
         pbt.extend(get_entries(soup, re.compile('^ Pre-tax Income $')))
         pat.extend(get_entries(soup, 'Net Income $M'))
@@ -1143,6 +1155,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     for i in range(lowest(len(capex), len(pat))):
         try:
             roce.append(round(pat[i] / capex[i],2))
+            #roce.append(round(ebit[i] / capex[i],2))
         except ZeroDivisionError:
             roce.append(0)
 
