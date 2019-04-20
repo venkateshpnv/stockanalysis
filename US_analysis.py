@@ -23,6 +23,11 @@ from bs4 import BeautifulSoup
 #Yahoo Financials
 from yahoofinancials import YahooFinancials as yf
 
+import pandas_datareader as pdr
+import pandas_datareader.data as data
+
+from datetime import datetime as dt
+
 # Excel operations
 import csv
 import xlrd
@@ -119,6 +124,7 @@ class Basics:
         self.face_value     = 0
         self.volume         = 0
         self.mcap           = 0
+        self.shares_outstanding = 0
         self.split_date     = 0
         self.split_year     = 0
         self.split_factor   = 1
@@ -1186,6 +1192,8 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     stk.fig.DtoE.extend(reversed(dtoe))
     stk.fig.INTR.extend(reversed(intr))
 
+    #stk = get_price_volume(stk)
+
     obj = build_json_object(stk)
     if obj:
         write_to_collection(db['US_Stocks'], obj)
@@ -1195,9 +1203,52 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     del stk
     stk = None
 
+def get_price_volume(stk):
+    #data = pdr.get_data_yahoo(symbols=stk.bscs.symbol, start=dt(2019,4,15), end=dt(2019,4,18))
+    #stk.bscs.price  = round(float(data.iat[-1, data.columns.get_loc('Adj Close')]), 2)
+    #vol = data[['Volume']]
+    #sum = 0        
+    #for v in vol.values.tolist():
+    #    sum += v[0]
+    #stk.bscs.volume = sum / len(vol.values.tolist())
+    
+    ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
+    try:
+        d = data.get_quote_yahoo(stk.bscs.symbol)
+    except pdr._utils.RemoteDataError:
+        PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
+        return None
+    # Add moving average etc. Refer /tmp/test.csv for details
+    stk.bscs.volume = (d.averageDailyVolume3Month.to_list()[0])
+    #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
+    stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
+    stk.bscs.price  = (d.price.to_list()[0])
+    stk.bscs.shares_outstanding = d.sharesOutstanding.to_list()[0]
+    return stk
+    
+def update_db_price_volume(collection, stk):
+    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.price": stk.bscs.price}})
+    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.volume": stk.bscs.volume}})
+    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.mcap": stk.bscs.mcap}})
+    collection.update({'bscs.symbol': stk.bscs.shares_outstanding}, {'$set': {"bscs.shares_outstanding": stk.bscs.shares_outstanding}})
+ 
+def update_all_price_volume_db():
+    db = open_db('Stocks')
+    i=0
+    for doc in db.US_Stocks.find():
+        if i > -1:
+            stk = dbObject(**doc)
+            #if stk.bscs.price == 0:
+            print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
+            stk = get_price_volume(stk)
+            if stk:
+                update_db_price_volume(db.US_Stocks, stk)
+        i+=1
+        #break
+
 def build_US_database():
     db = open_db('Stocks')
-    db.US_Stocks.drop()
+    #db.US_Stocks.drop()
     wb = xlrd.open_workbook('US_Stocks/US_Stocks.xls')
     sheet = wb.sheet_by_index(0)
     for i in range(1,sheet.nrows):
@@ -1969,41 +2020,64 @@ def calculate_dcf_all_stocks(country):
     db = open_db('Stocks')
     if country == 'India':
         docs = db.Indian_Stocks.find({})
-        #for doc in docs:
-        for i, doc in enumerate(docs):
-            doc['id'] = doc.pop('_id')
-            #doc['PAT'] = doc.pop('Profit After Taxes')
-            stock = dbObject(**doc)
-            #obj = namedtupled.map(doc)
-            #obj = namedtuple("Stock", doc.keys())(*doc.values())
-            #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
-            #obj = bunchify(doc)
-            if not stock:
-                continue
-            if stock.bscs.volume < 50000:
-                continue
-            if stock.bscs.price < 1:
-                continue
+        os.mkdir("./Indian_Stocks")
+        os.mkdir("./Indian_Stocks/excel_files")
+        os.mkdir("./Indian_Stocks/DCF_Calc")
+        inflation = 0.08
+        discount_rate = 0
+        mos = 0.5
+        path="./Indian_Stocks"
+    elif country == 'US':
+        docs = db.US_Stocks.find({})
+        try:
+            os.mkdir("./US_Stocks")
+            os.mkdir("./US_Stocks/excel_files")
+            os.mkdir("./US_Stocks/DCF_Calc")
+        except FileExistsError:
+            PRINT("")
+        inflation = 0.08
+        discount_rate = 0
+        mos = 0.5
+        path="./US_Stocks"
+    else:
+        return
 
-            print(stock.bscs.symbol)
-            stock.num.inflation = 0.08
-            stock.num.discount_rate = 0.0
-            stock.num.margin_of_safety = 0.5
-            #Company Excel File
-            com = xlwt.Workbook()
-            calculate_dcf(com, ash, stock)
-            if stock.bscs.price <= stock.num.dcf_price or stock.num.cp_return_rate > 0.01:
-                excel = "excel_files/%s.xls" % (stock.bscs.name)
-                PRINT("Writing to %s" % (excel))
-                com.save(excel)
-                j+=1
-            stock=None
-            com=None
+        #for doc in docs:
+    for i, doc in enumerate(docs):
+        doc['id'] = doc.pop('_id')
+        #doc['PAT'] = doc.pop('Profit After Taxes')
+        stock = dbObject(**doc)
+        #obj = namedtupled.map(doc)
+        #obj = namedtuple("Stock", doc.keys())(*doc.values())
+        #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
+        #obj = bunchify(doc)
+        if not stock:
+            continue
+        if stock.bscs.volume < 50000:
+            continue
+        if stock.bscs.price < 1:
+            continue
+
+        print(stock.fig.Years)
+        print(stock.bscs.symbol)
+        stock.num.inflation = inflation
+        stock.num.discount_rate = discount_rate
+        stock.num.margin_of_safety = mos
+        #Company Excel File
+        com = xlwt.Workbook()
+        calculate_dcf(com, ash, stock)
+        if stock.bscs.price <= stock.num.dcf_price or stock.num.cp_return_rate > 0.01:
+            excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
+            PRINT("Writing to %s" % (excel))
+            com.save(excel)
+            j+=1
+        stock=None
+        com=None
 
     print("Stocks Calculated: %r" %(j))
     #now = datetime.datetime.now()
     #excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-    excel = "DCF_Calc/All_Stocks.xls"
+    excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
     print("Saving DCF stocks to %s"%(excel))
     all_stk.save(excel)
 
@@ -2182,7 +2256,9 @@ def US_main():
     #build_US_Stocks_List()
     #get_all_US_html_pages()
     #get_US_stock_page('WM', 'Waste Management, Inc.')
-    build_US_database()
+    #build_US_database()
+    #update_all_price_volume_db()
+    calculate_dcf_all_stocks('US')
 
 US_main()
 #def news():
