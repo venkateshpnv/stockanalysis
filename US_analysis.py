@@ -1,6 +1,7 @@
 import conf
 
 import os
+import sys
 import time
 #Web Driver
 from selenium import webdriver
@@ -54,20 +55,20 @@ import json
 import pprint
 import pymongo
 
-MAX_YEARS = 20
+MAX_Years = 20
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
 
 # Number of figures we are tracking data for.
 indices=0
-YEARS = indices
+Years = indices
 indices+=1
-SALES = indices
+Sales = indices
 indices+=1
 #Profit Before Taxes
 PBT = indices
 indices+=1
-TAX = indices
+Taxes = indices
 indices+=1
 #Profit After Taxes
 PAT = indices
@@ -115,6 +116,8 @@ class Basics:
         self.bse_symbol = 'DEAD'
         self.sector = 'DEAD'
         self.price  = 0
+        self.hist_price_5 = 0
+        self.hist_price_10 = 0
         self.promoter_stake = 0
         self.corp_stake     = 0
         self.pub_stake      = 0
@@ -150,19 +153,19 @@ class Figures:
     # row 3 - free cash flow
     # row 4 - book value
     # 20 years of data of sales, profit etc
-    #entries = [[0] * MAX_YEARS for i in range(indices)]
+    #entries = [[0] * MAX_Years for i in range(indices)]
     #entries = list()
     #entries = list()
     # number of years of data we have for each field.
     # ex: 10 years of book value, 8 years of cash flow etc.
     #fig_years = [0] * (indices)
     #fig_years = []
-    YEARS = []
-    SALES = []
+    Years = []
+    Sales = []
     PBT = []
     PAT = []
     INTEREST = []
-    TAX = []
+    Taxes = []
     EBIT = []
     PAT_M = []
     EPS = []
@@ -191,15 +194,16 @@ class Figures:
         self.profit_growth = 0
         self.cash_growth = 0
         self.book_growth = 0
+        self.price_growth = 0
         self.growth = 0
         self.common_shares = 0
         #self.entries = [[0 for i in range(1)] for j in range(indices)]
-        self.YEARS = []
-        self.SALES = []
+        self.Years = []
+        self.Sales = []
         self.PBT = []
         self.INTEREST = []
         self.PAT = []
-        self.TAX = []
+        self.Taxes = []
         self.EBIT = []
         self.PAT_M = []
         self.EPS = []
@@ -229,11 +233,11 @@ class Figures:
         self.book_growth = 0
         self.growth = 0
         #self.entries = [[0 for i in range(1)] for j in range(indices)]
-        self.YEARS.clear()
-        self.SALES.clear()
+        self.Years.clear()
+        self.Sales.clear()
         self.PBT.clear()
         self.PAT.clear()
-        self.TAX.clear()
+        self.Taxes.clear()
         self.INTEREST.clear()
         self.EBIT.clear()
         self.PAT_M.clear()
@@ -369,12 +373,12 @@ style_num.alignment.horz = xlwt.Alignment.HORZ_RIGHT
 #style_text.font.bold = 0
 style_num.font.height = 10 * 20 #(10 pt)
 
-def add_header(sheet):
+def add_header(sheet, years):
     sheet.row(0).height_mismatch = True
     sheet.row(0).height = 3*367
-    i=1
+    i=0
     #Company
-    sheet.col(i).width = 15*367
+    sheet.col(i).width = 20*367
     sheet.write(0, i, "Company", style_wrap)
     conf.COMP=i
 
@@ -383,6 +387,12 @@ def add_header(sheet):
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Symbol", style_wrap)
     conf.SYM=i
+
+    i+=1
+    #Sector
+    sheet.col(i).width = 20*367
+    sheet.write(0, i, "Sector", style_wrap)
+    conf.SEC=i
 
     i+=1
     #Current Price
@@ -427,34 +437,45 @@ def add_header(sheet):
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
 
-    i += 1
+    i+=1
     #Years of Data
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Years of Data", style_wrap)
     conf.YR_DAT=i
 
     i+=1
+    # Price Growth
+    sheet.col(i).width = 5*367
+    st = "%s yr Price Gr" %(years)
+    sheet.write(0, i, st, style_wrap)
+    conf.TEN_PRICE=i
+
+    i+=1
     # 10 yr Sales Growth
     sheet.col(i).width = 5*367
-    sheet.write(0, i, "10 yr Sales Gr", style_wrap)
+    st = "%s yr Sales Gr" %(years)
+    sheet.write(0, i, st, style_wrap)
     conf.TEN_SAL=i
 
     i+=1
     # 10 yr Profit Growth
     sheet.col(i).width = 5*367
-    sheet.write(0, i, "10 yr Profit Gr", style_wrap)
+    st = "%s yr Profit Gr"%(years)
+    sheet.write(0, i, st, style_wrap)
     conf.TEN_PR=i
 
     i+=1
     #10 yr Book Value Growth
     sheet.col(i).width = 5*367
-    sheet.write(0, i, "10 yr Book Gr", style_wrap)
+    st = "%s yr Book Gr"%(years)
+    sheet.write(0, i, st, style_wrap)
     conf.TEN_BK=i
 
     i+=1
     # 10 yr Cash Growth
     sheet.col(i).width = 5*367
-    sheet.write(0, i, "10 yr Cash Gr", style_wrap)
+    st = "%s yr Cash Gr"%(years)
+    sheet.write(0, i, st, style_wrap)
     conf.TEN_CSH=i
 
 #    i+=1
@@ -581,7 +602,7 @@ def add_header(sheet):
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
-def write_to_excel(com, ash, stk):
+def write_to_excel(com, ash, stk, years):
     #wb = xlwt.Workbook()
 
     #open a company sheet
@@ -613,6 +634,7 @@ def write_to_excel(com, ash, stk):
     sheet.write(i, 0, "Symbol")
     sheet.write(i, 1, stk.bscs.symbol)
     ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
+    ash.write(conf.COUNT, conf.SEC, stk.bscs.sector, style_text)
 
     sheet.write(i, 3, "Public Stake")
     sheet.write(i, 4, stk.bscs.pub_stake/100, style_percent)
@@ -657,11 +679,16 @@ def write_to_excel(com, ash, stk):
     sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
 
     sheet.write(i, 3, "Years", style_bold)
-    sheet.write(i, 4, len(stk.fig.BOOK))
-    sheet.write(i, 5, len(stk.fig.Sales))
-    sheet.write(i, 6, len(stk.fig.CASH))
-    sheet.write(i, 7, len(stk.fig.PAT))
-    ash.write(conf.COUNT, conf.YR_DAT, len(stk.fig.Sales))
+    #sheet.write(i, 4, len(stk.fig.BOOK))
+    #sheet.write(i, 5, len(stk.fig.Sales))
+    #sheet.write(i, 6, len(stk.fig.CASH))
+    #sheet.write(i, 7, len(stk.fig.PAT))
+    #ash.write(conf.COUNT, conf.YR_DAT, len(stk.fig.Sales))
+    sheet.write(i, 4, years)
+    sheet.write(i, 5, years)
+    sheet.write(i, 6, years)
+    sheet.write(i, 7, years)
+    ash.write(conf.COUNT, conf.YR_DAT, years)
 
     i += 1 #row 13
     sheet.write(i, 0, "Growth Rate(9-10 Years)")
@@ -797,12 +824,15 @@ def write_to_excel(com, ash, stk):
    
    #Ratios
     ash.write(conf.COUNT, conf.DTOTE, stk.fig.DtoE[-1])
-    ash.write(conf.COUNT, conf.INT_C, stk.fig.INTR[-1])
+    # vpetla. Calcuate interest coverage ratio and uncomment this line
+    ##ash.write(conf.COUNT, conf.INT_C, stk.fig.INTR[-1])
     ash.write(conf.COUNT, conf.ROE, stk.fig.ROE[-1])
     ash.write(conf.COUNT, conf.ROA, stk.fig.ROA[-1])
-    ash.write(conf.COUNT, conf.ROCE, stk.fig.ROCE[-1])
+    # vpetla. Calcuate ROCE and uncomment this line
+    ##ash.write(conf.COUNT, conf.ROCE, stk.fig.ROCE[-1])
     ash.write(conf.COUNT, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
     ash.write(conf.COUNT, conf.MCAP, stk.bscs.mcap, style_num)
+    ash.write(conf.COUNT, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_PR, stk.fig.profit_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_BK, stk.fig.book_growth, style_percent)
@@ -828,10 +858,10 @@ def build_json_object(stock):
     y=json.dumps(stock, indent=4, default=lambda x:x.__dict__)
     #print(y)
     obj = json.loads(y)
-    obj['fig']['YEARS'] = stock.fig.YEARS
-    obj['fig']['SALES'] = stock.fig.SALES
+    obj['fig']['Years'] = stock.fig.Years
+    obj['fig']['Sales'] = stock.fig.Sales
     obj['fig']['PBT'] = stock.fig.PBT
-    obj['fig']['TAX'] = stock.fig.TAX
+    obj['fig']['Taxes'] = stock.fig.Taxes
     obj['fig']['EBIT'] = stock.fig.EBIT
     obj['fig']['PAT'] = stock.fig.PAT
     obj['fig']['PAT_M'] = stock.fig.PAT_M
@@ -1166,11 +1196,11 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
             roce.append(0)
 
     stk.fig.ttm_eps = eps[0]
-    stk.fig.YEARS.extend(reversed(years))
-    stk.fig.SALES.extend(reversed(sales))
+    stk.fig.Years.extend(reversed(years))
+    stk.fig.Sales.extend(reversed(sales))
     stk.fig.PBT.extend(reversed(pbt))
     stk.fig.PAT.extend(reversed(pat))
-    stk.fig.TAX.extend(reversed(income_tax))
+    stk.fig.Taxes.extend(reversed(income_tax))
     stk.fig.PAT_M.extend(reversed(pat_m))
     stk.fig.EPS.extend(reversed(eps))
 
@@ -1202,6 +1232,61 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
  
     del stk
     stk = None
+
+def get_price_growth(stk, years, data_type):
+    yrs = years
+    if data_type == 'HOT':
+        end = dt.today()
+        st = dt(end.year-years, end.month, end.day)
+        try:
+            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
+        except pdr._utils.RemoteDataError:
+            PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
+            stk.bscs.hist_price_5 = 1
+            stk.bscs.hist_price_10 = 1
+            return 0
+
+        st_price = data.iat[0, data.columns.get_loc('Close')]
+        en_price = data.iat[-1, data.columns.get_loc('Close')]
+        yrs = end.year - int(str(list(data.index)[0]).split('-')[0])
+        del data
+        if years == 5:
+            stk.bscs.hist_price_5 = st_price
+        else:
+            end = dt.today()
+            st = dt(end.year-5, end.month, end.day)
+            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
+            stk.bscs.hist_price_5 = data.iat[0, data.columns.get_loc('Close')]
+            del data
+ 
+        if years == 10:
+            stk.bscs.hist_price_10 = st_price
+        else:
+            end = dt.today()
+            st = dt(end.year-10, end.month, end.day)
+            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
+            stk.bscs.hist_price_10 = data.iat[0, data.columns.get_loc('Close')]
+            del data
+
+        db = open_db('Stocks')
+        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.hist_price_5", stk.bscs.hist_price_5)
+        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.hist_price_10", stk.bscs.hist_price_10)
+        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.price", round(en_price,2))
+ 
+    if yrs < 1:
+        yrs = 1
+    if years == 10:
+        st_price = stk.bscs.hist_price_10
+    else:
+        st_price = stk.bscs.hist_price_5
+
+    en_price = stk.bscs.price
+    #    st_price = round(float(st_price.real),2)
+    #if isinstance(en_price, complex):
+    #    en_price = rount(float(en_price.real),2)
+    years = yrs
+    growth = round(((en_price/st_price)**(1/years)-1), 2)
+    return growth
 
 def get_price_volume(stk):
     #data = pdr.get_data_yahoo(symbols=stk.bscs.symbol, start=dt(2019,4,15), end=dt(2019,4,18))
@@ -1394,7 +1479,7 @@ def calculate_PAT(stk):
     entry=[]
     try:
         for i in range(len(stk.fig.entries[PBT])):
-            entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
+            entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[Taxes][i],2))
     except IndexError:
         return
     except TypeError:
@@ -1653,14 +1738,14 @@ def populate_stock(html_page):
 
     PRINT_DBG(annual_cons)
     #Years
-    PRINT_DBG("YEARS: %r" %(YEARS))
+    PRINT_DBG("Years: %r" %(Years))
     pattern = re.compile(r'Description\n')
-    populate_item(stk, pattern, annual_cons, YEARS, 0)
-    PRINT_DBG(stk.fig.entries[YEARS])
+    populate_item(stk, pattern, annual_cons, Years, 0)
+    PRINT_DBG(stk.fig.entries[Years])
     #Sales
-    PRINT("SALES: %r"%(SALES))
+    PRINT("Sales: %r"%(Sales))
     pattern = re.compile(r'Net Sales')
-    if populate_item(stk, pattern, annual_cons, SALES, 1) is False:
+    if populate_item(stk, pattern, annual_cons, Sales, 1) is False:
         pattern = re.compile(r'Net Interest Income')
         div = annual_cons.find(text=pattern)
         PRINT_DBG(div.parent.parent)
@@ -1669,16 +1754,16 @@ def populate_stock(html_page):
             return None
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
-        populate(stk, div, SALES, 1)
-        #populate_item(stk, pattern, annual_cons, SALES, 1)
+        populate(stk, div, Sales, 1)
+        #populate_item(stk, pattern, annual_cons, Sales, 1)
     #Profit Before Taxes
     PRINT_DBG("PBT: %r" %(PBT))
     pattern = re.compile(r'PBT\n')
     populate_item(stk, pattern, annual_cons, PBT, 1)
     #Tax
-    PRINT_DBG("TAX: %r" %(TAX))
+    PRINT_DBG("Taxes: %r" %(Taxes))
     pattern = re.compile(r'Tax\n')
-    populate_item(stk, pattern, annual_cons, TAX, 1)
+    populate_item(stk, pattern, annual_cons, Taxes, 1)
 
     PRINT_DBG("PAT: %r" %(PAT))
     calculate_PAT(stk)
@@ -1862,17 +1947,18 @@ def calculate_growth(fig, row):
     return growth
     #return min(g1,g2)
 
-def calc_growth(split_factor, row):
-    years = len(row)
-    mid_len = math.floor(years/2)
+def calc_growth(split_factor, row, years):
+    if years > len(row):
+        years = len(row)
+    #mid_len = math.floor(years/2)
     first = row[0]
-    mid   = row[mid_len]
+    #mid   = row[mid_len]
     last  = row[-1] * split_factor
 
     PRINT_DBG("growth years: %r"%(years))
     try:
         val = int(first)
-        val = int(mid)
+        #val = int(mid)
         val = int(last)
     except:
         return 0
@@ -1887,29 +1973,37 @@ def calc_growth(split_factor, row):
     return growth
 
 # Calcuate numbers
-def calculate_dcf(com, ash, stk):
+def calculate_dcf(com, ash, stk, years):
 #    global conf.COUNT
     growth  = [0] * (GROWTH_PARAMS)
     i = 0
     startyr = stk.fig.Years[0]
-    startyr = int("20"+startyr.split(" ")[1])
-    print(startyr)
+    startyr = int(startyr.split("-")[1].lstrip().rstrip())
+    #print(startyr)
     endyr = stk.fig.Years[len(stk.fig.Years)-2]
-    endyr = int("20"+endyr.split(" ")[1])
-    print(endyr)
-    print(stk.bscs.split_year)
-    print(stk.bscs.split_factor)
+    endyr = int(endyr.split("-")[1].lstrip().rstrip())
+    #print(endyr)
+    #print(stk.bscs.split_year)
+    #print(stk.bscs.split_factor)
     split_factor = 1
     if stk.bscs.split_year > startyr and stk.bscs.split_year <= endyr:
         split_factor = stk.bscs.split_factor
 
-    stk.fig.sales_growth  = growth[i]  = calc_growth(1, stk.fig.Sales) * len(stk.fig.Sales) / 10
+    stk.fig.price_growth  = get_price_growth(stk, years, 'COLD')
+    stk.fig.sales_growth  = growth[i]  = calc_growth(1, stk.fig.Sales, years) * len(stk.fig.Sales) / 10
     i+=1
-    stk.fig.profit_growth = growth[i]  = calc_growth(1, stk.fig.PAT) * len(stk.fig.PAT) / 10
+    stk.fig.profit_growth = growth[i]  = calc_growth(1, stk.fig.PAT, years) * len(stk.fig.PAT) / 10
     i+=1
-    stk.fig.cash_growth   = growth[i]  = calc_growth(1, stk.fig.CASH) * len(stk.fig.CASH) / 10
+    stk.fig.cash_growth   = growth[i]  = calc_growth(1, stk.fig.CASH, years) * len(stk.fig.CASH) / 10
     i+=1
-    stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK) * len(stk.fig.BOOK) / 10
+    stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
+    
+    # Dont calculate DCF for stocks with negative growth in any factor
+    for number in growth:
+        if number <= 0:
+            print(number)
+            return False
+
     PRINT("Growth of entries: %r"%(growth))
     try:
         stk.fig.growth = min(i for i in growth if i > 0)
@@ -1997,10 +2091,12 @@ def calculate_dcf(com, ash, stk):
         PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
         PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
+    #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
+    if stk.bscs.price <= stk.num.dcf_price:
         conf.COUNT+=1
-        write_to_excel(com, ash, stk)
-    return True
+        write_to_excel(com, ash, stk, years)
+        return True
+    return False
 
 class dbObject:
     def __init__(self, **obj):
@@ -2010,11 +2106,11 @@ class dbObject:
             else:
                 self.__dict__[k] = v
 
-def calculate_dcf_all_stocks(country):
+def calculate_dcf_all_stocks(country, years):
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
-    add_header(ash)
+    add_header(ash, years)
     j = 0
 
     db = open_db('Stocks')
@@ -2035,8 +2131,8 @@ def calculate_dcf_all_stocks(country):
             os.mkdir("./US_Stocks/DCF_Calc")
         except FileExistsError:
             PRINT("")
-        inflation = 0.08
-        discount_rate = 0
+        inflation = 0
+        discount_rate = 0.1
         mos = 0.5
         path="./US_Stocks"
     else:
@@ -2051,33 +2147,51 @@ def calculate_dcf_all_stocks(country):
         #obj = namedtuple("Stock", doc.keys())(*doc.values())
         #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
         #obj = bunchify(doc)
+        
         if not stock:
             continue
         if stock.bscs.volume < 50000:
+            del stock
             continue
         if stock.bscs.price < 1:
+            del stock
+            continue
+        # Atleast a billion
+        #if stock.bscs.mcap < 1000: #millions
+        # Atleast 10 billion
+        #if stock.bscs.mcap < 10000: #millions
+        # Between 1 billion and 10 billion
+        if stock.bscs.mcap < 1000 or stock.bscs.mcap > 10000: #millions
+            del stock
             continue
 
-        print(stock.fig.Years)
-        print(stock.bscs.symbol)
+        print("%s: %s"%(stock.bscs.symbol, stock.bscs.name))
         stock.num.inflation = inflation
         stock.num.discount_rate = discount_rate
         stock.num.margin_of_safety = mos
         #Company Excel File
         com = xlwt.Workbook()
-        calculate_dcf(com, ash, stock)
-        if stock.bscs.price <= stock.num.dcf_price or stock.num.cp_return_rate > 0.01:
-            excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
-            PRINT("Writing to %s" % (excel))
-            com.save(excel)
-            j+=1
+        if calculate_dcf(com, ash, stock, years) is False:
+            del stock
+            del com
+            continue
+        excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
+        PRINT("Writing to %s" % (excel))
+        com.save(excel)
+        j+=1
+
+        del stock
+        del com
         stock=None
         com=None
 
     print("Stocks Calculated: %r" %(j))
     #now = datetime.datetime.now()
     #excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-    excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
+    if len(sys.argv) == 2:
+        excel = "%s/DCF_Calc/%s.xls" %(path, sys.argv[1])
+    else:
+        excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
     print("Saving DCF stocks to %s"%(excel))
     all_stk.save(excel)
 
@@ -2102,6 +2216,9 @@ def open_db(db_name):
     db = client[db_name]
     return db
 
+def update_field(col, symbol, field, value):
+    col.update({"bscs.symbol":symbol},{'$set':{field:value}})
+ 
 def write_to_collection(col, doc):
     if col.find({"bscs.symbol":doc['bscs']['symbol']}).count() > 0 :
         print("Stock exists")
@@ -2212,7 +2329,7 @@ def main():
 #    # All Stocks Excel File
 #    all_stk = xlwt.Workbook()
 #    ash = all_stk.add_sheet("All Stocks")
-#    add_header(ash)
+#    add_header(ash, years)
 #
 #    for stock_page in files:
 #        print(stock_page)
@@ -2230,7 +2347,7 @@ def main():
 #        stock.num.margin_of_safety = 0.5
 #        #Company Excel File
 #        com = xlwt.Workbook()
-#        calculate_dcf(com, ash, stock)
+#        calculate_dcf(com, ash, stock, years)
 #        excel = "excel_files/%s.xls" % (stock.bscs.name)
 #        PRINT("Writing to %s" % (excel))
 #        com.save(excel)
@@ -2258,7 +2375,7 @@ def US_main():
     #get_US_stock_page('WM', 'Waste Management, Inc.')
     #build_US_database()
     #update_all_price_volume_db()
-    calculate_dcf_all_stocks('US')
+    calculate_dcf_all_stocks('US', 5)
 
 US_main()
 #def news():
