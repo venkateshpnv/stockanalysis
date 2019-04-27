@@ -6,6 +6,7 @@ COUNT=0
 #Indexes of entries in All_Stocks.xls
 COMP=0
 SYM=0
+SEC=0
 CUR_PR=0
 DCF_PR=0
 MOS_PR=0
@@ -14,6 +15,7 @@ MOS_RT=0
 CUR_RT=0
 VOL=0
 YR_DAT=0
+TEN_PRICE=0
 TEN_SAL=0
 TEN_PR=0
 TEN_BK=0
