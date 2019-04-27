@@ -48,7 +48,7 @@ ex: Both and and or (likes > 50 and (name=hello or age > 50))
 >db.my_collection.find({"likes":{$gte:50}}, $or: [{"name":"hello"}, {"age":{$gte:50}}]).pretty()
 
 Update a field
-> db.my_collection.update({"title":"Mongo"},{$set:{"title":"New Title"}})
+> db.my_collection.update({"title":"Mongo"},{'$set':{"title":"New Title"}})
 
 Update a field or two in a particular document
 >db.my_collection.save({"_id": ObjectId(5983548781331adf45ec5), "title": "New Title", "name": "New Name"}
@@ -64,6 +64,11 @@ Take Backup
 Restore Backup
   mongorestore --dir /tmp/mongo/
 
+Duplicate Database
+db.copyDatabase("Stocks", "Stocks_copy", "127.0.0.1")
+
+Rename a field in a collection for all documents
+db.Indian_Stocks.update({},{$rename:{"fig.Return on Equity": "fig.ROE"}}, false, true)
 
 PyMongo python package
 ======================
