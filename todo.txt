@@ -1,0 +1,18 @@
+Both:
+1. Yearwise PE
+2. In DCF excel file of each stock, add 1year, 5year, 10 year growth of sales, pat etc params
+3. Earnings estimate for current/next year both in DB and DCF Excel. Find a way to get earnings for India. For US, barchart has data.
+4. Last four quarters of datain DB.
+5. Forward Earnings based DCF Calculation.
+6. In DCF Excel, along with EPS calculated, below rows should have projected EPS, actual EPS data. Also save in DB
+7. Cronjob
+ - Track radar and portfolio stocks.
+ - Send email on sudden changes in price and volume in a day.
+ - Quarterly earnings calendar. Track and notify me for radar and portfolio stocks.
+ - Daily suprises of prices and volumes of all stocks.
+ - 
+8. If any stock has compounded annual growth rate of above 10% for all four fields, highlight that stock in All_Stocks.xls
+India:
+1. Price growth along with Sales, Earnings, Cash etc growth.
+
+US:
