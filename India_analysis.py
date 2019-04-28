@@ -1,7 +1,5 @@
 import conf
 
-import os
-import sys
 import time
 #Web Driver
 from selenium import webdriver
@@ -13,21 +11,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
 
-from collections import namedtuple
-#from bunch import bunchify
-import namedtupled
-
 # Parsing HTML
 import requests 
 from bs4 import BeautifulSoup 
 
 #Yahoo Financials
 from yahoofinancials import YahooFinancials as yf
-
-import pandas_datareader as pdr
-import pandas_datareader.data as data
-
-from datetime import datetime as dt
 
 # Excel operations
 import csv
@@ -55,20 +44,20 @@ import json
 import pprint
 import pymongo
 
-MAX_Years = 20
+MAX_YEARS = 20
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
 
 # Number of figures we are tracking data for.
 indices=0
-Years = indices
+YEARS = indices
 indices+=1
-Sales = indices
+SALES = indices
 indices+=1
 #Profit Before Taxes
 PBT = indices
 indices+=1
-Taxes = indices
+TAX = indices
 indices+=1
 #Profit After Taxes
 PAT = indices
@@ -98,10 +87,7 @@ indices+=1
 RUPEE = u"\u20B9"
 
 #List of BSE Stocks
-bse_stocks="BSE_Stocks.xls"
-nyse_stocks = "US_Stocks/NYSE_Stocks.xls"
-nasdaq_stocks = "US_Stocks/NASDAQ_Stocks.xls"
-amex_stocks = "US_Stocks/AMEX_Stocks.xls"
+bse_stocks="India_Stocks/BSE_Stocks.xls"
 # Percentage change in growth over a period of time
 gr1to5_percent   = 1
 gr6to8_percent   = 0.7
@@ -116,8 +102,6 @@ class Basics:
         self.bse_symbol = 'DEAD'
         self.sector = 'DEAD'
         self.price  = 0
-        self.hist_price_5 = 0
-        self.hist_price_10 = 0
         self.promoter_stake = 0
         self.corp_stake     = 0
         self.pub_stake      = 0
@@ -127,7 +111,6 @@ class Basics:
         self.face_value     = 0
         self.volume         = 0
         self.mcap           = 0
-        self.shares_outstanding = 0
         self.split_date     = 0
         self.split_year     = 0
         self.split_factor   = 1
@@ -153,77 +136,15 @@ class Figures:
     # row 3 - free cash flow
     # row 4 - book value
     # 20 years of data of sales, profit etc
-    #entries = [[0] * MAX_Years for i in range(indices)]
+    #entries = [[0] * MAX_YEARS for i in range(indices)]
     #entries = list()
-    #entries = list()
+    entries = list()
     # number of years of data we have for each field.
     # ex: 10 years of book value, 8 years of cash flow etc.
     #fig_years = [0] * (indices)
     #fig_years = []
-    Years = []
-    Sales = []
-    PBT = []
-    PAT = []
-    INTEREST = []
-    Taxes = []
-    EBIT = []
-    PAT_M = []
-    EPS = []
-    BOOK = []
-    LIABILITIES = []
-    DEBT = []
-    ASSETS = []
-    EQUITY = []
-    SHARES = []
-    CASH = []
-    PPE = []
-    DEPRECIATION = []
-    CAPEX = []
-    ROA = []
-    ROE = []
-    ROCE = []
-    DtoE = []
-    INTR = []
 
-
-    def __init__(self):
-        self.ttm_eps = 0
-        # Long Term Debt
-        #self.lt_debt = 0
-        self.sales_growth  = 0
-        self.profit_growth = 0
-        self.cash_growth = 0
-        self.book_growth = 0
-        self.price_growth = 0
-        self.growth = 0
-        self.common_shares = 0
-        #self.entries = [[0 for i in range(1)] for j in range(indices)]
-        self.Years = []
-        self.Sales = []
-        self.PBT = []
-        self.INTEREST = []
-        self.PAT = []
-        self.Taxes = []
-        self.EBIT = []
-        self.PAT_M = []
-        self.EPS = []
-        self.BOOK = []
-        self.LIABILITIES = []
-        #self.DEBT = []
-        self.ASSETS = []
-        self.EQUITY = []
-        self.SHARES = []
-        self.CASH = []
-        self.PPE = []
-        self.DEPRECIATION = []
-        self.CAPEX = []
-        self.ROA = []
-        self.ROE = []
-        self.ROCE = []
-        self.DtoE = []
-        self.INTR = []
-
-    def __del__(self):
+    def __init(self):
         self.ttm_eps = 0
         # Long Term Debt
         #self.lt_debt = 0
@@ -232,31 +153,12 @@ class Figures:
         self.cash_growth = 0
         self.book_growth = 0
         self.growth = 0
-        #self.entries = [[0 for i in range(1)] for j in range(indices)]
-        self.Years.clear()
-        self.Sales.clear()
-        self.PBT.clear()
-        self.PAT.clear()
-        self.Taxes.clear()
-        self.INTEREST.clear()
-        self.EBIT.clear()
-        self.PAT_M.clear()
-        self.EPS.clear()
-        self.BOOK.clear()
-        self.LIABILITIES.clear()
-        #self.DEBT = []
-        self.ASSETS.clear()
-        self.EQUITY.clear()
-        self.SHARES.clear()
-        self.CASH.clear()
-        self.PPE.clear()
-        self.DEPRECIATION.clear()
-        self.CAPEX.clear()
-        self.ROA.clear()
-        self.ROE.clear()
-        self.ROCE.clear()
-        self.DtoE.clear()
-        self.INTR.clear()
+        #self.entries = [[0] * MAX_YEARS for i in range(indices)]
+        #self.entries = [[0 for i in range(MAX_YEARS)] for j in range(indices)]
+        self.entries = [[0 for i in range(1)] for j in range(indices)]
+        #self.entries = [0 for i in range(indices)]
+        #self.fig_years = [indices]
+        #self.fig_years = [0 for i in range(indices)]
 
 class Numbers:
     # figures in percentages
@@ -324,8 +226,7 @@ def str_to_int(x):
 
 def str_to_float(x):
     try:
-        #val = float(x)
-        val = float(x.get_text().lstrip().rstrip().replace("$","").replace(",",""))
+        val = float(x)
     except ValueError:
         return 0
     except TypeError:
@@ -373,12 +274,12 @@ style_num.alignment.horz = xlwt.Alignment.HORZ_RIGHT
 #style_text.font.bold = 0
 style_num.font.height = 10 * 20 #(10 pt)
 
-def add_header(sheet, years):
+def add_header(sheet):
     sheet.row(0).height_mismatch = True
     sheet.row(0).height = 3*367
-    i=0
+    i=1
     #Company
-    sheet.col(i).width = 20*367
+    sheet.col(i).width = 15*367
     sheet.write(0, i, "Company", style_wrap)
     conf.COMP=i
 
@@ -387,12 +288,6 @@ def add_header(sheet, years):
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Symbol", style_wrap)
     conf.SYM=i
-
-    i+=1
-    #Sector
-    sheet.col(i).width = 20*367
-    sheet.write(0, i, "Sector", style_wrap)
-    conf.SEC=i
 
     i+=1
     #Current Price
@@ -437,45 +332,34 @@ def add_header(sheet, years):
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
 
-    i+=1
+    i += 1
     #Years of Data
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Years of Data", style_wrap)
     conf.YR_DAT=i
 
     i+=1
-    # Price Growth
-    sheet.col(i).width = 5*367
-    st = "%s yr Price Gr" %(years)
-    sheet.write(0, i, st, style_wrap)
-    conf.TEN_PRICE=i
-
-    i+=1
     # 10 yr Sales Growth
     sheet.col(i).width = 5*367
-    st = "%s yr Sales Gr" %(years)
-    sheet.write(0, i, st, style_wrap)
+    sheet.write(0, i, "10 yr Sales Gr", style_wrap)
     conf.TEN_SAL=i
 
     i+=1
     # 10 yr Profit Growth
     sheet.col(i).width = 5*367
-    st = "%s yr Profit Gr"%(years)
-    sheet.write(0, i, st, style_wrap)
+    sheet.write(0, i, "10 yr Profit Gr", style_wrap)
     conf.TEN_PR=i
 
     i+=1
     #10 yr Book Value Growth
     sheet.col(i).width = 5*367
-    st = "%s yr Book Gr"%(years)
-    sheet.write(0, i, st, style_wrap)
+    sheet.write(0, i, "10 yr Book Gr", style_wrap)
     conf.TEN_BK=i
 
     i+=1
     # 10 yr Cash Growth
     sheet.col(i).width = 5*367
-    st = "%s yr Cash Gr"%(years)
-    sheet.write(0, i, st, style_wrap)
+    sheet.write(0, i, "10 yr Cash Gr", style_wrap)
     conf.TEN_CSH=i
 
 #    i+=1
@@ -602,7 +486,7 @@ def add_header(sheet, years):
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
-def write_to_excel(com, ash, stk, years):
+def write_to_excel(com, ash, stk):
     #wb = xlwt.Workbook()
 
     #open a company sheet
@@ -634,7 +518,6 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 0, "Symbol")
     sheet.write(i, 1, stk.bscs.symbol)
     ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
-    ash.write(conf.COUNT, conf.SEC, stk.bscs.sector, style_text)
 
     sheet.write(i, 3, "Public Stake")
     sheet.write(i, 4, stk.bscs.pub_stake/100, style_percent)
@@ -655,12 +538,8 @@ def write_to_excel(com, ash, stk, years):
 
     i += 1 #row 8
     sheet.write(i, 0, "P/E")
-    try:
-        pe  = round(stk.bscs.price/stk.fig.ttm_eps,2)
-    except ZeroDivisionError:
-        pe  = 0
-    sheet.write(i, 1, pe)
-    ash.write(conf.COUNT, conf.PE, pe)
+    sheet.write(i, 1, round(stk.bscs.price/stk.fig.ttm_eps,2))
+    ash.write(conf.COUNT, conf.PE, round(stk.bscs.price/stk.fig.ttm_eps,2))
 
 
     i = 10 #row 11
@@ -679,16 +558,11 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
 
     sheet.write(i, 3, "Years", style_bold)
-    #sheet.write(i, 4, len(stk.fig.BOOK))
-    #sheet.write(i, 5, len(stk.fig.Sales))
-    #sheet.write(i, 6, len(stk.fig.CASH))
-    #sheet.write(i, 7, len(stk.fig.PAT))
-    #ash.write(conf.COUNT, conf.YR_DAT, len(stk.fig.Sales))
-    sheet.write(i, 4, years)
-    sheet.write(i, 5, years)
-    sheet.write(i, 6, years)
-    sheet.write(i, 7, years)
-    ash.write(conf.COUNT, conf.YR_DAT, years)
+    sheet.write(i, 4, len(stk.fig.entries[BOOK]))
+    sheet.write(i, 5, len(stk.fig.entries[SALES]))
+    sheet.write(i, 6, len(stk.fig.entries[CASH]))
+    sheet.write(i, 7, len(stk.fig.entries[PAT]))
+    ash.write(conf.COUNT, conf.YR_DAT, len(stk.fig.entries[SALES]))
 
     i += 1 #row 13
     sheet.write(i, 0, "Growth Rate(9-10 Years)")
@@ -823,16 +697,13 @@ def write_to_excel(com, ash, stk, years):
     ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
    
    #Ratios
-    ash.write(conf.COUNT, conf.DTOTE, stk.fig.DtoE[-1])
-    # vpetla. Calcuate interest coverage ratio and uncomment this line
-    ##ash.write(conf.COUNT, conf.INT_C, stk.fig.INTR[-1])
-    ash.write(conf.COUNT, conf.ROE, stk.fig.ROE[-1], style_percent)
-    ash.write(conf.COUNT, conf.ROA, stk.fig.ROA[-1], style_percent)
-    # vpetla. Calcuate ROCE and uncomment this line
-    ##ash.write(conf.COUNT, conf.ROCE, stk.fig.ROCE[-1])
-    ash.write(conf.COUNT, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
+    ash.write(conf.COUNT, conf.DTOTE, stk.fig.entries[DtoE][-1])
+    ash.write(conf.COUNT, conf.INT_C, stk.fig.entries[INTR][-1])
+    ash.write(conf.COUNT, conf.ROE, stk.fig.entries[ROE][-1], style_percent)
+    ash.write(conf.COUNT, conf.ROA, stk.fig.entries[ROA][-1], style_percent)
+    ash.write(conf.COUNT, conf.ROCE, stk.fig.entries[ROCE][-1], style_percent)
+    ash.write(conf.COUNT, conf.PRF_M, stk.fig.entries[PAT_M][-1]/100, style_percent)
     ash.write(conf.COUNT, conf.MCAP, stk.bscs.mcap, style_num)
-    ash.write(conf.COUNT, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_PR, stk.fig.profit_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_BK, stk.fig.book_growth, style_percent)
@@ -848,514 +719,29 @@ def get_LTP(sym):
     sym = sym + '.BO'
     return yf(sym).get_current_price()
 
-def _json_object_hook(d):
-    return namedtuple('X', d.keys())(*d.values())
-
-def json2obj(data):
-    return json.loads(data, object_hook=_json_object_hook)
-
 def build_json_object(stock):
     y=json.dumps(stock, indent=4, default=lambda x:x.__dict__)
     #print(y)
     obj = json.loads(y)
-    obj['fig']['Years'] = stock.fig.Years
-    obj['fig']['Sales'] = stock.fig.Sales
-    obj['fig']['PBT'] = stock.fig.PBT
-    obj['fig']['Taxes'] = stock.fig.Taxes
-    obj['fig']['EBIT'] = stock.fig.EBIT
-    obj['fig']['PAT'] = stock.fig.PAT
-    obj['fig']['PAT_M'] = stock.fig.PAT_M
-    obj['fig']['EPS'] = stock.fig.EPS
-    obj['fig']['CASH'] = stock.fig.CASH
-    obj['fig']['BOOK'] = stock.fig.BOOK
-    obj['fig']['ROE'] = stock.fig.ROE
-    obj['fig']['ROA'] = stock.fig.ROA
-    obj['fig']['ROCE'] = stock.fig.ROCE
-    obj['fig']['DtoE'] = stock.fig.DtoE
-    obj['fig']['INTR'] = stock.fig.INTR
+    obj['fig']['Years'] = stock.fig.entries[YEARS]
+    obj['fig']['Sales'] = stock.fig.entries[SALES]
+    obj['fig']['Profit Before Taxes'] = stock.fig.entries[PBT]
+    obj['fig']['Taxes'] = stock.fig.entries[TAX]
+    obj['fig']['Profit After Taxes'] = stock.fig.entries[PAT]
+    obj['fig']['Profit Margin'] = stock.fig.entries[PAT_M]
+    obj['fig']['EPS'] = stock.fig.entries[EPS]
+    obj['fig']['Operating Cash Flow'] = stock.fig.entries[CASH]
+    obj['fig']['Book Value'] = stock.fig.entries[BOOK]
+    obj['fig']['Return on Equity'] = stock.fig.entries[ROE]
+    obj['fig']['Return on Assets'] = stock.fig.entries[ROA]
+    obj['fig']['Return on Capital Expenditure'] = stock.fig.entries[ROCE]
+    obj['fig']['Total Debt to Equity'] = stock.fig.entries[DtoE]
+    obj['fig']['Interest Coverage'] = stock.fig.entries[INTR]
     #print(json.dumps(obj, indent=4, default=lambda o:o.__dict__))
 #    obj = json.dumps(obj)
 #    obj = json.loads(obj)
     return obj
-
-
-
-##################### US Stocks functions ###############################3
-
-def build_US_Stocks_List():
-    db = open_db('Stocks')
-    wb = xlrd.open_workbook(amex_stocks)
-    sheet = wb.sheet_by_index(0)
-    for i in range(1,sheet.nrows):
-        obj = db.US_Stocks_List.find({"symbol":sheet.cell_value(i, 0)})
-        if obj.count() == 0:
-            stk = {"symbol": sheet.cell_value(i, 0), "Name": sheet.cell_value(i,1), "Industry": sheet.cell_value(i, 6)}
-            db.US_Stocks_List.insert_one(stk)
-        else:
-            print("%s already present" %(sheet.cell_value(i,0)))
-
-def write_to_file(html, html_file):
-    f = open(html_file, "w")
-    f.write(html)
-    f.close()
-
-def get_page(url, html_file):
-    html=requests.get(url)
-    if html.status_code == 200:
-        write_to_file(html.text, html_file)
-    else:
-        PRINT_ERR("Couldnt get page : %s" %(url))
-
-def get_US_stock_page(symbol, name):
-    path = "./US_Stocks/html_pages/%s" %(name)
-    try:
-        os.mkdir(path)
-    except FileExistsError:
-        PRINT_ERR("%s exists" %(symbol))
-        return
-
-    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_income_1.html" %(path, symbol)
-    get_page(url, html_file)
-    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_income_2.html" %(path, symbol)
-    get_page(url, html_file)
-   
-    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_cash_flow_1.html" %(path, symbol)
-    get_page(url, html_file)
-    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_cashflow_2.html" %(path, symbol)
-    get_page(url, html_file)
-
-    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_balance_sheet_1.html" %(path, symbol)
-    get_page(url, html_file)
-    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_balance_sheet_2.html" %(path, symbol)
-    get_page(url, html_file)
-    return name
-
-def get_all_US_html_pages():
-    db = open_db('Stocks')
-    docs = db.US_Stocks_List.find({})
-    for i, doc in enumerate(docs):
-        if i > 3030:
-            sym  = doc['symbol']
-            name = doc['Name']
-            if "&#39;" in name:
-                print("stk has &")
-                name = name.replace("&#39;", "\'")
-                db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}})
-            if "/" in name:
-                print("stk has /")
-                name = name.replace("/", "")
-                db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
-            if "^" in sym:
-                print("symbol has ^")
-                sym = sym.replace("^", "-")
-                print(sym)
-                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
-
-            print("%d: %s: %s "%(i, sym, name))
-            get_US_stock_page(sym, name)
-
-def get_html(stock_page):
-    try:
-        html = open(stock_page)
-    except FileNotFoundError:
-        PRINT_ERR("Failed to open %s" %(stock_page))
-        return None
-    return html
-
-def get_entries(soup, pattern):
-    entries = []
-    l=soup.find(text=pattern)
-    try:
-        tags = l.parent.parent
-    except AttributeError:
-        #print("No entries")
-        return entries
-
-    l=tags.find_all("td")
-    for i in range(1, len(l)):
-        entries.append(str_to_float(l[i]))
-    return entries
-
-def get_debt(soup, pattern):
-    entries = []
-    l=soup.findAll(text=pattern)
-    if not l:
-        return entries
-    try:
-        if len(l) > 2:
-            tags = l[2].parent.parent
-            #print(tags)
-            l=tags.find_all("td")
-            for i in range(1, len(l)):
-                entries.append(str_to_float(l[i]))
-            return entries
-    except AttributeError:
-        return entries
-
-def lowest(a, b):
-    if a < b:
-        return a
-    return b
-
-def lowest_3(a, b, c):
-    if a < b:
-        low = a
-    low = b
-    if b < c:
-        return b
-    return c
-
-def write_to_unparsed(stock):
-    f = open("US_unparsed.txt", "a")
-    f.write(stock)
-    f.write("\n")
-    f.close()
  
-def populate_US_stocks(db, root, files, symbol, stock, sector):
-    stk = Stock()
-    shares = []
-    liabilities = []
-    debt = []
-    equity = []
-    assets = []
-    book = []
-    dtoe = []
-    roe  = []
-    roa  = []
-    roce = []
-    intr = []
-
-    cash = []
-    ppe  = []
-    depreciation = []
-    capex = []
-
-    years = []
-    sales = []
-    income_tax = []
-    pbt = []
-    pat = []
-    pat_m = []
-    eps = []
-
-    #print(years)
-    #print(files)
-    #Years
-    #root = 'US_Stocks/html_pages/Silvercorp Metals Inc.'
-    #files = ['SVM_balance_sheet_1.html', 'SVM_balance_sheet_2.html', 'SVM_cash_flow_1.html', 'SVM_cashflow_2.html', 'SVM_income_1.html', 'SVM_income_2.html']
-
-    #root = 'US_Stocks/html_pages/Nordic American Offshore Ltd.'
-    #files = ['NAO_balance_sheet_1.html', 'NAO_balance_sheet_2.html', 'NAO_cash_flow_1.html', 'NAO_cashflow_2.html', 'NAO_income_1.html', 'NAO_income_2.html']
-
-    if len(files) == 0:
-        PRINT_ERR("len(files): %d" %(len(files)))
-        write_to_unparsed(root)
-        return
-
-    stock_page = "%s/%s" %(root, files[0])
-    html_page  = get_html(stock_page)
-    soup=BeautifulSoup(html_page,'html.parser')
-    #print(soup.prettify())
-    try:
-        y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
-        l=y.find_all("td")
-        for i in range(1, len(l)):
-            years.extend(l[i])
-    except AttributeError:
-        return None
-
-    stock_page = "%s/%s" %(root, files[1])
-    #print(stock_page)
-    html_page  = get_html(stock_page)
-    soup=BeautifulSoup(html_page,'html.parser')
-    try:
-        y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
-        l=y.find_all("td")
-        for i in range(1, len(l)):
-            years.extend(l[i])
-        count = 2
-    except AttributeError:
-        count = 1
-
-    #Name and Symbol
-    stk.bscs.symbol = symbol
-    stk.bscs.name = stock
-    stk.bscs.sector = sector
-    #s = soup.find("div", {"class": "symbol-name"})
-    #print(s)
-    #stk.bscs.symbol = s.find_next("span").find_next("span").get_text().replace("(","").replace(")","")
-    #stk.bscs.name   = yf(stk.bscs.symbol).get_stock_quote_type_data()[stk.bscs.symbol]['shortName'] 
-    #stk.bscs.name   = s.find_next("span").get_text()
-    
-    for f in [s for s in files if 'balance' in s]:
-        #balance sheets
-        stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
-        soup=BeautifulSoup(html_page,'html.parser')
-        shares.extend(get_entries(soup, re.compile('^ Shares Outstanding, K $')))
-        if(len(shares) == 0):
-            shares.extend(get_entries(soup, re.compile('^ Common Shares $')))
-            stk.fig.common_shares = 1
-        liabilities.extend(get_entries(soup, 'Total liabilities'))
-        assets.extend(get_entries(soup, 'Total Liabilities And Equity'))
-        #debt.extend(get_debt(soup, 'TOTAL'))
-    
-    if(len(shares) == 0):
-        PRINT_ERR("Shares data not found")
-        write_to_unparsed(stk.bscs.name)
-        write_to_unparsed("Shares data not found")
-        return None
-
-#    stk.bscs.price  = yf(stk.bscs.symbol).get_current_price()
-#    stk.bscs.volume = yf(stk.bscs.symbol).get_current_volume()
-#    stk.bscs.mcap   = yf(stk.bscs.symbol).get_market_cap()/1000000
-
-
-    for i in range(lowest_3(len(assets), len(liabilities), len(shares))):
-        equity.append(round(assets[i] - liabilities[i],2))
-        try:
-            book.append(round((assets[i] - liabilities[i]) / shares[i],2))
-        except ZeroDivisionError:
-            book.append(0)
-        except IndexError:
-            print(len(shares))
-            print(len(assets))
-            print(len(liabilities))
-            exit()
-    
-    if(len(book) == 0):
-        PRINT_ERR("len(assets): %d, len(liabilities): %d data not found"%(len(assets), len(liabilities)))
-        write_to_unparsed(stk.bscs.name)
-        return None
-
-    for i in range(lowest(len(liabilities), len(equity))):
-    #for i in range(lowest(len(debt), len(equity))):
-        try:
-            dtoe.append(round((liabilities[i]/equity[i]),2))
-            #dtoe.append(round((debt[i]/equity[i]),2))
-        except ZeroDivisionError:
-            dtoe.append(0)
-
-    for f in [s for s in files if 'cash' in s]:
-        #cash flow statements
-        stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
-        soup=BeautifulSoup(html_page,'html.parser')
-        depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
-        ppe.extend(get_entries(soup, re.compile('^ PPE Investments $')))
-        cash.extend(get_entries(soup, 'Operating Cash Flow'))
-
-    for i in range(lowest(len(depreciation), len(ppe))):
-        ppe[i] = abs(ppe[i])
-        depreciation[i] = abs(depreciation[i])
-        capex.append(round(ppe[i] + depreciation[i],2))
-
-    for f in [s for s in files if 'income' in s]:
-        #income statements
-        stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
-        soup=BeautifulSoup(html_page,'html.parser')
-        #print(soup.prettify())
-        sales.extend(get_entries(soup, re.compile('^ Sales $')))
-        pbt.extend(get_entries(soup, re.compile('^ Pre-tax Income $')))
-        pat.extend(get_entries(soup, 'Net Income $M'))
-        income_tax.extend(get_entries(soup, re.compile('^ Income Tax $')))
-        eps.extend(get_entries(soup, re.compile('^ EPS Diluted Continuous Ops $')))
-
-    if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
-        PRINT_ERR("len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps)))
-        write_to_unparsed(stk.bscs.name)
-        return None
-
-    for i in range(lowest(len(pat), len(equity))):
-        try:
-            roe.append(round((pat[i]/equity[i]),2))
-        except ZeroDivisionError:
-            roe.append(0)
-    for i in range(lowest(len(pat), len(assets))):
-        try:
-            roa.append(round((pat[i]/assets[i]),2))
-        except ZeroDivisionError:
-            roa.append(0)
-    for i in range(lowest(len(sales), len(pat))):
-        try:
-            pat_m.append(round((pat[i]/sales[i])*100 ,2))
-        except ZeroDivisionError:
-            pat_m.append(0)
-    for i in range(lowest(len(capex), len(pat))):
-        try:
-            roce.append(round(pat[i] / capex[i],2))
-            #roce.append(round(ebit[i] / capex[i],2))
-        except ZeroDivisionError:
-            roce.append(0)
-
-    stk.fig.ttm_eps = eps[0]
-    stk.fig.Years.extend(reversed(years))
-    stk.fig.Sales.extend(reversed(sales))
-    stk.fig.PBT.extend(reversed(pbt))
-    stk.fig.PAT.extend(reversed(pat))
-    stk.fig.Taxes.extend(reversed(income_tax))
-    stk.fig.PAT_M.extend(reversed(pat_m))
-    stk.fig.EPS.extend(reversed(eps))
-
-    stk.fig.BOOK.extend(reversed(book))
-    stk.fig.LIABILITIES.extend(reversed(liabilities))
-    #stk.fig.DEBT.extend(reversed(debt))
-    stk.fig.ASSETS.extend(reversed(assets))
-    stk.fig.EQUITY.extend(reversed(equity))
-    stk.fig.SHARES.extend(reversed(shares))
-
-    stk.fig.CASH.extend(reversed(cash))
-    stk.fig.PPE.extend(reversed(ppe))
-    stk.fig.DEPRECIATION.extend(reversed(depreciation))
-    stk.fig.CAPEX.extend(reversed(capex))
-    
-    stk.fig.ROA.extend(reversed(roa))
-    stk.fig.ROE.extend(reversed(roe))
-    stk.fig.ROCE.extend(reversed(roce))
-    stk.fig.DtoE.extend(reversed(dtoe))
-    stk.fig.INTR.extend(reversed(intr))
-
-    #stk = get_price_volume(stk)
-
-    obj = build_json_object(stk)
-    if obj:
-        write_to_collection(db['US_Stocks'], obj)
-        del obj
-        obj = None
- 
-    del stk
-    stk = None
-
-def get_price_growth(stk, years, data_type):
-    yrs = years
-    if data_type == 'HOT':
-        end = dt.today()
-        st = dt(end.year-years, end.month, end.day)
-        try:
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
-        except pdr._utils.RemoteDataError:
-            PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
-            stk.bscs.hist_price_5 = 1
-            stk.bscs.hist_price_10 = 1
-            return 0
-
-        st_price = data.iat[0, data.columns.get_loc('Close')]
-        en_price = data.iat[-1, data.columns.get_loc('Close')]
-        yrs = end.year - int(str(list(data.index)[0]).split('-')[0])
-        del data
-        if years == 5:
-            stk.bscs.hist_price_5 = st_price
-        else:
-            end = dt.today()
-            st = dt(end.year-5, end.month, end.day)
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
-            stk.bscs.hist_price_5 = data.iat[0, data.columns.get_loc('Close')]
-            del data
- 
-        if years == 10:
-            stk.bscs.hist_price_10 = st_price
-        else:
-            end = dt.today()
-            st = dt(end.year-10, end.month, end.day)
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
-            stk.bscs.hist_price_10 = data.iat[0, data.columns.get_loc('Close')]
-            del data
-
-        db = open_db('Stocks')
-        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.hist_price_5", stk.bscs.hist_price_5)
-        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.hist_price_10", stk.bscs.hist_price_10)
-        update_field(db['US_Stocks'], stk.bscs.symbol, "bscs.price", round(en_price,2))
- 
-    if yrs < 1:
-        yrs = 1
-    if years == 10:
-        st_price = stk.bscs.hist_price_10
-    else:
-        st_price = stk.bscs.hist_price_5
-
-    en_price = stk.bscs.price
-    #    st_price = round(float(st_price.real),2)
-    #if isinstance(en_price, complex):
-    #    en_price = rount(float(en_price.real),2)
-    years = yrs
-    growth = round(((en_price/st_price)**(1/years)-1), 2)
-    return growth
-
-def get_price_volume(stk):
-    #data = pdr.get_data_yahoo(symbols=stk.bscs.symbol, start=dt(2019,4,15), end=dt(2019,4,18))
-    #stk.bscs.price  = round(float(data.iat[-1, data.columns.get_loc('Adj Close')]), 2)
-    #vol = data[['Volume']]
-    #sum = 0        
-    #for v in vol.values.tolist():
-    #    sum += v[0]
-    #stk.bscs.volume = sum / len(vol.values.tolist())
-    
-    ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
-    try:
-        d = data.get_quote_yahoo(stk.bscs.symbol)
-    except pdr._utils.RemoteDataError:
-        PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
-        return None
-    # Add moving average etc. Refer /tmp/test.csv for details
-    stk.bscs.volume = (d.averageDailyVolume3Month.to_list()[0])
-    #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
-    stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
-    stk.bscs.price  = (d.price.to_list()[0])
-    stk.bscs.shares_outstanding = d.sharesOutstanding.to_list()[0]
-    return stk
-    
-def update_db_price_volume(collection, stk):
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.price": stk.bscs.price}})
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.volume": stk.bscs.volume}})
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.mcap": stk.bscs.mcap}})
-    collection.update({'bscs.symbol': stk.bscs.shares_outstanding}, {'$set': {"bscs.shares_outstanding": stk.bscs.shares_outstanding}})
- 
-def update_all_price_volume_db():
-    db = open_db('Stocks')
-    i=0
-    for doc in db.US_Stocks.find():
-        if i > -1:
-            stk = dbObject(**doc)
-            #if stk.bscs.price == 0:
-            print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
-            stk = get_price_volume(stk)
-            if stk:
-                update_db_price_volume(db.US_Stocks, stk)
-        i+=1
-        #break
-
-def build_US_database():
-    db = open_db('Stocks')
-    #db.US_Stocks.drop()
-    wb = xlrd.open_workbook('US_Stocks/US_Stocks.xls')
-    sheet = wb.sheet_by_index(0)
-    for i in range(1,sheet.nrows):
-        stock = sheet.cell_value(i, 0)
-        stock = stock.split('/')[2]
-        objs = db.US_Stocks_List.find({"Name":stock})
-        for obj in objs:
-            symbol = obj['symbol']
-            industry = obj['Industry']
-        for (root,dirs,files) in os.walk(sheet.cell_value(i,0), topdown=True):
-            files = [f for f in files if not f[0] == '.']
-            dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
-            dirs[:] = [d for d in dirs if not d[0] == '.']
-            #print(root)
-            #print(dirs)
-            #print(sorted(files))
-            print("%d: %s" %(i, root))
-            populate_US_stocks(db, root, sorted(files), symbol, stock, industry)
-        #break
-
-########################################### US Stocks functions END ####################################
-
 def get_stock_page(stock):
     driver = webdriver.Firefox()
     driver.get("http://www.ratestar.in/home")
@@ -1423,7 +809,7 @@ def get_stock_page(stock):
     else:
         #PRINT_DBG("Found stock %r" %(stock))
         html_src=driver.page_source
-        html_file = "html_pages/%s.html" %(stock_name)
+        html_file = "html_pages/dir2/%s.html" %(stock_name)
         f = open(html_file, "w")
         f.write(html_src)
         f.close()
@@ -1456,6 +842,7 @@ def get_stock_page(stock):
 def get_all_stocks_html():
     wb = xlrd.open_workbook(bse_stocks)
     sheet = wb.sheet_by_index(0)
+    sheet.cell_value(0,0)
 #    with open("missing_files.txt") as f:
 #        for line in f:
 #            line = line.replace("\n","")
@@ -1479,7 +866,7 @@ def calculate_PAT(stk):
     entry=[]
     try:
         for i in range(len(stk.fig.entries[PBT])):
-            entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[Taxes][i],2))
+            entry.append(round(stk.fig.entries[PBT][i] - stk.fig.entries[TAX][i],2))
     except IndexError:
         return
     except TypeError:
@@ -1555,7 +942,7 @@ def get_stock_split_info_yahoo(stk):
     stk.bscs.split_year = datetime.datetime.strptime(d, '%Y-%m-%d').year 
 
 def get_stock_split_info(stk):
-    wb = xlrd.open_workbook('split_data.xls')
+    wb = xlrd.open_workbook('India_Stocks/split_data.xls')
     sheet = wb.sheet_by_index(0)
     for i in range(1,sheet.nrows):
         if str(sheet.cell_value(i, 0)) == stk.bscs.name:
@@ -1738,14 +1125,14 @@ def populate_stock(html_page):
 
     PRINT_DBG(annual_cons)
     #Years
-    PRINT_DBG("Years: %r" %(Years))
+    PRINT_DBG("YEARS: %r" %(YEARS))
     pattern = re.compile(r'Description\n')
-    populate_item(stk, pattern, annual_cons, Years, 0)
-    PRINT_DBG(stk.fig.entries[Years])
+    populate_item(stk, pattern, annual_cons, YEARS, 0)
+    PRINT_DBG(stk.fig.entries[YEARS])
     #Sales
-    PRINT("Sales: %r"%(Sales))
+    PRINT("SALES: %r"%(SALES))
     pattern = re.compile(r'Net Sales')
-    if populate_item(stk, pattern, annual_cons, Sales, 1) is False:
+    if populate_item(stk, pattern, annual_cons, SALES, 1) is False:
         pattern = re.compile(r'Net Interest Income')
         div = annual_cons.find(text=pattern)
         PRINT_DBG(div.parent.parent)
@@ -1754,16 +1141,16 @@ def populate_stock(html_page):
             return None
         div = div.parent
         div = div.find_next("div", {"class": "CHead"})
-        populate(stk, div, Sales, 1)
-        #populate_item(stk, pattern, annual_cons, Sales, 1)
+        populate(stk, div, SALES, 1)
+        #populate_item(stk, pattern, annual_cons, SALES, 1)
     #Profit Before Taxes
     PRINT_DBG("PBT: %r" %(PBT))
     pattern = re.compile(r'PBT\n')
     populate_item(stk, pattern, annual_cons, PBT, 1)
     #Tax
-    PRINT_DBG("Taxes: %r" %(Taxes))
+    PRINT_DBG("TAX: %r" %(TAX))
     pattern = re.compile(r'Tax\n')
-    populate_item(stk, pattern, annual_cons, Taxes, 1)
+    populate_item(stk, pattern, annual_cons, TAX, 1)
 
     PRINT_DBG("PAT: %r" %(PAT))
     calculate_PAT(stk)
@@ -1947,64 +1334,20 @@ def calculate_growth(fig, row):
     return growth
     #return min(g1,g2)
 
-def calc_growth(split_factor, row, years):
-    if years > len(row):
-        years = len(row)
-    #mid_len = math.floor(years/2)
-    first = row[0]
-    #mid   = row[mid_len]
-    last  = row[-1] * split_factor
-
-    PRINT_DBG("growth years: %r"%(years))
-    try:
-        val = int(first)
-        #val = int(mid)
-        val = int(last)
-    except:
-        return 0
-    # Negative growth
-    if last <= 0:
-        return 0
-    # Ease calculation for negatives
-    if first <= 0:
-        first = 1
-        last += abs(first)+1
-    growth = round(((last/first)**(1/years)-1), 2) * years / 10
-    return growth
-
 # Calcuate numbers
-def calculate_dcf(com, ash, stk, years):
+def calculate_dcf(com, ash, stk):
 #    global conf.COUNT
     growth  = [0] * (GROWTH_PARAMS)
+    fig = stk.fig
     i = 0
-    startyr = stk.fig.Years[0]
-    startyr = int(startyr.split("-")[1].lstrip().rstrip())
-    #print(startyr)
-    endyr = stk.fig.Years[len(stk.fig.Years)-2]
-    endyr = int(endyr.split("-")[1].lstrip().rstrip())
-    #print(endyr)
-    #print(stk.bscs.split_year)
-    #print(stk.bscs.split_factor)
-    split_factor = 1
-    if stk.bscs.split_year > startyr and stk.bscs.split_year <= endyr:
-        split_factor = stk.bscs.split_factor
-
-    stk.fig.price_growth  = get_price_growth(stk, years, 'COLD')
-    stk.fig.sales_growth  = growth[i]  = calc_growth(1, stk.fig.Sales, years) * len(stk.fig.Sales) / 10
+    stk.fig.sales_growth  = growth[i]  = calculate_growth(fig, SALES)
     i+=1
-    stk.fig.profit_growth = growth[i]  = calc_growth(1, stk.fig.PAT, years) * len(stk.fig.PAT) / 10
+    stk.fig.profit_growth = growth[i] = calculate_growth(fig, PAT)
     i+=1
-    stk.fig.cash_growth   = growth[i]  = calc_growth(1, stk.fig.CASH, years) * len(stk.fig.CASH) / 10
+    stk.fig.cash_growth   = growth[i]   = calculate_growth(fig, CASH)
     i+=1
-    stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
-    
-    # Dont calculate DCF for stocks with negative growth in any factor
-    for number in growth:
-        if number <= 0:
-            print(number)
-            return False
-
-    PRINT("Growth of entries: %r"%(growth))
+    stk.fig.book_growth   = growth[i]   = calculate_growth(fig, BOOK)
+    print("Growth of entries: %r"%(growth))
     try:
         stk.fig.growth = min(i for i in growth if i > 0)
     except ValueError:
@@ -2091,118 +1434,19 @@ def calculate_dcf(com, ash, stk, years):
         PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
         PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
-    #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
-    if stk.bscs.price <= stk.num.dcf_price:
-        conf.COUNT+=1
-        write_to_excel(com, ash, stk, years)
-        return True
-    return False
-
-class dbObject:
-    def __init__(self, **obj):
-        for k,v in obj.items():
-            if isinstance(v,dict):
-                self.__dict__[k] = dbObject(**v)
-            else:
-                self.__dict__[k] = v
-
-def calculate_dcf_all_stocks(country, years):
-    # All Stocks Excel File
-    all_stk = xlwt.Workbook()
-    ash = all_stk.add_sheet("All Stocks")
-    add_header(ash, years)
-    j = 0
-
-    db = open_db('Stocks')
-    if country == 'India':
-        docs = db.Indian_Stocks.find({})
-        os.mkdir("./Indian_Stocks")
-        os.mkdir("./Indian_Stocks/excel_files")
-        os.mkdir("./Indian_Stocks/DCF_Calc")
-        inflation = 0.08
-        discount_rate = 0
-        mos = 0.5
-        path="./Indian_Stocks"
-    elif country == 'US':
-        docs = db.US_Stocks.find({})
-        try:
-            os.mkdir("./US_Stocks")
-            os.mkdir("./US_Stocks/excel_files")
-            os.mkdir("./US_Stocks/DCF_Calc")
-        except FileExistsError:
-            PRINT("")
-        inflation = 0
-        discount_rate = 0.1
-        mos = 0.5
-        path="./US_Stocks"
-    else:
-        return
-
-        #for doc in docs:
-    for i, doc in enumerate(docs):
-        doc['id'] = doc.pop('_id')
-        #doc['PAT'] = doc.pop('Profit After Taxes')
-        stock = dbObject(**doc)
-        #obj = namedtupled.map(doc)
-        #obj = namedtuple("Stock", doc.keys())(*doc.values())
-        #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
-        #obj = bunchify(doc)
-        
-        if not stock:
-            continue
-        if stock.bscs.volume < 50000:
-            del stock
-            continue
-        if stock.bscs.price < 1:
-            del stock
-            continue
-        # Atleast a billion
-        #if stock.bscs.mcap < 1000: #millions
-        # Atleast 10 billion
-        #if stock.bscs.mcap < 10000: #millions
-        # Between 1 billion and 10 billion
-        if stock.bscs.mcap < 1000 or stock.bscs.mcap > 10000: #millions
-            del stock
-            continue
-
-        print("%s: %s"%(stock.bscs.symbol, stock.bscs.name))
-        stock.num.inflation = inflation
-        stock.num.discount_rate = discount_rate
-        stock.num.margin_of_safety = mos
-        #Company Excel File
-        com = xlwt.Workbook()
-        if calculate_dcf(com, ash, stock, years) is False:
-            del stock
-            del com
-            continue
-        excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
-        PRINT("Writing to %s" % (excel))
-        com.save(excel)
-        j+=1
-
-        del stock
-        del com
-        stock=None
-        com=None
-
-    print("Stocks Calculated: %r" %(j))
-    #now = datetime.datetime.now()
-    #excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-    if len(sys.argv) == 2:
-        excel = "%s/DCF_Calc/%s.xls" %(path, sys.argv[1])
-    else:
-        excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
-    print("Saving DCF stocks to %s"%(excel))
-    all_stk.save(excel)
+    #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.09:
+    conf.COUNT+=1
+    write_to_excel(com, ash, stk)
+    return True
 
 #Return a html page for a given URL
-#def get_html(url):
-#    return open(url)
-#    #return open("./log.html")
-#    #return open("./manpasand.html")
-#    #return open("./html_pages/YES BANK LTD..html")
-#    #return open("./html_pages/ADF FOODS LTD. .html")
-#
+def get_html(url):
+    return open(url)
+    #return open("./log.html")
+    #return open("./manpasand.html")
+    #return open("./html_pages/YES BANK LTD..html")
+    #return open("./html_pages/ADF FOODS LTD. .html")
+
 #    #open with GET method
 #    resp=requests.get(url)
 #
@@ -2216,9 +1460,6 @@ def open_db(db_name):
     db = client[db_name]
     return db
 
-def update_field(col, symbol, field, value):
-    col.update({"bscs.symbol":symbol},{'$set':{field:value}})
- 
 def write_to_collection(col, doc):
     if col.find({"bscs.symbol":doc['bscs']['symbol']}).count() > 0 :
         print("Stock exists")
@@ -2309,7 +1550,8 @@ def find_files():
 def main():
 #    find_files()
 #    update_db_symbol_id()
-    files = glob.glob("./html_pages/*")
+#    files = glob.glob("./html_pages/*")
+    files = glob.glob("./India_Stocks/html_pages/Sanofi India Ltd.html")
 #    files = glob.glob("./html_pages/FILATEX INDIA LTD. .html")
 #    files = glob.glob("./html_pages/Krishna Capital and Securities Ltd.html")
 #    files = glob.glob("./html_pages/STERLING TOOLS LTD. .html")
@@ -2319,65 +1561,55 @@ def main():
 #    files = glob.glob("./html_pages/SETCO AUTOMOTIVE LTD..html")
 #    #files = glob.glob("./html_pages/WELSPUN INDIA LTD..html")
 #
-#    i=0
-#    j=0
+    i=0
+    j=0
 #
     #build_files(files)
     # Add stock info to the database
 #    build_database(files)
-#    calculate_dcf_all_stocks('India')
-#    # All Stocks Excel File
-#    all_stk = xlwt.Workbook()
-#    ash = all_stk.add_sheet("All Stocks")
-#    add_header(ash, years)
 #
-#    for stock_page in files:
-#        print(stock_page)
-#        stock = get_stock_info(stock_page)
-#        if not stock:
-#            continue
-#        if stock.bscs.volume < 50000:
-#            continue
-#        if stock.bscs.price < 1:
-#            continue
-#        stock.bscs.price = get_LTP(stock.bscs.symbol)
-#        print_stock_info(stock)
-#        stock.num.inflation = 0.08
-#        stock.num.discount_rate = 0.0
-#        stock.num.margin_of_safety = 0.5
-#        #Company Excel File
-#        com = xlwt.Workbook()
-#        calculate_dcf(com, ash, stock, years)
-#        excel = "excel_files/%s.xls" % (stock.bscs.name)
-#        PRINT("Writing to %s" % (excel))
-#        com.save(excel)
-#        j+=1
-#
-#        stock=None
-#        com=None
-#        i+=1
-#
-#    print("Stocks Calculated: %r" %(i))
-#    print("Stocks DCF Eligible: %r" %(j))
-#    now = datetime.datetime.now()
-#    excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-#    print("Saving DCF stocks to %s"%(excel))
-#    all_stk.save(excel)
+    # All Stocks Excel File
+    all_stk = xlwt.Workbook()
+    ash = all_stk.add_sheet("All Stocks")
+    add_header(ash)
+
+    for stock_page in files:
+        print(stock_page)
+        stock = get_stock_info(stock_page)
+        if not stock:
+            continue
+        #if stock.bscs.volume < 50000:
+        #    continue
+        if stock.bscs.price < 1:
+            continue
+        stock.bscs.price = get_LTP(stock.bscs.symbol)
+        print_stock_info(stock)
+        stock.num.inflation = 0.08
+        stock.num.discount_rate = 0.0
+        stock.num.margin_of_safety = 0.5
+        #Company Excel File
+        com = xlwt.Workbook()
+        calculate_dcf(com, ash, stock)
+        excel = "./India_Stocks/excel_files/%s.xls" % (stock.bscs.name)
+        PRINT("Writing to %s" % (excel))
+        com.save(excel)
+        j+=1
+
+        stock=None
+        com=None
+        i+=1
+
+    print("Stocks Calculated: %r" %(i))
+    print("Stocks DCF Eligible: %r" %(j))
+    now = datetime.datetime.now()
+    excel = "./India_Stocks/DCF_Calc/All_Stocks_%s.xls" % (str(now))
+    print("Saving DCF stocks to %s"%(excel))
+    all_stk.save(excel)
 #    #all_stk.save("excel_files/All_Stocks.xls")
 #    get_all_stocks_html()
 
-#main()
+main()
 
-def US_main():
-    #get_US_stock_page("MSFT")
-    #build_US_Stocks_List()
-    #get_all_US_html_pages()
-    #get_US_stock_page('WM', 'Waste Management, Inc.')
-    #build_US_database()
-    #update_all_price_volume_db()
-    calculate_dcf_all_stocks('US', 5)
-
-US_main()
 #def news():
 #    # the target we want to open
 #    url='http://www.ratestar.in/company/daawat/532783/LT-Foods-Ltd-132783'
