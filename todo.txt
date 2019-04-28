@@ -1,4 +1,5 @@
 Both:
+========
 1. Yearwise PE
 2. In DCF excel file of each stock, add 1year, 5year, 10 year growth of sales, pat etc params
 3. Earnings estimate for current/next year both in DB and DCF Excel. Find a way to get earnings for India. For US, barchart has data.
@@ -12,7 +13,24 @@ Both:
  - Daily suprises of prices and volumes of all stocks.
  - 
 8. If any stock has compounded annual growth rate of above 10% for all four fields, highlight that stock in All_Stocks.xls
+
 India:
-1. Price growth along with Sales, Earnings, Cash etc growth.
+=======
+1. In All stocks xls, add Price growth along with Sales, Earnings, Cash etc growth.
 
 US:
+=====
+1. From BarChart profile, retrieve 
+   - institutional, insider shareholders
+   - outstanding shares
+   - 60-month beta
+   - Float, float percent
+   - Interest Coverage
+   - Forward P/E
+   - Next Earnings Date
+   - Annual Dividend Yield
+   - Dividend Payout Ratio
+   - Most Recent Split date
+   - Split factor
+   - 
+   
