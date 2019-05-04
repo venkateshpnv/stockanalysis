@@ -3,17 +3,26 @@ Both:
 1. Yearwise PE
 2. In DCF excel file of each stock, add 1year, 5year, 10 year growth of sales, pat etc params
 3. Earnings estimate for current/next year both in DB and DCF Excel. Find a way to get earnings for India. For US, barchart has data.
-4. Last four quarters of datain DB.
 5. Forward Earnings based DCF Calculation.
 6. In DCF Excel, along with EPS calculated, below rows should have projected EPS, actual EPS data. Also save in DB
 7. Cronjob
- - Track radar and portfolio stocks.
+ - Track radar, to buy  and portfolio stocks when meets the below criteria
+   * Cur price close to DCF with x% deviation. (for Hot, Cold and DB data)
+   * Sudden change in price or volume of x% in a day, month and quarter.
+   *
  - Send email on sudden changes in price and volume in a day.
  - Quarterly earnings calendar. Track and notify me for radar and portfolio stocks.
  - Daily suprises of prices and volumes of all stocks.
- - 
+ 
 8. If any stock has compounded annual growth rate of above 10% for all four fields, highlight that stock in All_Stocks.xls
-
+9. Seggreate common functions into one single file.
+10. Menu based interface to filter best stocks with bargain price and
+   - High Dividend Yield
+   - High Return rate in a quarter, year, 5years and 10 years
+   - 
+11. Maintain start and end year for all figures.
+4. Last four quarters of datain DB.
+12.
 India:
 =======
 1. In All stocks xls, add Price growth along with Sales, Earnings, Cash etc growth.
