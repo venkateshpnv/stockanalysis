@@ -15,14 +15,15 @@ Both:
  - Daily suprises of prices and volumes of all stocks.
  
 8. If any stock has compounded annual growth rate of above 10% for all four fields, highlight that stock in All_Stocks.xls
-9. Seggreate common functions into one single file.
+9. Seggreate common functions into one single file. (Completed US Stocks)
 10. Menu based interface to filter best stocks with bargain price and
    - High Dividend Yield
    - High Return rate in a quarter, year, 5years and 10 years
    - 
 11. Maintain start and end year for all figures.
-4. Last four quarters of datain DB.
-12.
+4. Last four quarters of data in DB. Consider it as TTM during DCF calculation
+12.Capture historical annual dividend yield
+
 India:
 =======
 1. In All stocks xls, add Price growth along with Sales, Earnings, Cash etc growth.
@@ -30,16 +31,16 @@ India:
 US:
 =====
 1. From BarChart profile, retrieve 
-   - institutional, insider shareholders
-   - outstanding shares
-   - 60-month beta
-   - Float, float percent
-   - Interest Coverage
-   - Forward P/E
-   - Next Earnings Date
-   - Annual Dividend Yield
-   - Dividend Payout Ratio
-   - Most Recent Split date
-   - Split factor
-   - 
-   
+   - institutional, insider shareholders - Done
+   - outstanding shares - Done
+   - 60-month beta - Done
+   - Float, float percent - Done
+   - Interest Coverage - Done
+   - Forward P/E - Done
+   - Next Earnings Date - Pending 
+   - Annual Dividend Yield - Done
+   - Dividend Payout Ratio - Done
+   - Most Recent Split date - Pending
+   - Change NPM to Profit Margin, retrieve NPM again - Pending
+   - Split factor - Pending. Use stocksplithistory.com data
+2. Change operating cash flow to free cash flow in db 

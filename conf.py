@@ -30,7 +30,9 @@ THREE_BK=0
 THREE_CSH=0
 FV=0
 PE=0
-PRF_M=0
+F_PE=0
+TTM_PE=0
+NPM=0
 DTOTE=0
 INT_C=0
 ROE=0
@@ -39,7 +41,11 @@ ROCE=0
 MCAP=0
 FII=0
 DII=0
+DIV=0
+DIV_PAY=0
 PRM_S=0
+FLT=0
+FLT_PER=0
 
 MAX_Years = 20
 #Sales, PAT, Cash Flow, Book Value
@@ -124,7 +130,9 @@ def init_variables():
     THREE_CSH=0
     FV=0
     PE=0
-    PRF_M=0
+    F_PE=0
+    TTM_PE=0
+    NPM=0
     DTOTE=0
     INT_C=0
     ROE=0
@@ -134,6 +142,11 @@ def init_variables():
     FII=0
     DII=0
     PRM_S=0
+    DIV=0
+    DIV_PAY=0
+    FLT=0
+    FLT_PER=0
+
     
     MAX_Years = 20
     #Sales, PAT, Cash Flow, Book Value

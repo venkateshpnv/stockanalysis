@@ -7,7 +7,7 @@ import math
 import xlwt
 
 from excel import add_header
-from DB import open_db
+from DB import open_db, dbObject
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
 from excel import write_to_excel
@@ -112,10 +112,10 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
     
     # Dont calculate DCF for stocks with negative growth in any factor
-    #for number in growth:
-    #    if number <= 0:
-    #        print(number)
-    #        return False
+    for number in growth:
+        if number <= 0:
+            print(number)
+            return False
 
     PRINT("Growth of entries: %r"%(growth))
     try:
@@ -211,14 +211,6 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     return True
     #return False
 
-class dbObject:
-    def __init__(self, **obj):
-        for k,v in obj.items():
-            if isinstance(v,dict):
-                self.__dict__[k] = dbObject(**v)
-            else:
-                self.__dict__[k] = v
-
 def calculate_dcf_all_stocks(country, years, data_type):
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
@@ -246,7 +238,7 @@ def calculate_dcf_all_stocks(country, years, data_type):
         except FileExistsError:
             PRINT("")
         inflation = 0
-        discount_rate = 0.1
+        discount_rate = 0.08
         mos = 0.5
         path="./US_Stocks"
     else:

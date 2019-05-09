@@ -5,8 +5,6 @@ class Basics:
         self.bse_symbol = 'DEAD'
         self.sector = 'DEAD'
         self.price  = 0
-        self.hist_price_5 = 0
-        self.hist_price_10 = 0
         self.promoter_stake = 0
         self.corp_stake     = 0
         self.pub_stake      = 0
@@ -20,20 +18,32 @@ class Basics:
         self.split_date     = 0
         self.split_year     = 0
         self.split_factor   = 1
+        self.hist_price_5 = 0
+        self.hist_price_10 = 0
+        self.five_yr_beta = 0
+        self.float = 0
+        self.float_percent = 0
 
 class Ratios:
     def __init(self):
-        self.book_value = 0
+        self.interest_coverage = 0
+        self.forward_PE = 0
+        self.ttm_PE = 0
+        self.conf.ROE = 0
         # Percentages
         self.conf.ROA = 0
-        self.conf.ROE = 0
-        self.conf.ROCE = 0
-
+        #self.conf.ROCE = 0
+        self.GPM = 0
+        self.NPM = 0
         # Debt/Equity
         self.DtoE = 0
+        self.PtoB = 0
+        self.BOOK = 0
         
-        # Interest Coverage
-        self.IC = 0
+class Dividend:
+    def __init(self):
+        self.yld = 0
+        self.payout_ratio = 0
 
 class Figures:
     # row 0 - year
@@ -182,3 +192,7 @@ class Stock:
         self.bscs = Basics()
         self.num  = Numbers()
         self.fig  = Figures()
+        self.Ratios = Ratios()
+        self.Dividend = Dividend()
+
+

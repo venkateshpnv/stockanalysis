@@ -31,7 +31,7 @@ def str_to_int(x):
 def str_to_float(x):
     try:
         #val = float(x)
-        val = float(x.get_text().lstrip().rstrip().replace("$","").replace(",",""))
+        val = float(x.lstrip().rstrip().replace("$","").replace(",","").replace("%",""))
     except ValueError:
         return 0
     except TypeError:

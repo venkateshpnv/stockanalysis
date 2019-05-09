@@ -156,6 +156,9 @@ def get_page(url, html_file):
     else:
         PRINT_ERR("Couldnt get page : %s" %(url))
 
+def get_webpage(url):
+    return requests.get(url).text
+
 def get_US_stock_page(symbol, name):
     path = "./US_Stocks/html_pages/%s" %(name)
     try:

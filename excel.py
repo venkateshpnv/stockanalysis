@@ -239,6 +239,19 @@ def add_header(sheet, years):
     conf.PE=i
 
     i+=1
+    # Forward P/E
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Fwd P/E", style_wrap)
+    conf.F_PE=i
+
+    i+=1
+    # TTM P/E
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "TTM P/E", style_wrap)
+    conf.TTM_PE=i
+
+
+    i+=1
     # DtoTE
     sheet.col(i).width = 5*367
     sheet.write(0, i, "DtoTE", style_wrap)
@@ -298,6 +311,29 @@ def add_header(sheet, years):
     sheet.write(0, i, "Prom Stake", style_wrap)
     conf.PRM_S=i
 
+    i+=1
+    # Dividend Yield
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Div Yield", style_wrap)
+    conf.DIV=i
+
+    i+=1
+    # Dividend Payout Ratio
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Div Payout", style_wrap)
+    conf.DIV_PAY=i
+
+    i+=1
+    # Float
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Float", style_wrap)
+    conf.FLT=i
+
+    i+=1
+    # Float Percent
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Float %", style_wrap)
+    conf.FLT_PER=i
 
 #com : Company Work Book
 #ash : All Stocks Work Sheet
@@ -310,6 +346,23 @@ def write_to_excel(com, ash, stk, years):
     sheet.col(0).width = 28*367
     sheet.col(1).width = 10*367
     sheet.col(3).width = 10*367
+
+    if not stk.bscs.dii_stake:
+        stk.bscs.dii_stake=0
+    if not stk.Dividend.yld:
+        stk.Dividend.yld=0
+    if not stk.Dividend.payout_ratio:
+        stk.Dividend.payout_ratio=0
+    if not stk.Ratios.interest_coverage:
+        stk.Ratios.interest_coverage=0
+    if not stk.Ratios.forward_PE:
+        stk.Ratios.forward_PE=0
+    if not stk.Ratios.ttm_PE:
+        stk.Ratios.ttm_PE=0
+    if not stk.bscs.float:
+        stk.bscs.float = 0
+    if not stk.bscs.float_percent:
+        stk.bscs.float_percent = 0
 
     i = 0
     sheet.write(i, 0, "Date", style_bold)
@@ -329,6 +382,10 @@ def write_to_excel(com, ash, stk, years):
     ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake/100, style_percent)
     ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake/100, style_percent)
     ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.DIV, stk.Dividend.yld/100, style_percent)
+    ash.write(conf.COUNT, conf.DIV_PAY, stk.Dividend.payout_ratio/100, style_percent)
+    ash.write(conf.COUNT, conf.FLT, stk.bscs.float/100)
+    ash.write(conf.COUNT, conf.FLT_PER, stk.bscs.float_percent/100, style_percent)
 
     i += 1 #row 5
     sheet.write(i, 0, "Symbol")
@@ -361,6 +418,8 @@ def write_to_excel(com, ash, stk, years):
         pe  = 0
     sheet.write(i, 1, pe)
     ash.write(conf.COUNT, conf.PE, pe)
+    ash.write(conf.COUNT, conf.F_PE, stk.Ratios.forward_PE)
+    ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
 
 
     i = 10 #row 11

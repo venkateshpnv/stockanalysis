@@ -13,6 +13,9 @@ import excel
 from common import *
 from conf import *
 
+def get_soup(html_text):
+    return BeautifulSoup(html_text, 'html.parser')
+
 def get_entries(soup, pattern):
     entries = []
     l=soup.find(text=pattern)
@@ -24,7 +27,7 @@ def get_entries(soup, pattern):
 
     l=tags.find_all("td")
     for i in range(1, len(l)):
-        entries.append(str_to_float(l[i]))
+        entries.append(str_to_float(l[i].get_text()))
     return entries
 
 def get_debt(soup, pattern):
@@ -38,7 +41,7 @@ def get_debt(soup, pattern):
             #print(tags)
             l=tags.find_all("td")
             for i in range(1, len(l)):
-                entries.append(str_to_float(l[i]))
+                entries.append(str_to_float(l[i].get_text()))
             return entries
     except AttributeError:
         return entries
