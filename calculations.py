@@ -6,7 +6,7 @@ import time
 import math
 import xlwt
 
-from excel import add_header
+from excel import add_dcf_header
 from DB import open_db, dbObject
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
@@ -215,7 +215,7 @@ def calculate_dcf_all_stocks(country, years, data_type):
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
-    add_header(ash, years)
+    add_dcf_header(ash, years)
     j = 0
     init_variables()
 

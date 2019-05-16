@@ -371,7 +371,7 @@ def main():
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
-    excel.add_header(ash)
+    excel.add_dcf_header(ash)
 
     for stock_page in files:
         print(stock_page)

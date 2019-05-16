@@ -73,10 +73,9 @@ def get_India_symbol_and_sector(stk):
     PRINT_ERR("Cant find symbol name for %s" %(stk.bscs.bse_symbol))
 
 
-def add_header(sheet, years):
+def add_basic_header(sheet, i):
     sheet.row(0).height_mismatch = True
     sheet.row(0).height = 3*367
-    i=0
     #Company
     sheet.col(i).width = 20*367
     sheet.write(0, i, "Company", style_wrap)
@@ -101,6 +100,43 @@ def add_header(sheet, years):
     conf.CUR_PR=i
 
     i+=1
+    #Volume
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Volume", style_wrap)
+    conf.VOL=i
+
+    i+=1
+    # Face Value
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Face Value", style_wrap)
+    conf.FV=i
+
+    i+=1
+    # Market Cap in Cr
+    sheet.col(i).width = 8*367
+    sheet.write(0, i, "Market Cap", style_wrap)
+    conf.MCAP=i
+
+    i+=1
+    # conf.FII
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "FII", style_wrap)
+    conf.FII=i
+
+    i+=1
+    # conf.DII
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "DII", style_wrap)
+    conf.DII=i
+
+    i+=1
+    # Promoter Stake
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Prom Stake", style_wrap)
+    conf.PRM_S=i
+    return i
+
+def add_calc_header(sheet, i):
     #DCF Price
     sheet.col(i).width = 5*367
     sheet.write(0, i, "DCF Price", style_wrap)
@@ -130,27 +166,9 @@ def add_header(sheet, years):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "MoS Price Ret Rate", style_wrap)
     conf.MOS_RT=i
+    return i
 
-    i+=1
-    #Volume
-    sheet.col(i).width = 7*367
-    sheet.write(0, i, "Volume", style_wrap)
-    conf.VOL=i
-
-    i+=1
-    #Years of Data
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Years of Data", style_wrap)
-    conf.YR_DAT=i
-
-    i+=1
-    # Price Growth
-    sheet.col(i).width = 5*367
-    st = "%s yr Price Gr" %(years)
-    sheet.write(0, i, st, style_wrap)
-    conf.TEN_PRICE=i
-
-    i+=1
+def add_figs_growth_header(sheet, i, years):
     # 10 yr Sales Growth
     sheet.col(i).width = 5*367
     st = "%s yr Sales Gr" %(years)
@@ -225,14 +243,9 @@ def add_header(sheet, years):
 #    sheet.col(i).width = 4*367
 #    sheet.write(0, i, "3 yr Cash Gr", style_wrap)
 #    conf.THREE_CSH=i
+    return i
 
-    i+=1
-    # Face Value
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Face Value", style_wrap)
-    conf.FV=i
-
-    i+=1
+def add_ratios_header(sheet, i):
     # P/E
     sheet.col(i).width = 4*367
     sheet.write(0, i, "P/E", style_wrap)
@@ -249,7 +262,6 @@ def add_header(sheet, years):
     sheet.col(i).width = 4*367
     sheet.write(0, i, "TTM P/E", style_wrap)
     conf.TTM_PE=i
-
 
     i+=1
     # DtoTE
@@ -288,30 +300,6 @@ def add_header(sheet, years):
     conf.ROCE=i
 
     i+=1
-    # Market Cap in Cr
-    sheet.col(i).width = 8*367
-    sheet.write(0, i, "Market Cap", style_wrap)
-    conf.MCAP=i
-
-    i+=1
-    # conf.FII
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "FII", style_wrap)
-    conf.FII=i
-
-    i+=1
-    # conf.DII
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "DII", style_wrap)
-    conf.DII=i
-
-    i+=1
-    # Promoter Stake
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Prom Stake", style_wrap)
-    conf.PRM_S=i
-
-    i+=1
     # Dividend Yield
     sheet.col(i).width = 4*367
     sheet.write(0, i, "Div Yield", style_wrap)
@@ -322,6 +310,33 @@ def add_header(sheet, years):
     sheet.col(i).width = 4*367
     sheet.write(0, i, "Div Payout", style_wrap)
     conf.DIV_PAY=i
+    return i
+
+def add_dcf_header(sheet, years):
+    i=0
+    i = add_basic_header(sheet, i)
+
+    i+=1
+    i = add_calc_header(sheet, i)
+
+    i+=1
+    #Years of Data
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Years of Data", style_wrap)
+    conf.YR_DAT=i
+
+    i+=1
+    # Price Growth
+    sheet.col(i).width = 5*367
+    st = "%s yr Price Gr" %(years)
+    sheet.write(0, i, st, style_wrap)
+    conf.TEN_PRICE=i
+
+    i+=1
+    i = add_figs_growth_header(sheet, i, years)
+
+    i+=1
+    i = add_ratios_header(sheet, i)
 
     i+=1
     # Float
@@ -334,6 +349,122 @@ def add_header(sheet, years):
     sheet.col(i).width = 4*367
     sheet.write(0, i, "Float %", style_wrap)
     conf.FLT_PER=i
+
+def add_price_change_header(sheet, i):
+    # Year Price Change
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Yr Price Change", style_wrap)
+    conf.YR_PR_CHANGE=i
+
+    i+=1
+    # Quarter Price Change
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Qr Price Change", style_wrap)
+    conf.QR_PR_CHANGE=i
+
+    i+=1
+    # Month Price Change
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Mon Price Change", style_wrap)
+    conf.MON_PR_CHANGE=i
+
+    i+=1
+    # Week Price Change
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Week Price Change", style_wrap)
+    conf.WEEK_PR_CHANGE=i
+
+    i+=1
+    # DAY Price Change
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Day Price Change", style_wrap)
+    conf.DAY_PR_CHANGE=i
+    return i
+
+def add_price_surpise_header(sheet):
+    i = 0
+    i = add_basic_header(sheet, i)
+
+    i+=1
+    i = add_price_change_header(sheet, i)
+
+    i+=1
+    i = add_calc_header(sheet, i)
+
+    i+=1
+    #Years of Data
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Years of Data", style_wrap)
+    conf.YR_DAT=i
+
+    i+=1
+    # Price Growth
+    sheet.col(i).width = 5*367
+    st = "%s yr Price Gr" %(years)
+    sheet.write(0, i, st, style_wrap)
+    conf.TEN_PRICE=i
+
+    i+=1
+    i = add_figs_growth_header(sheet, i, years)
+
+    i+=1
+    i = add_ratios_header(sheet, i)
+
+def write_to_price_change_excel(ash, stk, years):
+
+    ash.write(conf.COUNT, conf.YR_PR_CHANGE, stk.price_change.year, style_percent)
+    ash.write(conf.COUNT, conf.QR_PR_CHANGE, stk.price_change.quarter, style_percent)
+    ash.write(conf.COUNT, conf.MON_PR_CHANGE, stk.price_change.month, style_percent)
+    ash.write(conf.COUNT, conf.WEEK_PR_CHANGE, stk.price_change.week, style_percent)
+    ash.write(conf.COUNT, conf.DAY_PR_CHANGE, stk.price_change.day, style_percent)
+
+    ash.write(conf.COUNT, conf.COMP, stk.bscs.name, style_text)
+    ash.write(conf.COUNT, conf.COMP, stk.bscs.name, style_text)
+    ash.write(conf.COUNT, conf.PRM_S, stk.bscs.promoter_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.FII, stk.bscs.fii_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.DII, stk.bscs.dii_stake/100, style_percent)
+    ash.write(conf.COUNT, conf.DIV, stk.Dividend.yld/100, style_percent)
+    ash.write(conf.COUNT, conf.DIV_PAY, stk.Dividend.payout_ratio/100, style_percent)
+    ash.write(conf.COUNT, conf.FLT, stk.bscs.float/100)
+    ash.write(conf.COUNT, conf.FLT_PER, stk.bscs.float_percent/100, style_percent)
+
+    ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
+    ash.write(conf.COUNT, conf.SEC, stk.bscs.sector, style_text)
+    ash.write(conf.COUNT, conf.CUR_PR, stk.bscs.price)
+
+    ash.write(conf.COUNT, conf.VOL, stk.bscs.volume)
+
+    ash.write(conf.COUNT, conf.FV, stk.bscs.face_value)
+
+    try:
+        pe  = round(stk.bscs.price/stk.fig.ttm_eps,2)
+    except ZeroDivisionError:
+        pe  = 0
+    ash.write(conf.COUNT, conf.PE, pe)
+    ash.write(conf.COUNT, conf.F_PE, stk.Ratios.forward_PE)
+    ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
+
+    ash.write(conf.COUNT, conf.YR_DAT, years)
+    ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
+    ash.write(conf.COUNT, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
+    ash.write(conf.COUNT, conf.MOS_PR, stk.num.dcf_price, style_decimal)
+    ash.write(conf.COUNT, conf.CUR_RT, stk.num.cp_return_rate, style_percent)
+    ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
+    ash.write(conf.COUNT, conf.DTOTE, stk.fig.DtoE[-1])
+    # vpetla. Calcuate interest coverage ratio and uncomment this line
+    ##ash.write(conf.COUNT, conf.INT_C, stk.fig.INTR[-1])
+    ash.write(conf.COUNT, conf.ROE, stk.fig.ROE[-1], style_percent)
+    ash.write(conf.COUNT, conf.ROA, stk.fig.ROA[-1], style_percent)
+    # vpetla. Calcuate ROCE and uncomment this line
+    ##ash.write(conf.COUNT, conf.ROCE, stk.fig.ROCE[-1])
+    ash.write(conf.COUNT, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
+    ash.write(conf.COUNT, conf.MCAP, stk.bscs.mcap, style_num)
+    ash.write(conf.COUNT, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_PR, stk.fig.profit_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_BK, stk.fig.book_growth, style_percent)
+    ash.write(conf.COUNT, conf.TEN_CSH, stk.fig.cash_growth, style_percent)
+
 
 #com : Company Work Book
 #ash : All Stocks Work Sheet

@@ -2,6 +2,8 @@ import os
 # Excel operations
 import xlrd
 import pymongo
+import re
+from datetime import datetime
 
 import internet
 import parse_html
@@ -84,6 +86,170 @@ def build_India_database(files, data_type):
             #write_to_collection(db['Indian_Stocks'], obj)
             stock = None
             obj   = None
+
+def get_stat_params(soup, pattern):
+    div=soup.find(text=pattern)
+    if div and div.parent and div.parent.parent:
+        param=div.parent.parent.find("span")
+        if param and param.get_text():
+            return str_to_float(param.get_text())
+        return None
+    return None
+
+def get_ratio_params(soup, pattern):
+    div=soup.find(text=pattern)
+    if div and div.parent and div.parent.parent:
+        td=div.parent.parent.find("td")
+        if td and td.find_next('td'):
+            return str_to_float(td.find_next('td').get_text())
+        return None
+    return None
+
+def update_US_all_stk_profile():
+    db = open_db('Stocks')
+    col = db['US_Stocks']
+    i = 0
+    for doc in col.find({}):
+        if i > 3444:
+        #if i > 756:
+            sym = doc['bscs']['symbol']
+            url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(sym)
+            html_text=internet.get_webpage(url)
+            update_US_stk_profile(html_text, col)
+            print("%d: %s" %(i, sym))
+        i = i + 1
+
+def update_US_stk_profile(html_text, collection):
+    soup=parse_html.get_soup(html_text)
+    s=soup.find('title').text
+    symbol=re.search('\(([^)]+)',s).group(1)
+
+    dt = datetime.now().date().strftime("%d-%m-%Y")
+    update_field(collection, symbol, "bscs.date", dt)
+    #Outstanding Shares
+    pattern=re.compile(r'Shares Outstanding, K')
+    val = get_stat_params(soup, pattern)
+    if val:
+        val = int(val * 1000)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.outstanding_shares": val}})
+
+    #60 month Beta
+    pattern=re.compile(r'60-Month Beta')
+    val = get_stat_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.five_yr_beta": val}})
+
+    # Insider Shareholders
+    pattern=re.compile(r'% of Insider Shareholders')
+    val = get_stat_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.promoter_stake": val}})
+
+    # Institutional shareholders
+    pattern=re.compile(r'% of Institutional Shareholders')
+    val = get_stat_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.dii_stake": val}})
+
+    # Float
+    pattern=re.compile(r'Float, K')
+    val = get_stat_params(soup, pattern)
+    if val:
+        val = int(val) * 1000
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.float": val}})
+
+    # % Float
+    pattern=re.compile(r'% Float')
+    val = get_stat_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.float_percent": val}})
+
+    # Interest coverage
+    pattern=re.compile(r'Interest Coverage')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.interest_coverage": val}})
+
+    # Forward P/E
+    pattern=re.compile(r'Price/Earnings forward')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.forward_PE": val}})
+
+    #TTM PE 
+    pattern=re.compile(r'Price/Earnings ttm')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ttm_PE": val}})
+
+    #ROE 
+    pattern=re.compile(r'Return-on-Equity \(After Tax\)')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ROE": val}})
+
+    #ROA 
+    pattern=re.compile(r'Return-on-Assets \(Before Tax\)')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ROA": val}})
+
+    #Profit Margin
+    pattern=re.compile(r'Profit Margin %')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.GPM": val}})
+
+    #Net Margin
+    pattern=re.compile(r'Net Margin %')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.NPM": val}})
+
+    #DtoE
+    pattern=re.compile(r'Debt/Equity')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.DtoE": val}})
+
+    #Price/Book
+    pattern=re.compile(r'Price/Book')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.PtoB": val}})
+
+    #Book Value / Share
+    pattern=re.compile(r'Book Value/Share')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.BOOK": val}})
+
+    #Annual Dividend Yield
+    pattern=re.compile(r'Annual Dividend Yield')
+    val = get_ratio_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Dividend.yield": val}})
+
+    #Dividend Payout Ratio
+    pattern=re.compile(r'Dividend Payout Ratio')
+    val = get_stat_params(soup, pattern)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Dividend.payout_ratio": val}})
+
+    # Next Earnings Date
+    #pattern=re.compile(r'Next Earnings Date')
+    #val = get_ratio_params(soup, pattern)
+    #print(val)
+    #collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.next_eps_date": val}})
+
+    # Split Date
+    pattern=re.compile(r'Most Recent Split')
+    split_date=split_year=0
+    split_factor=1
+    #div=soup.find(text=pattern)
+    #if div and div.parent and div.parent.parent:
+    #    val = div.parent.parent.find("span")
+    #    if val and val.get_text():
+    #        val = val.get_text()
+    #        val = val.lstrip().rstrip()
+    #        split_date = val.split(' ')[2]
+    #        split_year = val.split(' ')[2].split('/')[2]
+    #        cur_year = int(str(datetime.now().year)[2:4])
+    #        if int(split_year) < cur_year:
+    #            split_year = str('20' + str(split_year))
+    #        else:
+    #            split_year = str('19' + str(split_year))
+    #        split_factor = int(val.split(' ')[0].split('-')[0])/int(val.split(' ')[0].split('-')[1])
+    #        print("split date: %r" %(split_date))
+    #        print(split_year)
+    #        print(split_factor)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_date": split_date}})
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_year": split_year}})
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_factor": split_factor}})
 
 def build_US_database():
     db = open_db('Stocks')

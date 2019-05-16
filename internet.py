@@ -1,5 +1,5 @@
 import DB
-import common
+from common import *
 
 import os
 import time
@@ -22,19 +22,138 @@ from yahoofinancials import YahooFinancials as yf
 import pandas_datareader as pdr
 import pandas_datareader.data as data
 
-from datetime import datetime as dt
-import datetime
-
 # Excel operations
 #import csv
 import xlrd
 
 # Date
 import datetime
+from datetime import datetime as dt, timedelta
 from datetime import date
 
 #List Files
 from fractions import Fraction
+
+def price_change(sym, name, num_days):
+    end = dt.now()
+    start = end - timedelta(days=num_days)
+    try:
+        #print("Symbol: %s, Name: %s" %(sym, name))
+        read = pdr.DataReader(sym, 'yahoo', start, end)
+    except pdr._utils.RemoteDataError:
+        PRINT_ERR("Unable to get data for %s"%(sym))
+        return
+    except KeyError:
+        PRINT_ERR("Unable to get data for %s"%(sym))
+        return
+ 
+    #st_price = None
+    #start = end - timedelta(days=num_days)
+    ##end = dt.now()
+    #
+    ## Get data's first row date
+    #data_start_date = read.index.to_pydatetime()[0]
+
+    ## Some times, the stock has been started trading recently.
+    ## You don't have yearly or even longer historical data
+    ## Assume the start point as the earliest start date
+    #if start.date() < data_start_date.date():
+    #    start = data_start_date
+
+    #num_days = (end-start).days
+
+#    for index, row in read.iterrows():
+#        if index.date() == start.date():
+#            st_price = row['Adj Close']
+#            break
+#
+#    if not st_price:
+#        PRINT_ERR("Unable to get start price for sym: %s, name: %s, num_days: %d" %(sym, name, num_days))
+#        return 0
+
+    en_price = read.iat[-1, read.columns.get_loc('Adj Close')]
+    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
+    change = en_price/st_price - 1
+
+    return change
+
+def check_price_change(sym, name, change, req_change, sheet):
+    if change >= req_change:
+        print("Days: %d, sym: %s, name: %s, change: %d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
+        if calculate_dcf(country, com, ash, stock, years, data_type) is False:
+            del stock
+            del com
+            return
+ 
+        write_to_price_change_excel(sheet, stk, years)
+
+    elif change < -(req_change):
+        print("Days: %d, sym: %s, name: %s, change: -%d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
+        write_to_price_change_excel(sheet, stk, years)
+
+
+def price_suprise(country, collection, sym, name, change_percent, xl):
+   #st_price = read.iat[0, read.columns.get_loc('Close')]
+    #en_price = read.iat[-1, read.columns.get_loc('Close')]
+    
+    conf.PR_COUNT+=1
+    update_field(collection, sym, "price_change.date", dt.now().date())
+
+    change = price_change(sym, name, 365)
+    update_field(collection, sym, "price_change.year", value)
+    check_price_change(country, sym, name, change, 0.40, xl.get_sheet(0))
+    
+    change = price_change(sym, name, 90)
+    update_field(collection, sym, "price_change.quarter", value)
+    check_price_change(country, sym, name, change, 0.30, xl.get_sheet(1))
+    
+    change = price_change(sym, name, 30)
+    update_field(collection, sym, "price_change.month", value)
+    check_price_change(country, sym, name, change, 0.20, xl.get_sheet(2))
+    
+    change = price_change(sym, name, 7)
+    update_field(collection, sym, "price_change.week", value)
+    check_price_change(country, sym, name, change, 0.10, xl.get_sheet(3))
+
+    change = price_change(sym, name, 2)
+    update_field(collection, sym, "price_change.day", value)
+    check_price_change(country, sym, name, change, 0.10, xl.get_sheet(4))
+
+def price_surprises(country, change_percent):
+    xl = xlwt.Workbook()
+    yr_sheet = xl.add_sheet("365 days change")
+    qr_sheet = xl.add_sheet("90 days change")
+    mon_sheet = xl.add_sheet("30 days change")
+    week_sheet = xl.add_sheet("7 days change")
+    day_sheet = xl.add_sheet("one day change")
+
+    excel.add_price_surprise_header(yr_sheet, 1)
+    excel.add_price_surprise_header(qr_sheet, 1)
+    excel.add_price_surprise_header(mon_sheet, 1)
+    excel.add_price_surprise_header(week_sheet, 1)
+    excel.add_price_surprise_header(day_sheet, 1)
+
+    db = DB.open_db('Stocks')
+    if country == 'US':
+        col = db['US_Stocks']
+        i=0
+        for doc in col.find({}):
+            if i > -1:
+                sym = doc['bscs']['symbol']
+                name = doc['bscs']['name']
+                #print("%r : "%(i), end = '')
+                price_suprise(country, col, sym, name, change_percent, xl)
+            i = i + 1
+    elif country == 'India':
+        col = db['India_Stocks']
+        for doc in col.find({}):
+            sym = doc['bscs']['symbol']
+            name = doc['bscs']['name']
+            sym = sym + '.BO'
+            price_suprise(country, col, sym, name, change_percent, xl)
+
+    xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
+
 
 def get_price_volume(stk, country):
     #data = pdr.get_data_yahoo(symbols=stk.bscs.symbol, start=dt(2019,4,15), end=dt(2019,4,18))
@@ -152,7 +271,7 @@ def get_LTP(country, sym):
 def get_page(url, html_file):
     html=requests.get(url)
     if html.status_code == 200:
-        common.write_to_file(html.text, html_file)
+        write_to_file(html.text, html_file)
     else:
         PRINT_ERR("Couldnt get page : %s" %(url))
 

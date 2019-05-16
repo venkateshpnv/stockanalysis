@@ -3,6 +3,9 @@
 #Total Companies
 COUNT=0
 
+# Price change count in excel
+PR_COUNT=0
+
 #Indexes of entries in All_Stocks.xls
 COMP=0
 SYM=0
@@ -46,8 +49,14 @@ DIV_PAY=0
 PRM_S=0
 FLT=0
 FLT_PER=0
+YR_PR_CHANGE=0
+QR_PR_CHANGE=0
+MON_PR_CHANGE=0
+WEEK_PR_CHANGE=0
+DAY_PR_CHANGE=0
 
 MAX_Years = 20
+
 #Sales, PAT, Cash Flow, Book Value
 GROWTH_PARAMS = 4
 
@@ -146,7 +155,11 @@ def init_variables():
     DIV_PAY=0
     FLT=0
     FLT_PER=0
-
+    YR_PR_CHANGE=0
+    QR_PR_CHANGE=0
+    MON_PR_CHANGE=0
+    WEEK_PR_CHANGE=0
+    DAY_PR_CHANGE=0
     
     MAX_Years = 20
     #Sales, PAT, Cash Flow, Book Value
