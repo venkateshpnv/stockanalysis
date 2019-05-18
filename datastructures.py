@@ -4,7 +4,11 @@ class Basics:
         self.symbol = 'DEAD'
         self.bse_symbol = 'DEAD'
         self.sector = 'DEAD'
+        self.industry = 'DEAD'
         self.price  = 0
+        self.price_years = 0
+        self.hist_price_5 = 0
+        self.hist_price_10 = 0
         self.promoter_stake = 0
         self.corp_stake     = 0
         self.pub_stake      = 0
@@ -14,12 +18,10 @@ class Basics:
         self.face_value     = 0
         self.volume         = 0
         self.mcap           = 0
-        self.shares_outstanding = 0
+        self.outstanding_shares = 0
         self.split_date     = 0
         self.split_year     = 0
         self.split_factor   = 1
-        self.hist_price_5 = 0
-        self.hist_price_10 = 0
         self.five_yr_beta = 0
         self.float = 0
         self.float_percent = 0

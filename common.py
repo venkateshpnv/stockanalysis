@@ -1,4 +1,5 @@
 from inspect import currentframe
+import os
 
 #Supportive calls
 def PRINT_ERR(x):
@@ -86,4 +87,9 @@ def print_stock_info(stk):
     PRINT("DII Stake: %r" % (stk.bscs.dii_stake))
     PRINT("Others Stake: %r" % (stk.bscs.others_stake))
 
-
+def remove_dir(path):
+    filelist = [f for f in os.listdir(path)]
+    for f in filelist:
+        file_path = "%s/%s" %(path, f)
+        os.remove(file_path)
+    os.rmdir(path)

@@ -95,6 +95,8 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     #print(startyr)
     endyr = stk.fig.Years[len(stk.fig.Years)-2]
     endyr = int(endyr.split("-")[1].lstrip().rstrip())
+    if years > len(stk.fig.Years):
+        years = len(stk.fig.Years)
     #print(endyr)
     #print(stk.bscs.split_year)
     #print(stk.bscs.split_factor)

@@ -8,6 +8,7 @@ from datetime import datetime
 import internet
 import parse_html
 from common import *
+import conf
 
 class dbObject:
     def __init__(self, **obj):
@@ -123,6 +124,7 @@ def update_US_stk_profile(html_text, collection):
     soup=parse_html.get_soup(html_text)
     s=soup.find('title').text
     symbol=re.search('\(([^)]+)',s).group(1)
+    print(symbol)
 
     dt = datetime.now().date().strftime("%d-%m-%Y")
     update_field(collection, symbol, "bscs.date", dt)
@@ -132,6 +134,9 @@ def update_US_stk_profile(html_text, collection):
     if val:
         val = int(val * 1000)
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.outstanding_shares": val}})
+    
+    val = internet.get_LTP('US', symbol)
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.price": val}})
 
     #60 month Beta
     pattern=re.compile(r'60-Month Beta')
@@ -251,6 +256,7 @@ def update_US_stk_profile(html_text, collection):
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_year": split_year}})
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_factor": split_factor}})
 
+# Can be obsoleted. Replaced with build_US_all_stock_information()
 def build_US_database():
     db = open_db('Stocks')
     #db.US_Stocks.drop()
@@ -271,14 +277,14 @@ def build_US_database():
             #print(dirs)
             #print(sorted(files))
             print("%d: %s" %(i, root))
-            parse_html.populate_US_stocks(db, root, sorted(files), symbol, stock, industry)
+            parse_html.populate_US_stocks(db, root, sorted(files), symbol, stock, industry, 'DEAD')
         #break
 
 def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.price": stk.bscs.price}})
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.volume": stk.bscs.volume}})
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.mcap": stk.bscs.mcap}})
-    collection.update({'bscs.symbol': stk.bscs.shares_outstanding}, {'$set': {"bscs.shares_outstanding": stk.bscs.shares_outstanding}})
+    collection.update({'bscs.symbol': stk.bscs.shares_outstanding}, {'$set': {"bscs.outstanding_shares": stk.bscs.shares_outstanding}})
 
 def update_all_price_volume_db(country):
     db = open_db('Stocks')
@@ -324,16 +330,86 @@ def find_files():
 
     f.close()
 
-def build_US_Stocks_List():
+def build_US_Stocks_List(excel_file):
     db = open_db('Stocks')
-    wb = xlrd.open_workbook(amex_stocks)
+    print(excel_file)
+    wb = xlrd.open_workbook(excel_file)
     sheet = wb.sheet_by_index(0)
     for i in range(1,sheet.nrows):
         obj = db.US_Stocks_List.find({"symbol":sheet.cell_value(i, 0)})
         if obj.count() == 0:
-            stk = {"symbol": sheet.cell_value(i, 0), "Name": sheet.cell_value(i,1), "Industry": sheet.cell_value(i, 6)}
+            stk = {"symbol" : sheet.cell_value(i, 0), "Name" : sheet.cell_value(i,1), "Industry" : sheet.cell_value(i, 6), "Sector" : sheet.cell_value(i, 5), "IPO Year" : sheet.cell_value(i, 4), "data" : "NO", "parsed" : "NO"}
             db.US_Stocks_List.insert_one(stk)
         else:
             print("%s already present" %(sheet.cell_value(i,0)))
+
+def build_US_All_Stocks_List():
+    build_US_Stocks_List(conf.amex_stocks)
+    build_US_Stocks_List(conf.nyse_stocks)
+    build_US_Stocks_List(conf.nasdaq_stocks)
+
+def build_US_stock_information(doc):
+    db   = open_db('Stocks')
+    sym  = doc['symbol']
+    name = doc['Name']
+    if "&#39;" in name:
+        print("stk has &")
+        name = name.replace("&#39;", "\'")
+        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}})
+    if "/" in name:
+        print("stk has /")
+        name = name.replace("/", "")
+        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
+    if "^" in sym:
+        print("symbol has ^")
+        sym = sym.replace("^", "-")
+        print(sym)
+        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
+    
+    path = internet.get_US_stock_page(sym, name)
+    
+    for (root,dirs,files) in os.walk(path, topdown=True):
+        files = [f for f in files if not f[0] == '.']
+        dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
+        dirs[:] = [d for d in dirs if not d[0] == '.']
+        #print(root)
+        #print(dirs)
+        #print(sorted(files))
+        if parse_html.populate_US_stocks(db, root, sorted(files), sym, name, doc['Sector'], doc['Industry']) is True:
+            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+    
+    remove_dir(path)
+ 
+def build_US_all_stock_information():
+    db = open_db('Stocks')
+
+    stocks_list = db.US_Stocks_List.find({})
+    j=0
+    for i, doc in enumerate(stocks_list):
+        if i > 47:
+            obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
+            if obj.count() == 0:
+                print("%d: %s: %s "%(i,doc['symbol'], doc['Name']))
+                build_US_stock_information(doc)
+                j += 1
+                return
+        else:
+            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+            #name = stock['Name']
+            #sym = stock['symbol']
+            #name = name.replace("&#39;", "\'")
+            #name = name.replace("/", "")
+            #sym = sym.replace("^", "-")
+            #db.US_Stocks_List.update({"symbol":stock['symbol']},{'$set':{"Name":name}})
+            #db.US_Stocks_List.update({'symbol': stock['symbol']}, {'$set': {"symbol": sym}})
+
+    print("Total : %d" %(j))
+
+
+
+
+
 
 

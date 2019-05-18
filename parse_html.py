@@ -12,6 +12,8 @@ from datastructures import Stock
 import excel
 from common import *
 from conf import *
+import json_code
+import DB
 
 def get_soup(html_text):
     return BeautifulSoup(html_text, 'html.parser')
@@ -431,7 +433,7 @@ def get_India_stock_info(stock_page):
     html.close()
     return stk
 
-def populate_US_stocks(db, root, files, symbol, stock, sector):
+def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
     stk = Stock()
     shares = []
     liabilities = []
@@ -470,10 +472,10 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     if len(files) == 0:
         PRINT_ERR("len(files): %d" %(len(files)))
         write_to_unparsed(root)
-        return
+        return False
 
     stock_page = "%s/%s" %(root, files[0])
-    html_page  = get_html(stock_page)
+    html_page  = internet.get_html(stock_page)
     soup=BeautifulSoup(html_page,'html.parser')
     #print(soup.prettify())
     try:
@@ -482,11 +484,12 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
         for i in range(1, len(l)):
             years.extend(l[i])
     except AttributeError:
-        return None
+        PRINT_ERR("Unable to get financial reports")
+        return False
 
     stock_page = "%s/%s" %(root, files[1])
     #print(stock_page)
-    html_page  = get_html(stock_page)
+    html_page  = internet.get_html(stock_page)
     soup=BeautifulSoup(html_page,'html.parser')
     try:
         y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
@@ -501,16 +504,23 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     stk.bscs.symbol = symbol
     stk.bscs.name = stock
     stk.bscs.sector = sector
+    stk.bscs.industry = industry
     #s = soup.find("div", {"class": "symbol-name"})
     #print(s)
     #stk.bscs.symbol = s.find_next("span").find_next("span").get_text().replace("(","").replace(")","")
     #stk.bscs.name   = yf(stk.bscs.symbol).get_stock_quote_type_data()[stk.bscs.symbol]['shortName'] 
     #stk.bscs.name   = s.find_next("span").get_text()
-    
+   
+
+#    for f in [s for s in files if 'profile' in s]:
+#        stock_page = "%s/%s" %(root, f)
+#        html_page  = internet.get_html(stock_page)
+#        DB.update_US_stk_profile(html_page, db.US_Stocks)
+
     for f in [s for s in files if 'balance' in s]:
         #balance sheets
         stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
+        html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
         shares.extend(get_entries(soup, re.compile('^ Shares Outstanding, K $')))
         if(len(shares) == 0):
@@ -524,7 +534,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
         PRINT_ERR("Shares data not found")
         write_to_unparsed(stk.bscs.name)
         write_to_unparsed("Shares data not found")
-        return None
+        return False
 
 #    stk.bscs.price  = yf(stk.bscs.symbol).get_current_price()
 #    stk.bscs.volume = yf(stk.bscs.symbol).get_current_volume()
@@ -546,7 +556,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     if(len(book) == 0):
         PRINT_ERR("len(assets): %d, len(liabilities): %d data not found"%(len(assets), len(liabilities)))
         write_to_unparsed(stk.bscs.name)
-        return None
+        return False
 
     for i in range(lowest(len(liabilities), len(equity))):
     #for i in range(lowest(len(debt), len(equity))):
@@ -559,7 +569,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     for f in [s for s in files if 'cash' in s]:
         #cash flow statements
         stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
+        html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
         depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
         ppe.extend(get_entries(soup, re.compile('^ PPE Investments $')))
@@ -573,7 +583,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     for f in [s for s in files if 'income' in s]:
         #income statements
         stock_page = "%s/%s" %(root, f)
-        html_page  = get_html(stock_page)
+        html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
         #print(soup.prettify())
         sales.extend(get_entries(soup, re.compile('^ Sales $')))
@@ -585,7 +595,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
     if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
         PRINT_ERR("len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps)))
         write_to_unparsed(stk.bscs.name)
-        return None
+        return False
 
     for i in range(lowest(len(pat), len(equity))):
         try:
@@ -640,11 +650,19 @@ def populate_US_stocks(db, root, files, symbol, stock, sector):
 
     obj = json_code.build_json_object(stk)
     if obj:
-        write_to_collection(db['US_Stocks'], obj)
+        DB.write_to_collection(db['US_Stocks'], obj)
         del obj
         obj = None
  
     del stk
     stk = None
 
+    print("Profile Information")
+    for f in [s for s in files if 'profile' in s]:
+        stock_page = "%s/%s" %(root, f)
+        html_page  = internet.get_html(stock_page)
+        DB.update_US_stk_profile(html_page, db.US_Stocks)
 
+    return True
+
+    

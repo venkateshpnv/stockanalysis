@@ -181,14 +181,19 @@ def get_price_volume(stk, country):
     #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
     stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
     stk.bscs.price  = (d.price.to_list()[0])
-    stk.bscs.shares_outstanding = d.sharesOutstanding.to_list()[0]
+    stk.bscs.outstanding_shares = d.sharesOutstanding.to_list()[0]
     return stk
 
 def get_price_growth(country, stk, years, data_type):
-    yrs = years
+    if stk.bscs.price_years != 5 and stk.bscs.price_years != 10 and stk.bscs.price_years != 0:
+        yrs = stk.bscs.price_years
+    else:
+        yrs = years
+
     if data_type == 'HOT':
         end = dt.today()
         st = dt(end.year-years, end.month, end.day)
+        print("start: %s, end: %s" %(st.date(), end.date()))
         try:
             data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
         except pdr._utils.RemoteDataError:
@@ -200,6 +205,7 @@ def get_price_growth(country, stk, years, data_type):
         st_price = data.iat[0, data.columns.get_loc('Close')]
         en_price = data.iat[-1, data.columns.get_loc('Close')]
         yrs = end.year - int(str(list(data.index)[0]).split('-')[0])
+        print("yrs: %d, %s" %(yrs, str(list(data.index)[0]).split('-')[0]))
         del data
         if years == 5:
             stk.bscs.hist_price_5 = st_price
@@ -230,6 +236,7 @@ def get_price_growth(country, stk, years, data_type):
         DB.update_field(collection, stk.bscs.symbol, "bscs.hist_price_5", stk.bscs.hist_price_5)
         DB.update_field(collection, stk.bscs.symbol, "bscs.hist_price_10", stk.bscs.hist_price_10)
         DB.update_field(collection, stk.bscs.symbol, "bscs.price", round(en_price,2))
+        DB.update_field(collection, stk.bscs.symbol, "bscs.price_years", yrs)
  
     if yrs < 1:
         yrs = 1
@@ -244,6 +251,7 @@ def get_price_growth(country, stk, years, data_type):
     #    en_price = rount(float(en_price.real),2)
     years = yrs
     growth = round(((en_price/st_price)**(1/years)-1), 2)
+    print("years: %d, growth: %r" %(years, growth))
     return growth
 
 # Get stock split information
@@ -311,13 +319,13 @@ def get_US_stock_page(symbol, name):
     html_file = "%s/%s_profile.html" %(path, symbol)
     get_page(url, html_file)
 
-    return name
+    return path
 
 def get_all_US_html_pages():
     db = open_db('Stocks')
     docs = db.US_Stocks_List.find({})
     for i, doc in enumerate(docs):
-        if i > 3030:
+        if i > -1:
             sym  = doc['symbol']
             name = doc['Name']
             if "&#39;" in name:
