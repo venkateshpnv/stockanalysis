@@ -186,7 +186,7 @@ def get_price_volume(stk, country):
 
 def get_price_growth(country, stk, years, data_type):
     if stk.bscs.price_years != 5 and stk.bscs.price_years != 10 and stk.bscs.price_years != 0:
-        yrs = stk.bscs.price_years
+        yrs = int(stk.bscs.price_years)
     else:
         yrs = years
 
@@ -207,7 +207,7 @@ def get_price_growth(country, stk, years, data_type):
         yrs = end.year - int(str(list(data.index)[0]).split('-')[0])
         print("yrs: %d, %s" %(yrs, str(list(data.index)[0]).split('-')[0]))
         del data
-        if years == 5:
+        if years <= 5:
             stk.bscs.hist_price_5 = st_price
         else:
             end = dt.today()
@@ -216,7 +216,7 @@ def get_price_growth(country, stk, years, data_type):
             stk.bscs.hist_price_5 = data.iat[0, data.columns.get_loc('Close')]
             del data
  
-        if years == 10:
+        if years > 5 and years <= 10:
             stk.bscs.hist_price_10 = st_price
         else:
             end = dt.today()
@@ -250,8 +250,11 @@ def get_price_growth(country, stk, years, data_type):
     #if isinstance(en_price, complex):
     #    en_price = rount(float(en_price.real),2)
     years = yrs
-    growth = round(((en_price/st_price)**(1/years)-1), 2)
-    print("years: %d, growth: %r" %(years, growth))
+    try:
+        growth = round(((en_price/st_price)**(1/years)-1), 2)
+    except ZeroDivisionError:
+        growth = 0
+    PRINT("years: %d, growth: %r" %(years, growth))
     return growth
 
 # Get stock split information
@@ -269,12 +272,29 @@ def get_stock_split_info_yahoo(country, stk):
     stk.bscs.split_year = datetime.datetime.strptime(d, '%Y-%m-%d').year 
 
 def get_LTP(country, sym):
+    sym1 = sym
     if country == 'India':
         sym = sym + '.BO'
     elif country != 'US':
         PRINT_ERR("Unknown Country")
         return 0
-    return yf(sym).get_current_price()
+    price = yf(sym).get_current_price()
+    if not price and '.' in sym:
+        sym = sym.replace('.', '-')
+        price = yf(sym).get_current_price()
+    if not price:
+        PRINT_ERR("Unable to get latest price for %s" %(sym))
+        PRINT_ERR("Updating stock to not trading")
+        db = DB.open_db('Stocks')
+        if country == 'US':
+            col = db.US_Stocks
+        elif country == 'India':
+            col = db.India_Stocks
+        else:
+            return 0
+        DB.update_field(col, sym1, "bscs.trading", "NO")
+        return 0
+    return price
 
 def get_page(url, html_file):
     html=requests.get(url)

@@ -25,6 +25,7 @@ class Basics:
         self.five_yr_beta = 0
         self.float = 0
         self.float_percent = 0
+        self.trading = 'YES'
 
 class Ratios:
     def __init(self):

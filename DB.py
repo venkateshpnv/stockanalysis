@@ -110,9 +110,10 @@ def update_US_all_stk_profile():
     db = open_db('Stocks')
     col = db['US_Stocks']
     i = 0
-    for doc in col.find({}):
-        if i > 3444:
-        #if i > 756:
+    #for doc in col.find({}):
+    for doc in col.find({"bscs.sector":"Finance"}):
+        #if i > 3444:
+        if i > -1: # and not doc['bscs']['price']:
             sym = doc['bscs']['symbol']
             url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(sym)
             html_text=internet.get_webpage(url)
@@ -128,11 +129,24 @@ def update_US_stk_profile(html_text, collection):
 
     dt = datetime.now().date().strftime("%d-%m-%Y")
     update_field(collection, symbol, "bscs.date", dt)
+
+    #Market Cap
+    pattern=re.compile(r'  Market Capitalization, \$K  ')
+    val = get_stat_params(soup, pattern)
+    if val:
+        val = float(val / 1000)
+    else:
+        val = 0
+    collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.mcap": val}})
+    
+
     #Outstanding Shares
     pattern=re.compile(r'Shares Outstanding, K')
     val = get_stat_params(soup, pattern)
     if val:
         val = int(val * 1000)
+    else:
+        val = 1
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.outstanding_shares": val}})
     
     val = internet.get_LTP('US', symbol)
@@ -141,16 +155,22 @@ def update_US_stk_profile(html_text, collection):
     #60 month Beta
     pattern=re.compile(r'60-Month Beta')
     val = get_stat_params(soup, pattern)
+    if not val:
+        val = 1
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.five_yr_beta": val}})
 
     # Insider Shareholders
     pattern=re.compile(r'% of Insider Shareholders')
     val = get_stat_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.promoter_stake": val}})
 
     # Institutional shareholders
     pattern=re.compile(r'% of Institutional Shareholders')
     val = get_stat_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.dii_stake": val}})
 
     # Float
@@ -158,6 +178,8 @@ def update_US_stk_profile(html_text, collection):
     val = get_stat_params(soup, pattern)
     if val:
         val = int(val) * 1000
+    else:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.float": val}})
 
     # % Float
@@ -168,61 +190,85 @@ def update_US_stk_profile(html_text, collection):
     # Interest coverage
     pattern=re.compile(r'Interest Coverage')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.interest_coverage": val}})
 
     # Forward P/E
     pattern=re.compile(r'Price/Earnings forward')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.forward_PE": val}})
 
     #TTM PE 
     pattern=re.compile(r'Price/Earnings ttm')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ttm_PE": val}})
 
     #ROE 
     pattern=re.compile(r'Return-on-Equity \(After Tax\)')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ROE": val}})
 
     #ROA 
     pattern=re.compile(r'Return-on-Assets \(Before Tax\)')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.ROA": val}})
 
     #Profit Margin
     pattern=re.compile(r'Profit Margin %')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.GPM": val}})
 
     #Net Margin
     pattern=re.compile(r'Net Margin %')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.NPM": val}})
 
     #DtoE
     pattern=re.compile(r'Debt/Equity')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.DtoE": val}})
 
     #Price/Book
     pattern=re.compile(r'Price/Book')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.PtoB": val}})
 
     #Book Value / Share
     pattern=re.compile(r'Book Value/Share')
     val = get_ratio_params(soup, pattern)
+    if not val:
+        val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Ratios.BOOK": val}})
 
     #Annual Dividend Yield
     pattern=re.compile(r'Annual Dividend Yield')
     val = get_ratio_params(soup, pattern)
-    collection.update({'bscs.symbol': symbol}, {'$set': {"Dividend.yield": val}})
+    if not val:
+        val = 0
+    collection.update({'bscs.symbol': symbol}, {'$set': {"Dividend.yld": val}})
 
     #Dividend Payout Ratio
     pattern=re.compile(r'Dividend Payout Ratio')
     val = get_stat_params(soup, pattern)
+    if not val:
+         val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"Dividend.payout_ratio": val}})
 
     # Next Earnings Date
@@ -387,13 +433,12 @@ def build_US_all_stock_information():
     stocks_list = db.US_Stocks_List.find({})
     j=0
     for i, doc in enumerate(stocks_list):
-        if i > 47:
+        if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
             if obj.count() == 0:
                 print("%d: %s: %s "%(i,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
                 j += 1
-                return
         else:
             db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
             db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
@@ -408,8 +453,19 @@ def build_US_all_stock_information():
     print("Total : %d" %(j))
 
 
+#Update sector and industry info in the database for each stock from the US_List database
+def update_sector_info():
+    db = open_db('Stocks')
 
-
-
+    stocks_list = db.US_Stocks.find({})
+    j=0
+    for i, doc in enumerate(stocks_list):
+        if i > -1:
+            obj = db.US_Stocks_List.find({"symbol":doc['bscs']['symbol']})
+            if obj.count() == 1:
+                db.US_Stocks.update({'bscs.symbol': obj[0]['symbol']}, {'$set': {"bscs.sector": obj[0]['Sector']}})
+                db.US_Stocks.update({'bscs.symbol': obj[0]['symbol']}, {'$set': {"bscs.industry": obj[0]['Industry']}})
+                j += 1
+    print("Total : %d" %(j))
 
 

@@ -3,6 +3,8 @@ import xlrd
 import xlwt
 from xlwt import Workbook, Formula
 
+from pprint import pprint
+
 # Date
 import datetime
 #from datetime import date
@@ -94,6 +96,12 @@ def add_basic_header(sheet, i):
     conf.SEC=i
 
     i+=1
+    #Sector
+    sheet.col(i).width = 20*367
+    sheet.write(0, i, "Industry", style_wrap)
+    conf.IND=i
+
+    i+=1
     #Current Price
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Current Price", style_wrap)
@@ -104,6 +112,13 @@ def add_basic_header(sheet, i):
     sheet.col(i).width = 7*367
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Beta", style_wrap)
+    conf.BETA=i
+
 
     i+=1
     # Face Value
@@ -326,6 +341,12 @@ def add_dcf_header(sheet, years):
     conf.YR_DAT=i
 
     i+=1
+    #Price Years of Data
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Price Years of Data", style_wrap)
+    conf.PRICE_YR_DAT=i
+
+    i+=1
     # Price Growth
     sheet.col(i).width = 5*367
     st = "%s yr Price Gr" %(years)
@@ -398,6 +419,12 @@ def add_price_surpise_header(sheet):
     conf.YR_DAT=i
 
     i+=1
+    #Price Years of Data
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Price Years of Data", style_wrap)
+    conf.PRICE_YR_DAT=i
+
+    i+=1
     # Price Growth
     sheet.col(i).width = 5*367
     st = "%s yr Price Gr" %(years)
@@ -430,6 +457,7 @@ def write_to_price_change_excel(ash, stk, years):
 
     ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
     ash.write(conf.COUNT, conf.SEC, stk.bscs.sector, style_text)
+    ash.write(conf.COUNT, conf.IND, stk.bscs.industry, style_text)
     ash.write(conf.COUNT, conf.CUR_PR, stk.bscs.price)
 
     ash.write(conf.COUNT, conf.VOL, stk.bscs.volume)
@@ -445,6 +473,7 @@ def write_to_price_change_excel(ash, stk, years):
     ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
 
     ash.write(conf.COUNT, conf.YR_DAT, years)
+    ash.write(conf.COUNT, conf.PRICE_YR_DAT, stk.bscs.price_years)
     ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
     ash.write(conf.COUNT, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
     ash.write(conf.COUNT, conf.MOS_PR, stk.num.dcf_price, style_decimal)
@@ -523,6 +552,7 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 1, stk.bscs.symbol)
     ash.write(conf.COUNT, conf.SYM, stk.bscs.symbol, style_text)
     ash.write(conf.COUNT, conf.SEC, stk.bscs.sector, style_text)
+    ash.write(conf.COUNT, conf.IND, stk.bscs.industry, style_text)
 
     sheet.write(i, 3, "Public Stake")
     sheet.write(i, 4, stk.bscs.pub_stake/100, style_percent)
@@ -552,6 +582,10 @@ def write_to_excel(com, ash, stk, years):
     ash.write(conf.COUNT, conf.F_PE, stk.Ratios.forward_PE)
     ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
 
+    i += 1
+    sheet.write(i, 0, "Five Year Beta")
+    sheet.write(i, 1, stk.bscs.five_yr_beta)
+    ash.write(conf.COUNT, conf.BETA, stk.bscs.five_yr_beta)
 
     i = 10 #row 11
     sheet.write(i, 0, "Growth Rate(1-5 Years)")
@@ -579,6 +613,7 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 6, years)
     sheet.write(i, 7, years)
     ash.write(conf.COUNT, conf.YR_DAT, years)
+    ash.write(conf.COUNT, conf.PRICE_YR_DAT, stk.bscs.price_years)
 
     i += 1 #row 13
     sheet.write(i, 0, "Growth Rate(9-10 Years)")
@@ -683,7 +718,7 @@ def write_to_excel(com, ash, stk, years):
 
     i += 1 #row 37
     sheet.write(i, 0, "Today's Value with Inflation")
-    sheet.write(i, 1, Formula("$B$35 * ((1-$B$17)^20)"), style_decimal)
+    sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal)
     ash.write(conf.COUNT, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
 
     i += 1 #row 38

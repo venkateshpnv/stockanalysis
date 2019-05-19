@@ -86,7 +86,7 @@ def calc_growth(split_factor, row, years):
     return growth
 
 # Calcuate numbers
-def calculate_dcf(country, com, ash, stk, years, data_type):
+def calculate_dcf(country, com, ash, stk, years, data_type, criteria, beta):
 #    global conf.COUNT
     growth  = [0] * (GROWTH_PARAMS)
     i = 0
@@ -114,16 +114,18 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
     
     # Dont calculate DCF for stocks with negative growth in any factor
-    for number in growth:
-        if number <= 0:
-            print(number)
-            return False
+    if criteria == 'ONLY_POSITIVE':
+        for number in growth:
+            if number <= 0:
+                print(number)
+                return False
 
     PRINT("Growth of entries: %r"%(growth))
-    try:
-        stk.fig.growth = min(i for i in growth if i > 0)
-    except ValueError:
-        stk.fig.growth = 0
+    #try:
+    #    stk.fig.growth = min(i for i in growth if i > 0)
+    #except ValueError:
+    #    stk.fig.growth = 0
+    stk.fig.growth = min(i for i in growth)
 
     # Calculating 20 years future earnings
     # High growth period
@@ -198,13 +200,22 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     else:
         stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
         stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
+        if beta == 'BETA':
+            if stk.bscs.five_yr_beta and stk.bscs.five_yr_beta >= 0:
+                stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5 * float(stk.bscs.five_yr_beta), 2)
+        else:
+            stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
+
         stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
-        stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
-        PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, RUPEE, stk.num.inflated_eps_price))
-        PRINT("Price at 50 percent MoS: %s%r" %(RUPEE, stk.num.dcf_price))
-        PRINT("Current Price: %s%r" %(RUPEE, stk.bscs.price))
-        PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
-        PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
+        try:
+            stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
+        except ZeroDivisionError:
+            stk.num.dcf_return_rate = 0
+        #PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, RUPEE, stk.num.inflated_eps_price))
+        #PRINT("Price at 50 percent MoS: %s%r" %(RUPEE, stk.num.dcf_price))
+        #PRINT("Current Price: %s%r" %(RUPEE, stk.bscs.price))
+        #PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
+        #PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
 
     #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
     #if stk.bscs.price <= stk.num.dcf_price:
@@ -213,7 +224,7 @@ def calculate_dcf(country, com, ash, stk, years, data_type):
     return True
     #return False
 
-def calculate_dcf_all_stocks(country, years, data_type):
+def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
@@ -247,53 +258,64 @@ def calculate_dcf_all_stocks(country, years, data_type):
         return
 
         #for doc in docs:
+    no_dcf = 0
     for i, doc in enumerate(docs):
-        doc['id'] = doc.pop('_id')
-        #doc['PAT'] = doc.pop('Profit After Taxes')
-        stock = dbObject(**doc)
-        #obj = namedtupled.map(doc)
-        #obj = namedtuple("Stock", doc.keys())(*doc.values())
-        #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
-        #obj = bunchify(doc)
-        
-        if not stock:
-            continue
-        #if stock.bscs.volume < 50000:
-        #    del stock
-        #    continue
-        if stock.bscs.price < 1:
-            del stock
-            continue
-        # Atleast a billion
-        #if stock.bscs.mcap < 1000: #millions
-        # Atleast 10 billion
-        #if stock.bscs.mcap < 10000: #millions
-        # Between 1 billion and 10 billion
-        #if stock.bscs.mcap < 1000 or stock.bscs.mcap > 10000: #millions
-        #    del stock
-        #    continue
+        if i > -1:
+            doc['id'] = doc.pop('_id')
+            #doc['PAT'] = doc.pop('Profit After Taxes')
+            stock = dbObject(**doc)
+            #obj = namedtupled.map(doc)
+            #obj = namedtuple("Stock", doc.keys())(*doc.values())
+            #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
+            #obj = bunchify(doc)
+            
+            if not stock:
+                PRINT_ERR("Stock not present")
+                no_dcf += 1
+                continue
+            #if stock.bscs.volume < 50000:
+            #    del stock
+            #    continue
+            if stock.bscs.price < 1:
+                PRINT("Skipping : %s. Price < 1" %(stock.bscs.symbol))
+                no_dcf += 1
+                del stock
+                continue
+            if stock.bscs.trading != 'YES':
+                PRINT("Skipping : %s. Not Trading" %(stock.bscs.symbol))
+                no_dcf += 1
+                continue
+            # Atleast a billion
+            #if stock.bscs.mcap < 1000: #millions
+            # Atleast 10 billion
+            #if stock.bscs.mcap < 10000: #millions
+            # Between 1 billion and 10 billion
+            #if stock.bscs.mcap < 1000 or stock.bscs.mcap > 10000: #millions
+            #    del stock
+            #    continue
 
-        print("%s: %s"%(stock.bscs.symbol, stock.bscs.name))
-        stock.num.inflation = inflation
-        stock.num.discount_rate = discount_rate
-        stock.num.margin_of_safety = mos
-        #Company Excel File
-        com = xlwt.Workbook()
-        if calculate_dcf(country, com, ash, stock, years, data_type) is False:
+            PRINT("%d: %s: %s"%(i, stock.bscs.symbol, stock.bscs.name))
+            stock.num.inflation = inflation
+            stock.num.discount_rate = discount_rate
+            stock.num.margin_of_safety = mos
+            #Company Excel File
+            com = xlwt.Workbook()
+            if calculate_dcf(country, com, ash, stock, years, data_type, criteria, beta) is False:
+                del stock
+                del com
+                continue
+            excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
+            PRINT("Writing to %s" % (excel))
+            com.save(excel)
+            j+=1
+
             del stock
             del com
-            continue
-        excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
-        PRINT("Writing to %s" % (excel))
-        com.save(excel)
-        j+=1
-
-        del stock
-        del com
-        stock=None
-        com=None
+            stock=None
+            com=None
 
     print("Stocks Calculated: %r" %(j))
+    print("No DCF: %r" %(no_dcf))
     #now = datetime.datetime.now()
     #excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
     if len(sys.argv) == 2:
