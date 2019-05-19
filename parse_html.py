@@ -472,6 +472,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
     if len(files) == 0:
         PRINT_ERR("len(files): %d" %(len(files)))
         write_to_unparsed(root)
+        write_to_unparsed("len(files): 0")
         return False
 
     stock_page = "%s/%s" %(root, files[0])
@@ -554,8 +555,10 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
             exit()
     
     if(len(book) == 0):
-        PRINT_ERR("len(assets): %d, len(liabilities): %d data not found"%(len(assets), len(liabilities)))
+        err = "len(assets): %d, len(liabilities): %d data not found"%(len(assets), len(liabilities))
+        PRINT_ERR(err)
         write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(err)
         return False
 
     for i in range(lowest(len(liabilities), len(equity))):
@@ -593,8 +596,9 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         eps.extend(get_entries(soup, re.compile('^ EPS Diluted Continuous Ops $')))
 
     if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
-        PRINT_ERR("len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps)))
+        err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
         write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(err)
         return False
 
     for i in range(lowest(len(pat), len(equity))):

@@ -5,6 +5,11 @@ COUNT=0
 
 # Price change count in excel
 PR_COUNT=0
+PR_YR_COUNT=0
+PR_QR_COUNT=0
+PR_MON_COUNT=0
+PR_WEEK_COUNT=0
+PR_DAY_COUNT=0
 
 #Indexes of entries in All_Stocks.xls
 COMP=0
@@ -173,3 +178,12 @@ def init_variables():
     
     # Number of figures we are tracking data for.
     indices=0
+
+    PR_COUNT=0
+    PR_YR_COUNT=0
+    PR_QR_COUNT=0
+    PR_MON_COUNT=0
+    PR_WEEK_COUNT=0
+    PR_DAY_COUNT=0
+
+

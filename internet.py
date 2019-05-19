@@ -77,50 +77,47 @@ def price_change(sym, name, num_days):
 
     return change
 
-def check_price_change(sym, name, change, req_change, sheet):
+def check_price_change(country, sym, stock, name, change, req_change, count, sheet):
     if change >= req_change:
         print("Days: %d, sym: %s, name: %s, change: %d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
-        if calculate_dcf(country, com, ash, stock, years, data_type) is False:
-            del stock
-            del com
-            return
- 
-        write_to_price_change_excel(sheet, stk, years)
+        count += 1 
+        write_to_price_change_excel(sheet, stock, years)
 
     elif change < -(req_change):
         print("Days: %d, sym: %s, name: %s, change: -%d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
-        write_to_price_change_excel(sheet, stk, years)
+        count += 1 
+        write_to_price_change_excel(sheet, stock, years)
 
 
-def price_suprise(country, collection, sym, name, change_percent, xl):
+def price_suprise(country, collection, stock, sym, name, change_percent, xl):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     
-    conf.PR_COUNT+=1
     update_field(collection, sym, "price_change.date", dt.now().date())
 
     change = price_change(sym, name, 365)
-    update_field(collection, sym, "price_change.year", value)
-    check_price_change(country, sym, name, change, 0.40, xl.get_sheet(0))
+    update_field(collection, sym, "price_change.year", change)
+    check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0))
     
     change = price_change(sym, name, 90)
-    update_field(collection, sym, "price_change.quarter", value)
-    check_price_change(country, sym, name, change, 0.30, xl.get_sheet(1))
+    update_field(collection, sym, "price_change.quarter", change)
+    check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1))
     
     change = price_change(sym, name, 30)
-    update_field(collection, sym, "price_change.month", value)
-    check_price_change(country, sym, name, change, 0.20, xl.get_sheet(2))
+    update_field(collection, sym, "price_change.month", change)
+    check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2))
     
     change = price_change(sym, name, 7)
-    update_field(collection, sym, "price_change.week", value)
-    check_price_change(country, sym, name, change, 0.10, xl.get_sheet(3))
+    update_field(collection, sym, "price_change.week", change)
+    check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3))
 
     change = price_change(sym, name, 2)
-    update_field(collection, sym, "price_change.day", value)
-    check_price_change(country, sym, name, change, 0.10, xl.get_sheet(4))
+    update_field(collection, sym, "price_change.day", change)
+    check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4))
 
-def price_surprises(country, change_percent):
+def price_surprises(country, change_percent, criteria):
     xl = xlwt.Workbook()
+
     yr_sheet = xl.add_sheet("365 days change")
     qr_sheet = xl.add_sheet("90 days change")
     mon_sheet = xl.add_sheet("30 days change")
@@ -139,18 +136,24 @@ def price_surprises(country, change_percent):
         i=0
         for doc in col.find({}):
             if i > -1:
+                doc['id'] = doc.pop('_id')
+                stock = dbObject(**doc)
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 #print("%r : "%(i), end = '')
-                price_suprise(country, col, sym, name, change_percent, xl)
-            i = i + 1
+                price_suprise(country, col, stock, sym, name, change_percent, xl)
+            i += 1
     elif country == 'India':
         col = db['India_Stocks']
         for doc in col.find({}):
-            sym = doc['bscs']['symbol']
-            name = doc['bscs']['name']
-            sym = sym + '.BO'
-            price_suprise(country, col, sym, name, change_percent, xl)
+            if i > -1:
+                doc['id'] = doc.pop('_id')
+                stock = dbObject(**doc)
+                sym = doc['bscs']['symbol']
+                name = doc['bscs']['name']
+                sym = sym + '.BO'
+                price_suprise(country, col, stock, sym, name, change_percent, xl)
+            i += 1
 
     xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
 

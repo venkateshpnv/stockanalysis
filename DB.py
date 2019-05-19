@@ -62,6 +62,26 @@ def build_files(files):
         f.write("\n")
     f.close()
 
+def update_dcf_numbers(col, stock):
+    update_field(col, stock.bscs.symbol, "num.discount_rate", stock.num.discount_rate)
+    update_field(col, stock.bscs.symbol, "num.inflation", stock.num.inflation)
+    update_field(col, stock.bscs.symbol, "num.growth_1to5", stock.num.growth_1to5)
+    update_field(col, stock.bscs.symbol, "num.growth_6to8", stock.num.growth_6to8)
+    update_field(col, stock.bscs.symbol, "num.growth_9to10", stock.num.growth_9to10)
+    update_field(col, stock.bscs.symbol, "num.growth_16to20", stock.num.growth_16to20)
+    update_field(col, stock.bscs.symbol, "num.eps", stock.fig.ttm_eps)
+    update_field(col, stock.bscs.symbol, "num.eps_20yr", stock.num.eps_20yr)
+    update_field(col, stock.bscs.symbol, "num.fig_yr", stock.num.fig_yr)
+    update_field(col, stock.bscs.symbol, "num.cur_yr", stock.num.cur_yr)
+    update_field(col, stock.bscs.symbol, "num.term_yr", stock.num.term_yr)
+    update_field(col, stock.bscs.symbol, "num.dcf_price", stock.num.dcf_price)
+    update_field(col, stock.bscs.symbol, "num.inflated_eps_price", stock.num.inflated_eps_price)
+    update_field(col, stock.bscs.symbol, "num.margin_of_safety", stock.num.margin_of_safety)
+    update_field(col, stock.bscs.symbol, "num.dcf_return_rate", stock.num.dcf_return_rate)
+    update_field(col, stock.bscs.symbol, "num.cp_return_rate", stock.num.cp_return_rate)
+    
+    update_field(col, stock.bscs.symbol, "fig.price_growth", stock.fig.price_growth)
+
 def build_India_database(files, data_type):
     db = open_db('Stocks')
     #db.Indian_Stocks.drop()

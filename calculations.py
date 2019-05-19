@@ -5,9 +5,10 @@ import sys
 import time
 import math
 import xlwt
+from datetime import datetime
 
 from excel import add_dcf_header
-from DB import open_db, dbObject
+import DB
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
 from excel import write_to_excel
@@ -87,144 +88,151 @@ def calc_growth(split_factor, row, years):
 
 # Calcuate numbers
 def calculate_dcf(country, com, ash, stk, years, data_type, criteria, beta):
-#    global conf.COUNT
-    growth  = [0] * (GROWTH_PARAMS)
-    i = 0
-    startyr = stk.fig.Years[0]
-    startyr = int(startyr.split("-")[1].lstrip().rstrip())
-    #print(startyr)
-    endyr = stk.fig.Years[len(stk.fig.Years)-2]
-    endyr = int(endyr.split("-")[1].lstrip().rstrip())
-    if years > len(stk.fig.Years):
-        years = len(stk.fig.Years)
-    #print(endyr)
-    #print(stk.bscs.split_year)
-    #print(stk.bscs.split_factor)
-    split_factor = 1
-    if stk.bscs.split_year > startyr and stk.bscs.split_year <= endyr:
-        split_factor = stk.bscs.split_factor
+    if data_type != 'DB':
+#       global conf.COUNT
+        growth  = [0] * (GROWTH_PARAMS)
+        i = 0
+        startyr = stk.fig.Years[0]
+        startyr = int(startyr.split("-")[1].lstrip().rstrip())
+        #print(startyr)
+        endyr = stk.fig.Years[len(stk.fig.Years)-2]
+        endyr = int(endyr.split("-")[1].lstrip().rstrip())
+        if years > len(stk.fig.Years):
+            years = len(stk.fig.Years)
+        #print(endyr)
+        #print(stk.bscs.split_year)
+        #print(stk.bscs.split_factor)
+        split_factor = 1
+        if stk.bscs.split_year > startyr and stk.bscs.split_year <= endyr:
+            split_factor = stk.bscs.split_factor
 
-    stk.fig.price_growth  = get_price_growth(country, stk, years, data_type)
-    stk.fig.sales_growth  = growth[i]  = calc_growth(1, stk.fig.Sales, years) * len(stk.fig.Sales) / 10
-    i+=1
-    stk.fig.profit_growth = growth[i]  = calc_growth(1, stk.fig.PAT, years) * len(stk.fig.PAT) / 10
-    i+=1
-    stk.fig.cash_growth   = growth[i]  = calc_growth(1, stk.fig.CASH, years) * len(stk.fig.CASH) / 10
-    i+=1
-    stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
-    
-    # Dont calculate DCF for stocks with negative growth in any factor
-    if criteria == 'ONLY_POSITIVE':
-        for number in growth:
-            if number <= 0:
-                print(number)
-                return False
+        stk.fig.price_growth  = get_price_growth(country, stk, years, data_type)
+        stk.fig.sales_growth  = growth[i]  = calc_growth(1, stk.fig.Sales, years) * len(stk.fig.Sales) / 10
+        i+=1
+        stk.fig.profit_growth = growth[i]  = calc_growth(1, stk.fig.PAT, years) * len(stk.fig.PAT) / 10
+        i+=1
+        stk.fig.cash_growth   = growth[i]  = calc_growth(1, stk.fig.CASH, years) * len(stk.fig.CASH) / 10
+        i+=1
+        stk.fig.book_growth   = growth[i]  = calc_growth(split_factor, stk.fig.BOOK, years) * len(stk.fig.BOOK) / 10
+        
+        # Dont calculate DCF for stocks with negative growth in any factor
+        if criteria == 'ONLY_POSITIVE':
+            for number in growth:
+                if number <= 0:
+                    print(number)
+                    return False
 
-    PRINT("Growth of entries: %r"%(growth))
-    #try:
-    #    stk.fig.growth = min(i for i in growth if i > 0)
-    #except ValueError:
-    #    stk.fig.growth = 0
-    stk.fig.growth = min(i for i in growth)
+        PRINT("Growth of entries: %r"%(growth))
+        #try:
+        #    stk.fig.growth = min(i for i in growth if i > 0)
+        #except ValueError:
+        #    stk.fig.growth = 0
+        stk.fig.growth = min(i for i in growth)
 
-    # Calculating 20 years future earnings
-    # High growth period
-    stk.num.growth_1to5 = stk.fig.growth
-    # Decremental growth period
-    stk.num.growth_6to8 = round(stk.num.growth_1to5 * gr6to8_percent, 2)
-    stk.num.growth_9to10 = round(stk.num.growth_6to8 * gr9to10_percent, 2)
-    # Terminal growth
-    stk.num.growth_11to15 = round(stk.num.growth_9to10 * gr11to15_percent, 2)
-    stk.num.growth_16to20 = round(stk.num.growth_11to15 * gr16to20_percent, 2)
-    PRINT("Growth Rates")
-    PRINT("1-5 : {0:.2%}" .format(stk.num.growth_1to5))
-    PRINT("6-8 : {0:.2%}" .format(stk.num.growth_6to8))
-    PRINT("9-10 : {0:.2%}" .format(stk.num.growth_9to10))
-    PRINT("11-15 : {0:.2%}" .format(stk.num.growth_11to15))
-    PRINT("16-20 : {0:.2%}" .format(stk.num.growth_16to20))
+        # Calculating 20 years future earnings
+        # High growth period
+        stk.num.growth_1to5 = stk.fig.growth
+        # Decremental growth period
+        stk.num.growth_6to8 = round(stk.num.growth_1to5 * gr6to8_percent, 2)
+        stk.num.growth_9to10 = round(stk.num.growth_6to8 * gr9to10_percent, 2)
+        # Terminal growth
+        stk.num.growth_11to15 = round(stk.num.growth_9to10 * gr11to15_percent, 2)
+        stk.num.growth_16to20 = round(stk.num.growth_11to15 * gr16to20_percent, 2)
+        PRINT("Growth Rates")
+        PRINT("1-5 : {0:.2%}" .format(stk.num.growth_1to5))
+        PRINT("6-8 : {0:.2%}" .format(stk.num.growth_6to8))
+        PRINT("9-10 : {0:.2%}" .format(stk.num.growth_9to10))
+        PRINT("11-15 : {0:.2%}" .format(stk.num.growth_11to15))
+        PRINT("16-20 : {0:.2%}" .format(stk.num.growth_16to20))
 
-    eps = stk.fig.ttm_eps
-    growth = stk.num.growth_1to5
-    discount = stk.num.discount_rate
-    stk.num.eps_20yr=[]
+        eps = stk.fig.ttm_eps
+        growth = stk.num.growth_1to5
+        discount = stk.num.discount_rate
+        stk.num.eps_20yr=[]
 
-    PRINT("EPS: %r"%(eps))
-    PRINT("growth: %r"%(growth))
-    PRINT("discount: %r"%(discount))
-    for i in range(5):
-        eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(round(eps,2))
-    PRINT(stk.num.eps_20yr)
-    growth = stk.num.growth_6to8
-    PRINT("growth: %r" % (growth))
-    for i in range(5,8):
-        eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(round(eps,2))
+        stk.num.fig_yr = int(stk.fig.Years[-1].split('-')[1].lstrip().rstrip())
+        stk.num.cur_yr = datetime.now().year
+        stk.num.term_yr = stk.num.cur_yr + 20
 
-    PRINT(stk.num.eps_20yr)
-    growth = stk.num.growth_9to10
-    PRINT("growth: %r" % (growth))
-    for i in range(8,10):
-        eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(round(eps,2))
-    PRINT(stk.num.eps_20yr)
-    growth = stk.num.growth_11to15
-    PRINT("growth: %r" % (growth))
-    for i in range(10,15):
-        eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(round(eps,2))
+        PRINT("EPS: %r"%(eps))
+        PRINT("growth: %r"%(growth))
+        PRINT("discount: %r"%(discount))
+        for i in range(5):
+            eps = eps * ((1 + growth) / (1 + discount))
+            stk.num.eps_20yr.append(round(eps,2))
+        PRINT(stk.num.eps_20yr)
+        growth = stk.num.growth_6to8
+        PRINT("growth: %r" % (growth))
+        for i in range(5,8):
+            eps = eps * ((1 + growth) / (1 + discount))
+            stk.num.eps_20yr.append(round(eps,2))
 
-    PRINT(stk.num.eps_20yr)
-    growth = stk.num.growth_16to20
-    PRINT("growth: %r" % (growth))
-    for i in range(15,20):
-        eps = eps * ((1 + growth) / (1 + discount))
-        stk.num.eps_20yr.append(round(eps,2))
+        PRINT(stk.num.eps_20yr)
+        growth = stk.num.growth_9to10
+        PRINT("growth: %r" % (growth))
+        for i in range(8,10):
+            eps = eps * ((1 + growth) / (1 + discount))
+            stk.num.eps_20yr.append(round(eps,2))
+        PRINT(stk.num.eps_20yr)
+        growth = stk.num.growth_11to15
+        PRINT("growth: %r" % (growth))
+        for i in range(10,15):
+            eps = eps * ((1 + growth) / (1 + discount))
+            stk.num.eps_20yr.append(round(eps,2))
 
-    PRINT("20 yrs yearly EPS: %r"%(stk.num.eps_20yr))
-    PRINT("EPS after 5 years  : %r " % (round(stk.num.eps_20yr[4],2)))
-    PRINT("EPS after 10 years : %r " % (round(stk.num.eps_20yr[9],2)))
-    PRINT("EPS after 20 years : %r " % (round(stk.num.eps_20yr[19],2)))
-    PRINT("Earnings for 5 years  : %r " % (round(sum(stk.num.eps_20yr[0:4]),2)))
-    PRINT("Earnings for 10 years : %r " % (round(sum(stk.num.eps_20yr[0:9]),2)))
-    PRINT("Earnings for 20 years : %r " % (round(sum(stk.num.eps_20yr),2)))
-    #PRINT("Len : %r" %(len(stk.num.eps_20yr)))
+        PRINT(stk.num.eps_20yr)
+        growth = stk.num.growth_16to20
+        PRINT("growth: %r" % (growth))
+        for i in range(15,20):
+            eps = eps * ((1 + growth) / (1 + discount))
+            stk.num.eps_20yr.append(round(eps,2))
 
-    tot_eps = sum(stk.num.eps_20yr)
-    if tot_eps <= 0:
-        tot_eps = 0
-        stk.num.inflated_eps_price = 0
-        stk.num.dcf_price = 0
-        stk.num.cp_return_rate = 0
-        stk.num.dcf_return_rate = 0
-    else:
-        stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
-        stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
-        if beta == 'BETA':
-            if stk.bscs.five_yr_beta and stk.bscs.five_yr_beta >= 0:
-                stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5 * float(stk.bscs.five_yr_beta), 2)
-        else:
-            stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
+        PRINT("20 yrs yearly EPS: %r"%(stk.num.eps_20yr))
+        PRINT("EPS after 5 years  : %r " % (round(stk.num.eps_20yr[4],2)))
+        PRINT("EPS after 10 years : %r " % (round(stk.num.eps_20yr[9],2)))
+        PRINT("EPS after 20 years : %r " % (round(stk.num.eps_20yr[19],2)))
+        PRINT("Earnings for 5 years  : %r " % (round(sum(stk.num.eps_20yr[0:4]),2)))
+        PRINT("Earnings for 10 years : %r " % (round(sum(stk.num.eps_20yr[0:9]),2)))
+        PRINT("Earnings for 20 years : %r " % (round(sum(stk.num.eps_20yr),2)))
+        #PRINT("Len : %r" %(len(stk.num.eps_20yr)))
 
-        stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
-        try:
-            stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
-        except ZeroDivisionError:
+        tot_eps = sum(stk.num.eps_20yr)
+        if tot_eps <= 0:
+            tot_eps = 0
+            stk.num.inflated_eps_price = 0
+            stk.num.dcf_price = 0
+            stk.num.cp_return_rate = 0
             stk.num.dcf_return_rate = 0
-        #PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, RUPEE, stk.num.inflated_eps_price))
-        #PRINT("Price at 50 percent MoS: %s%r" %(RUPEE, stk.num.dcf_price))
-        #PRINT("Current Price: %s%r" %(RUPEE, stk.bscs.price))
-        #PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
-        #PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
+        else:
+            stk.num.inflated_eps_price = tot_eps * ((1 - stk.num.inflation) ** 20)
+            stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
+            if beta == 'BETA':
+                if stk.bscs.five_yr_beta and stk.bscs.five_yr_beta >= 0:
+                    stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5 * float(stk.bscs.five_yr_beta), 2)
+            else:
+                stk.num.dcf_price = round(stk.num.inflated_eps_price * 0.5, 2)
 
-    #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
-    #if stk.bscs.price <= stk.num.dcf_price:
+            stk.num.cp_return_rate = ((tot_eps/stk.bscs.price) ** (1/20)) - 1
+            try:
+                stk.num.dcf_return_rate = (tot_eps/stk.num.dcf_price) ** (1/20) - 1
+            except ZeroDivisionError:
+                stk.num.dcf_return_rate = 0
+            #PRINT("Earnings for 20 years at %r percent inflation: %s%r" %(stk.num.inflation*100, RUPEE, stk.num.inflated_eps_price))
+            #PRINT("Price at 50 percent MoS: %s%r" %(RUPEE, stk.num.dcf_price))
+            #PRINT("Current Price: %s%r" %(RUPEE, stk.bscs.price))
+            #PRINT("Return Rate at Current Price: {0:.2%}" .format(stk.num.cp_return_rate))
+            #PRINT("Return Rate at MoS Price: {0:.2%}" .format(stk.num.dcf_return_rate))
+
+        #if stk.bscs.price <= stk.num.dcf_price or stk.num.cp_return_rate > 0.01:
+        #if stk.bscs.price <= stk.num.dcf_price:
+
     conf.COUNT+=1
     write_to_excel(com, ash, stk, years)
+
     return True
     #return False
 
-def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
+def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state):
     # All Stocks Excel File
     all_stk = xlwt.Workbook()
     ash = all_stk.add_sheet("All Stocks")
@@ -232,9 +240,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
     j = 0
     init_variables()
 
-    db = open_db('Stocks')
+    db = DB.open_db('Stocks')
     if country == 'India':
         docs = db.Indian_Stocks.find({})
+        collection = db.Indian_Stocks
         os.mkdir("./Indian_Stocks")
         os.mkdir("./Indian_Stocks/excel_files")
         os.mkdir("./Indian_Stocks/DCF_Calc")
@@ -244,6 +253,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
         path="./Indian_Stocks"
     elif country == 'US':
         docs = db.US_Stocks.find({})
+        collection = db.US_Stocks
         try:
             os.mkdir("./US_Stocks")
             os.mkdir("./US_Stocks/excel_files")
@@ -263,7 +273,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
         if i > -1:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
-            stock = dbObject(**doc)
+            stock = DB.dbObject(**doc)
             #obj = namedtupled.map(doc)
             #obj = namedtuple("Stock", doc.keys())(*doc.values())
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
@@ -307,6 +317,8 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta):
             excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
             PRINT("Writing to %s" % (excel))
             com.save(excel)
+            if db_state == 'SYNC_DB':
+                DB.update_dcf_numbers(collection, stock)
             j+=1
 
             del stock
