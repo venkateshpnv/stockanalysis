@@ -25,6 +25,7 @@ import pandas_datareader.data as data
 # Excel operations
 #import csv
 import xlrd
+import xlwt
 
 # Date
 import datetime
@@ -33,6 +34,8 @@ from datetime import date
 
 #List Files
 from fractions import Fraction
+
+import excel
 
 def price_change(sym, name, num_days):
     end = dt.now()
@@ -124,17 +127,17 @@ def price_surprises(country, change_percent, criteria):
     week_sheet = xl.add_sheet("7 days change")
     day_sheet = xl.add_sheet("one day change")
 
-    excel.add_price_surprise_header(yr_sheet, 1)
-    excel.add_price_surprise_header(qr_sheet, 1)
-    excel.add_price_surprise_header(mon_sheet, 1)
-    excel.add_price_surprise_header(week_sheet, 1)
-    excel.add_price_surprise_header(day_sheet, 1)
+    excel.add_price_surprise_header(yr_sheet)
+    excel.add_price_surprise_header(qr_sheet)
+    excel.add_price_surprise_header(mon_sheet)
+    excel.add_price_surprise_header(week_sheet)
+    excel.add_price_surprise_header(day_sheet)
 
     db = DB.open_db('Stocks')
     if country == 'US':
         col = db['US_Stocks']
         i=0
-        for doc in col.find({}):
+        for doc in col.find({"bscs.symbol":"FB"}):
             if i > -1:
                 doc['id'] = doc.pop('_id')
                 stock = dbObject(**doc)

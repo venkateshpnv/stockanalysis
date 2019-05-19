@@ -150,6 +150,7 @@ def calculate_dcf(country, com, ash, stk, years, data_type, criteria, beta):
         discount = stk.num.discount_rate
         stk.num.eps_20yr=[]
 
+        stk.num.dcf_years = years
         stk.num.fig_yr = int(stk.fig.Years[-1].split('-')[1].lstrip().rstrip())
         stk.num.cur_yr = datetime.now().year
         stk.num.term_yr = stk.num.cur_yr + 20

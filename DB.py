@@ -75,12 +75,14 @@ def update_dcf_numbers(col, stock):
     update_field(col, stock.bscs.symbol, "num.cur_yr", stock.num.cur_yr)
     update_field(col, stock.bscs.symbol, "num.term_yr", stock.num.term_yr)
     update_field(col, stock.bscs.symbol, "num.dcf_price", stock.num.dcf_price)
+    update_field(col, stock.bscs.symbol, "num.dcf_years", stock.num.dcf_years)
     update_field(col, stock.bscs.symbol, "num.inflated_eps_price", stock.num.inflated_eps_price)
     update_field(col, stock.bscs.symbol, "num.margin_of_safety", stock.num.margin_of_safety)
     update_field(col, stock.bscs.symbol, "num.dcf_return_rate", stock.num.dcf_return_rate)
     update_field(col, stock.bscs.symbol, "num.cp_return_rate", stock.num.cp_return_rate)
     
     update_field(col, stock.bscs.symbol, "fig.price_growth", stock.fig.price_growth)
+    
 
 def build_India_database(files, data_type):
     db = open_db('Stocks')

@@ -402,7 +402,7 @@ def add_price_change_header(sheet, i):
     conf.DAY_PR_CHANGE=i
     return i
 
-def add_price_surpise_header(sheet):
+def add_price_surprise_header(sheet):
     i = 0
     i = add_basic_header(sheet, i)
 

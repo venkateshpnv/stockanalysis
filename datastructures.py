@@ -175,6 +175,7 @@ class Numbers:
     # Total earnings for 20 yrs
     eps_20yr = []
 
+    dcf_years = 0
     # start and end years
     fig_yr  = 2018
     cur_yr  = 2019
