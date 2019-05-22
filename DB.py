@@ -132,8 +132,7 @@ def update_US_all_stk_profile():
     db = open_db('Stocks')
     col = db['US_Stocks']
     i = 0
-    #for doc in col.find({}):
-    for doc in col.find({"bscs.sector":"Finance"}):
+    for doc in col.find({}):
         #if i > 3444:
         if i > -1: # and not doc['bscs']['price']:
             sym = doc['bscs']['symbol']
@@ -490,4 +489,16 @@ def update_sector_info():
                 j += 1
     print("Total : %d" %(j))
 
+def set_sno(country):
+    db = open_db('Stocks')
+    if country == 'US':
+        col = db['US_Stocks']
+    elif country == 'India':
+        col = db['Indian_Stocks']
+    else:
+        return
 
+    i = 1
+    for doc in col.find({}).sort([["_id",1]]):
+        update_field(col, doc['bscs']['symbol'], "sno", i)
+        i += 1
