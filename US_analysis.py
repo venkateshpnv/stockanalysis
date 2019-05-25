@@ -17,7 +17,7 @@ def US_main():
     #DB.build_US_all_stock_information()
     #DB.update_US_all_stk_profile()
     #DB.update_sector_info()
-    internet.price_surprises('US', 0.10, 'DAY', 'COLD')
+    internet.price_surprises('US', 0.10, 'DAY', 'HOT', 'SYNC_DB')
     #DB.set_sno('US')
 
 US_main()

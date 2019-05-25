@@ -125,44 +125,49 @@ def check_price_change(country, sym, stock, name, change, req_change, count, she
     return count
 
 
-def price_suprise(country, collection, stock, sym, name, change_percent, xl, data_type):
+def price_suprise(country, collection, stock, sym, name, change_percent, xl, data_type, criteria, db_type):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
    
     if data_type == 'HOT':
         DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
 
-    change = price_change(country, sym, name, 365, data_type)
-    if change:
-        if data_type == 'HOT':
-            DB.update_field(collection, sym, "price_change.year", change)
-        conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0), 'YEAR')
+    if criteria == 'ALL' or criteria == 'YEAR':
+        change = price_change(country, sym, name, 365, data_type)
+        if change:
+            if db_type == 'SYNC_DB':
+                DB.update_field(collection, sym, "price_change.year", change)
+            conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0), 'YEAR')
     
-    change = price_change(country, sym, name, 90, data_type)
-    if change:
-        if data_type == 'HOT':
-            DB.update_field(collection, sym, "price_change.quarter", change)
-        conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1), 'QUARTER')
+    if criteria == 'ALL' or criteria == 'QUARTER':
+        change = price_change(country, sym, name, 90, data_type)
+        if change:
+            if db_type == 'SYNC_DB':
+                DB.update_field(collection, sym, "price_change.quarter", change)
+            conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1), 'QUARTER')
     
-    change = price_change(country, sym, name, 30, data_type)
-    if change:
-        if data_type == 'HOT':
-            DB.update_field(collection, sym, "price_change.month", change)
-        conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2), 'MONTH')
+    if criteria == 'ALL' or criteria == 'MONTH':
+        change = price_change(country, sym, name, 30, data_type)
+        if change:
+            if db_type == 'SYNC_DB':
+                DB.update_field(collection, sym, "price_change.month", change)
+            conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2), 'MONTH')
     
-    change = price_change(country, sym, name, 7, data_type)
-    if change:
-        if data_type == 'HOT':
-            DB.update_field(collection, sym, "price_change.week", change)
-        conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3), 'WEEK')
+    if criteria == 'ALL' or criteria == 'WEEK':
+        change = price_change(country, sym, name, 7, data_type)
+        if change:
+            if db_type == 'SYNC_DB':
+                DB.update_field(collection, sym, "price_change.week", change)
+            conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3), 'WEEK')
 
-    change = price_change(country, sym, name, 2, data_type)
-    if change:
-        if data_type == 'HOT':
-            DB.update_field(collection, sym, "price_change.day", change)
-        conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4), 'DAY')
+    if criteria == 'ALL' or criteria == 'DAY':
+        change = price_change(country, sym, name, 2, data_type)
+        if change:
+            if db_type == 'SYNC_DB':
+                DB.update_field(collection, sym, "price_change.day", change)
+            conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4), 'DAY')
 
-def price_surprises(country, change_percent, criteria, data_type):
+def price_surprises(country, change_percent, criteria, data_type, db_type):
     xl = xlwt.Workbook()
 
     yr_sheet = xl.add_sheet("365 days change")
@@ -203,7 +208,7 @@ def price_surprises(country, change_percent, criteria, data_type):
                 if stock.bscs.volume < 50000:
                     continue
                 print("%d: %s: %s" %(sno, sym, name))
-                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type)
+                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
     elif country == 'India':
         col = db['India_Stocks']
         for doc in col.find({}):
@@ -218,7 +223,8 @@ def price_surprises(country, change_percent, criteria, data_type):
 
     now = datetime.datetime.now().date()
     excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))
-    xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
+    #xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
+    xl.save(excel_file)
 
 
 def get_price_volume(stk, country):
