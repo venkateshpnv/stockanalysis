@@ -87,7 +87,7 @@ def calc_growth(split_factor, row, years):
     return growth
 
 # Calcuate numbers
-def calculate_dcf(country, com, ash, stk, years, data_type, criteria, beta):
+def calculate_dcf(country, stk, years, data_type, criteria, beta):
     if data_type != 'DB':
 #       global conf.COUNT
         growth  = [0] * (GROWTH_PARAMS)
@@ -228,16 +228,16 @@ def calculate_dcf(country, com, ash, stk, years, data_type, criteria, beta):
         #if stk.bscs.price <= stk.num.dcf_price:
 
     conf.COUNT+=1
-    write_to_excel(com, ash, stk, years)
 
     return True
     #return False
 
-def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state):
-    # All Stocks Excel File
-    all_stk = xlwt.Workbook()
-    ash = all_stk.add_sheet("All Stocks")
-    add_dcf_header(ash, years)
+def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state, excel_state):
+    if excel_state == 'EXCEL':
+        # All Stocks Excel File
+        all_stk = xlwt.Workbook()
+        ash = all_stk.add_sheet("All Stocks")
+        add_dcf_header(ash, years)
     j = 0
     init_variables()
 
@@ -245,9 +245,13 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     if country == 'India':
         docs = db.Indian_Stocks.find({})
         collection = db.Indian_Stocks
-        os.mkdir("./Indian_Stocks")
-        os.mkdir("./Indian_Stocks/excel_files")
-        os.mkdir("./Indian_Stocks/DCF_Calc")
+        if excel_state == 'EXCEL':
+            try:
+                os.mkdir("./Indian_Stocks")
+                os.mkdir("./Indian_Stocks/excel_files")
+                os.mkdir("./Indian_Stocks/DCF_Calc")
+            except FileExistsError:
+                PRINT("")
         inflation = 0.08
         discount_rate = 0
         mos = 0.5
@@ -255,12 +259,13 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     elif country == 'US':
         docs = db.US_Stocks.find({})
         collection = db.US_Stocks
-        try:
-            os.mkdir("./US_Stocks")
-            os.mkdir("./US_Stocks/excel_files")
-            os.mkdir("./US_Stocks/DCF_Calc")
-        except FileExistsError:
-            PRINT("")
+        if excel_state == 'EXCEL':
+            try:
+                os.mkdir("./US_Stocks")
+                os.mkdir("./US_Stocks/excel_files")
+                os.mkdir("./US_Stocks/DCF_Calc")
+            except FileExistsError:
+                PRINT("")
         inflation = 0
         discount_rate = 0.08
         mos = 0.5
@@ -270,8 +275,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
         #for doc in docs:
     no_dcf = 0
-    for i, doc in enumerate(docs):
-        if i > -1:
+    for doc in collection.find({}).sort([["sno",1]]):
+        sno = doc['sno']
+        if sno > 0:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
             stock = DB.dbObject(**doc)
@@ -305,25 +311,27 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #    del stock
             #    continue
 
-            PRINT("%d: %s: %s"%(i, stock.bscs.symbol, stock.bscs.name))
+            print("%d: %s: %s"%(sno, stock.bscs.symbol, stock.bscs.name))
             stock.num.inflation = inflation
             stock.num.discount_rate = discount_rate
             stock.num.margin_of_safety = mos
             #Company Excel File
-            com = xlwt.Workbook()
-            if calculate_dcf(country, com, ash, stock, years, data_type, criteria, beta) is False:
+            if calculate_dcf(country, stock, years, data_type, criteria, beta) is False:
                 del stock
                 del com
                 continue
-            excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
-            PRINT("Writing to %s" % (excel))
-            com.save(excel)
+            if excel_state == 'EXCEL':
+                com = xlwt.Workbook()
+                write_to_excel(com, ash, stock, years)
+                excel = "%s/excel_files/%s.xls" % (path, stock.bscs.name)
+                PRINT("Writing to %s" % (excel))
+                com.save(excel)
+                del com
             if db_state == 'SYNC_DB':
                 DB.update_dcf_numbers(collection, stock)
             j+=1
 
             del stock
-            del com
             stock=None
             com=None
 
@@ -331,11 +339,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     print("No DCF: %r" %(no_dcf))
     #now = datetime.datetime.now()
     #excel = "DCF_Calc/All_Stocks_%s.xls" % (str(now))
-    if len(sys.argv) == 2:
-        excel = "%s/DCF_Calc/%s.xls" %(path, sys.argv[1])
-    else:
-        excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
-    print("Saving DCF stocks to %s"%(excel))
-    all_stk.save(excel)
+    if excel_state == 'EXCEL':
+        if len(sys.argv) == 2:
+            excel = "%s/DCF_Calc/%s.xls" %(path, sys.argv[1])
+        else:
+            excel = "%s/DCF_Calc/All_Stocks.xls" %(path)
+        print("Saving DCF stocks to %s"%(excel))
+        all_stk.save(excel)
 
 

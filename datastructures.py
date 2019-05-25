@@ -191,6 +191,14 @@ class Numbers:
     # return rate at current price
     cp_return_rate   = 0
 
+class Price_Change:
+    def __init__(self):
+        self.year = 0
+        self.quarter = 0
+        self.month = 0
+        self.week = 0
+        self.day = 0
+
 class Stock:
     def __init__(self):
         self.bscs = Basics()
@@ -198,5 +206,5 @@ class Stock:
         self.fig  = Figures()
         self.Ratios = Ratios()
         self.Dividend = Dividend()
-
+        self.price_change = Price_Change()
 

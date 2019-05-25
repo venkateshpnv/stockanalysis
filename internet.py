@@ -36,89 +36,133 @@ from datetime import date
 from fractions import Fraction
 
 import excel
+import conf
 
-def price_change(sym, name, num_days):
-    end = dt.now()
-    start = end - timedelta(days=num_days)
-    try:
-        #print("Symbol: %s, Name: %s" %(sym, name))
-        read = pdr.DataReader(sym, 'yahoo', start, end)
-    except pdr._utils.RemoteDataError:
-        PRINT_ERR("Unable to get data for %s"%(sym))
-        return
-    except KeyError:
-        PRINT_ERR("Unable to get data for %s"%(sym))
-        return
+def price_change(country, sym, name, num_days, data_type):
+    change = 0
+    if data_type == 'HOT':
+        end = dt.now()
+        start = end - timedelta(days=num_days)
+        try:
+            #print("Symbol: %s, Name: %s" %(sym, name))
+            read = pdr.DataReader(sym, 'yahoo', start, end)
+        except pdr._utils.RemoteDataError:
+            PRINT_ERR("Unable to get data for %s"%(sym))
+            return None
+        except KeyError:
+            PRINT_ERR("Unable to get data for %s"%(sym))
+            return None
  
-    #st_price = None
-    #start = end - timedelta(days=num_days)
-    ##end = dt.now()
-    #
-    ## Get data's first row date
-    #data_start_date = read.index.to_pydatetime()[0]
+        #st_price = None
+        #start = end - timedelta(days=num_days)
+        ##end = dt.now()
+        #
+        ## Get data's first row date
+        #data_start_date = read.index.to_pydatetime()[0]
 
-    ## Some times, the stock has been started trading recently.
-    ## You don't have yearly or even longer historical data
-    ## Assume the start point as the earliest start date
-    #if start.date() < data_start_date.date():
-    #    start = data_start_date
+        ## Some times, the stock has been started trading recently.
+        ## You don't have yearly or even longer historical data
+        ## Assume the start point as the earliest start date
+        #if start.date() < data_start_date.date():
+        #    start = data_start_date
 
-    #num_days = (end-start).days
+        #num_days = (end-start).days
 
-#    for index, row in read.iterrows():
-#        if index.date() == start.date():
-#            st_price = row['Adj Close']
-#            break
+#        for index, row in read.iterrows():
+#            if index.date() == start.date():
+#                st_price = row['Adj Close']
+#                break
 #
-#    if not st_price:
-#        PRINT_ERR("Unable to get start price for sym: %s, name: %s, num_days: %d" %(sym, name, num_days))
-#        return 0
+#        if not st_price:
+#            PRINT_ERR("Unable to get start price for sym: %s, name: %s, num_days: %d" %(sym, name, num_days))
+#            return 0
 
-    en_price = read.iat[-1, read.columns.get_loc('Adj Close')]
-    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
-    change = en_price/st_price - 1
+        en_price = read.iat[-1, read.columns.get_loc('Adj Close')]
+        st_price = read.iat[0, read.columns.get_loc('Adj Close')]
+        change = en_price/st_price - 1
+    elif data_type == 'COLD':
+        db = DB.open_db('Stocks')
+        if country == 'US':
+            doc = db.US_Stocks.find({"bscs.symbol":sym})
+        elif country == 'India':
+            docs = db.Indian_Stocks.find({"bscs.symbol":sym})
+        else:
+            return 0
+        if num_days == 365:
+            val = doc[0]['price_change']['year']
+            if val:
+                change = float(val)
+        elif num_days == 90:
+            val = doc[0]['price_change']['quarter']
+            if val:
+                change = float(val)
+        elif num_days == 30:
+            val = doc[0]['price_change']['month']
+            if val:
+                change = float(val)
+        elif num_days == 7:
+            val = doc[0]['price_change']['week']
+            if val:
+                change = float(val)
+        elif num_days == 2 or num_days == 3:
+            val = doc[0]['price_change']['day']
+            if val:
+                change = float(val)
 
     return change
 
-def check_price_change(country, sym, stock, name, change, req_change, count, sheet):
+def check_price_change(country, sym, stock, name, change, req_change, count, sheet, sheet_type):
     if change >= req_change:
-        print("Days: %d, sym: %s, name: %s, change: %d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
+        #print("sym: %s, name: %s, change: %d percent" %(sym, name, change*100))
         count += 1 
-        write_to_price_change_excel(sheet, stock, years)
+        excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
 
     elif change < -(req_change):
-        print("Days: %d, sym: %s, name: %s, change: -%d percent, price: %r" %(num_days, sym, name, change*100, round(en_price, 2)))
+        #print("sym: %s, name: %s, change: -%d percent" %(sym, name, change*100))
         count += 1 
-        write_to_price_change_excel(sheet, stock, years)
+        excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
+
+    return count
 
 
-def price_suprise(country, collection, stock, sym, name, change_percent, xl):
+def price_suprise(country, collection, stock, sym, name, change_percent, xl, data_type):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
-    
-    update_field(collection, sym, "price_change.date", dt.now().date())
+   
+    if data_type == 'HOT':
+        DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
 
-    change = price_change(sym, name, 365)
-    update_field(collection, sym, "price_change.year", change)
-    check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0))
+    change = price_change(country, sym, name, 365, data_type)
+    if change:
+        if data_type == 'HOT':
+            DB.update_field(collection, sym, "price_change.year", change)
+        conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0), 'YEAR')
     
-    change = price_change(sym, name, 90)
-    update_field(collection, sym, "price_change.quarter", change)
-    check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1))
+    change = price_change(country, sym, name, 90, data_type)
+    if change:
+        if data_type == 'HOT':
+            DB.update_field(collection, sym, "price_change.quarter", change)
+        conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1), 'QUARTER')
     
-    change = price_change(sym, name, 30)
-    update_field(collection, sym, "price_change.month", change)
-    check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2))
+    change = price_change(country, sym, name, 30, data_type)
+    if change:
+        if data_type == 'HOT':
+            DB.update_field(collection, sym, "price_change.month", change)
+        conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2), 'MONTH')
     
-    change = price_change(sym, name, 7)
-    update_field(collection, sym, "price_change.week", change)
-    check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3))
+    change = price_change(country, sym, name, 7, data_type)
+    if change:
+        if data_type == 'HOT':
+            DB.update_field(collection, sym, "price_change.week", change)
+        conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3), 'WEEK')
 
-    change = price_change(sym, name, 2)
-    update_field(collection, sym, "price_change.day", change)
-    check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4))
+    change = price_change(country, sym, name, 2, data_type)
+    if change:
+        if data_type == 'HOT':
+            DB.update_field(collection, sym, "price_change.day", change)
+        conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4), 'DAY')
 
-def price_surprises(country, change_percent, criteria):
+def price_surprises(country, change_percent, criteria, data_type):
     xl = xlwt.Workbook()
 
     yr_sheet = xl.add_sheet("365 days change")
@@ -127,25 +171,39 @@ def price_surprises(country, change_percent, criteria):
     week_sheet = xl.add_sheet("7 days change")
     day_sheet = xl.add_sheet("one day change")
 
-    excel.add_price_surprise_header(yr_sheet)
-    excel.add_price_surprise_header(qr_sheet)
-    excel.add_price_surprise_header(mon_sheet)
-    excel.add_price_surprise_header(week_sheet)
-    excel.add_price_surprise_header(day_sheet)
+    excel.add_price_surprise_header(yr_sheet, 'YEAR')
+    excel.add_price_surprise_header(qr_sheet, 'QUARTER')
+    excel.add_price_surprise_header(mon_sheet, 'MONTH')
+    excel.add_price_surprise_header(week_sheet, 'WEEK')
+    excel.add_price_surprise_header(day_sheet, 'DAY')
 
     db = DB.open_db('Stocks')
     if country == 'US':
         col = db['US_Stocks']
-        i=0
-        for doc in col.find({"bscs.symbol":"FB"}):
-            if i > -1:
+        #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
+        #for doc in col.find({}):
+        for doc in col.find({}).sort([["sno",1]]):
+            sno = doc['sno']
+            if sno > 0:
                 doc['id'] = doc.pop('_id')
-                stock = dbObject(**doc)
+                stock = DB.dbObject(**doc)
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 #print("%r : "%(i), end = '')
-                price_suprise(country, col, stock, sym, name, change_percent, xl)
-            i += 1
+
+                list=doc['num']
+                if len(list) == 0:
+                    continue
+                if "dcf_years" not in list.keys():
+                    continue
+                if stock.bscs.price < 1:
+                    continue
+                if stock.bscs.trading != 'YES':
+                    continue
+                if stock.bscs.volume < 50000:
+                    continue
+                print("%d: %s: %s" %(sno, sym, name))
+                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type)
     elif country == 'India':
         col = db['India_Stocks']
         for doc in col.find({}):
@@ -155,9 +213,11 @@ def price_surprises(country, change_percent, criteria):
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 sym = sym + '.BO'
-                price_suprise(country, col, stock, sym, name, change_percent, xl)
+                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type)
             i += 1
 
+    now = datetime.datetime.now().date()
+    excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))
     xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
 
 

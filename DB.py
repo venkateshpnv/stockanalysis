@@ -82,6 +82,11 @@ def update_dcf_numbers(col, stock):
     update_field(col, stock.bscs.symbol, "num.cp_return_rate", stock.num.cp_return_rate)
     
     update_field(col, stock.bscs.symbol, "fig.price_growth", stock.fig.price_growth)
+    update_field(col, stock.bscs.symbol, "fig.sales_growth", stock.fig.sales_growth)
+    update_field(col, stock.bscs.symbol, "fig.profit_growth", stock.fig.profit_growth)
+    update_field(col, stock.bscs.symbol, "fig.book_growth", stock.fig.book_growth)
+    update_field(col, stock.bscs.symbol, "fig.cash_growth", stock.fig.cash_growth)
+    update_field(col, stock.bscs.symbol, "fig.growth", stock.fig.growth)
     
 
 def build_India_database(files, data_type):
