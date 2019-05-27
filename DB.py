@@ -462,12 +462,13 @@ def build_US_all_stock_information():
         if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
             if obj.count() == 0:
+            #if doc['parsed'] != 'YES' and obj.count() == 0:
                 print("%d: %s: %s "%(i,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
                 j += 1
-        else:
-            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+            else:
+                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
             #name = stock['Name']
             #sym = stock['symbol']
             #name = name.replace("&#39;", "\'")

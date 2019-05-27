@@ -535,7 +535,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         PRINT_ERR("Shares data not found")
         write_to_unparsed(stk.bscs.name)
         write_to_unparsed("Shares data not found")
-        return False
+        ##return False
 
 #    stk.bscs.price  = yf(stk.bscs.symbol).get_current_price()
 #    stk.bscs.volume = yf(stk.bscs.symbol).get_current_volume()
@@ -545,7 +545,10 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
     for i in range(lowest_3(len(assets), len(liabilities), len(shares))):
         equity.append(round(assets[i] - liabilities[i],2))
         try:
-            book.append(round((assets[i] - liabilities[i]) / shares[i],2))
+            if(len(shares) != 0):
+                book.append(round((assets[i] - liabilities[i]) / shares[i],2))
+            else:
+                book.append(0)
         except ZeroDivisionError:
             book.append(0)
         except IndexError:
@@ -559,7 +562,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         PRINT_ERR(err)
         write_to_unparsed(stk.bscs.name)
         write_to_unparsed(err)
-        return False
+        ##return False
 
     for i in range(lowest(len(liabilities), len(equity))):
     #for i in range(lowest(len(debt), len(equity))):
@@ -595,11 +598,11 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         income_tax.extend(get_entries(soup, re.compile('^ Income Tax $')))
         eps.extend(get_entries(soup, re.compile('^ EPS Diluted Continuous Ops $')))
 
-    if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
-        err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
-        write_to_unparsed(stk.bscs.name)
-        write_to_unparsed(err)
-        return False
+    #if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
+    #    err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
+    #    write_to_unparsed(stk.bscs.name)
+    #    write_to_unparsed(err)
+    #    return False
 
     for i in range(lowest(len(pat), len(equity))):
         try:
@@ -623,7 +626,11 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         except ZeroDivisionError:
             roce.append(0)
 
-    stk.fig.ttm_eps = eps[0]
+    if len(eps) > 0:
+        stk.fig.ttm_eps = eps[0]
+    else:
+        stk.fig.ttm_eps = 0
+
     stk.fig.Years.extend(reversed(years))
     stk.fig.Sales.extend(reversed(sales))
     stk.fig.PBT.extend(reversed(pbt))

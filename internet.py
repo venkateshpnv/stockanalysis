@@ -132,35 +132,35 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, dat
     if data_type == 'HOT':
         DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
 
-    if criteria == 'ALL' or criteria == 'YEAR':
+    if criteria == ALL or criteria & YEAR:
         change = price_change(country, sym, name, 365, data_type)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.year", change)
             conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0), 'YEAR')
     
-    if criteria == 'ALL' or criteria == 'QUARTER':
+    if criteria == ALL or criteria & QUARTER:
         change = price_change(country, sym, name, 90, data_type)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.quarter", change)
             conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1), 'QUARTER')
     
-    if criteria == 'ALL' or criteria == 'MONTH':
+    if criteria == ALL or criteria & MONTH:
         change = price_change(country, sym, name, 30, data_type)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.month", change)
             conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2), 'MONTH')
     
-    if criteria == 'ALL' or criteria == 'WEEK':
+    if criteria == ALL or criteria & WEEK:
         change = price_change(country, sym, name, 7, data_type)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.week", change)
             conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3), 'WEEK')
 
-    if criteria == 'ALL' or criteria == 'DAY':
+    if criteria == ALL or criteria & DAY:
         change = price_change(country, sym, name, 2, data_type)
         if change:
             if db_type == 'SYNC_DB':
@@ -168,6 +168,7 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, dat
             conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4), 'DAY')
 
 def price_surprises(country, change_percent, criteria, data_type, db_type):
+    print("Criteria: %r" %(criteria))
     xl = xlwt.Workbook()
 
     yr_sheet = xl.add_sheet("365 days change")
@@ -218,7 +219,7 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 sym = sym + '.BO'
-                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type)
+                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
             i += 1
 
     now = datetime.datetime.now().date()

@@ -1,6 +1,12 @@
 from inspect import currentframe
 import os
 
+YEAR=1
+QUARTER=2
+MONTH=4
+WEEK=8
+DAY=16
+ALL=0x1F
 #Supportive calls
 def PRINT_ERR(x):
     print("ERR: %s" %(x))

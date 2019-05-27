@@ -1,6 +1,7 @@
 from calculations import calculate_dcf_all_stocks
 import DB
 import internet
+from common import *
 
 def US_main():
     #internet.get_US_stock_page("MSFT")
@@ -17,7 +18,7 @@ def US_main():
     #DB.build_US_all_stock_information()
     #DB.update_US_all_stk_profile()
     #DB.update_sector_info()
-    internet.price_surprises('US', 0.10, 'DAY', 'HOT', 'SYNC_DB')
+    internet.price_surprises('US', 0.10, WEEK, 'COLD', 'NO_SYNC_DB')
     #DB.set_sno('US')
 
 US_main()
