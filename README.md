@@ -59,6 +59,9 @@ Delete where condition
 Delete one record
 >db.my_collection.remove({"title" : "SomeTitle"},1)
 
+Delete a field
+> db.US_Stocks.update({"bscs.symbol":"WM"}, {$unset: {field_name:1}}, false, true)
+
 Take Backup
   mongodump --db=Stocks --out=./dump
 Restore Backup
@@ -87,3 +90,5 @@ https://github.com/JECSand/yahoofinancials.git
 Stock Splits
 ===============
 https://www.motilaloswal.com/markets/stock-market-live/StockSplits.aspx
+
+
