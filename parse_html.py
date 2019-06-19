@@ -29,9 +29,6 @@ def html_table(lol):
       s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
       s += "%s\n" %('  </tr>')
     s += "%s\n" %('</table>')
-    f = open("/tmp/mesg.html", "w")
-    f.write(s)
-    f.close()
     return s
 
 #def html_table(lol):

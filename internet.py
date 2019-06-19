@@ -240,6 +240,9 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
         #for doc in col.find({}):
         docs = col.find({}).sort([["sno",1]])
+        print("Count: %r" %(docs.count()))
+        i=0
+        len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0
         for doc in docs:
             sno = doc['sno']
             if sno > 0:
@@ -251,17 +254,24 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
 
                 list=doc['num']
                 if len(list) == 0:
+                    len_skip+=1
                     continue
                 if "dcf_years" not in list.keys():
+                    dcf_skip+=1
                     continue
                 if stock.bscs.price < 1:
+                    price_skip+=1
                     continue
                 if stock.bscs.trading != 'YES':
+                    trading_skip+=1
                     continue
-                if stock.bscs.volume < 50000:
+                if stock.bscs.volume < 40000:
+                    vol_skip+=1
                     continue
-                print("%d: %s: %s" %(sno, sym, name))
+                i+=1
+                print("%d: %d: %s: %s" %(i, sno, sym, name))
                 price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
+        print("len_skip: %r, dcf_skip = %d, price_skip = %d, trading_skip = %d, vol_skip = %d" %(len_skip, dcf_skip, price_skip, trading_skip, vol_skip))
     elif country == 'India':
         col = db['India_Stocks']
         for doc in col.find({}):

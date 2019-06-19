@@ -150,7 +150,8 @@ def update_US_all_stk_profile():
 def update_US_stk_profile(html_text, collection):
     soup=parse_html.get_soup(html_text)
     s=soup.find('title').text
-    symbol=re.search('\(([^)]+)',s).group(1)
+    symbol=re.match("(.*?) ",s).group().rstrip()
+    #symbol=re.search('\(([^)]+)',s).group(1)
     print(symbol)
 
     dt = datetime.now().date().strftime("%d-%m-%Y")
@@ -177,6 +178,7 @@ def update_US_stk_profile(html_text, collection):
     
     val = internet.get_LTP('US', symbol)
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.price": val}})
+    print("Price: %r" %(val))
 
     #60 month Beta
     pattern=re.compile(r'60-Month Beta')
@@ -436,7 +438,7 @@ def build_US_stock_information(doc):
         db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
     if "^" in sym:
         print("symbol has ^")
-        sym = sym.replace("^", "-")
+        sym = sym.replace("^", "-").lstrip().rstrip()
         print(sym)
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
     
@@ -459,6 +461,7 @@ def build_US_all_stock_information():
     db = open_db('Stocks')
 
     stocks_list = db.US_Stocks_List.find({})
+    #stocks_list = db.US_Stocks_List.find({})
     j=0
     for i, doc in enumerate(stocks_list):
         if i > -1:
