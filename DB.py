@@ -356,14 +356,15 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.price": stk.bscs.price}})
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.volume": stk.bscs.volume}})
     collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.mcap": stk.bscs.mcap}})
-    collection.update({'bscs.symbol': stk.bscs.shares_outstanding}, {'$set': {"bscs.outstanding_shares": stk.bscs.shares_outstanding}})
+    collection.update({'bscs.symbol': stk.bscs.outstanding_shares}, {'$set': {"bscs.outstanding_shares": stk.bscs.outstanding_shares}})
 
 def update_all_price_volume_db(country):
     db = open_db('Stocks')
     i=0
     if country == 'US':
-        for doc in db.US_Stocks.find():
-            if i > -1:
+        docs = db.US_Stocks.find({}).sort([["sno",1]])
+        for doc in docs:
+            if i > 3631:
                 stk = dbObject(**doc)
                 #if stk.bscs.price == 0:
                 print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
@@ -373,7 +374,8 @@ def update_all_price_volume_db(country):
             i+=1
             #break
     elif country == 'India':
-        for doc in db.Indian_Stocks.find():
+        docs = db.Indian_Stocks.find({}).sort([["sno",1]])
+        for doc in docs:
             if i > -1:
                 stk = dbObject(**doc)
                 #if stk.bscs.price == 0:

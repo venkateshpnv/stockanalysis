@@ -13,3 +13,5 @@ yahoofinancials
 
 #bunch
 namedtupled
+smtplib
+email

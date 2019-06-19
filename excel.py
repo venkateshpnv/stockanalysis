@@ -7,12 +7,15 @@ from pprint import pprint
 
 # Date
 import datetime
+from datetime import datetime as dt, timedelta
 #from datetime import date
 import arrow
 
 import conf
 from DB import open_db
 import conf
+import internet
+import parse_html
 
 pattern = xlwt.Pattern()
 pattern.pattern = xlwt.Pattern.SOLID_PATTERN
@@ -50,6 +53,31 @@ style_num.font.height = 10 * 20 #(10 pt)
 
 style_highlight = xlwt.XFStyle()
 style_highlight.pattern = pattern
+
+def get_radar_stocks():
+    wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
+    sheet = wb.sheet_by_index(0)
+    entries=[]
+    for i in range(1,3):
+    #for i in range(1,sheet.nrows):
+        entry = []
+        sym  = str(sheet.cell_value(i, 1))
+        name = str(sheet.cell_value(i, 0))
+
+        change = internet.price_change('US', sym, name, 2, 'HOT')
+        price = internet.get_LTP('US', sym)
+        #print("Symbol: %r, Name: %r, price: %r, change: %r%%" %(sym, name, price, round(change * 100, 2)))
+        entry.append(sym)
+        entry.append(name)
+        entry.append(str(price))
+        entry.append(str(round(change*100, 2))+'%')
+        entries.append(entry)
+        print(entries)
+    s = parse_html.html_table(entries)
+    #print(s)
+    subject = 'Radar Stocks :' + str(dt.now().date())
+    print(subject)
+    internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
 
 def get_India_stock_split_info(stk):
     wb = xlrd.open_workbook('India_Stocks/split_data.xls')
@@ -159,6 +187,12 @@ def add_basic_header(sheet, i):
     return i
 
 def add_calc_header(sheet, i):
+    #EPS
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "EPS", style_wrap)
+    conf.EPS=i
+
+    i+=1
     #DCF Price
     sheet.col(i).width = 5*367
     sheet.write(0, i, "DCF Price", style_wrap)
@@ -508,6 +542,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.YR_DAT, stk.num.dcf_years)
     ash.write(count, conf.PRICE_YR_DAT, stk.bscs.price_years)
     ash.write(count, conf.SAL_PR, round(sum(stk.num.eps_20yr),2), style_decimal)
+    ash.write(count, conf.EPS, stk.fig.ttm_eps, style_decimal)
     ash.write(count, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
     ash.write(count, conf.MOS_PR, stk.num.dcf_price, style_decimal)
     ash.write(count, conf.CUR_RT, stk.num.cp_return_rate, style_percent)
@@ -527,6 +562,11 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.TEN_BK, stk.fig.book_growth, style_percent)
     ash.write(count, conf.TEN_CSH, stk.fig.cash_growth, style_percent)
 
+def check_and_write(ash, count, col, entry, index, factor, style):
+    if len(entry) > 0:
+        ash.write(count, col, entry[index]*factor, style)
+    else:
+        ash.write(count, col, 0, style)
 
 #com : Company Work Book
 #ash : All Stocks Work Sheet
@@ -753,6 +793,7 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 0, "Today's Value with Inflation")
     sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal)
     ash.write(conf.COUNT, conf.DCF_PR, stk.num.dcf_price*2, style_decimal)
+    ash.write(conf.COUNT, conf.EPS, stk.fig.ttm_eps, style_decimal)
 
     i += 1 #row 38
     sheet.write(i, 0, "Price with Margin of Safety")
@@ -780,15 +821,15 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
     ash.write(conf.COUNT, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
    
-   #Ratios
-    ash.write(conf.COUNT, conf.DTOTE, stk.fig.DtoE[-1])
+    #Ratios
+    check_and_write(ash, conf.COUNT, conf.DTOTE, stk.fig.DtoE, -1, 1, style_num)
     # vpetla. Calcuate interest coverage ratio and uncomment this line
     ##ash.write(conf.COUNT, conf.INT_C, stk.fig.INTR[-1])
-    ash.write(conf.COUNT, conf.ROE, stk.fig.ROE[-1], style_percent)
-    ash.write(conf.COUNT, conf.ROA, stk.fig.ROA[-1], style_percent)
+    check_and_write(ash, conf.COUNT, conf.ROE, stk.fig.ROE, -1, 1, style_percent)
+    check_and_write(ash, conf.COUNT, conf.ROA, stk.fig.ROA, -1, 1, style_percent)
     # vpetla. Calcuate ROCE and uncomment this line
     ##ash.write(conf.COUNT, conf.ROCE, stk.fig.ROCE[-1])
-    ash.write(conf.COUNT, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
+    check_and_write(ash, conf.COUNT, conf.PRF_M, stk.fig.PAT_M, -1, 1/100, style_percent)
     ash.write(conf.COUNT, conf.MCAP, stk.bscs.mcap, style_num)
     ash.write(conf.COUNT, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
     ash.write(conf.COUNT, conf.TEN_SAL, stk.fig.sales_growth, style_percent)

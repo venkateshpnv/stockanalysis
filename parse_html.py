@@ -15,6 +15,35 @@ from conf import *
 import json_code
 import DB
 
+def html_table(lol):
+    s = ''
+    s += "%s\n" %('<style type="text/css">')
+    s += "%s\n" %('.tg  {border-collapse:collapse;border-spacing:0;}')
+    s += "%s\n" %('.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:black;}')
+    s += "%s\n" %('.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:black;}')
+    s += "%s\n" %('.tg .tg-0lax{text-align:left;vertical-align:top}')
+    s += "%s\n" %('</style>')
+    s += "%s\n" %('<table class=tg>')
+    for sublist in lol:
+      s += "%s\n" %('  <tr>')
+      s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
+      s += "%s\n" %('  </tr>')
+    s += "%s\n" %('</table>')
+    f = open("/tmp/mesg.html", "w")
+    f.write(s)
+    f.close()
+    return s
+
+#def html_table(lol):
+#    s = ''
+#    s += "%s\n" %('<table>')
+#    for sublist in lol:
+#      s += "%s\n" %('  <tr><td>')
+#      s += "%s\n" %('    </td><td>'.join(sublist))
+#      s += "%s\n" %('  </td></tr>')
+#    s += "%s\n" %('</table>')
+#    return s
+
 def get_soup(html_text):
     return BeautifulSoup(html_text, 'html.parser')
 

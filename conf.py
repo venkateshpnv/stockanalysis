@@ -16,6 +16,7 @@ COMP=0
 SYM=0
 SEC=0
 IND=0
+EPS=0
 CUR_PR=0
 DCF_PR=0
 MOS_PR=0
@@ -125,6 +126,7 @@ def init_variables():
     SYM=0
     SEC=0
     IND=0
+    EPS=0
     CUR_PR=0
     DCF_PR=0
     MOS_PR=0

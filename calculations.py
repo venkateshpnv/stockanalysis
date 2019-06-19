@@ -62,6 +62,8 @@ def calculate_growth(fig, row):
     #return min(g1,g2)
 
 def calc_growth(split_factor, row, years):
+    if len(row) == 0:
+        return 0
     if years > len(row):
         years = len(row)
     #mid_len = math.floor(years/2)

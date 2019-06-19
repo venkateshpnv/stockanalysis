@@ -13,6 +13,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
 
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 # Parsing HTML
 import requests 
 
@@ -35,8 +38,56 @@ from datetime import date
 #List Files
 from fractions import Fraction
 
+import smtplib
+
 import excel
 import conf
+
+def send_email(message):
+    # creates SMTP session 
+    s = smtplib.SMTP('smtp.gmail.com', 587) 
+      
+    # start TLS for security
+    s.ehlo()
+    s.starttls() 
+      
+    # Authentication 
+    s.login("askpvenkatesh@gmail.com", "tasche#gm") 
+      
+    # message to be sent 
+    message = "Hello World."
+      
+    # sending the mail 
+    s.sendmail("askpvenkatesh@gmail.com", "askpvenkatesh@gmail.com", message) 
+      
+    # terminating the session 
+    s.quit() 
+
+def send_email2(user, pwd, recipient, subject, body):
+
+    FROM = user
+    TO = recipient if isinstance(recipient, list) else [recipient]
+    SUBJECT = subject
+    TEXT = body
+
+    # Prepare actual message
+    #message = """From: %s\nTo: %s\nSubject: %s\n\n%s
+    #""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+
+    message = MIMEMultipart('alternative')
+    message['Subject'] = subject
+    message['From'] = user
+    message['To'] = recipient
+    message.attach(MIMEText(body, 'html'))
+
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.ehlo()
+    server.starttls()
+    server.login(user, pwd)
+    server.sendmail(FROM, TO, message.as_string())
+    #server.sendmail(FROM, TO, message)
+    server.close()
+    print('successfully sent the mail')
 
 def price_change(country, sym, name, num_days, data_type):
     change = 0
@@ -188,7 +239,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         col = db['US_Stocks']
         #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
         #for doc in col.find({}):
-        for doc in col.find({}).sort([["sno",1]]):
+        docs = col.find({}).sort([["sno",1]])
+        for doc in docs:
             sno = doc['sno']
             if sno > 0:
                 doc['id'] = doc.pop('_id')
@@ -222,7 +274,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
             i += 1
 
-    now = datetime.datetime.now().date()
+    #now = datetime.datetime.now().date()
+    now = datetime.datetime.now()
     excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))
     #xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
     xl.save(excel_file)
