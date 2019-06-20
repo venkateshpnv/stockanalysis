@@ -84,7 +84,7 @@ def get_radar_stocks():
         entry.append(str(round(halfyear_change*100, 2))+'%')
         entry.append(str(round(year_change*100, 2))+'%')
         entries.append(entry)
-        print(entries)
+        #print(entries)
     s = parse_html.html_table(entries)
     #print(s)
     subject = 'Radar Stocks :' + str(dt.now().date())
