@@ -442,8 +442,136 @@ def get_page(url, html_file):
 def get_webpage(url):
     return requests.get(url).text
 
+def browse_US_stock_page(stock, url):
+    driver = webdriver.Firefox()
+    driver.set_page_load_timeout(30)
+    driver.get(url)
+    old_url = driver.current_url
+    driver.maximize_window()
+
+    time.sleep(5)
+    elem = driver.find_element_by_class_name("panclose5084")
+    if elem:
+        elem.click()
+    return
+    elem = driver.find_element_by_class_name("bc-button white-button small settings-button")
+    elem.click()
+    time.sleep(20)
+    driver.close()
+
+        # attr=driver.find_element_by_name('txtStock').get_attribute('innerHTML')
+        # attr=elem.get_attribute('innerHTML')
+    # elem.send_keys(stock, Keys.ARROW_DOWN)
+    # time.sleep(2)
+    # elem.send_keys(Keys.RETURN)
+
+"""
+    # time.sleep(20)
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+            (By.ID, 'lblCompany')))
+    except TimeoutException:
+        PRINT("Unable to parse %r" % (stock))
+        f = open("unparsed_stocks3.txt", "a")
+        f.write(stock)
+        f.write("\n")
+        f.close()
+        return
+    # PRINT_DBG(str(html_src))
+
+    if driver.current_url == old_url:
+        PRINT("Unable to parse %r" % (stock))
+        f = open("unparsed_stocks3.txt", "a")
+        f.write(stock)
+        f.write("\n")
+        f.close()
+    else:
+        # PRINT_DBG("Found stock %r" %(stock))
+        html_src = driver.page_source
+        html_file = "html_pages/%s.html" % (stock_name)
+        f = open(html_file, "w")
+        f.write(html_src)
+        f.close()
+"""
+    #    try:
+    #        element = WebDriverWait(driver, 100).until(EC.title_contains((By.ID, stock)))
+    #        element = WebDriverWait(driver, 100).until(EC.presence_of_element_located((By.ID, 'IdOfMyElement')))
+    #        element = WebDriverWait(driver, 100).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
+    #        html_file = "html_pages/%s.html" %(stock)
+    #        f = open(html_file, "w")
+    #        f.write(html_src)
+    #        f.close()
+    #    finally:
+    #        PRINT_DBG("Unable to parse %r" %(stock))
+    #        f = open("unparsed_stocks.txt", "a")
+    #        f.write(stock)
+    #        f.write("\n")
+    #        f.close()
+
+    #driver.close()
+
+    # try:
+    #    element = WebDriverWait(driver, 100).until(EC.title_contains((By.ID, stock)))
+    # finally:
+    #    driver.close()
+
+    # assert "No results found." not in driver.page_source
+    # time.sleep(5)
+
+
+def get_US_quarterly_stock_page(symbol, name):
+    path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)
+    path = path.lstrip().rstrip().replace(",","")
+    try:
+        os.makedirs(path, exist_ok=True)
+    except FileExistsError:
+        PRINT_ERR("%s exists" %(symbol))
+        return
+
+    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=1" %(symbol)
+    html_file = "%s/%s_income_quarterly_1.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=2" %(symbol)
+    html_file = "%s/%s_income_quarterly_2.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=3" %(symbol)
+    html_file = "%s/%s_income_quarterly_3.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=4" %(symbol)
+    html_file = "%s/%s_income_quarterly_4.html" %(path, symbol)
+    get_page(url, html_file)
+
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=1" %(symbol)
+    html_file = "%s/%s_cash_flow_quarterly_1.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=2" %(symbol)
+    html_file = "%s/%s_cash_flow_quarterly_2.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=3" %(symbol)
+    html_file = "%s/%s_cash_flow_quarterly_3.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=4" %(symbol)
+    html_file = "%s/%s_cash_flow_quarterly_4.html" %(path, symbol)
+    get_page(url, html_file)
+
+    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=1" %(symbol)
+    html_file = "%s/%s_balance_sheet_quarterly_1.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=2" %(symbol)
+    html_file = "%s/%s_balance_sheet_quarterly_2.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=3" %(symbol)
+    html_file = "%s/%s_balance_sheet_quarterly_3.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=4" %(symbol)
+    html_file = "%s/%s_balance_sheet_quarterly_4.html" %(path, symbol)
+    get_page(url, html_file)
+
+    return path
+ 
 def get_US_stock_page(symbol, name):
-    path = "./US_Stocks/html_pages/%s" %(name)
+    path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)
+    path = path.lstrip().rstrip().replace(",","")
     try:
         os.makedirs(path, exist_ok=True)
     except FileExistsError:
@@ -451,25 +579,64 @@ def get_US_stock_page(symbol, name):
         return
 
     url = "https://www.barchart.com/stocks/quotes/%s/income-statement/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_income_1.html" %(path, symbol)
+    html_file = "%s/%s_income_annual_1.html" %(path, symbol)
     get_page(url, html_file)
     url = "https://www.barchart.com/stocks/quotes/%s/income-statement/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_income_2.html" %(path, symbol)
-    get_page(url, html_file)
-   
-    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_cash_flow_1.html" %(path, symbol)
-    get_page(url, html_file)
-    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_cashflow_2.html" %(path, symbol)
+    html_file = "%s/%s_income_annual_2.html" %(path, symbol)
     get_page(url, html_file)
 
+    #url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=1" %(symbol)
+    #html_file = "%s/%s_income_quarterly_1.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=2" %(symbol)
+    #html_file = "%s/%s_income_quarterly_2.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=3" %(symbol)
+    #html_file = "%s/%s_income_quarterly_3.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/income-statement/quarterly?reportPage=4" %(symbol)
+    #html_file = "%s/%s_income_quarterly_4.html" %(path, symbol)
+    #get_page(url, html_file)
+ 
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=1" %(symbol)
+    html_file = "%s/%s_cash_flow_annual_1.html" %(path, symbol)
+    get_page(url, html_file)
+    url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/annual?reportPage=2" %(symbol)
+    html_file = "%s/%s_cash_flow_annual_2.html" %(path, symbol)
+    get_page(url, html_file)
+
+    #url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=1" %(symbol)
+    #html_file = "%s/%s_cash_flow_quarterly_1.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=2" %(symbol)
+    #html_file = "%s/%s_cash_flow_quarterly_2.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=3" %(symbol)
+    #html_file = "%s/%s_cash_flow_quarterly_3.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/cash-flow/quarterly?reportPage=4" %(symbol)
+    #html_file = "%s/%s_cash_flow_quarterly_4.html" %(path, symbol)
+    #get_page(url, html_file)
+
     url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/annual?reportPage=1" %(symbol)
-    html_file = "%s/%s_balance_sheet_1.html" %(path, symbol)
+    html_file = "%s/%s_balance_sheet_annual_1.html" %(path, symbol)
     get_page(url, html_file)
     url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/annual?reportPage=2" %(symbol)
-    html_file = "%s/%s_balance_sheet_2.html" %(path, symbol)
+    html_file = "%s/%s_balance_sheet_annual_2.html" %(path, symbol)
     get_page(url, html_file)
+
+    #url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=1" %(symbol)
+    #html_file = "%s/%s_balance_sheet_quarterly_1.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=2" %(symbol)
+    #html_file = "%s/%s_balance_sheet_quarterly_2.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=3" %(symbol)
+    #html_file = "%s/%s_balance_sheet_quarterly_3.html" %(path, symbol)
+    #get_page(url, html_file)
+    #url = "https://www.barchart.com/stocks/quotes/%s/balance-sheet/quarterly?reportPage=4" %(symbol)
+    #html_file = "%s/%s_balance_sheet_quarterly_4.html" %(path, symbol)
+    #get_page(url, html_file)
 
     url = "https://www.barchart.com/stocks/quotes/%s/profile" %(symbol)
     html_file = "%s/%s_profile.html" %(path, symbol)

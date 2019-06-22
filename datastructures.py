@@ -160,6 +160,128 @@ class Figures:
         self.DtoE.clear()
         self.INTR.clear()
 
+class Quarterly_Figures:
+    # row 0 - year
+    # row 1 - sales
+    # row 2 - profit
+    # row 3 - free cash flow
+    # row 4 - book value
+    # 20 years of data of sales, profit etc
+    #entries = [[0] * MAX_Years for i in range(indices)]
+    #entries = list()
+    #entries = list()
+    # number of years of data we have for each field.
+    # ex: 10 years of book value, 8 years of cash flow etc.
+    #fig_years = [0] * (indices)
+    #fig_years = []
+    Quarters = []
+    Sales = []
+    PBT = []
+    PAT = []
+    INTEREST = []
+    Taxes = []
+    EBIT = []
+    PAT_M = []
+    BASIC_EPS = []
+    BASIC_CONT_EPS = []
+    DILUTED_EPS = []
+    DILUTED_CONT_EPS = []
+    BOOK = []
+    LIABILITIES = []
+    DEBT = []
+    ASSETS = []
+    EQUITY = []
+    SHARES = []
+    CASH = []
+    PPE = []
+    DEPRECIATION = []
+    CAPEX = []
+    ROA = []
+    ROE = []
+    ROCE = []
+    DtoE = []
+    INTR = []
+
+
+    def __init__(self):
+        self.ttm_eps = 0
+        # Long Term Debt
+        #self.lt_debt = 0
+        self.sales_growth  = 0
+        self.profit_growth = 0
+        self.cash_growth = 0
+        self.book_growth = 0
+        self.price_growth = 0
+        self.growth = 0
+        self.common_shares = 0
+        #self.entries = [[0 for i in range(1)] for j in range(indices)]
+        self.Quarters = []
+        self.Sales = []
+        self.PBT = []
+        self.INTEREST = []
+        self.PAT = []
+        self.Taxes = []
+        self.EBIT = []
+        self.PAT_M = []
+        self.BASIC_EPS = []
+        self.BASIC_CONT_EPS = []
+        self.DILUTED_EPS = []
+        self.DILUTED_CONT_EPS = []
+        self.BOOK = []
+        self.LIABILITIES = []
+        #self.DEBT = []
+        self.ASSETS = []
+        self.EQUITY = []
+        self.SHARES = []
+        self.CASH = []
+        self.PPE = []
+        self.DEPRECIATION = []
+        self.CAPEX = []
+        self.ROA = []
+        self.ROE = []
+        self.ROCE = []
+        self.DtoE = []
+        self.INTR = []
+
+    def __del__(self):
+        self.ttm_eps = 0
+        # Long Term Debt
+        #self.lt_debt = 0
+        self.sales_growth  = 0
+        self.profit_growth = 0
+        self.cash_growth = 0
+        self.book_growth = 0
+        self.growth = 0
+        #self.entries = [[0 for i in range(1)] for j in range(indices)]
+        self.Quarters.clear()
+        self.Sales.clear()
+        self.PBT.clear()
+        self.PAT.clear()
+        self.Taxes.clear()
+        self.INTEREST.clear()
+        self.EBIT.clear()
+        self.PAT_M.clear()
+        self.BASIC_EPS.clear()
+        self.BASIC_CONT_EPS.clear()
+        self.DILUTED_EPS.clear()
+        self.DILUTED_CONT_EPS.clear()
+        self.BOOK.clear()
+        self.LIABILITIES.clear()
+        #self.DEBT = []
+        self.ASSETS.clear()
+        self.EQUITY.clear()
+        self.SHARES.clear()
+        self.CASH.clear()
+        self.PPE.clear()
+        self.DEPRECIATION.clear()
+        self.CAPEX.clear()
+        self.ROA.clear()
+        self.ROE.clear()
+        self.ROCE.clear()
+        self.DtoE.clear()
+        self.INTR.clear()
+
+
 class Numbers:
     # figures in percentages
     discount_rate = 0
@@ -204,7 +326,9 @@ class Stock:
         self.bscs = Basics()
         self.num  = Numbers()
         self.fig  = Figures()
+        self.quart_fig  = Quarterly_Figures()
         self.Ratios = Ratios()
         self.Dividend = Dividend()
         self.price_change = Price_Change()
+        self.sno=0
 

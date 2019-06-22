@@ -459,7 +459,217 @@ def get_India_stock_info(stock_page):
     html.close()
     return stk
 
-def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
+def populate_US_stocks_quarterly(root, files, stk):
+    #stk = Stock()
+    shares = []
+    liabilities = []
+    debt = []
+    equity = []
+    assets = []
+    book = []
+    dtoe = []
+    roe  = []
+    roa  = []
+    roce = []
+    intr = []
+
+    cash = []
+    ppe  = []
+    depreciation = []
+    capex = []
+
+    quarters = []
+    sales = []
+    income_tax = []
+    pbt = []
+    pat = []
+    pat_m = []
+    basic_eps = []
+    basic_cont_eps = []
+    diluted_eps = []
+    diluted_cont_eps = []
+
+    if len(files) == 0:
+        PRINT_ERR("len(files): %d" %(len(files)))
+        write_to_unparsed(root)
+        write_to_unparsed("len(files): 0")
+        return False
+
+    for f in [s for s in files if 'balance_sheet_quarterly' in s]:
+        #balance sheets
+        stock_page = "%s/%s" %(root, f)
+        html_page  = internet.get_html(stock_page)
+        soup=BeautifulSoup(html_page,'html.parser')
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+        try:
+            y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
+            if not y and len(years) == 0:
+                PRINT_ERR("Unable to get quarterly financial reports")
+                return False
+
+            l=y.find_all("td")
+            for i in range(1, len(l)):
+                quarters.append(str(l[i].get_text().lstrip().rstrip()))
+        except AttributeError:
+            PRINT_ERR("Unable to get quarterly financial reports")
+            return False
+
+        entries = get_entries(soup, re.compile('^ Shares Outstanding, K $'))
+        if(len(entries) > 0):
+            shares.extend(entries)
+        else:
+            shares.extend(get_entries(soup, re.compile('^ Common Shares $')))
+            stk.fig.common_shares = 1
+        liabilities.extend(get_entries(soup, 'Total liabilities'))
+        assets.extend(get_entries(soup, 'Total Liabilities And Equity'))
+        #debt.extend(get_debt(soup, 'TOTAL'))
+    
+    if(len(shares) == 0):
+        PRINT_ERR("Shares data not found, still continuing")
+        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed("Shares data not found")
+        ##return False
+
+    for i in range(lowest_3(len(assets), len(liabilities), len(shares))):
+        equity.append(round(assets[i] - liabilities[i],2))
+        try:
+            if(len(shares) != 0):
+                book.append(round((assets[i] - liabilities[i]) / shares[i],2))
+            else:
+                book.append(0)
+        except ZeroDivisionError:
+            book.append(0)
+        except IndexError:
+            print(len(shares))
+            print(len(assets))
+            print(len(liabilities))
+            exit()
+    
+    if(len(book) == 0):
+        err = "len(assets): %d, len(liabilities): %d , len(book): %d data not found"%(len(assets), len(liabilities), len(book))
+        PRINT_ERR(err)
+        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(err)
+        ##return False
+
+    for i in range(lowest(len(liabilities), len(equity))):
+    #for i in range(lowest(len(debt), len(equity))):
+        try:
+            dtoe.append(round((liabilities[i]/equity[i]),2))
+            #dtoe.append(round((debt[i]/equity[i]),2))
+        except ZeroDivisionError:
+            dtoe.append(0)
+
+    for f in [s for s in files if 'cash_flow_quarterly' in s]:
+        #cash flow statements
+        stock_page = "%s/%s" %(root, f)
+        html_page  = internet.get_html(stock_page)
+        soup=BeautifulSoup(html_page,'html.parser')
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+ 
+        depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
+        ppe.extend(get_entries(soup, re.compile('^ PPE Investments $')))
+        cash.extend(get_entries(soup, 'Operating Cash Flow'))
+
+    for i in range(lowest(len(depreciation), len(ppe))):
+        ppe[i] = abs(ppe[i])
+        depreciation[i] = abs(depreciation[i])
+        capex.append(round(ppe[i] + depreciation[i],2))
+
+    for f in [s for s in files if 'income_quarterly' in s]:
+        #income statements
+        stock_page = "%s/%s" %(root, f)
+        html_page  = internet.get_html(stock_page)
+        soup=BeautifulSoup(html_page,'html.parser')
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+ 
+        #print(soup.prettify())
+        sales.extend(get_entries(soup, re.compile('^ Sales $')))
+        pbt.extend(get_entries(soup, re.compile('^ Pre-tax Income $')))
+        pat.extend(get_entries(soup, 'Net Income $M'))
+        income_tax.extend(get_entries(soup, re.compile('^ Income Tax $')))
+        basic_eps.extend(get_entries(soup, re.compile('^ EPS Basic Total Ops $')))
+        basic_cont_eps.extend(get_entries(soup, re.compile('^ EPS Basic Continuous Ops $')))
+        diluted_eps.extend(get_entries(soup, re.compile('^ EPS Diluted Total Ops $')))
+        diluted_cont_eps.extend(get_entries(soup, re.compile('^ EPS Diluted Continuous Ops $')))
+
+    #if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
+    #    err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
+    #    write_to_unparsed(stk.bscs.name)
+    #    write_to_unparsed(err)
+    #    return False
+
+    for i in range(lowest(len(pat), len(equity))):
+        try:
+            roe.append(round((pat[i]/equity[i]),2))
+        except ZeroDivisionError:
+            roe.append(0)
+    for i in range(lowest(len(pat), len(assets))):
+        try:
+            roa.append(round((pat[i]/assets[i]),2))
+        except ZeroDivisionError:
+            roa.append(0)
+    for i in range(lowest(len(sales), len(pat))):
+        try:
+            pat_m.append(round((pat[i]/sales[i])*100 ,2))
+        except ZeroDivisionError:
+            pat_m.append(0)
+    for i in range(lowest(len(capex), len(pat))):
+        try:
+            roce.append(round(pat[i] / capex[i],2))
+            #roce.append(round(ebit[i] / capex[i],2))
+        except ZeroDivisionError:
+            roce.append(0)
+
+    if len(diluted_cont_eps) > 0:
+        stk.fig.ttm_eps = diluted_cont_eps[0]
+    else:
+        stk.fig.ttm_eps = 0
+
+    stk.quart_fig.Quarters.extend(reversed(quarters))
+    stk.quart_fig.Sales.extend(reversed(sales))
+    stk.quart_fig.PBT.extend(reversed(pbt))
+    stk.quart_fig.PAT.extend(reversed(pat))
+    stk.quart_fig.Taxes.extend(reversed(income_tax))
+    stk.quart_fig.PAT_M.extend(reversed(pat_m))
+    stk.quart_fig.BASIC_EPS.extend(reversed(basic_eps))
+    stk.quart_fig.BASIC_CONT_EPS.extend(reversed(basic_cont_eps))
+    stk.quart_fig.DILUTED_EPS.extend(reversed(diluted_eps))
+    stk.quart_fig.DILUTED_CONT_EPS.extend(reversed(diluted_cont_eps))
+
+    stk.quart_fig.BOOK.extend(reversed(book))
+    stk.quart_fig.LIABILITIES.extend(reversed(liabilities))
+    #stk.fig.DEBT.extend(reversed(debt))
+    stk.quart_fig.ASSETS.extend(reversed(assets))
+    stk.quart_fig.EQUITY.extend(reversed(equity))
+    stk.quart_fig.SHARES.extend(reversed(shares))
+
+    stk.quart_fig.CASH.extend(reversed(cash))
+    stk.quart_fig.PPE.extend(reversed(ppe))
+    stk.quart_fig.DEPRECIATION.extend(reversed(depreciation))
+    stk.quart_fig.CAPEX.extend(reversed(capex))
+    
+    stk.quart_fig.ROA.extend(reversed(roa))
+    stk.quart_fig.ROE.extend(reversed(roe))
+    stk.quart_fig.ROCE.extend(reversed(roce))
+    stk.quart_fig.DtoE.extend(reversed(dtoe))
+    stk.quart_fig.INTR.extend(reversed(intr))
+
+    return stk
+
+def populate_US_stocks(db, root, files, symbol, name, sector, industry):
     stk = Stock()
     shares = []
     liabilities = []
@@ -501,35 +711,35 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         write_to_unparsed("len(files): 0")
         return False
 
-    stock_page = "%s/%s" %(root, files[0])
-    html_page  = internet.get_html(stock_page)
-    soup=BeautifulSoup(html_page,'html.parser')
-    #print(soup.prettify())
-    try:
-        y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
-        l=y.find_all("td")
-        for i in range(1, len(l)):
-            years.extend(l[i])
-    except AttributeError:
-        PRINT_ERR("Unable to get financial reports")
-        return False
+    #stock_page = "%s/%s" %(root, files[0])
+    #html_page  = internet.get_html(stock_page)
+    #soup=BeautifulSoup(html_page,'html.parser')
+    ##print(soup.prettify())
+    #try:
+    #    y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
+    #    l=y.find_all("td")
+    #    for i in range(1, len(l)):
+    #        years.extend(str(l[i]).lstrip().rstrip())
+    #except AttributeError:
+    #    PRINT_ERR("Unable to get financial reports")
+    #    return False
 
-    stock_page = "%s/%s" %(root, files[1])
-    #print(stock_page)
-    html_page  = internet.get_html(stock_page)
-    soup=BeautifulSoup(html_page,'html.parser')
-    try:
-        y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
-        l=y.find_all("td")
-        for i in range(1, len(l)):
-            years.extend(l[i])
-        count = 2
-    except AttributeError:
-        count = 1
+    #stock_page = "%s/%s" %(root, files[1])
+    ##print(stock_page)
+    #html_page  = internet.get_html(stock_page)
+    #soup=BeautifulSoup(html_page,'html.parser')
+    #try:
+    #    y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
+    #    l=y.find_all("td")
+    #    for i in range(1, len(l)):
+    #        years.extend(str(l[i]).lstrip().strip())
+    #    count = 2
+    #except AttributeError:
+    #    count = 1
 
     #Name and Symbol
     stk.bscs.symbol = symbol
-    stk.bscs.name = stock
+    stk.bscs.name = name
     stk.bscs.sector = sector
     stk.bscs.industry = industry
     #s = soup.find("div", {"class": "symbol-name"})
@@ -544,11 +754,31 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
 #        html_page  = internet.get_html(stock_page)
 #        DB.update_US_stk_profile(html_page, db.US_Stocks)
 
-    for f in [s for s in files if 'balance' in s]:
+    for f in [s for s in files if 'balance_sheet_annual' in s]:
         #balance sheets
         stock_page = "%s/%s" %(root, f)
         html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
+
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+ 
+        try:
+            y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
+            if not y and len(years) == 0:
+                PRINT_ERR("%s: %s: Unable to get annual balance sheet data" %(stk.bscs.symbol, stk.bscs.name))
+                return False
+
+            l=y.find_all("td")
+            for i in range(1, len(l)):
+                years.append(str(l[i].get_text().lstrip().rstrip()))
+        except AttributeError:
+            PRINT_ERR("Attr Err: Unable to get annual balance sheets")
+            return False
+
         shares.extend(get_entries(soup, re.compile('^ Shares Outstanding, K $')))
         if(len(shares) == 0):
             shares.extend(get_entries(soup, re.compile('^ Common Shares $')))
@@ -558,7 +788,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         #debt.extend(get_debt(soup, 'TOTAL'))
     
     if(len(shares) == 0):
-        PRINT_ERR("Shares data not found")
+        PRINT_ERR("Shares data not found, still continuing")
         write_to_unparsed(stk.bscs.name)
         write_to_unparsed("Shares data not found")
         ##return False
@@ -584,7 +814,7 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
             exit()
     
     if(len(book) == 0):
-        err = "len(assets): %d, len(liabilities): %d data not found"%(len(assets), len(liabilities))
+        err = "len(assets): %d, len(liabilities): %d , len(book): %d data not found, still continuing"%(len(assets), len(liabilities), len(book))
         PRINT_ERR(err)
         write_to_unparsed(stk.bscs.name)
         write_to_unparsed(err)
@@ -598,11 +828,18 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         except ZeroDivisionError:
             dtoe.append(0)
 
-    for f in [s for s in files if 'cash' in s]:
+    for f in [s for s in files if 'cash_flow_annual' in s]:
         #cash flow statements
         stock_page = "%s/%s" %(root, f)
         html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
+
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+ 
         depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
         ppe.extend(get_entries(soup, re.compile('^ PPE Investments $')))
         cash.extend(get_entries(soup, 'Operating Cash Flow'))
@@ -612,11 +849,18 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
         depreciation[i] = abs(depreciation[i])
         capex.append(round(ppe[i] + depreciation[i],2))
 
-    for f in [s for s in files if 'income' in s]:
+    for f in [s for s in files if 'income_annual' in s]:
         #income statements
         stock_page = "%s/%s" %(root, f)
         html_page  = internet.get_html(stock_page)
         soup=BeautifulSoup(html_page,'html.parser')
+
+        pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+        div = soup.find(text=pattern)
+        if div:
+            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            continue
+ 
         #print(soup.prettify())
         sales.extend(get_entries(soup, re.compile('^ Sales $')))
         pbt.extend(get_entries(soup, re.compile('^ Pre-tax Income $')))
@@ -684,6 +928,8 @@ def populate_US_stocks(db, root, files, symbol, stock, sector, industry):
     stk.fig.INTR.extend(reversed(intr))
 
     #stk = get_price_volume(stk, 'US')
+
+    DB.build_US_quarterly_stock_information(stk)
 
     obj = json_code.build_json_object(stk)
     if obj:

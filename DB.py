@@ -10,6 +10,7 @@ import parse_html
 from common import *
 import conf
 
+j = 0
 class dbObject:
     def __init__(self, **obj):
         for k,v in obj.items():
@@ -178,7 +179,6 @@ def update_US_stk_profile(html_text, collection):
     
     val = internet.get_LTP('US', symbol)
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.price": val}})
-    print("Price: %r" %(val))
 
     #60 month Beta
     pattern=re.compile(r'60-Month Beta')
@@ -407,6 +407,7 @@ def find_files():
     f.close()
 
 def build_US_Stocks_List(excel_file):
+    global j
     db = open_db('Stocks')
     print(excel_file)
     wb = xlrd.open_workbook(excel_file)
@@ -414,11 +415,23 @@ def build_US_Stocks_List(excel_file):
     for i in range(1,sheet.nrows):
         obj = db.US_Stocks_List.find({"symbol":sheet.cell_value(i, 0)})
         if obj.count() == 0:
-            stk = {"symbol" : sheet.cell_value(i, 0), "Name" : sheet.cell_value(i,1), "Industry" : sheet.cell_value(i, 6), "Sector" : sheet.cell_value(i, 5), "IPO Year" : sheet.cell_value(i, 4), "data" : "NO", "parsed" : "NO"}
+            j+=1
+            stk = {"symbol" : str(sheet.cell_value(i, 0)).lstrip().rstrip(), "Name" : sheet.cell_value(i,1), "Industry" : sheet.cell_value(i, 6), "Sector" : sheet.cell_value(i, 5), "IPO Year" : sheet.cell_value(i, 4), "data" : "NO", "parsed" : "NO", "sno": j}
             db.US_Stocks_List.insert_one(stk)
         else:
             print("%s already present" %(sheet.cell_value(i,0)))
 
+def build_US_quarterly_stock_information(stk):
+    path = internet.get_US_quarterly_stock_page(stk.bscs.symbol, stk.bscs.name)
+    for (root,dirs,files) in os.walk(path, topdown=True):
+       files = [f for f in files if not f[0] == '.']
+       dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
+       dirs[:] = [d for d in dirs if not d[0] == '.']
+       #print(root)
+       #print(dirs)
+       #print(sorted(files))
+       parse_html.populate_US_stocks_quarterly(root, sorted(files), stk)
+ 
 def build_US_All_Stocks_List():
     build_US_Stocks_List(conf.amex_stocks)
     build_US_Stocks_List(conf.nyse_stocks)
@@ -428,6 +441,8 @@ def build_US_stock_information(doc):
     db   = open_db('Stocks')
     sym  = doc['symbol']
     name = doc['Name']
+
+    name = name.replace(",","").lstrip().rstrip()
     if "&#39;" in name:
         print("stk has &")
         name = name.replace("&#39;", "\'")
@@ -436,14 +451,40 @@ def build_US_stock_information(doc):
         print("stk has /")
         name = name.replace("/", "")
         db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
+    if "?" in name:
+        print("stk has ?")
+        name = name.replace("?", "")
+        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
+    if "*" in name:
+        print("stk has *")
+        name = name.replace("*", "")
+        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
+    
     if "^" in sym:
         print("symbol has ^")
         sym = sym.replace("^", "-").lstrip().rstrip()
         print(sym)
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
-    
+    if "~" in sym:
+        print("symbol has ~")
+        sym = sym.replace("~", "").lstrip().rstrip()
+        print(sym)
+        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
+    if "?" in sym:
+        print("symbol has ?")
+        sym = sym.replace("?", "").lstrip().rstrip()
+        print(sym)
+        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
+
+
+    obj = db.US_Stocks.find({"bscs.symbol":sym})
+    if obj.count() > 0:
+        print("%s: %s: already exists. Skipping" %(sym, name))
+        return
+
     path = internet.get_US_stock_page(sym, name)
     
+    ret=True
     for (root,dirs,files) in os.walk(path, topdown=True):
         files = [f for f in files if not f[0] == '.']
         dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
@@ -453,27 +494,42 @@ def build_US_stock_information(doc):
         #print(sorted(files))
         if parse_html.populate_US_stocks(db, root, sorted(files), sym, name, doc['Sector'], doc['Industry']) is True:
             db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+        else:
+            ret = False
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
-    
-    remove_dir(path)
+   
+    #if ret is True:
+    #    remove_dir(path)
  
 def build_US_all_stock_information():
     db = open_db('Stocks')
 
-    stocks_list = db.US_Stocks_List.find({})
     #stocks_list = db.US_Stocks_List.find({})
     j=0
-    for i, doc in enumerate(stocks_list):
-        if i > -1:
+    #for i, doc in enumerate(stocks_list):
+    for doc in db.US_Stocks_List.find({}).sort([["sno",1]]):
+        sno = doc['sno']
+        #if sno > 3443:
+        #    break
+        #if sno > 0:
+        if sno > 5896:
+        #if sno > 2134:
+            name = doc['Name']
+            #if name.find("Fund") != -1 or name.find("Trust") != -1:
+            #    print("Skipping: %r" %(name))
+            #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+            #    continue
+
+        #if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
             if obj.count() == 0:
             #if doc['parsed'] != 'YES' and obj.count() == 0:
-                print("%d: %s: %s "%(i,doc['symbol'], doc['Name']))
+                print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
-                j += 1
+                #j += 1
+                #update_field(db.US_Stocks, doc['symbol'], "sno", j)
             else:
-                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+                print("%d: %s: %s already present, skipping" %(sno,doc['symbol'], doc['Name']))
             #name = stock['Name']
             #sym = stock['symbol']
             #name = name.replace("&#39;", "\'")
@@ -512,4 +568,5 @@ def set_sno(country):
     i = 1
     for doc in col.find({}).sort([["_id",1]]):
         update_field(col, doc['bscs']['symbol'], "sno", i)
+
         i += 1

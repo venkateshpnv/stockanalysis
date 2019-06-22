@@ -3,6 +3,7 @@ import DB
 import internet
 from common import *
 from excel import *
+from datastructures import Stock
 
 def US_main():
     #internet.get_US_stock_page("MSFT")
@@ -25,5 +26,8 @@ def US_main():
     #internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', 'Test', 'Hello')
     #get_radar_stocks()
 
+    stock = Stock()
+    url = "https://www.barchart.com/stocks/quotes/AVGO/interactive-chart"
+    internet.browse_US_stock_page(stock, url)
 US_main()
 
