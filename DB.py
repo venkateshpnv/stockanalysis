@@ -63,6 +63,33 @@ def build_files(files):
         f.write("\n")
     f.close()
 
+def update_dummy_dcf_numbers(col, stock):
+    update_field(col, stock.bscs.symbol, "num.discount_rate", 0)
+    update_field(col, stock.bscs.symbol, "num.inflation", 0)
+    update_field(col, stock.bscs.symbol, "num.growth_1to5", 0)
+    update_field(col, stock.bscs.symbol, "num.growth_6to8", 0)
+    update_field(col, stock.bscs.symbol, "num.growth_9to10", 0)
+    update_field(col, stock.bscs.symbol, "num.growth_16to20", 0)
+    update_field(col, stock.bscs.symbol, "num.eps", 0)
+    update_field(col, stock.bscs.symbol, "num.eps_20yr", 0)
+    update_field(col, stock.bscs.symbol, "num.fig_yr", 0)
+    update_field(col, stock.bscs.symbol, "num.cur_yr", 0)
+    update_field(col, stock.bscs.symbol, "num.term_yr", 0)
+    update_field(col, stock.bscs.symbol, "num.dcf_price", 0)
+    update_field(col, stock.bscs.symbol, "num.dcf_years", 0)
+    update_field(col, stock.bscs.symbol, "num.inflated_eps_price", 0)
+    update_field(col, stock.bscs.symbol, "num.margin_of_safety", 0)
+    update_field(col, stock.bscs.symbol, "num.dcf_return_rate", 0)
+    update_field(col, stock.bscs.symbol, "num.cp_return_rate", 0)
+    
+    update_field(col, stock.bscs.symbol, "fig.price_growth", 0)
+    update_field(col, stock.bscs.symbol, "fig.sales_growth", 0)
+    update_field(col, stock.bscs.symbol, "fig.profit_growth", 0)
+    update_field(col, stock.bscs.symbol, "fig.book_growth", 0)
+    update_field(col, stock.bscs.symbol, "fig.cash_growth", 0)
+    update_field(col, stock.bscs.symbol, "fig.growth", 0)
+    update_field(col, stock.bscs.symbol, "bscs.dcf_calc", "NO")
+ 
 def update_dcf_numbers(col, stock):
     update_field(col, stock.bscs.symbol, "num.discount_rate", stock.num.discount_rate)
     update_field(col, stock.bscs.symbol, "num.inflation", stock.num.inflation)
@@ -88,6 +115,7 @@ def update_dcf_numbers(col, stock):
     update_field(col, stock.bscs.symbol, "fig.book_growth", stock.fig.book_growth)
     update_field(col, stock.bscs.symbol, "fig.cash_growth", stock.fig.cash_growth)
     update_field(col, stock.bscs.symbol, "fig.growth", stock.fig.growth)
+    update_field(col, stock.bscs.symbol, "bscs.dcf_calc", "YES")
     
 
 def build_India_database(files, data_type):
@@ -366,7 +394,7 @@ def update_all_price_volume_db(country):
     if country == 'US':
         docs = db.US_Stocks.find({}).sort([["sno",1]])
         for doc in docs:
-            if i > 3631:
+            if i > 4509:
                 stk = dbObject(**doc)
                 #if stk.bscs.price == 0:
                 print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
@@ -421,6 +449,42 @@ def build_US_Stocks_List(excel_file):
         else:
             print("%s already present" %(sheet.cell_value(i,0)))
 
+def build_US_all_earnings_estimates():
+
+    db = open_db('Stocks')
+    #docs = db.US_Stocks.find({"bscs.symbol":"V"}).sort([["sno",1]])
+    docs = db.US_Stocks.find({}).sort([["sno",1]])
+    try:
+        for doc in docs:
+            sno = doc['sno']
+            #if sno > 0:
+            if sno > 3685:
+            #if sno > 3000:
+            #    break
+            #if sno > 668:
+                stk = dbObject(**doc)
+                #if stk.bscs.price == 0:
+                print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+                internet.populate_US_earnings_estimates(stk)
+                #break
+    except CursorNotFound as e:
+        PRINT_ERR("Mongo DB exception")
+        PRINT_ERR(str(e))
+        time.sleep(5)
+        num = sno
+        for doc in docs:
+            sno = doc['sno']
+            if sno > 3000:
+                break
+            if sno > num-1:
+            #    break
+            #if sno > 24:
+                stk = dbObject(**doc)
+                #if stk.bscs.price == 0:
+                print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+                internet.populate_US_earnings_estimates(stk)
+                #break
+ 
 def build_US_quarterly_stock_information(stk):
     path = internet.get_US_quarterly_stock_page(stk.bscs.symbol, stk.bscs.name)
     for (root,dirs,files) in os.walk(path, topdown=True):
@@ -507,7 +571,7 @@ def build_US_all_stock_information():
     #stocks_list = db.US_Stocks_List.find({})
     j=0
     #for i, doc in enumerate(stocks_list):
-    for doc in db.US_Stocks_List.find({}).sort([["sno",1]]):
+    for doc in db.US_Stocks_List.find({"symbol":"PLG"}).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 3443:
         #    break
@@ -537,6 +601,9 @@ def build_US_all_stock_information():
             #sym = sym.replace("^", "-")
             #db.US_Stocks_List.update({"symbol":stock['symbol']},{'$set':{"Name":name}})
             #db.US_Stocks_List.update({'symbol': stock['symbol']}, {'$set': {"symbol": sym}})
+
+    # Create index based on sno
+    db.US_Stocks.createIndex({sno: -1})
 
     print("Total : %d" %(j))
 

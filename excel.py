@@ -12,10 +12,11 @@ from datetime import datetime as dt, timedelta
 import arrow
 
 import conf
-from DB import open_db
+import DB
 import conf
 import internet
 import parse_html
+from common import *
 
 pattern = xlwt.Pattern()
 pattern.pattern = xlwt.Pattern.SOLID_PATTERN
@@ -566,13 +567,31 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.ROA, stk.fig.ROA[-1], style_percent)
     # vpetla. Calcuate ROCE and uncomment this line
     ##ash.write(count, conf.ROCE, stk.fig.ROCE[-1])
-    ash.write(count, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
-    ash.write(count, conf.MCAP, stk.bscs.mcap, style_num)
-    ash.write(count, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
-    ash.write(count, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
-    ash.write(count, conf.TEN_PR, stk.fig.profit_growth, style_percent)
-    ash.write(count, conf.TEN_BK, stk.fig.book_growth, style_percent)
-    ash.write(count, conf.TEN_CSH, stk.fig.cash_growth, style_percent)
+    try:
+        ash.write(count, conf.PRF_M, stk.fig.PAT_M[-1]/100, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
+        ash.write(count, conf.MCAP, stk.bscs.mcap, style_num)
+    try:
+        ash.write(count, conf.TEN_PRICE, stk.fig.price_growth, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
+    try:
+        ash.write(count, conf.TEN_SAL, stk.fig.sales_growth, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
+    try:
+        ash.write(count, conf.TEN_PR, stk.fig.profit_growth, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
+    try:
+        ash.write(count, conf.TEN_BK, stk.fig.book_growth, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
+    try:
+        ash.write(count, conf.TEN_CSH, stk.fig.cash_growth, style_percent)
+    except Exception as e:
+        PRINT_ERR(str(e))
 
 def check_and_write(ash, count, col, entry, index, factor, style):
     if len(entry) > 0:
@@ -594,20 +613,46 @@ def write_to_excel(com, ash, stk, years):
 
     if not stk.bscs.dii_stake:
         stk.bscs.dii_stake=0
-    if not stk.Dividend.yld:
-        stk.Dividend.yld=0
-    if not stk.Dividend.payout_ratio:
-        stk.Dividend.payout_ratio=0
-    if not stk.Ratios.interest_coverage:
-        stk.Ratios.interest_coverage=0
-    if not stk.Ratios.forward_PE:
-        stk.Ratios.forward_PE=0
-    if not stk.Ratios.ttm_PE:
-        stk.Ratios.ttm_PE=0
-    if not stk.bscs.float:
-        stk.bscs.float = 0
-    if not stk.bscs.float_percent:
-        stk.bscs.float_percent = 0
+    try:
+        if not stk.Dividend.yld:
+            stk.Dividend.yld=0
+        if not stk.Dividend.payout_ratio:
+            stk.Dividend.payout_ratio=0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Dividend.yld", 0)
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Dividend.payout_ratio", 0)
+
+    try:
+        if not stk.Ratios.interest_coverage:
+            stk.Ratios.interest_coverage=0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Ratios.interest_coverage", 0)
+    try:
+        if not stk.Ratios.forward_PE:
+            stk.Ratios.forward_PE=0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Ratios.forward_PE", 0)
+    try:
+        if not stk.Ratios.ttm_PE:
+            stk.Ratios.ttm_PE=0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Ratios.ttm_PE", 0)
+    try:
+        if not stk.bscs.float:
+            stk.bscs.float = 0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.float", 0)
+    try:
+        if not stk.bscs.float_percent:
+            stk.bscs.float_percent = 0
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.float_percent", 0)
 
     i = 0
     sheet.write(i, 0, "Date", style_bold)
@@ -664,8 +709,16 @@ def write_to_excel(com, ash, stk, years):
         pe  = 0
     sheet.write(i, 1, pe)
     ash.write(conf.COUNT, conf.PE, pe)
-    ash.write(conf.COUNT, conf.F_PE, stk.Ratios.forward_PE)
-    ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
+    try:
+        ash.write(conf.COUNT, conf.F_PE, stk.Ratios.forward_PE)
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Ratios.forward_PE", 0)
+    try:
+        ash.write(conf.COUNT, conf.TTM_PE, stk.Ratios.ttm_PE)
+    except AttributeError:
+        db=DB.open_db('Stocks')
+        DB.update_field(db.US_Stocks, stk.bscs.symbol, "Ratios.ttm_PE", 0)
 
     i += 1
     sheet.write(i, 0, "Five Year Beta")

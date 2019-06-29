@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-#from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
 
@@ -25,6 +25,8 @@ from yahoofinancials import YahooFinancials as yf
 import pandas_datareader as pdr
 import pandas_datareader.data as data
 
+import timestring
+
 # Excel operations
 #import csv
 import xlrd
@@ -39,9 +41,28 @@ from datetime import date
 from fractions import Fraction
 
 import smtplib
+import re
 
 import excel
 import conf
+from datastructures import *
+import parse_html
+
+def open_browser():
+    profile = webdriver.FirefoxProfile()
+    profile.set_preference("browser.cache.disk.enable", False)
+    profile.set_preference("browser.cache.memory.enable", False)
+    profile.set_preference("browser.cache.offline.enable", False)
+    profile.set_preference("network.http.use-cache", False)
+    browser = webdriver.Firefox(profile)
+    #browser.set_page_load_timeout(30)
+    #browser.maximize_window()
+    return browser
+
+def close_browser(br):
+    #br.close()
+    br.delete_all_cookies()
+    br.quit()
 
 def send_email(message):
     # creates SMTP session 
@@ -245,7 +266,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0
         for doc in docs:
             sno = doc['sno']
-            if sno > 0:
+            if sno > 150:
+            #if sno > 0:
                 doc['id'] = doc.pop('_id')
                 stock = DB.dbObject(**doc)
                 sym = doc['bscs']['symbol']
@@ -309,15 +331,22 @@ def get_price_volume(stk, country):
         else:
             PRINT_ERR("Unknown Country Name")
             return None
+    except KeyError:
+        PRINT_ERR("Unable to get price and volume for %s"%(stk.bscs.symbol))
+        return None
     except pdr._utils.RemoteDataError:
         PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
         return None
-    # Add moving average etc. Refer /tmp/test.csv for details
-    stk.bscs.volume = (d.averageDailyVolume3Month.to_list()[0])
-    #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
-    stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
-    stk.bscs.price  = (d.price.to_list()[0])
-    stk.bscs.outstanding_shares = d.sharesOutstanding.to_list()[0]
+    try:
+        # Add moving average etc. Refer /tmp/test.csv for details
+        stk.bscs.volume = (d.averageDailyVolume3Month.to_list()[0])
+        #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
+        stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
+        stk.bscs.price  = (d.price.to_list()[0])
+        stk.bscs.outstanding_shares = d.sharesOutstanding.to_list()[0]
+    except AttributeError as e:
+        PRINT_ERR(str(e))
+        PRINT_ERR("Couldn't get a particular field for %s" %(stk.bscs.symbol))
     return stk
 
 def get_price_growth(country, stk, years, data_type):
@@ -518,6 +547,449 @@ def browse_US_stock_page(stock, url):
     # assert "No results found." not in driver.page_source
     # time.sleep(5)
 
+def get_US_earnings_estimates(symbol, name):
+    driver = webdriver.Firefox()
+    driver.set_page_load_timeout(30)
+
+    url = "https://www.barchart.com/stocks/quotes/%s/earnings-estimates" %(symbol)
+    
+    driver.get(url)
+    old_url = driver.current_url
+    driver.maximize_window()
+
+    html_file = "%s/%s_earnings_estimates.html" %(path, symbol)
+    get_page(url, html_file)
+    return 
+
+def update_DB_US_earnings_estimates(stk, earnings):
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.date", earnings.date)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.high_target", earnings.high_target)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.mean_target", earnings.mean_target)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.low_target", earnings.low_target)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.fiftytwoweek_high", earnings.fiftytwoweek_high)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.fiftytwoweek_low", earnings.fiftytwoweek_low)
+
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.quarters", earnings.hist.quarters)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.reported", earnings.hist.reported)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.estimate", earnings.hist.estimate)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.difference", earnings.hist.difference)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.surprise", earnings.hist.surprise)
+
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.quarters", earnings.est.quarters)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.years", earnings.est.years)
+
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_avg_est", earnings.est.q_avg_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_num_est", earnings.est.q_num_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_high_est", earnings.est.q_high_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_low_est", earnings.est.q_low_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_prior_yr", earnings.est.q_prior_yr)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_gr_rate", earnings.est.q_gr_rate)
+
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_avg_est", earnings.est.y_avg_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_num_est", earnings.est.y_num_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_high_est", earnings.est.y_high_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_low_est", earnings.est.y_low_est)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_prior_yr", earnings.est.y_prior_yr)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_gr_rate", earnings.est.y_gr_rate)
+
+def click_sym(symbol, elem):
+    print(len(elem))
+    
+def populate_US_earnings_estimates(stk):
+    earnings = Earnings()
+
+    url = "https://www.barchart.com/stocks/quotes/%s/earnings-estimates" %(stk.bscs.symbol)
+    br = open_browser()
+    try:
+        br.get(url)
+    except Exception:
+        print("%s: %s webpage loading timeout, trying again" %(stk.bscs.symbol, stk.bscs.name))
+        close_browser(br)
+        time.sleep(5)
+        br = open_browser()
+        br.get(url)
+
+    #time.sleep(5)
+    #ad popup
+    try:
+        e = br.find_element_by_xpath("/html/body/div[8]/div[2]/div[1]")
+        e.click()
+    except Exception:
+        PRINT("No popup")
+
+    try:
+        page = br.page_source
+    except Exception as e:
+        print("%s: %s page source exception trying again, err: %s" %(stk.bscs.symbol, stk.bscs.name, str(e)))
+        time.sleep(5)
+        br.get(url)
+        page = br.page_source
+
+    soup = parse_html.get_soup(page)
+
+    if soup.find("title").text.lstrip().rstrip() == 'Page not found':
+        PRINT_ERR("%s:%s Invalid page, skipping" %(stk.bscs.symbol, stk.bscs.name))
+        update_DB_US_earnings_estimates(stk, earnings)
+        close_browser(br)
+        return
+
+    msg = ' Earnings are not available for %s.  ' %(stk.bscs.symbol)
+    pattern = re.compile(r'%s'%msg)
+    div = soup.find(text=pattern)
+    if div:
+        PRINT_ERR("%s:%s does not have earnings estimates, skipping" %(stk.bscs.symbol, stk.bscs.name))
+        update_DB_US_earnings_estimates(stk, earnings)
+        close_browser(br)
+        return
+    
+    l=soup.find(text=re.compile('^HIGH TARGET '))
+    earnings.high_target = str_to_float(l.parent.text.split(' ')[-1])
+    l=soup.find(text=re.compile('^LOW TARGET '))
+    earnings.low_target = str_to_float(l.parent.text.split(' ')[-1])
+    l=soup.find(text=re.compile('^MEAN TARGET '))
+    earnings.mean_target = str_to_float(l.parent.text.split(' ')[-1])
+
+    l=soup.find_all(text=re.compile('^Qtr Ending'))
+    for entry in l:
+        earnings.hist.quarters.append(entry.parent.parent.text.split(' ')[3])
+
+    l=soup.find(text=re.compile('^Reported'))
+    entries=l.parent.parent.parent.text.split(' ')
+    for entry in entries[5:-1]:
+        if entry != '':
+            earnings.hist.reported.append(str_to_float(entry))
+
+    l=soup.find(text=re.compile('^Estimate'))
+    entries=l.parent.parent.parent.text.split(' ')
+    for entry in entries[5:-1]:
+        if entry != '':
+            earnings.hist.estimate.append(str_to_float(entry))
+
+    for i in range(len(earnings.hist.estimate)):
+        est = earnings.hist.estimate[i]
+        rep = earnings.hist.reported[i]
+        earnings.hist.difference.append(round(rep-est,3))
+        try:
+            earnings.hist.surprise.append(round(((rep - est)/ est), 4))
+        except ZeroDivisionError:
+            earnings.hist.surprise.append(0)
+
+    l=soup.find(text=re.compile('^Current Qtr'))
+    earnings.est.quarters.append(l.parent.parent.text.split(' ')[-2])
+    l=soup.find(text=re.compile('^Next Qtr'))
+    earnings.est.quarters.append(l.parent.parent.text.split(' ')[-2])
+    l=soup.find_all(text=re.compile('^Fiscal Yr'))
+    earnings.est.years.append(l[0].parent.parent.text.split(' ')[-2])
+    earnings.est.years.append(l[1].parent.parent.text.split(' ')[-2])
+
+    l=soup.find(text=re.compile('^Average Estimate'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[5:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_avg_est.append(str_to_float(entry))
+            else:
+                earnings.est.y_avg_est.append(str_to_float(entry))
+            count += 1
+
+    l=soup.find(text=re.compile('^Number of Estimates'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[5:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_num_est.append(str_to_float(entry))
+            else:
+                earnings.est.y_num_est.append(str_to_float(entry))
+            count += 1
+
+    l=soup.find(text=re.compile('^High Estimate'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[5:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_high_est.append(str_to_float(entry))
+            else:
+                earnings.est.y_high_est.append(str_to_float(entry))
+            count += 1
+
+    l=soup.find(text=re.compile('^Low Estimate'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[5:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_low_est.append(str_to_float(entry))
+            else:
+                earnings.est.y_low_est.append(str_to_float(entry))
+            count += 1
+
+    l=soup.find(text=re.compile('^Prior Year'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[5:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_prior_yr.append(str_to_float(entry))
+            else:
+                earnings.est.y_prior_yr.append(str_to_float(entry))
+            count += 1
+
+    l=soup.find(text=re.compile('^Growth Rate Est'))
+    entries=l.parent.parent.parent.text.split(' ')
+    count=0
+    for entry in entries[14:-1]:
+        if entry != '':
+            if count < 2:
+                earnings.est.q_gr_rate.append(round(str_to_float(entry)/100,4))
+            else:
+                earnings.est.y_gr_rate.append(round(str_to_float(entry)/100,4))
+            count += 1
+
+    earnings.date=str(dt.now().date())
+    earnings.hist.quarters.reverse()
+    earnings.hist.reported.reverse()
+    earnings.hist.estimate.reverse()
+    earnings.hist.difference.reverse()
+    earnings.hist.surprise.reverse()
+
+    #elem = br.find_element_by_name("search")
+    #elem.send_keys("FIVE")
+    ##time.sleep(10)
+    ##page = br.page_source
+    ##f=open("/tmp/five.html", "w")
+    ##f.write(soup.prettify())
+    ##f.close()
+    #opts = WebDriverWait(br, 10).until(EC.presence_of_element_located(
+    #        (By.CLASS_NAME, 'quick-search')))
+    ##elem = br.find_element_by_class_name("quick-search")
+
+	#br.find_element_by_name("search").clear()
+	#br.find_element_by_name("search").send_keys("Five Below")
+	#br.find_element_by_name("search").send_keys(Keys.ARROW_DOWN)
+	#br.find_element_by_name("search").send_keys(Keys.RETURN)
+
+    #click_sym(stk.bscs.symbol, elem)
+    #print("Opts: %r : %r" %(len(opts.text), opts.text))
+
+    #return
+ 
+    #try:
+    #    e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div/div[1]")
+    #    if e:
+    #        s=e.text
+    #        if s.find("Earnings are not available for") != -1:
+    #            print("No data for %s: %s, skipping" %(stk.bscs.symbol, stk.bscs.name))
+    #            return
+    #except Exception as e:
+    #    print(str(e))
+
+    #try:
+    #    e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[1]/div/div[1]/div/div/div/div[2]/div/p[1]")
+    #    if e:
+    #        print("Page does not exist for %s: %s, skipping" %(stk.bscs.symbol, stk.bscs.name))
+    #        return
+    #except Exception as e:
+    #    print(str(e))
+
+
+    #sign on popup
+    #e = br.find_element_by_xpath("/html/body/div[9]/div/div/div[1]/div/i")
+    #e.click()
+
+    # date
+    #e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[1]/div[4]/span[2]")
+    #date=timestring.Date(e.text)
+    #date=date.date
+    #date=str(date.date())
+    #earnings.date=date
+    ##earnings.date=str(dt.now().date())
+
+    ###high target
+    ##e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[1]/symbol-chart/div/div[2]/span[1]/div[1]/span")
+    ##earnings.high_target = str_to_float(e.text)
+    ##
+    ###mean target
+    ##e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[1]/symbol-chart/div/div[2]/span[1]/div[2]/span")
+    ##earnings.mean_target = str_to_float(e.text)
+    ###low target
+    ##e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[1]/symbol-chart/div/div[2]/span[1]/div[3]/span")
+    ##earnings.low_target=str_to_float(e.text)
+    ###52 week high
+    ##e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[1]/symbol-chart/div/div[2]/span[2]/div[1]/span")
+    ##earnings.fiftytwoweek_high=str_to_float(e.text)
+    ###52 week low
+    ##e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[1]/symbol-chart/div/div[2]/span[2]/div[2]/span")
+    ##earnings.fiftytwoweek_low=str_to_float(e.text)
+
+
+    ###Earnings History
+    ##for i in range(2,6):
+    ##    #quarter dates
+    ##    xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[2]/div[1]/div/div[2]/div/div/ng-transclude/table/thead/tr/th[%d]/span[2]" %(i)
+    ##    e = br.find_element_by_xpath(xpath)
+    ##    earnings.hist.quarters.append(e.text)
+    ##    #reported
+    ##    xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[2]/div[1]/div/div[2]/div/div/ng-transclude/table/tbody/tr[1]/td[%d]" %(i)
+    ##    e = br.find_element_by_xpath(xpath)
+    ##    rep = str_to_float(e.text)
+    ##    earnings.hist.reported.append(rep)
+    ##    #estimate
+    ##    xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[2]/div[1]/div/div[2]/div/div/ng-transclude/table/tbody/tr[2]/td[%d]" %(i)
+    ##    e = br.find_element_by_xpath(xpath)
+    ##    est = str_to_float(e.text)
+    ##    earnings.hist.estimate.append(est)
+    ##    #difference
+    ##    earnings.hist.difference.append(round(rep - est,2))
+    ##    #surprise
+    ##    try:
+    ##        earnings.hist.surprise.append(round(((rep - est)/ est), 3))
+    ##    except ZeroDivisionError:
+    ##        earnings.hist.surprise.append(0)
+
+    #Earnings Estimates
+    ##for i in range(2,6):
+    ##    if i < 4:
+    ##        #quarter dates
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/thead/tr/th[%d]/span[2]" %(i)
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.quarters.append(e.text)
+
+    ##        #average estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[1]/td[%i]" %(i)
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_avg_est.append(str_to_float(e.text))
+    ##
+    ##        #number of estimates
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[2]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_num_est.append(str_to_float(e.text))
+    ## 
+    ##        #high estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[3]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_high_est.append(str_to_float(e.text))
+    ##
+    ##        #low estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[4]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_low_est.append(str_to_float(e.text))
+    ##
+    ##        #prior year
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[5]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_prior_yr.append(str_to_float(e.text))
+    ##
+    ##        #growth rate estimate (yoy)
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[6]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.q_gr_rate.append(round(str_to_float(e.text)/100, 3))
+
+    ##    else:
+    ##        #year dates
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/thead/tr/th[%d]/span[2]" %(i)
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.years.append(e.text)
+
+    ##        #average estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[1]/td[%i]" %(i)
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_avg_est.append(str_to_float(e.text))
+    ##
+    ##        #number of estimates
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[2]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_num_est.append(str_to_float(e.text))
+    ## 
+    ##        #high estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[3]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_high_est.append(str_to_float(e.text))
+    ##
+    ##        #low estimate
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[4]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_low_est.append(str_to_float(e.text))
+    ##
+    ##        #prior year
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[5]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_prior_yr.append(str_to_float(e.text))
+    ##
+    ##        #growth rate estimate (yoy)
+    ##        xpath = "/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/div[2]/div[3]/div[1]/div[1]/div[2]/div/div/ng-transclude/table/tbody/tr[6]/td[%d]" %(i) 
+    ##        e = br.find_element_by_xpath(xpath)
+    ##        earnings.est.y_gr_rate.append(round(str_to_float(e.text)/100, 3))
+
+    #print(earnings.date)
+    #print(earnings.high_target)
+    #print(earnings.mean_target)
+    #print(earnings.low_target)
+
+    #print("Historical data")
+    #print("Quarters: %r" %(earnings.hist.quarters))
+    #print("Reported: %r" %(earnings.hist.reported))
+    #print("Estimate: %r" %(earnings.hist.estimate))
+    #print("Difference: %r" %(earnings.hist.difference))
+    #print("Surprise: %r" %(earnings.hist.surprise))
+
+    #print("Estimates")
+    #print("Quarters: %r" %(earnings.est.quarters))
+    #print("Years: %r" %(earnings.est.years))
+    #
+    #print("Quarter Avg Est: %r" %(earnings.est.q_avg_est))
+    #print("Quarter Num Est: %r" %(earnings.est.q_num_est))
+    #print("Quarter High Est: %r" %(earnings.est.q_high_est))
+    #print("Quarter Low Est: %r" %(earnings.est.q_low_est))
+    #print("Quarter Prior Yr: %r" %(earnings.est.q_prior_yr))
+    #print("Quarter Growth Rate: %r" %(earnings.est.q_gr_rate))
+
+    #print("Year Avg Est: %r" %(earnings.est.y_avg_est))
+    #print("Year Num Est: %r" %(earnings.est.y_num_est))
+    #print("Year High Est: %r" %(earnings.est.y_high_est))
+    #print("Year Low Est: %r" %(earnings.est.y_low_est))
+    #print("Year Prior Yr: %r" %(earnings.est.y_prior_yr))
+    #print("Year Growth Rate: %r" %(earnings.est.y_gr_rate))
+
+    update_DB_US_earnings_estimates(stk, earnings)
+
+    #get_US_earnings_chart(earnings, br)
+    close_browser(br)
+
+def get_US_earnings_chart(earnings, br):
+
+    #goto interactive chart
+    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[1]/div/div[2]/div[2]/div/ul/li[2]/ul/li[1]/a")
+    e.click()
+
+    # change to line chart
+    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/div[1]/div/div/a/img")
+    e.click()
+    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/div[1]/div/div/div/ng-transclude/div/ul/li[9]/div")
+    e.click()
+
+    # set max range
+    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[2]/div[2]/ul/li[13]")
+    e.click()
+
+    # goto settings
+    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/button[3]/span")
+    e.click()
+
+    #goto adjustments
+    e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[2]/div[3]")
+    e.click()
+
+    #select earnings
+    e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[5]/div[1]/ul/li[2]/div/label")
+    e.click()
+    
+    #apply
+    e = br.find_element_by_xpath("/html/body/div[10]/div/div/div/button[2]")
+    e.click()
 
 def get_US_quarterly_stock_page(symbol, name):
     path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)

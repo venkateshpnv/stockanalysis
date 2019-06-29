@@ -90,6 +90,9 @@ def calc_growth(split_factor, row, years):
 
 # Calcuate numbers
 def calculate_dcf(country, stk, years, data_type, criteria, beta):
+    if len(stk.fig.Years) == 0:
+        PRINT_ERR("No data for %s: %s, updating zero DCF Calc" %(stk.bscs.symbol, stk.bscs.name))
+        return False
     if data_type != 'DB':
 #       global conf.COUNT
         growth  = [0] * (GROWTH_PARAMS)
@@ -279,7 +282,8 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     no_dcf = 0
     for doc in collection.find({}).sort([["sno",1]]):
         sno = doc['sno']
-        if sno > 0:
+        if sno > 4628:
+        #if sno > 0:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
             stock = DB.dbObject(**doc)
@@ -319,8 +323,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             stock.num.margin_of_safety = mos
             #Company Excel File
             if calculate_dcf(country, stock, years, data_type, criteria, beta) is False:
+                if db_state == 'SYNC_DB':
+                    DB.update_dummy_dcf_numbers(collection, stock)
                 del stock
-                del com
                 continue
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()

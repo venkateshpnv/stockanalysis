@@ -321,6 +321,43 @@ class Price_Change:
         self.week = 0
         self.day = 0
 
+class Earnings_History:
+    def __init__(self):
+        self.quarters=[]
+        self.reported=[]
+        self.estimate=[]
+        self.difference=[]
+        self.surprise=[]
+
+class Earnings_Estimates:
+    def __init__(self):
+        self.quarters=[]
+        self.years=[]
+        self.q_avg_est=[]
+        self.q_num_est=[]
+        self.q_high_est=[]
+        self.q_low_est=[]
+        self.q_prior_yr=[]
+        self.q_gr_rate=[]
+
+        self.y_avg_est=[]
+        self.y_num_est=[]
+        self.y_high_est=[]
+        self.y_low_est=[]
+        self.y_prior_yr=[]
+        self.y_gr_rate=[]
+
+class Earnings:
+    def __init__(self):
+        self.date=""
+        self.high_target=0
+        self.mean_target=0
+        self.low_target=0
+        self.fiftytwoweek_high=0
+        self.fiftytwoweek_low=0
+        self.hist= Earnings_History()
+        self.est = Earnings_Estimates()
+
 class Stock:
     def __init__(self):
         self.bscs = Basics()
@@ -330,5 +367,6 @@ class Stock:
         self.Ratios = Ratios()
         self.Dividend = Dividend()
         self.price_change = Price_Change()
+        self_earnings = Earnings()
         self.sno=0
 
