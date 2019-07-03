@@ -43,6 +43,8 @@ from fractions import Fraction
 import smtplib
 import re
 
+from bs4 import BeautifulSoup
+
 import excel
 import conf
 from datastructures import *
@@ -561,14 +563,14 @@ def get_US_earnings_estimates(symbol, name):
     get_page(url, html_file)
     return 
 
-def update_DB_US_earnings_estimates(stk, earnings):
+def update_DB_US_earnings_estimates(stk, earnings, fiftytwoweek_high, fiftytwoweek_low):
     db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.fiftytwoweek_high", fiftytwoweek_high)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.fiftytwoweek_low", fiftytwoweek_low)
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.date", earnings.date)
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.high_target", earnings.high_target)
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.mean_target", earnings.mean_target)
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.low_target", earnings.low_target)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.fiftytwoweek_high", earnings.fiftytwoweek_high)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.fiftytwoweek_low", earnings.fiftytwoweek_low)
 
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.quarters", earnings.hist.quarters)
     DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.reported", earnings.hist.reported)
@@ -630,7 +632,7 @@ def populate_US_earnings_estimates(stk):
 
     if soup.find("title").text.lstrip().rstrip() == 'Page not found':
         PRINT_ERR("%s:%s Invalid page, skipping" %(stk.bscs.symbol, stk.bscs.name))
-        update_DB_US_earnings_estimates(stk, earnings)
+        update_DB_US_earnings_estimates(stk, earnings, stk.bscs.price, stk.bscs.price)
         close_browser(br)
         return
 
@@ -639,7 +641,7 @@ def populate_US_earnings_estimates(stk):
     div = soup.find(text=pattern)
     if div:
         PRINT_ERR("%s:%s does not have earnings estimates, skipping" %(stk.bscs.symbol, stk.bscs.name))
-        update_DB_US_earnings_estimates(stk, earnings)
+        update_DB_US_earnings_estimates(stk, earnings, stk.bscs.price, stk.bscs.price)
         close_browser(br)
         return
     
@@ -649,6 +651,15 @@ def populate_US_earnings_estimates(stk):
     earnings.low_target = str_to_float(l.parent.text.split(' ')[-1])
     l=soup.find(text=re.compile('^MEAN TARGET '))
     earnings.mean_target = str_to_float(l.parent.text.split(' ')[-1])
+
+    l=soup.find(text=re.compile('^52 WK High '))
+    fiftytwoweek_high = str_to_float(l.parent.text.split(' ')[-1])
+    l=soup.find(text=re.compile('^52 WK Low '))
+    fiftytwoweek_low = str_to_float(l.parent.text.split(' ')[-1])
+
+
+    l = soup.find("span", {"class": "last-change ng-binding"})
+    DB.update_field(DB.open_db('Stocks').US_Stocks, stk.bscs.symbol, "bscs.price", str_to_float(l.text))
 
     l=soup.find_all(text=re.compile('^Qtr Ending'))
     for entry in l:
@@ -954,12 +965,13 @@ def populate_US_earnings_estimates(stk):
     #print("Year Prior Yr: %r" %(earnings.est.y_prior_yr))
     #print("Year Growth Rate: %r" %(earnings.est.y_gr_rate))
 
-    update_DB_US_earnings_estimates(stk, earnings)
+    update_DB_US_earnings_estimates(stk, earnings, fiftytwoweek_high, fiftytwoweek_low)
 
     #get_US_earnings_chart(earnings, br)
     close_browser(br)
 
 def get_US_earnings_chart(earnings, br):
+    EPS = Quart_EPS()
 
     #goto interactive chart
     e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[1]/div/div[2]/div[2]/div/ul/li[2]/ul/li[1]/a")
@@ -980,16 +992,37 @@ def get_US_earnings_chart(earnings, br):
     e.click()
 
     #goto adjustments
-    e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[2]/div[3]")
+    #e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[2]/div[3]")
+    e=br.find_element_by_xpath("/html/body/div[11]/div/div/form/div[2]/div[3]")
     e.click()
 
     #select earnings
-    e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[5]/div[1]/ul/li[2]/div/label")
+    #e = br.find_element_by_xpath("/html/body/div[11/div/div/form/div[5]/div[1]/ul/li[2]/div/label")
+    e=br.find_element_by_css_selector(".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
     e.click()
     
     #apply
-    e = br.find_element_by_xpath("/html/body/div[10]/div/div/div/button[2]")
+    e = br.find_element_by_xpath("/html/body/div[11]/div/div/div/button[2]")
     e.click()
+
+    soup = BeautifulSoup(br.page_source, 'html.parser')
+    e = soup.find({"class":"highcharts-label highcharts-point"})
+    val = e.attrs['aria-label']
+
+    pattern = re.compile(r'^E$')
+    entries = soup.findAll(text=pattern)
+    for e in entries:
+        get_date_price_EPS(e, EPS)
+
+    from selenium.webdriver import ActionChains as ac
+    a = ac(br)
+    we = br.find_element_by_css_selector("g.highcharts-label:nth-child(20) > text:nth-child(2)")
+    h = a.move_to_element(we)
+
+
+
+
+
 
 def get_US_quarterly_stock_page(symbol, name):
     path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)

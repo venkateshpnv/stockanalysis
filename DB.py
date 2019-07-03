@@ -4,6 +4,7 @@ import xlrd
 import pymongo
 import re
 from datetime import datetime
+import time
 
 import internet
 import parse_html
@@ -452,38 +453,46 @@ def build_US_Stocks_List(excel_file):
 def build_US_all_earnings_estimates():
 
     db = open_db('Stocks')
-    #docs = db.US_Stocks.find({"bscs.symbol":"V"}).sort([["sno",1]])
-    docs = db.US_Stocks.find({}).sort([["sno",1]])
-    try:
-        for doc in docs:
-            sno = doc['sno']
-            #if sno > 0:
-            if sno > 3685:
-            #if sno > 3000:
-            #    break
-            #if sno > 668:
-                stk = dbObject(**doc)
-                #if stk.bscs.price == 0:
-                print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-                internet.populate_US_earnings_estimates(stk)
-                #break
-    except CursorNotFound as e:
-        PRINT_ERR("Mongo DB exception")
-        PRINT_ERR(str(e))
-        time.sleep(5)
-        num = sno
-        for doc in docs:
-            sno = doc['sno']
-            if sno > 3000:
-                break
-            if sno > num-1:
-            #    break
-            #if sno > 24:
-                stk = dbObject(**doc)
-                #if stk.bscs.price == 0:
-                print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-                internet.populate_US_earnings_estimates(stk)
-                #break
+    #docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({}).sort([["sno",1]])
+    docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}})
+    count = docs.count()
+    print(count)
+    if count == 0:
+        print("***************** Completed fetching earnings estimates *************")
+        return
+    #try:
+    for doc in docs:
+        sno = doc['sno']
+        if sno > 0:
+        #if sno > 3000:
+        #    break
+        #if sno > 664:
+            stk = dbObject(**doc)
+            #if stk.bscs.price == 0:
+            print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+            internet.populate_US_earnings_estimates(stk)
+            #break
+    #except Exception as e:
+        #PRINT_ERR("Mongo DB exception")
+        #PRINT_ERR(str(e))
+        #return -1
+        #time.sleep(5)
+        #num = sno
+        #db = open_db('Stocks')
+        #docs = db.US_Stocks.find({}).sort([["sno",1]])
+        #for doc in docs:
+        #    sno = doc['sno']
+        #    if sno > 3000:
+        #        break
+        #    if sno > num-1:
+        #    #    break
+        #    #if sno > 24:
+        #        stk = dbObject(**doc)
+        #        #if stk.bscs.price == 0:
+        #        print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+        #        internet.populate_US_earnings_estimates(stk)
+        #        #break
  
 def build_US_quarterly_stock_information(stk):
     path = internet.get_US_quarterly_stock_page(stk.bscs.symbol, stk.bscs.name)

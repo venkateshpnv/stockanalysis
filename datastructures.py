@@ -26,6 +26,8 @@ class Basics:
         self.float = 0
         self.float_percent = 0
         self.trading = 'YES'
+        self.fiftytwoweek_high=0
+        self.fiftytwoweek_low=0
 
 class Ratios:
     def __init(self):
@@ -47,6 +49,12 @@ class Dividend:
     def __init(self):
         self.yld = 0
         self.payout_ratio = 0
+
+class Quart_EPS:
+    def __int(self):
+        self.date = ''
+        self.price = 0
+        self.eps = 0
 
 class Figures:
     # row 0 - year
@@ -109,6 +117,7 @@ class Figures:
         self.EBIT = []
         self.PAT_M = []
         self.EPS = []
+        self.QUART_EPS = Quart_EPS()
         self.BOOK = []
         self.LIABILITIES = []
         #self.DEBT = []
@@ -353,8 +362,6 @@ class Earnings:
         self.high_target=0
         self.mean_target=0
         self.low_target=0
-        self.fiftytwoweek_high=0
-        self.fiftytwoweek_low=0
         self.hist= Earnings_History()
         self.est = Earnings_Estimates()
 
