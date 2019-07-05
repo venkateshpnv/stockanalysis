@@ -1,6 +1,3 @@
-import DB
-from common import *
-
 import os
 import time
 #Web Driver
@@ -49,6 +46,8 @@ import excel
 import conf
 from datastructures import *
 import parse_html
+import DB
+from common import *
 
 def open_browser():
     profile = webdriver.FirefoxProfile()
@@ -56,6 +55,7 @@ def open_browser():
     profile.set_preference("browser.cache.memory.enable", False)
     profile.set_preference("browser.cache.offline.enable", False)
     profile.set_preference("network.http.use-cache", False)
+    profile.set_preference("browser.privatebrowsing.autostart", True)
     browser = webdriver.Firefox(profile)
     #browser.set_page_load_timeout(30)
     #browser.maximize_window()
@@ -1016,11 +1016,14 @@ def get_US_earnings_chart(earnings, br):
 
     from selenium.webdriver import ActionChains as ac
     a = ac(br)
-    we = br.find_element_by_css_selector("g.highcharts-label:nth-child(20) > text:nth-child(2)")
+    val = entries[0].parent.parent.attr['aria-label']
+    attr = "g[aria-label=\'%s\'" %(val)
+    we = br.find_element(By.CSS_SELECTOR, attr)
+
+    #we = br.find_element_by_css_selector("g.highcharts-label:nth-child(20) > text:nth-child(2)")
+
     h = a.move_to_element(we)
-
-
-
+    h.perform()
 
 
 
