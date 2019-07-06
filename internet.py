@@ -1016,7 +1016,7 @@ def get_US_earnings_chart(earnings, br):
 
     from selenium.webdriver import ActionChains as ac
     a = ac(br)
-    val = entries[0].parent.parent.attr['aria-label']
+    val = entries[0].parent.parent.attrs['aria-label']
     attr = "g[aria-label=\'%s\'" %(val)
     we = br.find_element(By.CSS_SELECTOR, attr)
 
