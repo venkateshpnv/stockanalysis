@@ -453,7 +453,7 @@ def build_US_Stocks_List(excel_file):
 def build_US_all_EPS():
 
     db = open_db('Stocks')
-    docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
+    docs = db.US_Stocks.find({"bscs.symbol":"AMZN"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS":{"$exists":False}})
     count = docs.count()

@@ -974,52 +974,50 @@ def populate_US_earnings_estimates(stk):
     close_browser(br)
 
 
-def get_eps(br, val):
+def get_val(br, description):
     soup = BeautifulSoup(br.page_source, 'html.parser')
     f=open("/home/vpetla/avgo-chart.html","w")
     f.write(soup.prettify())
     f.close()
     e = soup.find("td", {"class": "field-value"})
     try:
-        print("%s: %s" % (val, e.text))
-        eps = float(e.text)
-        return eps
-        # print("%d: %s: %s" %(i, val, eps))
+        print("%s: %s" % (description, e.text))
+        return float(e.text)
+        # print("%d: %s: %s" %(i, description, eps))
         # if i > 10:
         #    break
     except Exception as e:
         return 10000
 
-def get_price(val):
-    return round(float(val.split(",")[-1][:-1]), 2)
+def get_price(description):
+    return round(float(description.split(",")[-1][:-1]), 2)
 
-def get_date(br, val):
+def get_date(br, description):
     soup = BeautifulSoup(br.page_source, 'html.parser')
     e = soup.find("td", {"class": "field-value"})
     e = e.find_next("td", {"class": "field-value"})
     #print(e.text)
     return e.text
-    #eps_date = val.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+    #eps_date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
     #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
     #return str(eps_date)
 
-def get_all_eps_entries(br, stk):
-    EPS = {}
+def get_all_entries(br, stk, item, pattern):
+    entries = {}
     entry = {}
 
     time.sleep(1)
     soup = BeautifulSoup(br.page_source, 'html.parser')
-    pattern = re.compile(r'^E$')
-    entries = soup.findAll(text=pattern)
+    elements = soup.findAll(text=pattern)
 
     a = ac(br)
     i = 0
-    print("entries: %d" % (len(entries)))
-    for e in entries:
+    print("elements: %d" % (len(elements)))
+    for e in elements:
         if i >= 0:
-            val = e.parent.parent.attrs['aria-label']
-            # print(e.parent.parent)
-            attr = "g[aria-label=\'%s\'" % (val)
+            description = e.parent.parent.attrs['aria-label']
+            #print(e.parent.parent)
+            attr = "g[aria-label=\'%s\'" % (description)
             we = br.find_element(By.CSS_SELECTOR, attr)
             h = a.move_to_element(we)
             # h = a.move_to_element_with_offset(we,0,0)
@@ -1027,25 +1025,63 @@ def get_all_eps_entries(br, stk):
             time.sleep(1)
             j = 0
             while j in range(10):
-                eps = get_eps(br, val)
-                if eps != 10000:
-                    entry[get_date(br,val)] = {"price":get_price(val), "eps": eps}
-                    EPS.update(entry)
-                    #print(EPS)
+                val = get_val(br, description)
+                if val != 10000:
+                    entry[get_date(br,description)] = {"price":get_price(description), item.lower(): val}
+                    entries.update(entry)
+                    #print(entries)
                     break
                 h = a.move_by_offset(-1, -2)
                 h.perform()
                 time.sleep(1)
                 j += 1
             if j == 10:
-                PRINT_ERR("Couldn't get EPS for : %r" %(val))
+                PRINT_ERR("Couldn't get Value for : %r" %(description))
                 exit()
             i += 1
 
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(EPS)
+    pp.pprint(entries)
+    field = "fig.%s" %(item)
+    print(field)
     db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS", EPS)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, field, entries)
+
+def toggle_earnings_button(br):
+    # goto settings
+    e = br.find_element_by_css_selector("span.show-for-medium-up")
+    e.click()
+
+    # goto adjustments
+    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
+    e.click()
+
+    # select earnings
+    e = br.find_element_by_css_selector(
+        ".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
+    e.click()
+
+    # apply
+    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
+    e.click()
+
+def toggle_dividend_button(br):
+    # goto settings
+    e = br.find_element_by_css_selector("span.show-for-medium-up")
+    e.click()
+
+    # goto adjustments
+    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
+    e.click()
+
+    # select dividend
+    e = br.find_element_by_css_selector(
+        ".row-events > ul:nth-child(2) > li:nth-child(1) > div:nth-child(1) > label:nth-child(2)")
+    e.click()
+
+    # apply
+    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
+    e.click()
 
 def populate_US_EPS(stk):
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
@@ -1077,26 +1113,16 @@ def populate_US_EPS(stk):
     e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     e.click()
 
-    # goto settings
-    e = br.find_element_by_css_selector("span.show-for-medium-up")
-    e.click()
-
-    # goto adjustments
-    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
-    e.click()
-
-    # select earnings
-    e = br.find_element_by_css_selector(
-        ".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
-    e.click()
-
-    # apply
-    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
-    e.click()
-
     br.maximize_window()
 
-    get_all_eps_entries(br, stk)
+    #toggle_earnings_button(br)
+    #pattern = re.compile(r'^E$')
+    #get_all_entries(br, stk, "EPS", pattern)
+    #toggle_earnings_button(br)
+
+    toggle_dividend_button(br)
+    pattern = re.compile(r'^D$')
+    get_all_entries(br, stk, "DIVIDEND", pattern)
 
     close_browser(br)
 
