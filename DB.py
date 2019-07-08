@@ -450,6 +450,30 @@ def build_US_Stocks_List(excel_file):
         else:
             print("%s already present" %(sheet.cell_value(i,0)))
 
+def build_US_all_EPS():
+
+    db = open_db('Stocks')
+    docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"fig.EPS":{"$exists":False}})
+    count = docs.count()
+    print(count)
+    if count == 0:
+        print("***************** Completed fetching EPS  *************")
+        return
+    #try:
+    for doc in docs:
+        sno = doc['sno']
+        if sno > 0:
+        #if sno > 3000:
+        #    break
+        #if sno > 664:
+            stk = dbObject(**doc)
+            #if stk.bscs.price == 0:
+            print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+            internet.populate_US_EPS(stk)
+            break
+ 
 def build_US_all_earnings_estimates():
 
     db = open_db('Stocks')

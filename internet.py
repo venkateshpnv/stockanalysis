@@ -9,6 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver import ActionChains as ac
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -41,6 +42,8 @@ import smtplib
 import re
 
 from bs4 import BeautifulSoup
+
+import pprint
 
 import excel
 import conf
@@ -970,62 +973,132 @@ def populate_US_earnings_estimates(stk):
     #get_US_earnings_chart(earnings, br)
     close_browser(br)
 
-def get_US_earnings_chart(earnings, br):
-    EPS = Quart_EPS()
 
-    #goto interactive chart
-    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[1]/div/div[2]/div[2]/div/ul/li[2]/ul/li[1]/a")
-    e.click()
+def get_eps(br, val):
+    soup = BeautifulSoup(br.page_source, 'html.parser')
+    f=open("/home/vpetla/avgo-chart.html","w")
+    f.write(soup.prettify())
+    f.close()
+    e = soup.find("td", {"class": "field-value"})
+    try:
+        print("%s: %s" % (val, e.text))
+        eps = float(e.text)
+        return eps
+        # print("%d: %s: %s" %(i, val, eps))
+        # if i > 10:
+        #    break
+    except Exception as e:
+        return 10000
 
-    # change to line chart
-    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/div[1]/div/div/a/img")
-    e.click()
-    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/div[1]/div/div/div/ng-transclude/div/ul/li[9]/div")
-    e.click()
+def get_price(val):
+    return round(float(val.split(",")[-1][:-1]), 2)
 
-    # set max range
-    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[2]/div[2]/ul/li[13]")
+def get_date(br, val):
+    soup = BeautifulSoup(br.page_source, 'html.parser')
+    e = soup.find("td", {"class": "field-value"})
+    e = e.find_next("td", {"class": "field-value"})
+    #print(e.text)
+    return e.text
+    #eps_date = val.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+    #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
+    #return str(eps_date)
+
+def get_all_eps_entries(br, stk):
+    EPS = {}
+    entry = {}
+
+    time.sleep(1)
+    soup = BeautifulSoup(br.page_source, 'html.parser')
+    pattern = re.compile(r'^E$')
+    entries = soup.findAll(text=pattern)
+
+    a = ac(br)
+    i = 0
+    print("entries: %d" % (len(entries)))
+    for e in entries:
+        if i >= 0:
+            val = e.parent.parent.attrs['aria-label']
+            # print(e.parent.parent)
+            attr = "g[aria-label=\'%s\'" % (val)
+            we = br.find_element(By.CSS_SELECTOR, attr)
+            h = a.move_to_element(we)
+            # h = a.move_to_element_with_offset(we,0,0)
+            h.perform()
+            time.sleep(1)
+            j = 0
+            while j in range(10):
+                eps = get_eps(br, val)
+                if eps != 10000:
+                    entry[get_date(br,val)] = {"price":get_price(val), "eps": eps}
+                    EPS.update(entry)
+                    #print(EPS)
+                    break
+                h = a.move_by_offset(-1, -2)
+                h.perform()
+                time.sleep(1)
+                j += 1
+            if j == 10:
+                PRINT_ERR("Couldn't get EPS for : %r" %(val))
+                exit()
+            i += 1
+
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(EPS)
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS", EPS)
+
+def populate_US_EPS(stk):
+    url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
+    br = open_browser()
+    try:
+        br.get(url)
+    except Exception:
+        print("%s: %s webpage loading timeout, trying again" %(stk.bscs.symbol, stk.bscs.name))
+        close_browser(br)
+        time.sleep(5)
+        br = open_browser()
+        br.get(url)
+
+    try:
+        # e=br.find_element_by_xpath("//*[@id="ic_guyoff6702"]")
+        e = br.find_element_by_xpath("/html/body/div[9]/div[2]/div[3]/div/img")
+        if e:
+            e.click()
+    except Exception as e:
+        pass
+        #print(str(e))
+
+    # try:
+    #    e=br.find_element_by_xpath("//*[@id="off7131"]")
+    #    if e:
+    #        e.click()
+
+    # set 10 year range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     e.click()
 
     # goto settings
-    e = br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[2]/div/div[2]/div/div/div/interactive-chart/div[1]/div[2]/div[1]/div/div/div[1]/button[3]/span")
+    e = br.find_element_by_css_selector("span.show-for-medium-up")
     e.click()
 
-    #goto adjustments
-    #e = br.find_element_by_xpath("/html/body/div[10]/div/div/form/div[2]/div[3]")
-    e=br.find_element_by_xpath("/html/body/div[11]/div/div/form/div[2]/div[3]")
+    # goto adjustments
+    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
     e.click()
 
-    #select earnings
-    #e = br.find_element_by_xpath("/html/body/div[11/div/div/form/div[5]/div[1]/ul/li[2]/div/label")
-    e=br.find_element_by_css_selector(".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
-    e.click()
-    
-    #apply
-    e = br.find_element_by_xpath("/html/body/div[11]/div/div/div/button[2]")
+    # select earnings
+    e = br.find_element_by_css_selector(
+        ".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
     e.click()
 
-    soup = BeautifulSoup(br.page_source, 'html.parser')
-    e = soup.find({"class":"highcharts-label highcharts-point"})
-    val = e.attrs['aria-label']
+    # apply
+    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
+    e.click()
 
-    pattern = re.compile(r'^E$')
-    entries = soup.findAll(text=pattern)
-    for e in entries:
-        get_date_price_EPS(e, EPS)
+    br.maximize_window()
 
-    from selenium.webdriver import ActionChains as ac
-    a = ac(br)
-    val = entries[0].parent.parent.attrs['aria-label']
-    attr = "g[aria-label=\'%s\'" %(val)
-    we = br.find_element(By.CSS_SELECTOR, attr)
+    get_all_eps_entries(br, stk)
 
-    #we = br.find_element_by_css_selector("g.highcharts-label:nth-child(20) > text:nth-child(2)")
-
-    h = a.move_to_element(we)
-    h.perform()
-
-
+    close_browser(br)
 
 def get_US_quarterly_stock_page(symbol, name):
     path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)
