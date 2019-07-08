@@ -974,7 +974,7 @@ def populate_US_earnings_estimates(stk):
     close_browser(br)
 
 
-def get_val(br, description):
+def get_val(br, description, convert):
     soup = BeautifulSoup(br.page_source, 'html.parser')
     f=open("/home/vpetla/avgo-chart.html","w")
     f.write(soup.prettify())
@@ -982,7 +982,9 @@ def get_val(br, description):
     e = soup.find("td", {"class": "field-value"})
     try:
         print("%s: %s" % (description, e.text))
-        return float(e.text)
+        if convert:
+            return float(e.text)
+        return e.text
         # print("%d: %s: %s" %(i, description, eps))
         # if i > 10:
         #    break
@@ -1002,11 +1004,11 @@ def get_date(br, description):
     #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
     #return str(eps_date)
 
-def get_all_entries(br, stk, item, pattern):
+def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
 
-    time.sleep(1)
+    time.sleep(2)
     soup = BeautifulSoup(br.page_source, 'html.parser')
     elements = soup.findAll(text=pattern)
 
@@ -1025,9 +1027,13 @@ def get_all_entries(br, stk, item, pattern):
             time.sleep(1)
             j = 0
             while j in range(10):
-                val = get_val(br, description)
+                val = get_val(br, description, convert)
                 if val != 10000:
-                    entry[get_date(br,description)] = {"price":get_price(description), item.lower(): val}
+                    if field == "split_factor":
+                        split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
+                        entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
+                    else:
+                        entry[get_date(br,description)] = {"price":get_price(description), field:val}
                     entries.update(entry)
                     #print(entries)
                     break
@@ -1037,15 +1043,15 @@ def get_all_entries(br, stk, item, pattern):
                 j += 1
             if j == 10:
                 PRINT_ERR("Couldn't get Value for : %r" %(description))
-                exit()
+                return
             i += 1
 
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(entries)
-    field = "fig.%s" %(item)
-    print(field)
-    db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, field, entries)
+    db_field = "fig.%s" %(item)
+    #print(db_field)
+    #db = DB.open_db('Stocks')
+    #DB.update_field(db.US_Stocks, stk.bscs.symbol, db_field, entries)
 
 def toggle_earnings_button(br):
     # goto settings
@@ -1077,6 +1083,24 @@ def toggle_dividend_button(br):
     # select dividend
     e = br.find_element_by_css_selector(
         ".row-events > ul:nth-child(2) > li:nth-child(1) > div:nth-child(1) > label:nth-child(2)")
+    e.click()
+
+    # apply
+    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
+    e.click()
+
+def toggle_split_button(br):
+    # goto settings
+    e = br.find_element_by_css_selector("span.show-for-medium-up")
+    e.click()
+
+    # goto adjustments
+    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
+    e.click()
+
+    # select split
+    e = br.find_element_by_css_selector(
+        ".row-events > ul:nth-child(2) > li:nth-child(3) > div:nth-child(1) > label:nth-child(2)")
     e.click()
 
     # apply
@@ -1115,14 +1139,19 @@ def populate_US_EPS(stk):
 
     br.maximize_window()
 
-    #toggle_earnings_button(br)
-    #pattern = re.compile(r'^E$')
-    #get_all_entries(br, stk, "EPS", pattern)
-    #toggle_earnings_button(br)
+    toggle_earnings_button(br)
+    pattern = re.compile(r'^E$')
+    get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+    toggle_earnings_button(br)
 
     toggle_dividend_button(br)
     pattern = re.compile(r'^D$')
-    get_all_entries(br, stk, "DIVIDEND", pattern)
+    get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+    toggle_dividend_button(br)
+
+    toggle_split_button(br)
+    pattern = re.compile(r'^S$')
+    get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
 
     close_browser(br)
 
