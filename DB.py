@@ -453,10 +453,10 @@ def build_US_Stocks_List(excel_file):
 def build_US_all_EPS():
 
     db = open_db('Stocks')
-    docs = db.US_Stocks.find({"bscs.symbol":"AFL"}).sort([["sno",1]])
+    docs = db.US_Stocks.find({"bscs.symbol":"AE"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
-    #db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": false}}, {"fig.DIVIDEND_History": {"$exists": false}},{"fig.Split_History": {"$exists": false}}]})
+    #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}]})
     count = docs.count()
     print(count)
     if count == 0:

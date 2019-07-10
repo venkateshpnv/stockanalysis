@@ -45,6 +45,8 @@ from bs4 import BeautifulSoup
 
 import pprint
 
+import threading
+
 import excel
 import conf
 from datastructures import *
@@ -59,6 +61,7 @@ def open_browser():
     profile.set_preference("browser.cache.offline.enable", False)
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
+    profile.set_preference("dom.webnotifications.enabled", False)
     browser = webdriver.Firefox(profile)
     #browser.set_page_load_timeout(30)
     #browser.maximize_window()
@@ -1004,6 +1007,19 @@ def get_date(br, description):
     #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
     #return str(eps_date)
 
+perform_i=0
+def perform(h):
+    global perform_i
+    try:
+        perform_i +=1
+        h.perform()
+    except Exception as e:
+        if perform_i > 5:
+            print("h.perform() error")
+            print(str(e))
+            exit()
+        perform(h)
+
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
@@ -1015,43 +1031,77 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     a = ac(br)
     i = 0
     print("elements: %d" % (len(elements)))
-    for e in elements:
-        if i >= 0:
-            description = e.parent.parent.attrs['aria-label']
-            #print(e.parent.parent)
-            attr = "g[aria-label=\'%s\'" % (description)
-            we = br.find_element(By.CSS_SELECTOR, attr)
-            h = a.move_to_element(we)
-            # h = a.move_to_element_with_offset(we,0,0)
-            h.perform()
-            time.sleep(1)
-            j = 0
-            while j in range(10):
-                val = get_val(br, description, convert)
-                if val != 10000:
-                    if field == "split_factor":
-                        split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
-                        entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
-                    else:
-                        entry[get_date(br,description)] = {"price":get_price(description), field:val}
-                    entries.update(entry)
-                    #print(entries)
-                    break
-                h = a.move_by_offset(-1, -2)
-                h.perform()
+    if len(elements) > 0:
+        #description = elements[0].parent.parent.attrs['aria-label']
+        #d1date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+        #d1date = dt.strptime(d1date, '%b %d %Y').date()
+
+        #description = elements[-1].parent.parent.attrs['aria-label']
+        #d2date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+        #d2date = dt.strptime(d2date, '%b %d %Y').date()
+        ##d1date = datetime.strptime(d1, '%m/%d/%Y')
+        ##d2date = datetime.strptime(d2, '%m/%d/%Y')
+        #print(d1date)
+        #print(d2date)
+        #if d1date > d2date:
+        #    elements.reverse()
+        for e in elements:
+            if i >= 0:
+                description = e.parent.parent.attrs['aria-label']
+                print(description)
+                #print(e.parent.parent)
+                attr = "g[aria-label=\'%s\'" % (description)
+                we = br.find_element(By.CSS_SELECTOR, attr)
+                h = a.move_to_element(we)
+                # h = a.move_to_element_with_offset(we,0,0)
+                perform(h)
                 time.sleep(1)
-                j += 1
-            if j == 10:
-                PRINT_ERR("Couldn't get Value for : %r" %(description))
-                return
-            i += 1
+                j = 0
+                while j in range(10):
+                    val = get_val(br, description, convert)
+                    if val != 10000:
+                        if field == "split_factor":
+                            split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
+                            entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
+                        else:
+                            entry[get_date(br,description)] = {"price":get_price(description), field:val}
+                        entries.update(entry)
+                        #print(entries)
+                        break
+                    h = a.move_by_offset(-1, -1)
+                    h.perform()
+                    time.sleep(1)
+                    j += 1
+                if j == 10:
+                    PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
+                    exit()
+                    #return
+                i += 1
 
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(entries)
+    sorted_entries = {}
+    for e in sorted(entries):
+        sorted_entries[e] = entries[e]
+    pp.pprint(sorted_entries)
     db_field = "fig.%s" %(item)
-    #print(db_field)
-    #db = DB.open_db('Stocks')
-    #DB.update_field(db.US_Stocks, stk.bscs.symbol, db_field, entries)
+    print(db_field)
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, db_field, sorted_entries)
+
+def close_popups(br, lock):
+    while True:
+        e = None
+        try:
+            e = br.find_element_by_xpath("/html/body/div[8]/div[2]/div[1]")
+        except Exception:
+            pass
+        if e:
+            lock.acquire()
+            try:
+                e.click()
+            finally:
+                lock.release()
+        time.sleep(1)
 
 def toggle_earnings_button(br):
     # goto settings
@@ -1110,6 +1160,10 @@ def toggle_split_button(br):
 def populate_US_EPS(stk):
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
     br = open_browser()
+
+    #t1 = threading.Thread(target=close_popups, args=(br,lock,))
+    #t1.start()
+
     try:
         br.get(url)
     except Exception:
@@ -1144,16 +1198,19 @@ def populate_US_EPS(stk):
     get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
     toggle_earnings_button(br)
 
+    time.sleep(1)
     toggle_dividend_button(br)
     pattern = re.compile(r'^D$')
     get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
     toggle_dividend_button(br)
 
+    time.sleep(1)
     toggle_split_button(br)
     pattern = re.compile(r'^S$')
     get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
 
     close_browser(br)
+    #t1.join()
 
 def get_US_quarterly_stock_page(symbol, name):
     path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)

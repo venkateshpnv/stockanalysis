@@ -9,7 +9,11 @@ DAY=16
 ALL=0x1F
 #Supportive calls
 def PRINT_ERR(x):
+    f = open("error_log.txt", "a")
+    f.write(x)
+    f.close()
     print("ERR: %s" %(x))
+    
 def PRINT_DBG(x):
     None
     #print(x)
