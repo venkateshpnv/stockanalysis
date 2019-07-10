@@ -1002,7 +1002,9 @@ def get_date(br, description):
     e = soup.find("td", {"class": "field-value"})
     e = e.find_next("td", {"class": "field-value"})
     #print(e.text)
-    return e.text
+    #return e.text
+    date = dt.strptime(e.text, '%m/%d/%Y').date()
+    return date
     #eps_date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
     #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
     #return str(eps_date)
@@ -1020,11 +1022,38 @@ def perform(h):
             exit()
         perform(h)
 
+def scroll(br, direction):
+    e=br.find_element_by_tag_name('html')
+    for i in range(5):
+        e.send_keys(direction)
+
+def popout_chart(br):
+    a = ac(br)
+
+    #Interactive chart
+    we=br.find_element_by_class_name("bc-interactive-chart__wrapper-chart-content")
+    h=a.move_to_element(we)
+    h.context_click().perform()
+    #soup=BeautifulSoup(br.page_source,'html.parser')
+    #pattern=re.compile(r'Popout Chart')
+    #e=soup.find(text=pattern)
+
+    scroll(br, Keys.ARROW_DOWN)
+    # Popout Chart
+    we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
+    h=a.move_to_element(we)
+    h.click().perform()
+    handles=br.window_handles
+    br.switch_to_window(handles[0])
+    br.close()
+    br.switch_to_window(handles[-1])
+
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
 
     time.sleep(2)
+    scroll(br, Keys.ARROW_DOWN)
     soup = BeautifulSoup(br.page_source, 'html.parser')
     elements = soup.findAll(text=pattern)
 
@@ -1048,10 +1077,11 @@ def get_all_entries(br, stk, item, field, pattern, convert):
         for e in elements:
             if i >= 0:
                 description = e.parent.parent.attrs['aria-label']
-                print(description)
+                #print(description)
                 #print(e.parent.parent)
                 attr = "g[aria-label=\'%s\'" % (description)
                 we = br.find_element(By.CSS_SELECTOR, attr)
+                a=ac(br)
                 h = a.move_to_element(we)
                 # h = a.move_to_element_with_offset(we,0,0)
                 perform(h)
@@ -1080,13 +1110,15 @@ def get_all_entries(br, stk, item, field, pattern, convert):
 
     pp = pprint.PrettyPrinter(indent=4)
     sorted_entries = {}
-    for e in sorted(entries):
-        sorted_entries[e] = entries[e]
-    pp.pprint(sorted_entries)
+    for e in sorted(entries.keys()):
+        sorted_entries[str(e)] = entries[e]
+    #pp.pprint(sorted_entries)
     db_field = "fig.%s" %(item)
-    print(db_field)
+    #print(db_field)
     db = DB.open_db('Stocks')
     DB.update_field(db.US_Stocks, stk.bscs.symbol, db_field, sorted_entries)
+
+    scroll(br, Keys.ARROW_UP)
 
 def close_popups(br, lock):
     while True:
@@ -1191,6 +1223,8 @@ def populate_US_EPS(stk):
     e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     e.click()
 
+    #br.maximize_window()
+    #popout_chart(br)
     br.maximize_window()
 
     toggle_earnings_button(br)
