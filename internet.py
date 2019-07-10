@@ -1001,9 +1001,12 @@ def get_date(br, description):
     soup = BeautifulSoup(br.page_source, 'html.parser')
     e = soup.find("td", {"class": "field-value"})
     e = e.find_next("td", {"class": "field-value"})
-    #print(e.text)
     #return e.text
-    date = dt.strptime(e.text, '%m/%d/%Y').date()
+    try:
+        date = dt.strptime(e.text, '%m/%d/%Y').date()
+    except Exception:
+        PRINT_ERR(e.text)
+        exit()
     return date
     #eps_date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
     #eps_date = dt.strptime(eps_date, '%b %d %Y').date()
@@ -1089,12 +1092,15 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                 j = 0
                 while j in range(10):
                     val = get_val(br, description, convert)
-                    if val != 10000:
-                        if field == "split_factor":
+                    if field == "split_factor":
+                        pattern=re.compile(r'^[1-9]*-[1-9]*$')
+                        if pattern.match(val):
                             split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
                             entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
-                        else:
-                            entry[get_date(br,description)] = {"price":get_price(description), field:val}
+                            entries.update(entry)
+                            break
+                    elif val != 10000:
+                        entry[get_date(br,description)] = {"price":get_price(description), field:val}
                         entries.update(entry)
                         #print(entries)
                         break
