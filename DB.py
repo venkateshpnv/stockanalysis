@@ -450,13 +450,42 @@ def build_US_Stocks_List(excel_file):
         else:
             print("%s already present" %(sheet.cell_value(i,0)))
 
-def build_US_all_EPS():
+def write_to_file(symbol):
+    f = open("/home/vpetla/work/stockanalysis/file.txt", "a")
+    symbol=symbol+"\n"
+    f.write(symbol)
+    f.close()
 
+def get_nin():
+    line=None
+    f1 = open("/home/vpetla/work/stockanalysis/file.txt","r")
+    f2 = open("/home/vpetla/work/stockanalysis/nins.txt","a")
+
+    for line in f1:
+        print(line)
+        pass
+    if line:
+        f2.write(line)
+    f2.close()
+
+    # {"$ne": [ "AAP", "BLR", "CLG" ] }
+    s=[]
+    f2 = open("/home/vpetla/work/stockanalysis/nins.txt","r")
+    for line in f2:
+        line = line.replace("\n","")
+        s.append(line)
+    syms = {"$nin" : s}
+    nin = {"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":syms}]}
+    print(nin)
+    return nin
+
+def build_US_all_EPS():
     db = open_db('Stocks')
-    #docs = db.US_Stocks.find({"bscs.symbol":"UAVS"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"bscs.symbol":"NNVC"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
-    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}]})
+    docs  = db.US_Stocks.find(get_nin())
+    #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     count = docs.count()
     print(count)
     if count == 0:
@@ -472,6 +501,7 @@ def build_US_all_EPS():
             stk = dbObject(**doc)
             #if stk.bscs.price == 0:
             print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+            write_to_file(stk.bscs.symbol)
             internet.populate_US_EPS(stk)
             #break
  

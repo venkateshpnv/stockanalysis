@@ -1019,10 +1019,11 @@ def perform(h):
         perform_i +=1
         h.perform()
     except Exception as e:
-        if perform_i > 5:
+        if perform_i > 0:
             print("h.perform() error")
             print(str(e))
-            exit()
+            #exit()
+            return
         perform(h)
 
 def scroll(br, direction):
@@ -1046,11 +1047,50 @@ def popout_chart(br):
     we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
     h=a.move_to_element(we)
     h.click().perform()
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
     handles=br.window_handles
     br.switch_to_window(handles[0])
     br.close()
     br.switch_to_window(handles[-1])
 
+def get_eps_for_element(br, description, convert, entries, offset, field, we, trial):
+    entry = {}
+    j = 0
+    if trial == 1:
+        a=ac(br)
+        h = a.move_to_element(we)
+        time.sleep(0.1)
+    while j in range(10):
+        a = ac(br)
+        val = get_val(br, description, convert)
+        if field == "split_factor":
+            pattern=re.compile(r'\d{1,4}-\d{1,4}')
+            #pattern=re.compile(r'^[1-9]*-[1-9]*')
+            if pattern.match(val):
+                split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
+                entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
+                entries.update(entry)
+                return j
+        elif val != 10000:
+            entry[get_date(br,description)] = {"price":get_price(description), field:val}
+            entries.update(entry)
+            #print(entries)
+            return j
+        if trial:
+            #print("height: %d" %(we.size['height']))
+            #print("width: %d" %(we.size['width']))
+            x_offset = we.size['height'] / 4 #+ j
+            y_offset  = we.size['width'] / 4 #+ j
+            #h = a.move_to_element_with_offset(we, x_offset, y_offset)
+            h = a.move_by_offset(offset, offset)
+            time.sleep(1)
+        else:
+            h = a.move_by_offset(offset, offset)
+        perform(h)
+        time.sleep(1)
+        j += 1
+    return j
+ 
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
@@ -1088,45 +1128,31 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                 h = a.move_to_element(we)
                 # h = a.move_to_element_with_offset(we,0,0)
                 perform(h)
-                time.sleep(1)
-                j = 0
-                while j in range(10):
-                    val = get_val(br, description, convert)
-                    if field == "split_factor":
-                        pattern=re.compile(r'^[1-9]*-[1-9]*$')
-                        if pattern.match(val):
-                            split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
-                            entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
-                            entries.update(entry)
-                            break
-                    elif val != 10000:
-                        entry[get_date(br,description)] = {"price":get_price(description), field:val}
-                        entries.update(entry)
-                        #print(entries)
-                        break
-                    h = a.move_by_offset(-1, -1)
-                    h.perform()
-                    time.sleep(1)
-                    j += 1
+                #time.sleep(0.1)
+                offset = -1
+                j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
                 if j == 10:
-                    PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
-                    exit()
-                    #return
-                i += 1
+                    PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk.bscs.symbol, description))
+                    offset = 1
+                    a=ac(br)
+                    h = a.move_to_element(we)
+                    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
+                    if j == 10:
+                        PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
+                        exit()
+                    #e={}
+                    #return e
+            i += 1
 
     pp = pprint.PrettyPrinter(indent=4)
     sorted_entries = {}
     for e in sorted(entries.keys()):
         sorted_entries[str(e)] = entries[e]
     #pp.pprint(sorted_entries)
-    db_field = "fig.%s" %(item)
-    #print(db_field)
-    db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, db_field, sorted_entries)
-
     scroll(br, Keys.ARROW_UP)
+    return sorted_entries
 
-def close_popups(br, lock):
+def thread_close_popups(br, lock):
     while True:
         e = None
         try:
@@ -1141,59 +1167,83 @@ def close_popups(br, lock):
                 lock.release()
         time.sleep(1)
 
+def close_login(br):
+    try:
+        br.switch_to_window(handles[-1])
+        br.close()
+        br.switch_to_window(handles[0])
+    except:
+        pass
+
+def click(e):
+    try:
+        e.click()
+    except ElementClickInterceptedException:
+        close_login(br)
+
+def find_element_by_css_selector(br, select):
+    try:
+        return br.find_element_by_css_selector(select)
+    except Exception as e:
+        print(str(e))
+        soup=BeautifulSoup(br.page_source,"html.parser")
+        f=open("/home/vpetla/stock-chart.html","w")
+        f.write(soup.prettify())
+        f.close()
+        exit()
+
 def toggle_earnings_button(br):
     # goto settings
-    e = br.find_element_by_css_selector("span.show-for-medium-up")
-    e.click()
-
+    e = find_element_by_css_selector(br, "span.show-for-medium-up")
+    click(e)
     # goto adjustments
-    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
-    e.click()
+    e = find_element_by_css_selector(br, "div.bc-tabs__tab:nth-child(3)")
+    click(e)
 
     # select earnings
-    e = br.find_element_by_css_selector(
+    e = find_element_by_css_selector(br,
         ".row-events > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > label:nth-child(2)")
-    e.click()
+    click(e)
 
     # apply
-    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
-    e.click()
+    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    click(e)
 
 def toggle_dividend_button(br):
     # goto settings
-    e = br.find_element_by_css_selector("span.show-for-medium-up")
-    e.click()
+    e = find_element_by_css_selector(br, "span.show-for-medium-up")
+    click(e)
 
     # goto adjustments
-    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
-    e.click()
+    e = find_element_by_css_selector(br, "div.bc-tabs__tab:nth-child(3)")
+    click(e)
 
     # select dividend
-    e = br.find_element_by_css_selector(
+    e = find_element_by_css_selector(br,
         ".row-events > ul:nth-child(2) > li:nth-child(1) > div:nth-child(1) > label:nth-child(2)")
-    e.click()
+    click(e)
 
     # apply
-    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
-    e.click()
+    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    click(e)
 
 def toggle_split_button(br):
     # goto settings
-    e = br.find_element_by_css_selector("span.show-for-medium-up")
-    e.click()
+    e = find_element_by_css_selector(br, "span.show-for-medium-up")
+    click(e)
 
     # goto adjustments
-    e = br.find_element_by_css_selector("div.bc-tabs__tab:nth-child(3)")
-    e.click()
+    e = find_element_by_css_selector(br, "div.bc-tabs__tab:nth-child(3)")
+    click(e)
 
     # select split
-    e = br.find_element_by_css_selector(
+    e = find_element_by_css_selector(br,
         ".row-events > ul:nth-child(2) > li:nth-child(3) > div:nth-child(1) > label:nth-child(2)")
-    e.click()
+    click(e)
 
     # apply
-    e = br.find_element_by_css_selector("button.bc-button:nth-child(2)")
-    e.click()
+    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    click(e)
 
 def populate_US_EPS(stk):
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
@@ -1226,28 +1276,49 @@ def populate_US_EPS(stk):
     #        e.click()
 
     # set 10 year range
-    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
-    e.click()
+    #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
+    time.sleep(1)
+    try:
+        e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
+        e.click()
+    except Exception as e:
+        print(str(e))
+        stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+        soup=BeautifulSoup(br.page_source,"html.parser")
+        f=open(stk_file,"w")
+        f.write(soup.prettify())
+        f.close()
+        exit()
 
-    #br.maximize_window()
-    #popout_chart(br)
     br.maximize_window()
+    popout_chart(br)
+    br.maximize_window()
+    opts = WebDriverWait(br, 20).until(EC.presence_of_element_located(
+                (By.CSS_SELECTOR, '.highcharts-background')))
+    print("chart loaded")
+    time.sleep(4)
 
     toggle_earnings_button(br)
     pattern = re.compile(r'^E$')
-    get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
     toggle_earnings_button(br)
 
     time.sleep(1)
     toggle_dividend_button(br)
     pattern = re.compile(r'^D$')
-    get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
     toggle_dividend_button(br)
 
     time.sleep(1)
     toggle_split_button(br)
     pattern = re.compile(r'^S$')
-    get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS_History", eps_hist)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.DIVIDEND_History", dividend_hist)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.SPLIT_History", split_hist)
+
 
     close_browser(br)
     #t1.join()
