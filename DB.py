@@ -462,7 +462,7 @@ def get_nin():
     f2 = open("/home/vpetla/work/stockanalysis/nins.txt","a")
 
     for line in f1:
-        print(line)
+        #print(line)
         pass
     if line:
         f2.write(line)
@@ -480,6 +480,7 @@ def get_nin():
     return nin
 
 def build_US_all_EPS():
+    print("****************** Building US EPS ******************")
     db = open_db('Stocks')
     #docs = db.US_Stocks.find({"bscs.symbol":"NNVC"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
