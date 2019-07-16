@@ -1023,13 +1023,19 @@ def perform(h):
             print("h.perform() error")
             print(str(e))
             #exit()
-            return
+            return False
         perform(h)
+    return True
 
 def scroll(br, direction):
     e=br.find_element_by_tag_name('html')
     for i in range(5):
         e.send_keys(direction)
+
+def tab(br):
+    print("tab")
+    a = ac(br)
+    a.send_keys(Keys.TAB).perform()
 
 def popout_chart(br):
     a = ac(br)
@@ -1059,6 +1065,7 @@ def get_eps_for_element(br, description, convert, entries, offset, field, we, tr
     if trial == 1:
         a=ac(br)
         h = a.move_to_element(we)
+        h.perform()
         time.sleep(0.1)
     while j in range(10):
         a = ac(br)
@@ -1090,7 +1097,11 @@ def get_eps_for_element(br, description, convert, entries, offset, field, we, tr
         time.sleep(1)
         j += 1
     return j
- 
+
+def convert_date(label):
+    label = label.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+    return dt.strptime(label, '%B %Y').date()
+
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
@@ -1098,51 +1109,113 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     time.sleep(2)
     scroll(br, Keys.ARROW_DOWN)
     soup = BeautifulSoup(br.page_source, 'html.parser')
-    elements = soup.findAll(text=pattern)
+    tags = soup.find({"g"}, {"class":"highcharts-series-group"})
+    labels = tags.findAll({"rect"})
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+    end    = convert_date(str(labels[-1].attrs['aria-label']))
 
-    a = ac(br)
-    i = 0
-    print("elements: %d" % (len(elements)))
-    if len(elements) > 0:
-        #description = elements[0].parent.parent.attrs['aria-label']
-        #d1date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
-        #d1date = dt.strptime(d1date, '%b %d %Y').date()
+    st = start
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.since", str(start))
 
-        #description = elements[-1].parent.parent.attrs['aria-label']
-        #d2date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
-        #d2date = dt.strptime(d2date, '%b %d %Y').date()
-        ##d1date = datetime.strptime(d1, '%m/%d/%Y')
-        ##d2date = datetime.strptime(d2, '%m/%d/%Y')
-        #print(d1date)
-        #print(d2date)
-        #if d1date > d2date:
-        #    elements.reverse()
-        for e in elements:
-            if i >= 0:
-                description = e.parent.parent.attrs['aria-label']
-                #print(description)
-                #print(e.parent.parent)
-                attr = "g[aria-label=\'%s\'" % (description)
-                we = br.find_element(By.CSS_SELECTOR, attr)
-                a=ac(br)
-                h = a.move_to_element(we)
-                # h = a.move_to_element_with_offset(we,0,0)
-                perform(h)
-                #time.sleep(0.1)
-                offset = -1
-                j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
-                if j == 10:
-                    PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk.bscs.symbol, description))
-                    offset = 1
+    now = dt.now().date()
+    while True:
+        en = st + timedelta(days=365*10)
+        if en >= now:
+            en = now
+
+        print("Selecting date")
+        print("start: %s, end: %s" %(st, en))
+        we = br.find_element_by_css_selector(".bc-glyph-calendar")
+        we.click()
+        d="%s/%s/%s"%(st.strftime('%m'), st.strftime('%d'), st.strftime('%Y'))
+        we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[1]/div/input")
+        we.clear()
+        we.click()
+        we.send_keys(d)
+        time.sleep(0.5)
+        we.send_keys(Keys.TAB)
+        d="%s/%s/%s"%(en.strftime('%m'), en.strftime('%d'), en.strftime('%Y'))
+        we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[2]/div/input")
+        we.clear()
+        we.click()
+        we.send_keys(d)
+        time.sleep(0.5)
+        we.send_keys(Keys.TAB)
+        #tab(br)
+        #h=a.send_keys(d)
+        #h.perform()
+        br.find_element_by_css_selector("button.bc-button:nth-child(2)").click()
+        time.sleep(2)
+    
+        soup = BeautifulSoup(br.page_source, 'html.parser')
+        elements = soup.findAll(text=pattern)
+    
+        a = ac(br)
+        i = 0
+        print("elements: %d" % (len(elements)))
+        if len(elements) > 0:
+            #description = elements[0].parent.parent.attrs['aria-label']
+            #d1date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+            #d1date = dt.strptime(d1date, '%b %d %Y').date()
+    
+            #description = elements[-1].parent.parent.attrs['aria-label']
+            #d2date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
+            #d2date = dt.strptime(d2date, '%b %d %Y').date()
+            ##d1date = datetime.strptime(d1, '%m/%d/%Y')
+            ##d2date = datetime.strptime(d2, '%m/%d/%Y')
+            #print(d1date)
+            #print(d2date)
+            #if d1date > d2date:
+            #    elements.reverse()
+            #f = open("/home/vpetla/aapl-chart1.html","w")
+            #f.write(soup.prettify())
+            #f.close()
+            #input("Press any key to continue")
+
+            for e in elements:
+                if i >= 0:
+                    #print(e.parent.parent)
+                    #if not 'fill' in e.parent.parent.attrs:
+                    #    continue
+                    description = e.parent.parent.attrs['aria-label']
+                    #print(description)
+                    #print(e.parent.parent)
+                    attr = "g[aria-label=\'%s\'" % (description)
+                    we = br.find_element(By.CSS_SELECTOR, attr)
                     a=ac(br)
                     h = a.move_to_element(we)
-                    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
+                    # h = a.move_to_element_with_offset(we,0,0)
+                    if perform(h) is False:
+                        print("Skipping %s" %(description))
+                        continue
+                    time.sleep(0.5)
+                    offset = -1
+                    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
                     if j == 10:
-                        PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
-                        exit()
-                    #e={}
-                    #return e
-            i += 1
+                        PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk.bscs.symbol, description))
+                        offset = 1
+                        a=ac(br)
+                        h = a.move_to_element(we)
+                        h.perform()
+                        j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
+                        if j == 10:
+                            PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
+                            #entry = {}
+                            #if field == "split_factor":
+                            #    entry[get_date(br, description)] = {"price":get_price(description), "split":"100000:100000", field:100000}
+                            #else:
+                            #    entry[get_date(br,description)] = {"price":get_price(description), field:100000}
+                            #entries.update(entry)
+                            exit()
+                        #e={}
+                        #return e
+                i += 1
+        st = en
+        if en >= now:
+            break
+        if en >= end:
+            break
 
     pp = pprint.PrettyPrinter(indent=4)
     sorted_entries = {}
@@ -1245,6 +1318,23 @@ def toggle_split_button(br):
     e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
     click(e)
 
+def set_max_range(br):
+    try:
+        # set 10 year range
+        # e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
+        # set MAX range
+        e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+        e.click()
+    except Exception as e:
+        print(str(e))
+        stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+        soup=BeautifulSoup(br.page_source,"html.parser")
+        f=open(stk_file,"w")
+        f.write(soup.prettify())
+        f.close()
+        exit()
+
+
 def populate_US_EPS(stk):
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
     br = open_browser()
@@ -1278,17 +1368,8 @@ def populate_US_EPS(stk):
     # set 10 year range
     #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     time.sleep(1)
-    try:
-        e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
-        e.click()
-    except Exception as e:
-        print(str(e))
-        stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
-        soup=BeautifulSoup(br.page_source,"html.parser")
-        f=open(stk_file,"w")
-        f.write(soup.prettify())
-        f.close()
-        exit()
+    
+    set_max_range(br)
 
     br.maximize_window()
     popout_chart(br)
@@ -1304,12 +1385,16 @@ def populate_US_EPS(stk):
     toggle_earnings_button(br)
 
     time.sleep(1)
+    set_max_range(br)
+    time.sleep(3)
     toggle_dividend_button(br)
     pattern = re.compile(r'^D$')
     dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
     toggle_dividend_button(br)
 
     time.sleep(1)
+    set_max_range(br)
+    time.sleep(3)
     toggle_split_button(br)
     pattern = re.compile(r'^S$')
     split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)

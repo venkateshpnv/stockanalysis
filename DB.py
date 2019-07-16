@@ -470,19 +470,21 @@ def get_nin():
 
     # {"$ne": [ "AAP", "BLR", "CLG" ] }
     s=[]
-    f2 = open("/home/vpetla/work/stockanalysis/nins.txt","r")
+    #f2 = open("/home/vpetla/work/stockanalysis/nins.txt","r")
+    f2 = open("/home/vpetla/work/stockanalysis/file.txt","r")
     for line in f2:
         line = line.replace("\n","")
         s.append(line)
     syms = {"$nin" : s}
-    nin = {"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":syms}]}
+    nin = {"bscs.symbol":syms}
+    #nin = {"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":syms}]}
     print(nin)
     return nin
 
 def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
-    #docs = db.US_Stocks.find({"bscs.symbol":"NNVC"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"bscs.symbol":"AAPL"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
     docs  = db.US_Stocks.find(get_nin())
