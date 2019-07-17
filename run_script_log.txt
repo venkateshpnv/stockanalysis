@@ -1,0 +1,1847 @@
+firefox: no process found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 11: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1326, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1372, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1330, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1326, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1372, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1330, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1326, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1372, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1330, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1375, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1056, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Starting US_EPS.py
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+sudo: no tty present and no askpass program specified
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 8: /home/vpetla/work/stockanalysis/scripts/run_script.sh: cannot create /proc/sys/vm/drop_caches: Permission denied
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1326, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1372, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1330, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1384, in populate_US_EPS
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1114, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1384, in populate_US_EPS
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1114, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1375, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1059, in popout_chart
+    br.close()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 688, in close
+    self.execute(Command.CLOSE)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+firefox: no process found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1394, in populate_US_EPS
+    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1112, in get_all_entries
+    scroll(br, Keys.ARROW_DOWN)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1033, in scroll
+    e=br.find_element_by_tag_name('html')
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 530, in find_element_by_tag_name
+    return self.find_element(by=By.TAG_NAME, value=name)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Killed
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AFG/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AFG/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMH/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMH/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AIG/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AIG/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMID/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMID/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ARL/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ARL/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AWR/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AWR/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMT/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMT/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AVD/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AVD/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AWK/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AWK/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APU/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APU/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMP/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMP/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ABC/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ABC/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ANFI/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/ANFI/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMN/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMN/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMRX/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AMRX/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AP/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AP/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APH/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APH/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AXR/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AXR/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AME/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/AME/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APC/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/APC/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1351, in populate_US_EPS
+    close_browser(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 74, in close_browser
+    br.delete_all_cookies()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 878, in delete_all_cookies
+    self.execute(Command.DELETE_ALL_COOKIES)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.InvalidSessionIdException: Message: Tried to run command without establishing a connection
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1078, in get_eps_for_element
+    if pattern.match(val):
+TypeError: expected string or bytes-like object
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Terminated
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 498, in build_US_all_EPS
+    for doc in docs:
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 1189, in next
+    if len(self.__data) or self._refresh():
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 1126, in _refresh
+    self.__send_message(g)
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 982, in __send_message
+    helpers._check_command_response(first)
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/helpers.py", line 152, in _check_command_response
+    raise CursorNotFound(errmsg, code, response)
+pymongo.errors.CursorNotFound: cursor id 15510616720 not found
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/BKD/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/BKD/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/BAM/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1354, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Reached error page: about:neterror?e=dnsNotFound&u=https%3A//www.barchart.com/stocks/quotes/BAM/interactive-chart&c=UTF-8&f=regular&d=We%20can%E2%80%99t%20connect%20to%20the%20server%20at%20www.barchart.com.
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1078, in get_eps_for_element
+    if pattern.match(val):
+TypeError: expected string or bytes-like object
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1386, in populate_US_EPS
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1074, in get_eps_for_element
+    val = get_val(br, description, convert)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 983, in get_val
+    soup = BeautifulSoup(br.page_source, 'html.parser')
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 679, in page_source
+    return self.execute(Command.GET_PAGE_SOURCE)['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 17: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: poweroff: not found
++ export DISPLAY=:0.0
++ ps ax
++ + grep US_EPS.pygrep
+ -v grep
++ wc -l
++ val=0
++ [ 0 -eq 0 ]
++ killall firefox
+firefox: no process found
++ sleep 3
++ echo Starting US_EPS.py
+Starting US_EPS.py
++ python3 -u /home/vpetla/work/stockanalysis/US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1372, in populate_US_EPS
+    time.sleep(1)
+KeyboardInterrupt
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+Need to be root.
+firefox: no process found
+Starting US_EPS.py

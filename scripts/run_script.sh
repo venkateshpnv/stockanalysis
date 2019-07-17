@@ -5,7 +5,6 @@ SCRIPT=US_EPS.py
 
 exec >> $HOME_DIR/run_script_log.txt 2>&1 
 export DISPLAY=:0.0
-sudo sync; echo 3 > /proc/sys/vm/drop_caches
 val=`ps ax | grep $SCRIPT | grep -v grep | wc -l`
 if [ $val -eq 0 ]; then
 	killall firefox
@@ -15,5 +14,6 @@ if [ $val -eq 0 ]; then
    	python3 -u $HOME_DIR/$SCRIPT 2>&1 >> $HOME_DIR/EPS_History_log2.txt
    	#python3 -u $HOME_DIR/$SCRIPT 2>&1 | tee -a $HOME_DIR/EPS_History_log2.txt
    	#python3 $HOME_DIR/$SCRIPT
-	reboot
+	#reboot
+	echo "petla123" | sudo poweroff -f --reboot
 fi

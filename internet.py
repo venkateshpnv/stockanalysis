@@ -14,6 +14,8 @@ from selenium.webdriver import ActionChains as ac
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import gc
+
 # Parsing HTML
 import requests 
 
@@ -1192,14 +1194,14 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                     time.sleep(0.5)
                     offset = -1
                     j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
-                    if j == 10:
+                    if j == 20:
                         PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk.bscs.symbol, description))
                         offset = 1
                         a=ac(br)
                         h = a.move_to_element(we)
                         h.perform()
                         j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
-                        if j == 10:
+                        if j == 20:
                             PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
                             #entry = {}
                             #if field == "split_factor":
@@ -1406,6 +1408,7 @@ def populate_US_EPS(stk):
 
 
     close_browser(br)
+    gc.collect()
     #t1.join()
 
 def get_US_quarterly_stock_page(symbol, name):
