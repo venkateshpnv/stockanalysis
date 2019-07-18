@@ -1845,3 +1845,76 @@ NameError: name 'stk' is not defined
 Need to be root.
 firefox: no process found
 Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1078, in get_eps_for_element
+    if pattern.match(val):
+TypeError: expected string or bytes-like object
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 498, in build_US_all_EPS
+    for doc in docs:
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 1189, in next
+    if len(self.__data) or self._refresh():
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 1126, in _refresh
+    self.__send_message(g)
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/cursor.py", line 982, in __send_message
+    helpers._check_command_response(first)
+  File "/usr/local/lib/python3.6/dist-packages/pymongo/helpers.py", line 152, in _check_command_response
+    raise CursorNotFound(errmsg, code, response)
+pymongo.errors.CursorNotFound: cursor id 15553524000 not found
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1078, in get_eps_for_element
+    if pattern.match(val):
+TypeError: expected string or bytes-like object
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1394, in populate_US_EPS
+    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1394, in populate_US_EPS
+    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py

@@ -1203,13 +1203,13 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                         j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
                         if j == 20:
                             PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
-                            #entry = {}
-                            #if field == "split_factor":
-                            #    entry[get_date(br, description)] = {"price":get_price(description), "split":"100000:100000", field:100000}
-                            #else:
-                            #    entry[get_date(br,description)] = {"price":get_price(description), field:100000}
-                            #entries.update(entry)
-                            exit()
+                            entry = {}
+                            if field == "split_factor":
+                                entry[get_date(br, description)] = {"price":get_price(description), "split":"100000:100000", field:100000}
+                            else:
+                                entry[get_date(br,description)] = {"price":get_price(description), field:100000}
+                            entries.update(entry)
+                            #exit()
                         #e={}
                         #return e
                 i += 1
