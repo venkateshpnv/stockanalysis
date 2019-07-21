@@ -15,5 +15,6 @@ if [ $val -eq 0 ]; then
    	#python3 -u $HOME_DIR/$SCRIPT 2>&1 | tee -a $HOME_DIR/EPS_History_log2.txt
    	#python3 $HOME_DIR/$SCRIPT
 	#reboot
+	unset DISPLAY
 	sudo echo "petla123" | reboot
 fi

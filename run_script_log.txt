@@ -9681,3 +9681,2583 @@ NameError: name 'stk' is not defined
 /home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
 sudo: no tty present and no askpass program specified
 Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1386, in populate_US_EPS
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1386, in populate_US_EPS
+    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1380, in populate_US_EPS
+    (By.CSS_SELECTOR, '.highcharts-background')))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1380, in populate_US_EPS
+    (By.CSS_SELECTOR, '.highcharts-background')))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+wc: error while loading shared libraries: libc.so.6: cannot map zero-fill pages
+ps: error while loading shared libraries: liblzma.so.5: failed to map segment from shared object
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 9: [: -eq: unexpected operator
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1376, in populate_US_EPS
+    br.maximize_window()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 737, in maximize_window
+    self.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1048, in popout_chart
+    h.context_click().perform()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/common/action_chains.py", line 80, in perform
+    self.w3c_actions.perform()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/common/actions/action_builder.py", line 76, in perform
+    self.driver.execute(Command.W3C_ACTIONS, enc)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 18: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1328, in set_max_range
+    e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 598, in find_element_by_css_selector
+    return self.find_element(by=By.CSS_SELECTOR, value=css_selector)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: Unable to locate element: div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(13)
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1057, in popout_chart
+    h.click().perform()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/common/action_chains.py", line 80, in perform
+    self.w3c_actions.perform()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/common/actions/action_builder.py", line 76, in perform
+    self.driver.execute(Command.W3C_ACTIONS, enc)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.MoveTargetOutOfBoundsException: Message: (1110, 839) is out of bounds of viewport width (1853) and height (821)
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjsvzZam8udEdmxXgBe_y7DtiP-x_66_lvIJQT7affLjmww1MThcn42cjhMssR0-MDz-0_A_kg1r9UCetdKVuV6sGyt84J5Ir3r5ZvQRq7PhBuwTGQomJBUqW68_ijPP6rJvpSTT7nM_LCxgnbL1sI_bDfPal3rswg-PZFtw1Zkpd2FEUywOi1yIoB4dstIaWmXcEKXZB00Q_-oppigQ2UBmc76DNnTLw7HR6CqiXcI8vr4BOAq-YW13s4KRLjXBAHUmFJUeubvmRXP4ClDSlm9QBQUPZ6nD6XiT-OdbQ3yUrUUXRaP4i_USiq8F2PWHLw5QKWkPEQng&sai=AMfl-YTnvMOrdhd6LOU1JEPPCd3-bEm7K-GRLX--Nla5ntj-3hdHJYqATBPRWz9ollr70LFH3FWmJP4XCP5qhdM2tQodFwfgtS9QGB-fjUBK&sig=Cg0ArKJSzL2JZJKGn4heEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (654,746) because another element <div> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjst66JPKjwdw0M7OHUms6lQ-YYz3Iy7fNZ-8xP6igenYYKzKu08jEje5mbZ8fMvm8a2F2Vg82cWQDW76cJjgMosdTOGjJkhdYeMiB6Z0xA9z2MVrIaEM33N3ufgT_yBRalw4kn9oNkRw3zHh8GsMF2n1vbcwRvGo_OB_GnDKVhaXcPoZ69JGqANgvOVLqg6x63KrCi04MiMZ2AD7f4cEUxH_VJNaHf3pY2EOY_KGHyxYFyC8sxAiWYW28SywW7ofOeLvEFpm1sTAVGhm9j4rXepk4AHUk3cVyUGALd9ygblau1TBI36k0bOyZ0jENnutFsMlwCMBf-g&sai=AMfl-YTMD1bADBP3LwxWjnb5g8hkNlfOvcwNI04e91DmB2_C8pVcE6Me3So4QWVtxMAIvDBzMUEmBxqAmaMmd1gL4A6TdxC4u23uNLx_pma9_w&sig=Cg0ArKJSzDt6ygUcg-bgEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjsuYx_gi2L6DNylxC9uRz56nrXFEdsS_H9NRwRtdKTWpIrUE9EeKZA4IdF9CM_LOfv46fkrk_a7fhTL3ocp9-ud2CHo-bYS9VMUnOEfwJMpeFdJOBrvkcVnBmRWQrLURv8o91-Dm9jxZtoB8AA0ciAbFt5Os-kjHfhmLNON78FyfRz9K5bW5Ld83yPnAX-yQLD025RyONrob3THvcYXQMYuwIfJ45cFUK3HQ9IHDFkzBk0xKOvwBSwsxCzoZfuKRdJ4Rmv9QjFISPodMzmwltob8_e0Bc7JgqxS1wxej2gvIamMpKU_op0nhwz0gGrLBHEsTKubKxoQ&sai=AMfl-YSdWkhTypX-D4N4jObdONIa7TWa64AdBoSYh-na-1qGXLgNVlK2b2QVCQYpG02zMdo72xn-l4Ew3sRpuSkFwwmKHjK7nPWTo3fhTXB1&sig=Cg0ArKJSzEKKnrv2qqRXEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjsv89Mi2ae-1zQlsniOmQ151l_w-1xil6kQiK7F9DAT1J6nBR2bTPpWZXqydMjvno18S9TzPXTy5uZ9KoL77m2GoDrM8UnjFszro7jaxwyBx-H2qCJTIXlysaXaKN8Tk2LeNR7VhVf3_s4jzF-21av7WMvnSvQKRiEBryxqzzzLYNy5Ody1BDNCGdyPZ0QW_p_-8hXuqLC6czarFOZbnp4ZynXLd4JLUb8fWnlWIK1EqK3eyryefrWPbsM_lhNou7ZZs1iw0bKXeO60r8z_sbasZRLppb3jKcek0Jy8llRDR5UiddVroywEK0Uru0kSGwhbmBoi-xJI&sai=AMfl-YQdleg9g6wKm0RghKKx-jt0gZtDANB-j7a_f6AePKMsiU5DKSnnbM85GwRDBY9jKm9ICei8CJXNkmMEDA__kkcKn_SPzGqh5hGQX8cEeg&sig=Cg0ArKJSzEJUTN_nWSiDEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1394, in populate_US_EPS
+    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjstFzL69nM6RCEUsQ6HhYjN7vXCLyLC2rzz6lV_7EtDbkXwuiT6jiErir2H0ojnOVkZd_Q4CTBGjazGsYFbRX7fs_Q6GiKmMKI1MbiMfGuQV0i0vUP_tOmuL5Hy35sIPWAxDNKDCUXy_dBtcFIpo_VgYGlhmOgNzTE58YrMUl_-c1bKpyTem5RTBhPLfSsocIO63KgYiI2wdJIIGxA9ECyZeQrgCGdSAh7exM_ER8nXyv_ZQytt13xpLKdGm59gaurImycNbZOgosqQDIsu_LLPLbgSjwmwHKWFmjw-Xkg7-8i6gQr1MwWghFcMd5mvgXoXD5_WtKCs&sai=AMfl-YQHTXJ4QL91NjuEbOzugNp3U5nX5ljtksb2xQmqJgSVDNE4GnT3E6TqfG3mbmjolPCA3t6in8q-lnvmwY20psyV2VtbPXgiv0XDXjMx&sig=Cg0ArKJSzIrGQXD-kswJEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,627) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjstxfndH4zPb-KBi45DqQQENjp7yCYEdvBnU4QFVYipkU48zyCSx7wzgCyM1isO66XYgF50fnK6ac_p5jtg9WKgSDuBXxgIEcs4xq0ecKDDsYR9aaeIeTRaxdAFIcOkQHuFwQEBrTcDRiosfjBw2ASJ4qcyzDzDWS8QSDue1igQOc7OXSuNr4s-10FS6IFabFCKDbWGKJXyPyziZMK3yA4SCCfKvc47eQ5P2l6Uz8NH8tPNAaXcbT_U3WJG3Fo7YTo8Qazlc9kuQKu7bxwOrsP91E8MHeU54vp-vvbazt416uXGOMZEs5GwQ6h_fd2eit0Hi8CoOUUw&sai=AMfl-YS41uI-EMUnNF3kFUu9Md2FkrbnL61hyw4YwzrkoJTfKe8CWqjH1eKzXobuHEQi7mFPpsHchNoLt2J2lk1Gq39AU1f0t0ru_0qdPxFr0w&sig=Cg0ArKJSzMS0B8_B2s7cEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1380, in populate_US_EPS
+    (By.CSS_SELECTOR, '.highcharts-background')))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1046, in popout_chart
+    we=br.find_element_by_class_name("bc-interactive-chart__wrapper-chart-content")
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 564, in find_element_by_class_name
+    return self.find_element(by=By.CLASS_NAME, value=name)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 978, in find_element
+    'value': value})['value']
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: Failed to decode response from marionette
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1342, in populate_US_EPS
+    br = open_browser()
+  File "/home/vpetla/work/stockanalysis/internet.py", line 67, in open_browser
+    browser = webdriver.Firefox(profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/firefox/webdriver.py", line 174, in __init__
+    keep_alive=True)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 157, in __init__
+    self.start_session(capabilities, browser_profile)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 252, in start_session
+    response = self.execute(Command.NEW_SESSION, parameters)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.WebDriverException: Message: invalid argument: can't kill an exited process
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+                          firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1116, in get_all_entries
+    start  = convert_date(str(labels[0].attrs['aria-label']))
+IndexError: list index out of range
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1402, in populate_US_EPS
+    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1196, in get_all_entries
+    j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1078, in get_eps_for_element
+    if pattern.match(val):
+TypeError: expected string or bytes-like object
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1377, in populate_US_EPS
+    popout_chart(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1058, in popout_chart
+    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/support/wait.py", line 80, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1329, in set_max_range
+    e.click()
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 80, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webelement.py", line 633, in _execute
+    return self._parent.execute(command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 321, in execute
+    self.error_handler.check_response(response)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/errorhandler.py", line 242, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.ElementClickInterceptedException: Message: Element <li class="hide-for-small hide-for-medium-only"> is not clickable at point (594,467) because another element <img src="https://securepubads.g.doubleclick.net/pcs/view?xai=AKAOjsuUxNKkx3uUYDdLs-A-LcSNNYJMn6g4Y-eD3i90GXJ-IWizb280J-eocCTmnFALr3c5NmaA-N68NIH1DkU5FZmzSPARStOv5Jz5mujQfwJla0-BEHgW0wireYMkVNO2Ra5GDHCVbNrFC-mtMBVycF4YJiagk-U0neE3FEv3ZNabQMWybMyDg4HdM1Dja28mTpDkMgbMWB5CEl7Saq7oEVw4pzRYDl0KCybmHflPIeVzLaRAORI5pEMEI3ewiraJQ6vBAAaEX24XW-rJC1K3kDlvTcRCGg8EusheKjj66_rqsKNy3A4Qi4GFLb-hUODBr138ys5IhPs&sig=Cg0ArKJSzOw6wbttNTgAEAE&urlfix=1&adurl=https://tpc.googlesyndication.com/pagead/imgad?id=CICAgKDH4qzwEBABGAEyCOUXwE1cHYMD"> obscures it
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 508, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1374, in populate_US_EPS
+    set_max_range(br)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1332, in set_max_range
+    stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+NameError: name 'stk' is not defined
+/home/vpetla/work/stockanalysis/scripts/run_script.sh: 19: /home/vpetla/work/stockanalysis/scripts/run_script.sh: reboot: not found
+sudo: no tty present and no askpass program specified
+Starting US_EPS.py
