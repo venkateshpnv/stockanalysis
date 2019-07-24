@@ -1320,7 +1320,7 @@ def toggle_split_button(br):
     e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
     click(e)
 
-def set_max_range(br):
+def set_max_range(br, stk):
     try:
         # set 10 year range
         # e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
@@ -1371,7 +1371,7 @@ def populate_US_EPS(stk):
     #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     time.sleep(1)
     
-    set_max_range(br)
+    set_max_range(br, stk)
 
     br.maximize_window()
     popout_chart(br)
@@ -1387,7 +1387,7 @@ def populate_US_EPS(stk):
     toggle_earnings_button(br)
 
     time.sleep(1)
-    set_max_range(br)
+    set_max_range(br, stk)
     time.sleep(3)
     toggle_dividend_button(br)
     pattern = re.compile(r'^D$')
@@ -1395,7 +1395,7 @@ def populate_US_EPS(stk):
     toggle_dividend_button(br)
 
     time.sleep(1)
-    set_max_range(br)
+    set_max_range(br, stk)
     time.sleep(3)
     toggle_split_button(br)
     pattern = re.compile(r'^S$')
