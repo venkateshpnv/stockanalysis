@@ -500,16 +500,19 @@ def build_US_Stocks_List(excel_file):
     #    else:
     #        print("%s already present" %(sheet.cell_value(i,0)))
 
-def write_to_file(symbol):
-    f = open("/home/vpetla/work/stockanalysis/file.txt", "a")
+def write_to_file(symbol, filename):
+    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
+    f = open(filename, "a")
     symbol=symbol+"\n"
     f.write(symbol)
     f.close()
 
-def get_nin():
+def get_nin(filename, ninname):
     line=None
-    f1 = open("/home/vpetla/work/stockanalysis/file.txt","r")
-    f2 = open("/home/vpetla/work/stockanalysis/nins.txt","a")
+    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
+    ninname  = "/home/vpetla/work/stockanalysis/%s" %(ninname)
+    f1 = open(filename,"r")
+    f2 = open(ninname,"a")
 
     for line in f1:
         #print(line)
@@ -521,23 +524,49 @@ def get_nin():
     # {"$ne": [ "AAP", "BLR", "CLG" ] }
     s=[]
     #f2 = open("/home/vpetla/work/stockanalysis/nins.txt","r")
-    f2 = open("/home/vpetla/work/stockanalysis/file.txt","r")
+    f2 = open(filename,"r")
     for line in f2:
         line = line.replace("\n","")
         s.append(line)
     syms = {"$nin" : s}
     nin = {"bscs.symbol":syms}
     #nin = {"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":syms}]}
-    print(nin)
+    #print(nin)
     return nin
 
 def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
+    get_nin("file2.txt", "nins2.txt")
+    f1 = open("nins.txt", "r")
+    f2 = open("nins2.txt", "r")
+    #for stock in f:
+    for i, stock in enumerate(f1):
+        if stock in f2:
+            print("%s in nins2" %(stock.split("\n")[0]))
+            #break
+            pass
+        else:
+            stock = stock.split("\n")[0]
+            docs = db.US_Stocks.find({"bscs.symbol":stock})
+            if docs.count() == 1:
+                for doc in docs:
+                    stk = dbObject(**doc)
+                    #if stk.bscs.price == 0:
+                    print("%d: %s: %s"%(stk.sno,stk.bscs.symbol,stk.bscs.name))
+                    write_to_file(stk.bscs.symbol, "file2.txt")
+                    internet.populate_US_EPS(stk)
+                    #break
+    f1.close()
+    f2.close()
+
+def build_US_all_EPS_Old():
+    print("****************** Building US EPS ******************")
+    db = open_db('Stocks')
     #docs = db.US_Stocks.find({"bscs.symbol":"AAPL"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
-    docs  = db.US_Stocks.find(get_nin())
+    docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     count = docs.count()
     print(count)
@@ -554,7 +583,7 @@ def build_US_all_EPS():
             stk = dbObject(**doc)
             #if stk.bscs.price == 0:
             print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-            write_to_file(stk.bscs.symbol)
+            write_to_file(stk.bscs.symbol, "file.txt")
             internet.populate_US_EPS(stk)
             #break
  
@@ -640,10 +669,12 @@ def build_US_All_Stocks_List():
     new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
     new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
     new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
-    s = parse_html.html_table(new_stocks)
-    #print(s)
-    subject = 'New Stocks :' + str(datetime.now().date())
-    internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
+    # If atleast one new IPO
+    if len(new_stocks) > 1:
+        s = parse_html.html_table(new_stocks)
+        #print(s)
+        subject = 'New Stocks :' + str(datetime.now().date())
+        internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
 
 def build_US_stock_information(doc):
     db   = open_db('Stocks')
@@ -730,14 +761,15 @@ def build_US_all_stock_information():
 
         #if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
-            if obj.count() == 0:
-            #if doc['parsed'] != 'YES' and obj.count() == 0:
+            #if obj.count() == 0:
+            if doc['parsed'] != 'YES' and obj.count() == 0:
                 print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
                 #j += 1
                 #update_field(db.US_Stocks, doc['symbol'], "sno", j)
             else:
-                print("%d: %s: %s already present, skipping" %(sno,doc['symbol'], doc['Name']))
+                #print("%d: %s: %s already present, skipping" %(sno,doc['symbol'], doc['Name']))
+                pass
             #name = stock['Name']
             #sym = stock['symbol']
             #name = name.replace("&#39;", "\'")

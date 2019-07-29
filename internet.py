@@ -1412,7 +1412,7 @@ def populate_US_EPS(stk):
     #t1.join()
 
 def get_US_quarterly_stock_page(symbol, name):
-    path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)
+    path = "/tmp/stockanalysis/US_Stocks/html_pages/%s" %(name)
     path = path.lstrip().rstrip().replace(",","")
     try:
         os.makedirs(path, exist_ok=True)
