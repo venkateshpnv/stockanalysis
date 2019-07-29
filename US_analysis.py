@@ -16,7 +16,7 @@ def US_main():
     #html_text=internet.get_webpage('https://www.barchart.com/stocks/quotes/SAND/profile')
     #db=DB.open_db('Stocks')
     #DB.update_US_stk_profile(html_text, db.US_Stocks)
-    #DB.build_US_All_Stocks_List()
+    DB.build_US_All_Stocks_List()
     #DB.build_US_all_stock_information()
     #DB.update_US_all_stk_profile()
     #DB.update_sector_info()
@@ -29,7 +29,7 @@ def US_main():
     #stock = Stock()
     #url = "https://www.barchart.com/stocks/quotes/AVGO/interactive-chart"
     #internet.browse_US_stock_page(stock, url)
-    DB.build_US_all_earnings_estimates()
+    #DB.build_US_all_earnings_estimates()
 
 US_main()
 

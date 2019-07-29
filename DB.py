@@ -1,10 +1,12 @@
 import os
 # Excel operations
 import xlrd
+import csv
 import pymongo
 import re
 from datetime import datetime
 import time
+import requests
 
 import internet
 import parse_html
@@ -395,7 +397,7 @@ def update_all_price_volume_db(country):
     if country == 'US':
         docs = db.US_Stocks.find({}).sort([["sno",1]])
         for doc in docs:
-            if i > 4509:
+            if i > -1:
                 stk = dbObject(**doc)
                 #if stk.bscs.price == 0:
                 print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
@@ -436,19 +438,67 @@ def find_files():
     f.close()
 
 def build_US_Stocks_List(excel_file):
-    global j
     db = open_db('Stocks')
-    print(excel_file)
-    wb = xlrd.open_workbook(excel_file)
-    sheet = wb.sheet_by_index(0)
-    for i in range(1,sheet.nrows):
-        obj = db.US_Stocks_List.find({"symbol":sheet.cell_value(i, 0)})
-        if obj.count() == 0:
-            j+=1
-            stk = {"symbol" : str(sheet.cell_value(i, 0)).lstrip().rstrip(), "Name" : sheet.cell_value(i,1), "Industry" : sheet.cell_value(i, 6), "Sector" : sheet.cell_value(i, 5), "IPO Year" : sheet.cell_value(i, 4), "data" : "NO", "parsed" : "NO", "sno": j}
-            db.US_Stocks_List.insert_one(stk)
-        else:
-            print("%s already present" %(sheet.cell_value(i,0)))
+    j = db.US_Stocks_List.find({}).count()
+    #print(excel_file)
+    #wb = xlrd.open_workbook(excel_file)
+    #sheet = wb.sheet_by_index(0)
+
+    entries = []
+
+    with open(excel_file, "r") as f:
+        reader=csv.reader(f)
+        next(reader)
+        for row in reader:
+            #print(row[0], row[1], row[2])
+            sym = str(row[0]).replace("^","-").replace("~","").lstrip().rstrip()
+            name = str(row[1]).replace("^","-").replace("&#39;", "\'").replace("/", "").replace("?", "").replace("*", "").replace(",","").lstrip().rstrip()
+            #obj = db.US_Stocks_List.find({"Name":name})
+
+            s=[]
+            s.append(sym)
+            if "-" in sym:
+                s.append(sym.split("-")[0])
+            syms={"$in" : s}
+            obj = db.US_Stocks_List.find({"symbol":syms})
+            if obj.count() == 0:
+                entry = []
+                entry.append(sym)
+                entry.append(name)
+                entry.append(row[5])
+                entry.append(row[6])
+                entry.append(row[3])
+                entry.append(row[2])
+                if "." in sym:
+                    price_change = internet.price_change('US', sym.split(".")[0], name, 365, 'HOT')
+                elif "-" in sym:
+                    price_change = internet.price_change('US', sym.split("-")[0], name, 365, 'HOT')
+                else:
+                    price_change = internet.price_change('US', sym, name, 365, 'HOT')
+                if price_change:
+                    entry.append(str(round(price_change*100, 2))+'%')
+                else:
+                    entry.append("-")
+                #print(row)
+                entries.append(entry)
+
+                j+=1
+                stk = {"symbol" : sym, "Name" : name, "Industry" : row[6], "Sector" : row[5], "IPO Year" : row[4], "data" : "NO", "parsed" : "NO", "sno": j}
+                db.US_Stocks_List.insert_one(stk)
+                #print(stk)
+            else:
+                #print("%s already present" %(row[0]))
+                pass
+
+    return entries
+    #for i in range(1,sheet.nrows):
+    #    obj = db.US_Stocks_List.find({"symbol":sheet.cell_value(i, 0)})
+    #    if obj.count() == 0:
+    #        j+=1
+    #        stk = {"symbol" : str(sheet.cell_value(i, 0)).lstrip().rstrip(), "Name" : sheet.cell_value(i,1), "Industry" : sheet.cell_value(i, 6), "Sector" : sheet.cell_value(i, 5), "IPO Year" : sheet.cell_value(i, 4), "data" : "NO", "parsed" : "NO", "sno": j}
+    #        db.US_Stocks_List.insert_one(stk)
+    #    else:
+    #        print("%s already present" %(sheet.cell_value(i,0)))
 
 def write_to_file(symbol):
     f = open("/home/vpetla/work/stockanalysis/file.txt", "a")
@@ -562,11 +612,38 @@ def build_US_quarterly_stock_information(stk):
        #print(dirs)
        #print(sorted(files))
        parse_html.populate_US_stocks_quarterly(root, sorted(files), stk)
- 
+
+def get_US_Stock_list():
+    nasdaq_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
+    wb=requests.get(nasdaq_url)
+    f=open(conf.nasdaq_stocks,"wb")
+    f.write(wb.content)
+    f.close()
+
+    nyse_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nyse&render=download"
+    wb=requests.get(nyse_url)
+    f=open(conf.nyse_stocks,"wb")
+    f.write(wb.content)
+    f.close()
+
+    amex_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=amex&render=download"
+    wb=requests.get(amex_url)
+    f=open(conf.amex_stocks,"wb")
+    f.write(wb.content)
+    f.close()
+
 def build_US_All_Stocks_List():
-    build_US_Stocks_List(conf.amex_stocks)
-    build_US_Stocks_List(conf.nyse_stocks)
-    build_US_Stocks_List(conf.nasdaq_stocks)
+    get_US_Stock_list()
+    new_stocks = [] 
+    head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price", "Max Price Change"]
+    new_stocks.append(head)
+    new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
+    new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
+    new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
+    s = parse_html.html_table(new_stocks)
+    #print(s)
+    subject = 'New Stocks :' + str(datetime.now().date())
+    internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
 
 def build_US_stock_information(doc):
     db   = open_db('Stocks')
@@ -629,21 +706,21 @@ def build_US_stock_information(doc):
             ret = False
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
    
-    #if ret is True:
-    #    remove_dir(path)
+    if ret is True:
+        remove_dir(path)
  
 def build_US_all_stock_information():
     db = open_db('Stocks')
 
-    #stocks_list = db.US_Stocks_List.find({})
+    stocks_list = db.US_Stocks_List.find({})
     j=0
-    #for i, doc in enumerate(stocks_list):
-    for doc in db.US_Stocks_List.find({"symbol":"PLG"}).sort([["sno",1]]):
+    for i, doc in enumerate(stocks_list):
+    #for doc in db.US_Stocks_List.find({"symbol":"PLG"}).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 3443:
         #    break
-        #if sno > 0:
-        if sno > 5896:
+        if sno > 0:
+        #if sno > 5896:
         #if sno > 2134:
             name = doc['Name']
             #if name.find("Fund") != -1 or name.find("Trust") != -1:
@@ -669,6 +746,8 @@ def build_US_all_stock_information():
             #db.US_Stocks_List.update({"symbol":stock['symbol']},{'$set':{"Name":name}})
             #db.US_Stocks_List.update({'symbol': stock['symbol']}, {'$set': {"symbol": sym}})
 
+
+    set_sno('US')
     # Create index based on sno
     db.US_Stocks.createIndex({sno: -1})
 

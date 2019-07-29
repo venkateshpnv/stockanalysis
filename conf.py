@@ -109,9 +109,14 @@ RUPEE = u"\u20B9"
 
 #List of BSE Stocks
 bse_stocks="India_Stocks/BSE_Stocks.xls"
-nyse_stocks = "US_Stocks/NYSE_Stocks.xls"
-nasdaq_stocks = "US_Stocks/NASDAQ_Stocks.xls"
-amex_stocks = "US_Stocks/AMEX_Stocks.xls"
+#nyse_stocks = "US_Stocks/NYSE_Stocks.xls"
+#nasdaq_stocks = "US_Stocks/NASDAQ_Stocks.xls"
+#amex_stocks = "US_Stocks/AMEX_Stocks.xls"
+
+nyse_stocks = "/tmp/nyse.csv"
+nasdaq_stocks = "/tmp/nasdaq.csv"
+amex_stocks = "/tmp/amex.csv"
+
 # Percentage change in growth over a period of time
 gr1to5_percent   = 1
 gr6to8_percent   = 0.7

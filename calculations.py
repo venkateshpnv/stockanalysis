@@ -282,8 +282,8 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     no_dcf = 0
     for doc in collection.find({}).sort([["sno",1]]):
         sno = doc['sno']
-        if sno > 4628:
-        #if sno > 0:
+        #if sno > 4628:
+        if sno > 0:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
             stock = DB.dbObject(**doc)

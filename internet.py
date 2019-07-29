@@ -1462,7 +1462,7 @@ def get_US_quarterly_stock_page(symbol, name):
     return path
  
 def get_US_stock_page(symbol, name):
-    path = "/mnt/usb/stockanalysis/US_Stocks/html_pages/%s" %(name)
+    path = "/tmp/stockanalysis/US_Stocks/html_pages/%s" %(name)
     path = path.lstrip().rstrip().replace(",","")
     try:
         os.makedirs(path, exist_ok=True)
