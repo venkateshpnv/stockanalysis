@@ -46501,3 +46501,314 @@ Traceback (most recent call last):
     f1 = open("nins.txt", "r")
 FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
 /home/vpetla/work/stockanalysis/scripts/US_EPS.sh: 18: /home/vpetla/work/stockanalysis/scripts/US_EPS.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 380, in _make_request
+    httplib_response = conn.getresponse(buffering=True)
+TypeError: getresponse() got an unexpected keyword argument 'buffering'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 558, in build_US_all_EPS
+    internet.populate_US_EPS(stk)
+  File "/home/vpetla/work/stockanalysis/internet.py", line 1348, in populate_US_EPS
+    br.get(url)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 333, in get
+    self.execute(Command.GET, {'url': url})
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/webdriver.py", line 319, in execute
+    response = self.command_executor.execute(driver_command, params)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/remote_connection.py", line 374, in execute
+    return self._request(command_info[0], url, body=data)
+  File "/usr/local/lib/python3.6/dist-packages/selenium/webdriver/remote/remote_connection.py", line 397, in _request
+    resp = self._conn.request(method, url, body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/request.py", line 70, in request
+    **urlopen_kw)
+  File "/usr/lib/python3/dist-packages/urllib3/request.py", line 148, in request_encode_body
+    return self.urlopen(method, url, **extra_kw)
+  File "/usr/lib/python3/dist-packages/urllib3/poolmanager.py", line 322, in urlopen
+    response = conn.urlopen(method, u.request_uri, **kw)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 601, in urlopen
+    chunked=chunked)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 383, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.6/http/client.py", line 1331, in getresponse
+    response.begin()
+  File "/usr/lib/python3.6/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.6/http/client.py", line 258, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/usr/lib/python3.6/socket.py", line 586, in readinto
+    return self._sock.recv_into(b)
+KeyboardInterrupt
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 541, in build_US_all_EPS
+    f1 = open("nins.txt", "r")
+FileNotFoundError: [Errno 2] No such file or directory: 'nins.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 540, in build_US_all_EPS
+    get_nin("/home/vpetla/work/stockanalysis/scripts/file2.txt", "/home/vpetla/work/stockanalysis/nins2.txt")
+  File "/home/vpetla/work/stockanalysis/DB.py", line 514, in get_nin
+    f1 = open(filename,"r")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/vpetla/work/stockanalysis//home/vpetla/work/stockanalysis/scripts/file2.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 540, in build_US_all_EPS
+    get_nin("/home/vpetla/work/stockanalysis/scripts/file2.txt", "/home/vpetla/work/stockanalysis/nins2.txt")
+  File "/home/vpetla/work/stockanalysis/DB.py", line 514, in get_nin
+    f1 = open(filename,"r")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/vpetla/work/stockanalysis//home/vpetla/work/stockanalysis/scripts/file2.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: line 18: reboot: command not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 540, in build_US_all_EPS
+    get_nin("/home/vpetla/work/stockanalysis/scripts/file2.txt", "/home/vpetla/work/stockanalysis/nins2.txt")
+  File "/home/vpetla/work/stockanalysis/DB.py", line 514, in get_nin
+    f1 = open(filename,"r")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/vpetla/work/stockanalysis//home/vpetla/work/stockanalysis/scripts/file2.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: 18: /home/vpetla/work/stockanalysis/scripts/US_EPS.sh: reboot: not found
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 540, in build_US_all_EPS
+    get_nin("/home/vpetla/work/stockanalysis/scripts/file2.txt", "/home/vpetla/work/stockanalysis/nins2.txt")
+  File "/home/vpetla/work/stockanalysis/DB.py", line 514, in get_nin
+    f1 = open(filename,"r")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/vpetla/work/stockanalysis//home/vpetla/work/stockanalysis/scripts/file2.txt'
+firefox: no process found
+Starting US_EPS.py
+Traceback (most recent call last):
+  File "/home/vpetla/work/stockanalysis/US_EPS.py", line 5, in <module>
+    DB.build_US_all_EPS()
+  File "/home/vpetla/work/stockanalysis/DB.py", line 540, in build_US_all_EPS
+    get_nin("/home/vpetla/work/stockanalysis/scripts/file2.txt", "/home/vpetla/work/stockanalysis/nins2.txt")
+  File "/home/vpetla/work/stockanalysis/DB.py", line 514, in get_nin
+    f1 = open(filename,"r")
+FileNotFoundError: [Errno 2] No such file or directory: '/home/vpetla/work/stockanalysis//home/vpetla/work/stockanalysis/scripts/file2.txt'
+/home/vpetla/work/stockanalysis/scripts/US_EPS.sh: 18: /home/vpetla/work/stockanalysis/scripts/US_EPS.sh: reboot: not found

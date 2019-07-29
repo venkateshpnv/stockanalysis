@@ -538,8 +538,8 @@ def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
     get_nin("file2.txt", "nins2.txt")
-    f1 = open("nins.txt", "r")
-    f2 = open("nins2.txt", "r")
+    f1 = open("/home/vpetla/work/stockanalysis/nins.txt", "r")
+    f2 = open("/home/vpetla/work/stockanalysis/nins2.txt", "r")
     #for stock in f:
     for i, stock in enumerate(f1):
         if stock in f2:
