@@ -560,11 +560,20 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.MOS_PR, stk.num.dcf_price, style_decimal)
     ash.write(count, conf.CUR_RT, stk.num.cp_return_rate, style_percent)
     ash.write(count, conf.MOS_RT, stk.num.dcf_return_rate, style_percent)
-    ash.write(count, conf.DTOTE, stk.fig.DtoE[-1])
+    if len(stk.fig.DtoE) > 0:
+        ash.write(count, conf.DTOTE, stk.fig.DtoE[-1])
+    else:
+        ash.write(count, conf.DTOTE, "-")
     # vpetla. Calcuate interest coverage ratio and uncomment this line
     ##ash.write(count, conf.INT_C, stk.fig.INTR[-1])
-    ash.write(count, conf.ROE, stk.fig.ROE[-1], style_percent)
-    ash.write(count, conf.ROA, stk.fig.ROA[-1], style_percent)
+    if len(stk.fig.ROE) > 0:
+        ash.write(count, conf.ROE, stk.fig.ROE[-1], style_percent)
+    else:
+        ash.write(count, conf.ROE, "-")
+    if len(stk.fig.ROA) > 0:
+        ash.write(count, conf.ROA, stk.fig.ROA[-1], style_percent)
+    else:
+        ash.write(count, conf.ROA, "-")
     # vpetla. Calcuate ROCE and uncomment this line
     ##ash.write(count, conf.ROCE, stk.fig.ROCE[-1])
     try:

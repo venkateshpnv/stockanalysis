@@ -270,6 +270,7 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         col = db['US_Stocks']
         #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
         #for doc in col.find({}):
+        #docs = col.find({"bscs.symbol":"HEXO"}).sort([["sno",1]])
         docs = col.find({}).sort([["sno",1]])
         print("Count: %r" %(docs.count()))
         i=0
@@ -302,6 +303,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                     continue
                 i+=1
                 print("%d: %d: %s: %s" %(i, sno, sym, name))
+                if type(stock.num.eps_20yr) is int:
+                    stock.num.eps_20yr=[]
                 price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
         print("len_skip: %r, dcf_skip = %d, price_skip = %d, trading_skip = %d, vol_skip = %d" %(len_skip, dcf_skip, price_skip, trading_skip, vol_skip))
     elif country == 'India':
@@ -1007,7 +1010,7 @@ def get_date(br, description):
     try:
         date = dt.strptime(e.text, '%m/%d/%Y').date()
     except Exception:
-        PRINT_ERR(e.text)
+        PRINT_ERR("Failed to get Date", e.text)
         exit()
     return date
     #eps_date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
@@ -1260,6 +1263,7 @@ def find_element_by_css_selector(br, select):
     try:
         return br.find_element_by_css_selector(select)
     except Exception as e:
+        print("Failed to find element by css selector")
         print(str(e))
         soup=BeautifulSoup(br.page_source,"html.parser")
         f=open("/home/vpetla/stock-chart.html","w")
@@ -1334,10 +1338,19 @@ def set_max_range(br, stk):
         f=open(stk_file,"w")
         f.write(soup.prettify())
         f.close()
-        exit()
+        return False
 
+def write_hist_to_db(stk, eps_hist, dividend_hist, split_hist):
+    db = DB.open_db('Stocks')
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS_History", eps_hist)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.DIVIDEND_History", dividend_hist)
+    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.SPLIT_History", split_hist)
 
 def populate_US_EPS(stk):
+    eps_hist = {}
+    split_hist = {}
+    dividend_hist = {}
+
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
     br = open_browser()
 
@@ -1371,8 +1384,12 @@ def populate_US_EPS(stk):
     #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
     time.sleep(1)
     
-    set_max_range(br, stk)
-
+    if set_max_range(br, stk) is False:
+        write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
+        close_browser(br)
+        gc.collect()
+        return
+        
     br.maximize_window()
     popout_chart(br)
     br.maximize_window()
@@ -1401,11 +1418,7 @@ def populate_US_EPS(stk):
     pattern = re.compile(r'^S$')
     split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
 
-    db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS_History", eps_hist)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.DIVIDEND_History", dividend_hist)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.SPLIT_History", split_hist)
-
+    write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
 
     close_browser(br)
     gc.collect()

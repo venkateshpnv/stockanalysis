@@ -534,7 +534,7 @@ def get_nin(filename, ninname):
     #print(nin)
     return nin
 
-def build_US_all_EPS():
+def build_US_all_EPS_New():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
     get_nin("file2.txt", "nins2.txt")
@@ -560,14 +560,15 @@ def build_US_all_EPS():
     f1.close()
     f2.close()
 
-def build_US_all_EPS_Old():
+def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
     #docs = db.US_Stocks.find({"bscs.symbol":"AAPL"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
-    docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
+    #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
+    docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
     count = docs.count()
     print(count)
     if count == 0:
@@ -583,7 +584,7 @@ def build_US_all_EPS_Old():
             stk = dbObject(**doc)
             #if stk.bscs.price == 0:
             print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-            write_to_file(stk.bscs.symbol, "file.txt")
+            write_to_file(stk.bscs.symbol, "file2.txt")
             internet.populate_US_EPS(stk)
             #break
  

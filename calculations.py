@@ -166,7 +166,7 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta):
         for i in range(5):
             eps = eps * ((1 + growth) / (1 + discount))
             stk.num.eps_20yr.append(round(eps,2))
-        PRINT(stk.num.eps_20yr)
+        PRINT_ERR(stk.num.eps_20yr)
         growth = stk.num.growth_6to8
         PRINT("growth: %r" % (growth))
         for i in range(5,8):
