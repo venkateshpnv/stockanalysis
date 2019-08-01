@@ -987,9 +987,9 @@ def get_val(br, description, convert):
     f=open("/home/vpetla/avgo-chart.html","w")
     f.write(soup.prettify())
     f.close()
-    e = soup.find("td", {"class": "field-value"})
     try:
-        print("%s: %s" % (description, e.text))
+        e = soup.find("td", {"class": "field-value"})
+        print("get_val(): %s: %s" % (description, e.text))
         if convert:
             return float(e.text)
         return e.text
@@ -997,7 +997,10 @@ def get_val(br, description, convert):
         # if i > 10:
         #    break
     except Exception as e:
-        return 10000
+        print("Exception occured:", str(e))
+        if convert:
+            return 10000
+        #return "10000"
 
 def get_price(description):
     return round(float(description.split(",")[-1][:-1]), 2)
@@ -1075,14 +1078,15 @@ def get_eps_for_element(br, description, convert, entries, offset, field, we, tr
     while j in range(10):
         a = ac(br)
         val = get_val(br, description, convert)
+        print("val:",val)
         if field == "split_factor":
             pattern=re.compile(r'\d{1,4}-\d{1,4}')
             #pattern=re.compile(r'^[1-9]*-[1-9]*')
             if pattern.match(val):
                 split = round(float(val.split("-")[0])/float(val.split("-")[-1]), 3)
                 entry[get_date(br, description)] = {"price":get_price(description), "split":val, field:split}
-                entries.update(entry)
-                return j
+            entries.update(entry)
+            return j
         elif val != 10000:
             entry[get_date(br,description)] = {"price":get_price(description), field:val}
             entries.update(entry)
@@ -1184,17 +1188,23 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                     #if not 'fill' in e.parent.parent.attrs:
                     #    continue
                     description = e.parent.parent.attrs['aria-label']
-                    #print(description)
-                    #print(e.parent.parent)
+                    #print("Description:", description)
+                    #print("Parent:",e.parent.parent)
                     attr = "g[aria-label=\'%s\'" % (description)
                     we = br.find_element(By.CSS_SELECTOR, attr)
+                    #print("Web Element:", we)
                     a=ac(br)
                     h = a.move_to_element(we)
+                    time.sleep(1)
                     # h = a.move_to_element_with_offset(we,0,0)
+                    print("Hovering to element")
                     if perform(h) is False:
                         print("Skipping %s" %(description))
                         continue
-                    time.sleep(0.5)
+                    else:
+                        print("Hover Successfull")
+                        pass
+                    time.sleep(1)
                     offset = -1
                     j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
                     if j == 20:

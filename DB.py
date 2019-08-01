@@ -568,7 +568,8 @@ def build_US_all_EPS():
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
-    docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
+    #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
+    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "DAIO"}}]})
     count = docs.count()
     print(count)
     if count == 0:
@@ -593,6 +594,7 @@ def build_US_all_earnings_estimates():
     db = open_db('Stocks')
     #docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}})
     count = docs.count()
     print(count)
