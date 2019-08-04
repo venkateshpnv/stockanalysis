@@ -569,7 +569,7 @@ def build_US_all_EPS():
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
-    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP"]}}]})
+    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN"]}}]})
     count = docs.count()
     print(count)
     if count == 0:
