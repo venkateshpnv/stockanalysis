@@ -11,6 +11,7 @@ import requests
 import internet
 import parse_html
 from common import *
+from datastructures import *
 import conf
 
 j = 0
@@ -678,6 +679,7 @@ def build_US_All_Stocks_List():
         #print(s)
         subject = 'New Stocks :' + str(datetime.now().date())
         internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
+    return len(new_stocks)
 
 def build_US_stock_information(doc):
     db   = open_db('Stocks')
@@ -803,6 +805,29 @@ def update_sector_info():
                 db.US_Stocks.update({'bscs.symbol': obj[0]['symbol']}, {'$set': {"bscs.industry": obj[0]['Industry']}})
                 j += 1
     print("Total : %d" %(j))
+
+def update_stock_recession_beta(sym):
+    years = recessions.keys()
+    for year in years:
+        st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
+        en_date = datetime.strptime(recessions[year]['end'], "%B %Y").date()
+        print(st_date)
+        print(en_date)
+        betas = calculate_beta(sym, st_date, en_date)
+        db.US_Stocks.update({'bscs.symbol':sym},{'$set': {"fig.betas": betas}})
+    return
+
+    db = open_db('Stocks')
+
+    stocks_list = db.US_Stocks.find({"bscs.symbol":"AAPL"})
+    j=0
+    for i, doc in enumerate(stocks_list):
+        dates = doc['fig']['EPS_History'].keys()
+        for d in dates:
+            print(d)
+            print(doc['fig']['EPS_History'][d])
+            break
+        break
 
 def set_sno(country):
     db = open_db('Stocks')

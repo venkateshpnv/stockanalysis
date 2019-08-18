@@ -377,3 +377,17 @@ class Stock:
         self_earnings = Earnings()
         self.sno=0
 
+recessions = { 
+                "1990" : { "start" : "July 1990",
+                           "end" : "March 1991",
+                           "duration" : 8
+                         },
+                "2001" : { "start" : "March 2001",
+                           "end" : "November 2001",
+                           "duration" : 8
+                         },
+                "2007" : { "start" : "December 2007",
+                           "end" : "June 2009",
+                           "duration" : 18
+                         }
+             }

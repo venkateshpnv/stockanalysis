@@ -59,14 +59,21 @@ def get_radar_stocks():
     wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
     sheet = wb.sheet_by_index(0)
     entries = []
-    head=["Symbol", "Name", "Price", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
+    head=["Symbol", "Name", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
     entries.append(head)
     #for i in range(1,3):
     for i in range(1,sheet.nrows):
         entry = []
         sym  = str(sheet.cell_value(i, 1))
+        if sym == '':
+            continue
         name = str(sheet.cell_value(i, 0))
+        #print("Symbol: %r, Name: %r" %(sym, name))
+        #print("\"%s\"" %(sheet.cell_value(i,4)))
+        shortlist_price = float(sheet.cell_value(i, 4))
 
+        cur_price = internet.get_LTP('US', sym)
+        since_shortlist = cur_price / shortlist_price - 1  
         day_change = internet.price_change('US', sym, name, 2, 'HOT')
         week_change = internet.price_change('US', sym, name, 7, 'HOT')
         month_change = internet.price_change('US', sym, name, 30, 'HOT')
@@ -74,10 +81,11 @@ def get_radar_stocks():
         halfyear_change = internet.price_change('US', sym, name, 180, 'HOT')
         year_change = internet.price_change('US', sym, name, 365, 'HOT')
         price = internet.get_LTP('US', sym)
-        #print("Symbol: %r, Name: %r, price: %r, change: %r%%" %(sym, name, price, round(change * 100, 2)))
         entry.append(sym)
         entry.append(name)
         entry.append(str(price))
+        entry.append(str(shortlist_price))
+        entry.append(str(round(since_shortlist*100, 2))+'%')
         entry.append(str(round(day_change*100, 2))+'%')
         entry.append(str(round(week_change*100, 2))+'%')
         entry.append(str(round(month_change*100, 2))+'%')
