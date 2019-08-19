@@ -55,10 +55,21 @@ style_num.font.height = 10 * 20 #(10 pt)
 style_highlight = xlwt.XFStyle()
 style_highlight.pattern = pattern
 
+def get_usd_to_inr():
+    page = internet.get_webpage("http://www.dollar2rupee.net")
+    soup = parse_html.get_soup(page)
+    conversion_rate = soup.find("tr").find_next("tr").find_next("tr").find_all("td")[5].get_text()
+    entry = []
+    entry.append("USD to INR")
+    entry.append(conversion_rate)
+    return entry
+
 def get_radar_stocks():
     wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
     sheet = wb.sheet_by_index(0)
     entries = []
+    entries.append(get_usd_to_inr())
+    entries.append([""])
     head=["Symbol", "Name", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
     entries.append(head)
     #for i in range(1,3):
