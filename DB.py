@@ -4,9 +4,13 @@ import xlrd
 import csv
 import pymongo
 import re
-from datetime import datetime
 import time
 import requests
+
+from datetime import date, timedelta, datetime
+import numpy as np
+import pandas as pd
+import pandas_datareader as pdr
 
 import internet
 import parse_html
@@ -396,7 +400,7 @@ def update_all_price_volume_db(country):
     db = open_db('Stocks')
     i=0
     if country == 'US':
-        docs = db.US_Stocks.find({}).sort([["sno",1]])
+        docs = db.US_Stocks.find({},no_cursor_timeout=True).sort([["sno",1]])
         for doc in docs:
             if i > -1:
                 stk = dbObject(**doc)
@@ -564,13 +568,13 @@ def build_US_all_EPS_New():
 def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
-    #docs = db.US_Stocks.find({"bscs.symbol":"AAPL"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"bscs.symbol":"CMCL"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
-    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]})
+    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]},no_cursor_timeout=True)
     count = docs.count()
     print(count)
     if count == 0:
@@ -596,7 +600,7 @@ def build_US_all_earnings_estimates():
     #docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
-    docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}})
+    docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}},no_cursor_timeout=True)
     count = docs.count()
     print(count)
     if count == 0:
@@ -766,8 +770,8 @@ def build_US_all_stock_information():
 
         #if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
-            #if obj.count() == 0:
-            if doc['parsed'] != 'YES' and obj.count() == 0:
+            if obj.count() == 0:
+            #if doc['parsed'] != 'YES' and obj.count() == 0:
                 print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
                 #j += 1
@@ -787,6 +791,7 @@ def build_US_all_stock_information():
     set_sno('US')
     # Create index based on sno
     db.US_Stocks.createIndex({sno: -1})
+    db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
 
     print("Total : %d" %(j))
 
@@ -795,7 +800,7 @@ def build_US_all_stock_information():
 def update_sector_info():
     db = open_db('Stocks')
 
-    stocks_list = db.US_Stocks.find({})
+    stocks_list = db.US_Stocks.find({},no_cursor_timeout=True)
     j=0
     for i, doc in enumerate(stocks_list):
         if i > -1:
@@ -806,28 +811,148 @@ def update_sector_info():
                 j += 1
     print("Total : %d" %(j))
 
-def update_stock_recession_beta(sym):
+def get_beta(sym, bindex, sdate, edate):
+    betas = {}
+    try:
+        df = pdr.DataReader(sym,'yahoo',sdate,edate)
+    except KeyError:
+        return None
+
+    dfb = pdr.DataReader(bindex,'yahoo',sdate,edate)
+   
+    # Calculate CAGR
+    first = df['Adj Close'][0]
+    last = df['Adj Close'][-1]
+    years = (edate-sdate).days/365
+    cagr = round((((last/first)**(1/years))-1), 4)
+    first = dfb['Adj Close'][0]
+    last = dfb['Adj Close'][-1]
+    b_cagr = round((((last/first)**(1/years))-1), 4)
+    first = dfb['Adj Close'][0]
+    #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
+
+    # create a time-series of monthly data points
+    time_period=12. #months
+    rts = df.resample('M').last()
+    rbts = dfb.resample('M').last()
+    dfsm = pd.DataFrame({'s_adjclose' : rts['Adj Close'],
+                            'b_adjclose' : rbts['Adj Close']},
+                            index=rts.index)
+    
+    # compute returns
+    dfsm[['s_returns','b_returns']] = dfsm[['s_adjclose','b_adjclose']]/\
+        dfsm[['s_adjclose','b_adjclose']].shift(1) -1
+    dfsm = dfsm.dropna()
+    covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
+    
+    # calculate measures now
+    beta = covmat[0,1]/covmat[1,1]
+    alpha= np.mean(dfsm["s_returns"])-beta*np.mean(dfsm["b_returns"])
+    #alpha_pure= np.mean(dfsm["s_returns"])-np.mean(dfsm["b_returns"])
+    #print("alpha: %r" %(alpha))
+    #print("alpha: %r" %(alpha_pure))
+
+    ypred = alpha + beta * dfsm["b_returns"]
+    SS_res = np.sum(np.power(ypred-dfsm["s_returns"],2))
+    SS_tot = covmat[0,0]*(len(dfsm)-1) # SS_tot is sample_variance*(n-1)
+    r_squared = 1. - SS_res/SS_tot
+
+    # 5- year volatiity and 1-year momentum
+    volatility = np.sqrt(covmat[0,0])
+    #momentum = np.prod(1+dfsm["s_returns"].tail(12).values) -1
+    
+    # annualize the numbers
+    prd = 12. # used monthly returns; 12 periods to annualize
+    #alpha = alpha*prd
+    alpha = alpha*time_period
+    #alpha_pure = alpha_pure*time_period
+    alpha_pure = round(cagr - b_cagr, 4)
+    #print("alpha/year: %r" %(alpha))
+    #print("alpha_pure/year: %r" %(alpha_pure))
+    volatility = volatility*np.sqrt(time_period)
+
+    betas.update({"Index_CAGR":b_cagr})
+    betas.update({"CAGR":cagr})
+    betas.update({"beta":beta})
+    betas.update({"alpha":alpha})
+    betas.update({"alpha_pure":alpha_pure})
+    betas.update({"r_squared":r_squared})
+    betas.update({"volatility":volatility})
+    #print(betas)
+    return betas
+    #print (stock, beta, alpha, r_squared, volatility, momentum)
+    
+def update_stock_recession_beta(db, sym):
     years = recessions.keys()
     for year in years:
         st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
         en_date = datetime.strptime(recessions[year]['end'], "%B %Y").date()
-        print(st_date)
-        print(en_date)
-        betas = calculate_beta(sym, st_date, en_date)
-        db.US_Stocks.update({'bscs.symbol':sym},{'$set': {"fig.betas": betas}})
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(sym, '^GSPC', st_date, en_date)
+        field="fig.betas.recession.%s" %(year)
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
-    db = open_db('Stocks')
 
-    stocks_list = db.US_Stocks.find({"bscs.symbol":"AAPL"})
-    j=0
-    for i, doc in enumerate(stocks_list):
-        dates = doc['fig']['EPS_History'].keys()
-        for d in dates:
-            print(d)
-            print(doc['fig']['EPS_History'][d])
-            break
-        break
+def update_stock_betas():
+    db_handle = open_db('Stocks')
+    db = db_handle.US_Stocks
+    bindex='^GSPC'
+    docs = db.find({},no_cursor_timeout=True).sort([["sno",1]])
+    #docs = db.find({"bscs.symbol":"ICE"},no_cursor_timeout=True).sort([["sno",1]])
+    for i, doc in enumerate(docs):
+        sym = doc['bscs']['symbol']
+        print("%r: %r" %(i, sym))
+        update_stock_recession_beta(db, sym)
+        since = doc['bscs']['since']
+        since_start = datetime.strptime(since, "%Y-%m-%d").date()
+
+        #Since last recession
+        betas = None
+        year = sorted(recessions.keys())[-1]
+        st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
+        en_date = datetime.now().date()
+        if (st_date - since_start).days > 0:
+            betas = get_beta(sym, bindex, st_date, en_date)
+        field="fig.betas.since_last_recession"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+
+        #whole beta
+        st_date = since_start
+        en_date = datetime.now().date()
+        betas = get_beta(sym, bindex, st_date, en_date)
+        field="fig.betas.whole"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+
+        #5 year beta
+        en_date = datetime.now().date()
+        betas = None
+        if (en_date - st_date).days >= 5*365:
+            st_date = en_date - timedelta(days=5*365)
+            betas = get_beta(sym, bindex, st_date, en_date)
+        field="fig.betas.five_year"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+
+        #1 year beta
+        st_date = since_start
+        en_date = datetime.now().date()
+        betas = None
+        if (en_date - st_date).days >= 1*365:
+            st_date = en_date - timedelta(days=1*365)
+            betas = get_beta(sym, bindex, st_date, en_date)
+        field="fig.betas.one_year"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+
+        #6 months beta
+        st_date = since_start
+        en_date = datetime.now().date()
+        betas = None
+        if (en_date - st_date).days >= 365/2:
+            st_date = en_date - timedelta(days=365/2)
+            betas = get_beta(sym, bindex, st_date, en_date)
+        field="fig.betas.six_months"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
 def set_sno(country):
     db = open_db('Stocks')

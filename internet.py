@@ -1197,12 +1197,12 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                     h = a.move_to_element(we)
                     time.sleep(1)
                     # h = a.move_to_element_with_offset(we,0,0)
-                    print("Hovering to element")
+                    #print("Hovering to element")
                     if perform(h) is False:
                         print("Skipping %s" %(description))
                         continue
                     else:
-                        print("Hover Successfull")
+                        #print("Hover Successfull")
                         pass
                     time.sleep(1)
                     offset = -1
@@ -1215,7 +1215,7 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                         h.perform()
                         j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
                         if j == 20:
-                            PRINT_ERR("%s: Couldn't get Value for : %r" %(stk.bscs.symbol, description))
+                            PRINT_ERR("%s: Couldn't get Value for : %r, writing 100000" %(stk.bscs.symbol, description))
                             entry = {}
                             if field == "split_factor":
                                 entry[get_date(br, description)] = {"price":get_price(description), "split":"100000:100000", field:100000}
