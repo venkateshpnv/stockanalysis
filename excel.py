@@ -1,3 +1,4 @@
+import sys
 # Excel operations
 import xlrd
 import xlwt
@@ -64,12 +65,66 @@ def get_usd_to_inr():
     entry.append(conversion_rate)
     return entry
 
+def get_symbol_prices(sym, name, country, index, shortlist_price):
+    entry = []
+    if not index:
+        entry.append(sym)
+    entry.append(name)
+    price = internet.get_LTP(country, sym)
+    entry.append(str(price))
+    if not index:
+        entry.append(str(shortlist_price))
+        since_shortlist = price / shortlist_price - 1  
+        entry.append(str(round(since_shortlist*100, 2))+'%')
+
+    try:
+        change = internet.price_change(country, sym, name, 2, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        change = internet.price_change(country, sym, name, 7, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        change = internet.price_change(country, sym, name, 30, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        change = internet.price_change(country, sym, name, 90, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        change = internet.price_change(country, sym, name, 180, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        change = internet.price_change(country, sym, name, 365, 'HOT')
+        entry.append(str(round(change*100, 2))+'%')
+        if index:
+            change = internet.price_change(country, sym, name, 365*5, 'HOT')
+            entry.append(str(round(change*100, 2))+'%')
+            change = internet.price_change(country, sym, name, 365*10, 'HOT')
+            if change:
+                entry.append(str(round(change*100, 2))+'%')
+    except Exception as e:
+        print(change)
+        sys.exit()
+    #print(entry)
+    return entry
+ 
 def get_radar_stocks():
     wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
     sheet = wb.sheet_by_index(0)
     entries = []
+    # USD to INR
     entries.append(get_usd_to_inr())
     entries.append([""])
+
+    ##Indices
+    head = [ "Index", "Price", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change", "5 Year Change", "10 Year Change"]
+    #print(head)
+    entries.append(head)
+    entry = []
+    entries.append(get_symbol_prices("^BSESN", "BSE", 'US', 1, 0))
+    entries.append(get_symbol_prices("^NSEI", "NSE", 'US', 1, 0))
+    entries.append(get_symbol_prices("^GSPC", "S&P 500", 'US', 1, 0))
+    entries.append(get_symbol_prices("^DJI", "Dow Jones", 'US', 1, 0))
+    entries.append(get_symbol_prices("^IXIC", "Nasdaq", 'US', 1, 0))
+    entries.append(get_symbol_prices("^RUT", "Russel 2000", 'US', 1, 0))
+    entries.append([""])
+    #entries.append([""])
+
+    #Stocks
     head=["Symbol", "Name", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
     entries.append(head)
     #for i in range(1,3):
@@ -79,32 +134,33 @@ def get_radar_stocks():
         if sym == '':
             continue
         name = str(sheet.cell_value(i, 0))
-        #print("Symbol: %r, Name: %r" %(sym, name))
+        print("Symbol: %r, Name: %r" %(sym, name))
         #print("\"%s\"" %(sheet.cell_value(i,4)))
         shortlist_price = float(sheet.cell_value(i, 4))
 
-        cur_price = internet.get_LTP('US', sym)
-        since_shortlist = cur_price / shortlist_price - 1  
-        day_change = internet.price_change('US', sym, name, 2, 'HOT')
-        week_change = internet.price_change('US', sym, name, 7, 'HOT')
-        month_change = internet.price_change('US', sym, name, 30, 'HOT')
-        quarter_change = internet.price_change('US', sym, name, 90, 'HOT')
-        halfyear_change = internet.price_change('US', sym, name, 180, 'HOT')
-        year_change = internet.price_change('US', sym, name, 365, 'HOT')
-        price = internet.get_LTP('US', sym)
-        entry.append(sym)
-        entry.append(name)
-        entry.append(str(price))
-        entry.append(str(shortlist_price))
-        entry.append(str(round(since_shortlist*100, 2))+'%')
-        entry.append(str(round(day_change*100, 2))+'%')
-        entry.append(str(round(week_change*100, 2))+'%')
-        entry.append(str(round(month_change*100, 2))+'%')
-        entry.append(str(round(quarter_change*100, 2))+'%')
-        entry.append(str(round(halfyear_change*100, 2))+'%')
-        entry.append(str(round(year_change*100, 2))+'%')
-        entries.append(entry)
-        #print(entries)
+        entries.append(get_symbol_prices(sym, name, 'US', None, shortlist_price))
+        #cur_price = internet.get_LTP('US', sym)
+        #since_shortlist = cur_price / shortlist_price - 1  
+        #day_change = internet.price_change('US', sym, name, 2, 'HOT')
+        #week_change = internet.price_change('US', sym, name, 7, 'HOT')
+        #month_change = internet.price_change('US', sym, name, 30, 'HOT')
+        #quarter_change = internet.price_change('US', sym, name, 90, 'HOT')
+        #halfyear_change = internet.price_change('US', sym, name, 180, 'HOT')
+        #year_change = internet.price_change('US', sym, name, 365, 'HOT')
+        #price = internet.get_LTP('US', sym)
+        #entry.append(sym)
+        #entry.append(name)
+        #entry.append(str(price))
+        #entry.append(str(shortlist_price))
+        #entry.append(str(round(since_shortlist*100, 2))+'%')
+        #entry.append(str(round(day_change*100, 2))+'%')
+        #entry.append(str(round(week_change*100, 2))+'%')
+        #entry.append(str(round(month_change*100, 2))+'%')
+        #entry.append(str(round(quarter_change*100, 2))+'%')
+        #entry.append(str(round(halfyear_change*100, 2))+'%')
+        #entry.append(str(round(year_change*100, 2))+'%')
+        #entries.append(entry)
+        ##print(entries)
     s = parse_html.html_table(entries)
     #print(s)
     subject = 'Radar Stocks :' + str(dt.now().date())
