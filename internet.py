@@ -122,11 +122,14 @@ def send_email2(user, pwd, recipient, subject, body):
 
 def price_change(country, sym, name, num_days, data_type):
     change = 0
+    if '.' in sym:
+        sym = sym.replace('.', '-')
     if data_type == 'HOT':
         end = dt.now()
         start = end - timedelta(days=num_days)
         try:
             #print("Symbol: %s, Name: %s" %(sym, name))
+            #read = pdr.DataReader(sym, 'morningstar', start, end)
             read = pdr.DataReader(sym, 'yahoo', start, end)
         except pdr._utils.RemoteDataError:
             PRINT_ERR("Unable to get data for %s"%(sym))

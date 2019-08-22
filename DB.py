@@ -899,11 +899,13 @@ def update_stock_betas():
     db_handle = open_db('Stocks')
     db = db_handle.US_Stocks
     bindex='^GSPC'
-    docs = db.find({},no_cursor_timeout=True).sort([["sno",1]])
-    #docs = db.find({"bscs.symbol":"ICE"},no_cursor_timeout=True).sort([["sno",1]])
+    docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
+    #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
+    print(docs.count())
     for i, doc in enumerate(docs):
         sym = doc['bscs']['symbol']
-        print("%r: %r" %(i, sym))
+        sym = sym.replace('.', '-')
+        print("%r: %r" %(doc['sno'], sym))
         update_stock_recession_beta(db, sym)
         since = doc['bscs']['since']
         since_start = datetime.strptime(since, "%Y-%m-%d").date()

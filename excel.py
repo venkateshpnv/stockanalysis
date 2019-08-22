@@ -77,6 +77,7 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
         since_shortlist = price / shortlist_price - 1  
         entry.append(str(round(since_shortlist*100, 2))+'%')
 
+    change = None
     try:
         change = internet.price_change(country, sym, name, 2, 'HOT')
         entry.append(str(round(change*100, 2))+'%')

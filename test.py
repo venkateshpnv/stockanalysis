@@ -1,6 +1,7 @@
 import pandas_datareader
 import datetime
 
+import pandas_datareader as pdr
 from pandas_datareader.quandl import QuandlReader
 
 
@@ -12,11 +13,12 @@ def get_data(ticker):
     try:
         #data = QuandlReader("WIKI/{}".format(ticker), start=START, end=END)
         #df = data.read()
-        #df = pandas_datareader.data.DataReader("TSLA", 'stooq', START, END)
-        df = pandas_datareader.data.DataReader("FAST", 'iex', START, END)
+        #df = pandas_datareader.data.DataReader("^SNX", 'stooq', START, END)
+        df = pandas_datareader.data.DataReader("BWL-A", 'yahoo', START, END)
+        #df = pdr.DataReader(ticker, 'iex', START, END)
         print(df.tail(5))
     except ValueError:
         print('Ticker Symbol %s is not available!' % (ticker))
 
 get_data('TSLA') #valid Symbol
-get_data('yyfy') #not a valid Symbol
+#get_data('yyfy') #not a valid Symbol
