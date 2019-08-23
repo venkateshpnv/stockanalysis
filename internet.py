@@ -1016,7 +1016,7 @@ def get_date(br, description):
     try:
         date = dt.strptime(e.text, '%m/%d/%Y').date()
     except Exception:
-        PRINT_ERR("Failed to get Date", e.text)
+        PRINT_ERR("Failed to get Date: %r", e.text)
         exit()
     return date
     #eps_date = description.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
@@ -1034,8 +1034,10 @@ def perform(h):
             print("h.perform() error")
             print(str(e))
             #exit()
+            perform_i=0
             return False
         perform(h)
+    perform_i=0
     return True
 
 def scroll(br, direction):
@@ -1111,8 +1113,17 @@ def get_eps_for_element(br, description, convert, entries, offset, field, we, tr
     return j
 
 def convert_date(label):
+    date = None
     label = label.rsplit(",", 1)[0].split(".")[-1].split(",", 1)[-1].lstrip().rstrip().replace(",", "")
-    return dt.strptime(label, '%B %Y').date()
+    try:
+        date = dt.strptime(label, '%B %Y').date()
+    except ValueError:
+        print(date)
+        date = dt.strptime(label, '%B %D %Y').date()
+    if not date:
+        print(date)
+        sys.exit()
+    return date
 
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
@@ -1207,6 +1218,7 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                     else:
                         #print("Hover Successfull")
                         pass
+                    h=a=None
                     time.sleep(1)
                     offset = -1
                     j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
@@ -1379,14 +1391,16 @@ def populate_US_EPS(stk):
         br = open_browser()
         br.get(url)
 
+    e = None
     try:
         # e=br.find_element_by_xpath("//*[@id="ic_guyoff6702"]")
         e = br.find_element_by_xpath("/html/body/div[9]/div[2]/div[3]/div/img")
+        print(e)
         if e:
             e.click()
-    except Exception as e:
-        pass
-        #print(str(e))
+    except Exception as E:
+       pass
+        #print(str(E))
 
     # try:
     #    e=br.find_element_by_xpath("//*[@id="off7131"]")
@@ -1398,6 +1412,8 @@ def populate_US_EPS(stk):
     time.sleep(1)
     
     if set_max_range(br, stk) is False:
+        #db = DB.open_db('Stocks')
+        #DB.update_field(db.US_Stocks, stk.bscs.symbol, "ignore", "Yes")
         write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
         close_browser(br)
         gc.collect()
@@ -1414,8 +1430,9 @@ def populate_US_EPS(stk):
     toggle_earnings_button(br)
     pattern = re.compile(r'^E$')
     eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
-    toggle_earnings_button(br)
 
+    toggle_earnings_button(br)
+    
     time.sleep(1)
     set_max_range(br, stk)
     time.sleep(3)

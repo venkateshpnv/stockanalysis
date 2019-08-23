@@ -505,12 +505,20 @@ def build_US_Stocks_List(excel_file):
     #    else:
     #        print("%s already present" %(sheet.cell_value(i,0)))
 
-def write_to_file(symbol, filename):
+def write_to_file(val, filename, mode):
     filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
-    f = open(filename, "a")
-    symbol=symbol+"\n"
-    f.write(symbol)
+    f = open(filename, mode)
+    val=val+"\n"
+    f.write(val)
     f.close()
+
+def read_from_file(filename):
+    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
+    f = open(filename, "r")
+    val=f.read()
+    f.close()
+    return val
+
 
 def get_nin(filename, ninname):
     line=None
@@ -559,7 +567,7 @@ def build_US_all_EPS_New():
                     stk = dbObject(**doc)
                     #if stk.bscs.price == 0:
                     print("%d: %s: %s"%(stk.sno,stk.bscs.symbol,stk.bscs.name))
-                    write_to_file(stk.bscs.symbol, "file2.txt")
+                    write_to_file(stk.bscs.symbol, "file2.txt", "a")
                     internet.populate_US_EPS(stk)
                     #break
     f1.close()
@@ -568,13 +576,16 @@ def build_US_all_EPS_New():
 def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     db = open_db('Stocks')
-    #docs = db.US_Stocks.find({"bscs.symbol":"CMCL"}).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"$and": [{"bscs.since":{"$exists": False}}, {"ignore":"No"}]},no_cursor_timeout=True).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"bscs.since":{"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
+    #docs = db.US_Stocks.find({"bscs.symbol":"BKD"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
-    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]},no_cursor_timeout=True)
+    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, ]},no_cursor_timeout=True)
+    #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]},no_cursor_timeout=True)
     count = docs.count()
     print(count)
     if count == 0:
@@ -590,7 +601,7 @@ def build_US_all_EPS():
             stk = dbObject(**doc)
             #if stk.bscs.price == 0:
             print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-            write_to_file(stk.bscs.symbol, "file2.txt")
+            write_to_file(stk.bscs.symbol, "file2.txt", "a")
             internet.populate_US_EPS(stk)
             #break
  
@@ -917,6 +928,10 @@ def update_stock_betas():
     print(docs.count())
     for i, doc in enumerate(docs):
         sym = doc['bscs']['symbol']
+        sno = int(read_from_file("beta.txt"))
+        if sno >= doc['sno']:
+            continue
+
         print("%r: %r" %(doc['sno'], sym))
         update_stock_recession_beta(db, sym)
         since = doc['bscs']['since']
@@ -972,6 +987,7 @@ def update_stock_betas():
         if betas:
             field="fig.betas.six_months"
             db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        write_to_file(str(doc['sno']), "beta.txt", "w")
 
 def set_sno(country):
     db = open_db('Stocks')
