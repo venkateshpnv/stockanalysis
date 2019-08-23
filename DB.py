@@ -813,6 +813,7 @@ def update_sector_info():
 
 def get_beta(sym, bindex, sdate, edate):
     betas = {}
+    sym = sym.replace('.', '-')
     try:
         df = pdr.DataReader(sym,'yahoo',sdate,edate)
     except KeyError:
@@ -822,9 +823,20 @@ def get_beta(sym, bindex, sdate, edate):
    
     # Calculate CAGR
     first = df['Adj Close'][0]
+    if isinstance(first, complex):
+        print("first is complex number")
     last = df['Adj Close'][-1]
+    if isinstance(last, complex):
+        print("last is complex number")
+    #print(df['Adj Close'].head(5))
+    #print(df['Adj Close'].tail(5))
     years = (edate-sdate).days/365
-    cagr = round((((last/first)**(1/years))-1), 4)
+    #print("sdate: %r, edate: %r, last: %r, first: %r"%(sdate, edate, last, first))
+    try:
+        cagr = round((((last/first)**(1/years))-1), 4)
+    except Exception as e:
+        print(str(e))
+        return
     first = dfb['Adj Close'][0]
     last = dfb['Adj Close'][-1]
     b_cagr = round((((last/first)**(1/years))-1), 4)
@@ -890,8 +902,9 @@ def update_stock_recession_beta(db, sym):
         #print(st_date)
         #print(en_date)
         betas = get_beta(sym, '^GSPC', st_date, en_date)
-        field="fig.betas.recession.%s" %(year)
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.recession.%s" %(year)
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
 
@@ -899,12 +912,11 @@ def update_stock_betas():
     db_handle = open_db('Stocks')
     db = db_handle.US_Stocks
     bindex='^GSPC'
-    docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
+    docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     print(docs.count())
     for i, doc in enumerate(docs):
         sym = doc['bscs']['symbol']
-        sym = sym.replace('.', '-')
         print("%r: %r" %(doc['sno'], sym))
         update_stock_recession_beta(db, sym)
         since = doc['bscs']['since']
@@ -917,15 +929,17 @@ def update_stock_betas():
         en_date = datetime.now().date()
         if (st_date - since_start).days > 0:
             betas = get_beta(sym, bindex, st_date, en_date)
-        field="fig.betas.since_last_recession"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.since_last_recession"
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
         #whole beta
         st_date = since_start
         en_date = datetime.now().date()
         betas = get_beta(sym, bindex, st_date, en_date)
-        field="fig.betas.whole"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.whole"
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
         #5 year beta
         en_date = datetime.now().date()
@@ -933,8 +947,9 @@ def update_stock_betas():
         if (en_date - st_date).days >= 5*365:
             st_date = en_date - timedelta(days=5*365)
             betas = get_beta(sym, bindex, st_date, en_date)
-        field="fig.betas.five_year"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.five_year"
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
         #1 year beta
         st_date = since_start
@@ -943,8 +958,9 @@ def update_stock_betas():
         if (en_date - st_date).days >= 1*365:
             st_date = en_date - timedelta(days=1*365)
             betas = get_beta(sym, bindex, st_date, en_date)
-        field="fig.betas.one_year"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.one_year"
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
         #6 months beta
         st_date = since_start
@@ -953,8 +969,9 @@ def update_stock_betas():
         if (en_date - st_date).days >= 365/2:
             st_date = en_date - timedelta(days=365/2)
             betas = get_beta(sym, bindex, st_date, en_date)
-        field="fig.betas.six_months"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        if betas:
+            field="fig.betas.six_months"
+            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
 def set_sno(country):
     db = open_db('Stocks')
