@@ -923,13 +923,15 @@ def update_stock_betas():
     db_handle = open_db('Stocks')
     db = db_handle.US_Stocks
     bindex='^GSPC'
-    docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
+    docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     print(docs.count())
     for i, doc in enumerate(docs):
         sym = doc['bscs']['symbol']
         sno = int(read_from_file("beta.txt"))
-        if sno >= doc['sno']:
+        #if sno > doc['sno']:
+        #    continue
+        if doc['ignore'] == 'Yes':
             continue
 
         print("%r: %r" %(doc['sno'], sym))
