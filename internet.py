@@ -283,7 +283,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
             if sno > 150:
             #if sno > 0:
                 doc['id'] = doc.pop('_id')
-                stock = DB.dbObject(**doc)
+                #stock = DB.dbObject(**doc)
+                stock = doc
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 #print("%r : "%(i), end = '')
@@ -315,7 +316,8 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         for doc in col.find({}):
             if i > -1:
                 doc['id'] = doc.pop('_id')
-                stock = dbObject(**doc)
+                #stock = dbObject(**doc)
+                stock = doc
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 sym = sym + '.BO'
@@ -330,44 +332,44 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
 
 
 def get_price_volume(stk, country):
-    #data = pdr.get_data_yahoo(symbols=stk.bscs.symbol, start=dt(2019,4,15), end=dt(2019,4,18))
-    #stk.bscs.price  = round(float(data.iat[-1, data.columns.get_loc('Adj Close')]), 2)
+    #data = pdr.get_data_yahoo(symbols=stk['bscs']['symbol'], start=dt(2019,4,15), end=dt(2019,4,18))
+    #stk['bscs']['price']  = round(float(data.iat[-1, data.columns.get_loc('Adj Close')]), 2)
     #vol = data[['Volume']]
     #sum = 0        
     #for v in vol.values.tolist():
     #    sum += v[0]
-    #stk.bscs.volume = sum / len(vol.values.tolist())
+    #stk['bscs']['volume'] = sum / len(vol.values.tolist())
     
     ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
     try:
         if country == 'India':
-            d = data.get_quote_yahoo(stk.bscs.symbol+'.BO')
+            d = data.get_quote_yahoo(stk['bscs']['symbol']+'.BO')
         elif country == 'US':
-            d = data.get_quote_yahoo(stk.bscs.symbol)
+            d = data.get_quote_yahoo(stk['bscs']['symbol'])
         else:
             PRINT_ERR("Unknown Country Name")
             return None
     except KeyError:
-        PRINT_ERR("Unable to get price and volume for %s"%(stk.bscs.symbol))
+        PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
         return None
     except pdr._utils.RemoteDataError:
-        PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
+        PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
         return None
     try:
         # Add moving average etc. Refer /tmp/test.csv for details
-        stk.bscs.volume = (d.averageDailyVolume3Month.to_list()[0])
-        #stk.bscs.volume = d.regularMarketVolume.to_list()[0]
-        stk.bscs.mcap   = float(d.marketCap.to_list()[0])/1000000
-        stk.bscs.price  = (d.price.to_list()[0])
-        stk.bscs.outstanding_shares = d.sharesOutstanding.to_list()[0]
+        stk['bscs']['volume'] = (d.averageDailyVolume3Month.to_list()[0])
+        #stk['bscs']['volume'] = d.regularMarketVolume.to_list()[0]
+        stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/1000000
+        stk['bscs']['price']  = (d.price.to_list()[0])
+        stk['bscs']['outstanding_shares'] = d.sharesOutstanding.to_list()[0]
     except AttributeError as e:
         PRINT_ERR(str(e))
-        PRINT_ERR("Couldn't get a particular field for %s" %(stk.bscs.symbol))
+        PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
     return stk
 
 def get_price_growth(country, stk, years, data_type):
-    if stk.bscs.price_years != 5 and stk.bscs.price_years != 10 and stk.bscs.price_years != 0:
-        yrs = int(stk.bscs.price_years)
+    if stk['bscs']['price_years'] != 5 and stk['bscs']['price_years'] != 10 and stk['bscs']['price_years'] != 0:
+        yrs = int(stk['bscs']['price_years'])
     else:
         yrs = years
 
@@ -376,11 +378,11 @@ def get_price_growth(country, stk, years, data_type):
         st = dt(end.year-years, end.month, end.day)
         print("start: %s, end: %s" %(st.date(), end.date()))
         try:
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
+            data = pdr.DataReader(stk['bscs']['symbol'], 'yahoo', st, end)
         except pdr._utils.RemoteDataError:
-            PRINT_ERR("Unable to get data for %s: %s"%(stk.bscs.name, stk.bscs.symbol))
-            stk.bscs.hist_price_5 = 1
-            stk.bscs.hist_price_10 = 1
+            PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
+            stk['bscs']['hist_price_5'] = 1
+            stk['bscs']['hist_price_10'] = 1
             return 0
 
         st_price = data.iat[0, data.columns.get_loc('Close')]
@@ -389,21 +391,21 @@ def get_price_growth(country, stk, years, data_type):
         print("yrs: %d, %s" %(yrs, str(list(data.index)[0]).split('-')[0]))
         del data
         if years <= 5:
-            stk.bscs.hist_price_5 = st_price
+            stk['bscs']['hist_price_5'] = st_price
         else:
             end = dt.today()
             st = dt(end.year-5, end.month, end.day)
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
-            stk.bscs.hist_price_5 = data.iat[0, data.columns.get_loc('Close')]
+            data = pdr.DataReader(stk['bscs']['symbol'], 'yahoo', st, end)
+            stk['bscs']['hist_price_5'] = data.iat[0, data.columns.get_loc('Close')]
             del data
  
         if years > 5 and years <= 10:
-            stk.bscs.hist_price_10 = st_price
+            stk['bscs']['hist_price_10'] = st_price
         else:
             end = dt.today()
             st = dt(end.year-10, end.month, end.day)
-            data = pdr.DataReader(stk.bscs.symbol, 'yahoo', st, end)
-            stk.bscs.hist_price_10 = data.iat[0, data.columns.get_loc('Close')]
+            data = pdr.DataReader(stk['bscs']['symbol'], 'yahoo', st, end)
+            stk['bscs']['hist_price_10'] = data.iat[0, data.columns.get_loc('Close')]
             del data
 
         db = DB.open_db('Stocks')
@@ -414,19 +416,19 @@ def get_price_growth(country, stk, years, data_type):
         else:
             raise exception("Unknown Country Name %s" %(country))
 
-        DB.update_field(collection, stk.bscs.symbol, "bscs.hist_price_5", stk.bscs.hist_price_5)
-        DB.update_field(collection, stk.bscs.symbol, "bscs.hist_price_10", stk.bscs.hist_price_10)
-        DB.update_field(collection, stk.bscs.symbol, "bscs.price", round(en_price,2))
-        DB.update_field(collection, stk.bscs.symbol, "bscs.price_years", yrs)
+        DB.update_field(collection, stk['bscs']['symbol'], "bscs.hist_price_5", stk['bscs']['hist_price_5'])
+        DB.update_field(collection, stk['bscs']['symbol'], "bscs.hist_price_10", stk['bscs']['hist_price_10'])
+        DB.update_field(collection, stk['bscs']['symbol'], "bscs.price", round(en_price,2))
+        DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_years", yrs)
  
     if yrs < 1:
         yrs = 1
     if years == 10:
-        st_price = stk.bscs.hist_price_10
+        st_price = stk['bscs']['hist_price_10']
     else:
-        st_price = stk.bscs.hist_price_5
+        st_price = stk['bscs']['hist_price_5']
 
-    en_price = stk.bscs.price
+    en_price = stk['bscs']['price']
     #    st_price = round(float(st_price.real),2)
     #if isinstance(en_price, complex):
     #    en_price = rount(float(en_price.real),2)
@@ -441,16 +443,16 @@ def get_price_growth(country, stk, years, data_type):
 # Get stock split information
 def get_stock_split_info_yahoo(country, stk):
     if country == 'India':
-        sym = stk.bscs.symbol + '.BO'
+        sym = stk['bscs']['symbol'] + '.BO'
     elif country != 'US':
         PRINT_ERR("Unknown Country")
         return
     #get split info from Yahoo Finance
     data = yf(sym).get_key_statistics_data()
-    stk.bscs.split_factor = float(Fraction(data[sym]['lastSplitFactor']))
+    stk['bscs']['split_factor'] = float(Fraction(data[sym]['lastSplitFactor']))
     d = data[sym]['lastSplitDate']
-    stk.bscs.split_date = d
-    stk.bscs.split_year = datetime.datetime.strptime(d, '%Y-%m-%d').year 
+    stk['bscs']['split_date'] = d
+    stk['bscs']['split_year'] = datetime.datetime.strptime(d, '%Y-%m-%d').year 
 
 def get_LTP(country, sym):
     sym1 = sym
@@ -579,35 +581,35 @@ def get_US_earnings_estimates(symbol, name):
 
 def update_DB_US_earnings_estimates(stk, earnings, fiftytwoweek_high, fiftytwoweek_low):
     db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.fiftytwoweek_high", fiftytwoweek_high)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.fiftytwoweek_low", fiftytwoweek_low)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.date", earnings.date)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.high_target", earnings.high_target)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.mean_target", earnings.mean_target)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.low_target", earnings.low_target)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.fiftytwoweek_high", fiftytwoweek_high)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.fiftytwoweek_low", fiftytwoweek_low)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.date", earnings.date)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.high_target", earnings.high_target)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.mean_target", earnings.mean_target)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.low_target", earnings.low_target)
 
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.quarters", earnings.hist.quarters)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.reported", earnings.hist.reported)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.estimate", earnings.hist.estimate)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.difference", earnings.hist.difference)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.hist.surprise", earnings.hist.surprise)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.hist.quarters", earnings.hist.quarters)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.hist.reported", earnings.hist.reported)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.hist.estimate", earnings.hist.estimate)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.hist.difference", earnings.hist.difference)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.hist.surprise", earnings.hist.surprise)
 
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.quarters", earnings.est.quarters)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.years", earnings.est.years)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.quarters", earnings.est.quarters)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.years", earnings.est.years)
 
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_avg_est", earnings.est.q_avg_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_num_est", earnings.est.q_num_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_high_est", earnings.est.q_high_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_low_est", earnings.est.q_low_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_prior_yr", earnings.est.q_prior_yr)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.q_gr_rate", earnings.est.q_gr_rate)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_avg_est", earnings.est.q_avg_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_num_est", earnings.est.q_num_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_high_est", earnings.est.q_high_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_low_est", earnings.est.q_low_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_prior_yr", earnings.est.q_prior_yr)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.q_gr_rate", earnings.est.q_gr_rate)
 
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_avg_est", earnings.est.y_avg_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_num_est", earnings.est.y_num_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_high_est", earnings.est.y_high_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_low_est", earnings.est.y_low_est)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_prior_yr", earnings.est.y_prior_yr)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "quart_fig.Earning_Estimates.est.y_gr_rate", earnings.est.y_gr_rate)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_avg_est", earnings.est.y_avg_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_num_est", earnings.est.y_num_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_high_est", earnings.est.y_high_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_low_est", earnings.est.y_low_est)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_prior_yr", earnings.est.y_prior_yr)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "quart_fig.Earning_Estimates.est.y_gr_rate", earnings.est.y_gr_rate)
 
 def click_sym(symbol, elem):
     print(len(elem))
@@ -615,12 +617,12 @@ def click_sym(symbol, elem):
 def populate_US_earnings_estimates(stk):
     earnings = Earnings()
 
-    url = "https://www.barchart.com/stocks/quotes/%s/earnings-estimates" %(stk.bscs.symbol)
+    url = "https://www.barchart.com/stocks/quotes/%s/earnings-estimates" %(stk['bscs']['symbol'])
     br = open_browser()
     try:
         br.get(url)
     except Exception:
-        print("%s: %s webpage loading timeout, trying again" %(stk.bscs.symbol, stk.bscs.name))
+        print("%s: %s webpage loading timeout, trying again" %(stk['bscs']['symbol'], stk['bscs']['name']))
         close_browser(br)
         time.sleep(5)
         br = open_browser()
@@ -637,7 +639,7 @@ def populate_US_earnings_estimates(stk):
     try:
         page = br.page_source
     except Exception as e:
-        print("%s: %s page source exception trying again, err: %s" %(stk.bscs.symbol, stk.bscs.name, str(e)))
+        print("%s: %s page source exception trying again, err: %s" %(stk['bscs']['symbol'], stk['bscs']['name'], str(e)))
         time.sleep(5)
         br.get(url)
         page = br.page_source
@@ -645,17 +647,17 @@ def populate_US_earnings_estimates(stk):
     soup = parse_html.get_soup(page)
 
     if soup.find("title").text.lstrip().rstrip() == 'Page not found':
-        PRINT_ERR("%s:%s Invalid page, skipping" %(stk.bscs.symbol, stk.bscs.name))
-        update_DB_US_earnings_estimates(stk, earnings, stk.bscs.price, stk.bscs.price)
+        PRINT_ERR("%s:%s Invalid page, skipping" %(stk['bscs']['symbol'], stk['bscs']['name']))
+        update_DB_US_earnings_estimates(stk, earnings, stk['bscs']['price'], stk['bscs']['price'])
         close_browser(br)
         return
 
-    msg = ' Earnings are not available for %s.  ' %(stk.bscs.symbol)
+    msg = ' Earnings are not available for %s.  ' %(stk['bscs']['symbol'])
     pattern = re.compile(r'%s'%msg)
     div = soup.find(text=pattern)
     if div:
-        PRINT_ERR("%s:%s does not have earnings estimates, skipping" %(stk.bscs.symbol, stk.bscs.name))
-        update_DB_US_earnings_estimates(stk, earnings, stk.bscs.price, stk.bscs.price)
+        PRINT_ERR("%s:%s does not have earnings estimates, skipping" %(stk['bscs']['symbol'], stk['bscs']['name']))
+        update_DB_US_earnings_estimates(stk, earnings, stk['bscs']['price'], stk['bscs']['price'])
         close_browser(br)
         return
     
@@ -673,7 +675,7 @@ def populate_US_earnings_estimates(stk):
 
 
     l = soup.find("span", {"class": "last-change ng-binding"})
-    DB.update_field(DB.open_db('Stocks').US_Stocks, stk.bscs.symbol, "bscs.price", str_to_float(l.text))
+    DB.update_field(DB.open_db('Stocks').US_Stocks, stk['bscs']['symbol'], "bscs.price", str_to_float(l.text))
 
     l=soup.find_all(text=re.compile('^Qtr Ending'))
     for entry in l:
@@ -797,7 +799,7 @@ def populate_US_earnings_estimates(stk):
 	#br.find_element_by_name("search").send_keys(Keys.ARROW_DOWN)
 	#br.find_element_by_name("search").send_keys(Keys.RETURN)
 
-    #click_sym(stk.bscs.symbol, elem)
+    #click_sym(stk['bscs']['symbol'], elem)
     #print("Opts: %r : %r" %(len(opts.text), opts.text))
 
     #return
@@ -807,7 +809,7 @@ def populate_US_earnings_estimates(stk):
     #    if e:
     #        s=e.text
     #        if s.find("Earnings are not available for") != -1:
-    #            print("No data for %s: %s, skipping" %(stk.bscs.symbol, stk.bscs.name))
+    #            print("No data for %s: %s, skipping" %(stk['bscs']['symbol'], stk['bscs']['name']))
     #            return
     #except Exception as e:
     #    print(str(e))
@@ -815,7 +817,7 @@ def populate_US_earnings_estimates(stk):
     #try:
     #    e=br.find_element_by_xpath("/html/body/div[2]/div/div[2]/div[1]/div/div[1]/div/div/div/div[2]/div/p[1]")
     #    if e:
-    #        print("Page does not exist for %s: %s, skipping" %(stk.bscs.symbol, stk.bscs.name))
+    #        print("Page does not exist for %s: %s, skipping" %(stk['bscs']['symbol'], stk['bscs']['name']))
     #        return
     #except Exception as e:
     #    print(str(e))
@@ -1139,7 +1141,7 @@ def get_all_entries(br, stk, item, field, pattern, convert):
 
     st = start
     db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "bscs.since", str(start))
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.since", str(start))
 
     now = dt.now().date()
     while True:
@@ -1223,14 +1225,14 @@ def get_all_entries(br, stk, item, field, pattern, convert):
                     offset = -1
                     j = get_eps_for_element(br, description, convert, entries, offset, field, we, 0)
                     if j == 20:
-                        PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk.bscs.symbol, description))
+                        PRINT_ERR("%s: Couldn't get Value for : %r, checking the other way" %(stk['bscs']['symbol'], description))
                         offset = 1
                         a=ac(br)
                         h = a.move_to_element(we)
                         h.perform()
                         j = get_eps_for_element(br, description, convert, entries, offset, field, we, 1)
                         if j == 20:
-                            PRINT_ERR("%s: Couldn't get Value for : %r, writing 100000" %(stk.bscs.symbol, description))
+                            PRINT_ERR("%s: Couldn't get Value for : %r, writing 100000" %(stk['bscs']['symbol'], description))
                             entry = {}
                             if field == "split_factor":
                                 entry[get_date(br, description)] = {"price":get_price(description), "split":"100000:100000", field:100000}
@@ -1358,7 +1360,7 @@ def set_max_range(br, stk):
         e.click()
     except Exception as e:
         print(str(e))
-        stk_file="/home/vpetla/%s-chart.html" %(stk.bscs.symbol)
+        stk_file="/home/vpetla/%s-chart.html" %(stk['bscs']['symbol'])
         soup=BeautifulSoup(br.page_source,"html.parser")
         f=open(stk_file,"w")
         f.write(soup.prettify())
@@ -1367,16 +1369,16 @@ def set_max_range(br, stk):
 
 def write_hist_to_db(stk, eps_hist, dividend_hist, split_hist):
     db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.EPS_History", eps_hist)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.DIVIDEND_History", dividend_hist)
-    DB.update_field(db.US_Stocks, stk.bscs.symbol, "fig.SPLIT_History", split_hist)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.EPS_History", eps_hist)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.DIVIDEND_History", dividend_hist)
+    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.SPLIT_History", split_hist)
 
 def populate_US_EPS(stk):
     eps_hist = {}
     split_hist = {}
     dividend_hist = {}
 
-    url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk.bscs.symbol)
+    url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
     br = open_browser()
 
     #t1 = threading.Thread(target=close_popups, args=(br,lock,))
@@ -1385,7 +1387,7 @@ def populate_US_EPS(stk):
     try:
         br.get(url)
     except Exception:
-        print("%s: %s webpage loading timeout, trying again" %(stk.bscs.symbol, stk.bscs.name))
+        print("%s: %s webpage loading timeout, trying again" %(stk['bscs']['symbol'], stk['bscs']['name']))
         close_browser(br)
         time.sleep(5)
         br = open_browser()
@@ -1413,7 +1415,7 @@ def populate_US_EPS(stk):
     
     if set_max_range(br, stk) is False:
         #db = DB.open_db('Stocks')
-        #DB.update_field(db.US_Stocks, stk.bscs.symbol, "ignore", "Yes")
+        #DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "ignore", "Yes")
         write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
         close_browser(br)
         gc.collect()
@@ -1726,28 +1728,28 @@ def get_India_all_stocks_html():
 
 # Get stock split information
 def get_stock_split_info_yahoo(stk):
-    sym = stk.bscs.symbol + '.BO'
+    sym = stk['bscs']['symbol'] + '.BO'
     #get split info from Yahoo Finance
     data = yf(sym).get_key_statistics_data()
-    stk.bscs.split_factor = float(Fraction(data[sym]['lastSplitFactor']))
+    stk['bscs']['split_factor'] = float(Fraction(data[sym]['lastSplitFactor']))
     d = data[sym]['lastSplitDate']
-    stk.bscs.split_date = d
-    stk.bscs.split_year = datetime.datetime.strptime(d, '%Y-%m-%d').year 
+    stk['bscs']['split_date'] = d
+    stk['bscs']['split_year'] = datetime.datetime.strptime(d, '%Y-%m-%d').year 
 
 def get_stock_split_info(stk):
     wb = xlrd.open_workbook('India_Stocks/split_data.xls')
     sheet = wb.sheet_by_index(0)
     for i in range(1,sheet.nrows):
-        if str(sheet.cell_value(i, 0)) == stk.bscs.name:
-            stk.bscs.split_date = sheet.cell_value(i,1)
-            stk.bscs.split_year = datetime.datetime.strptime(stk.bscs.split_date, '%d-%b-%Y').year
+        if str(sheet.cell_value(i, 0)) == stk['bscs']['name']:
+            stk['bscs']['split_date'] = sheet.cell_value(i,1)
+            stk['bscs']['split_year'] = datetime.datetime.strptime(stk['bscs']['split_date'], '%d-%b-%Y').year
             try:
-                stk.bscs.split_factor = int(sheet.cell_value(i, 3)) / int(sheet.cell_value(i,4))
+                stk['bscs']['split_factor'] = int(sheet.cell_value(i, 3)) / int(sheet.cell_value(i,4))
             except ZeroDivisionError:
-                stk.bscs.split_factor=1
+                stk['bscs']['split_factor']=1
             return
-    if stk.bscs.face_value != 10:
-        PRINT_ERR("Could not find split date for %s, facevalue: %r" %(stk.bscs.symbol, stk.bscs.face_value))   
+    if stk['bscs']['face_value'] != 10:
+        PRINT_ERR("Could not find split date for %s, facevalue: %r" %(stk['bscs']['symbol'], stk['bscs']['face_value']))   
 
 # Get symbol name for bse symbol
 # Get sector information
@@ -1757,10 +1759,10 @@ def get_symbol_and_sector(stk):
     #sheet.cell_value(0,0)
 
     for i in range(1,sheet.nrows):
-        if str(int(sheet.cell_value(i, 0))) == stk.bscs.bse_symbol:
-            stk.bscs.symbol = sheet.cell_value(i,1)
-            stk.bscs.sector = sheet.cell_value(i,7)
+        if str(int(sheet.cell_value(i, 0))) == stk['bscs']['bse_symbol']:
+            stk['bscs']['symbol'] = sheet.cell_value(i,1)
+            stk['bscs']['sector'] = sheet.cell_value(i,7)
             return
-    PRINT_ERR("Cant find symbol name for %s" %(stk.bscs.bse_symbol))
+    PRINT_ERR("Cant find symbol name for %s" %(stk['bscs']['bse_symbol']))
 
 

@@ -86,16 +86,16 @@ def lowest_3(a, b, c):
 
 #Print Stock Info
 def print_stock_info(stk):
-    PRINT("Name: %r" %(stk.bscs.name))
-    PRINT("Symbol: %r" %(stk.bscs.symbol))
-    PRINT("Price: %r" %(stk.bscs.price))
-    PRINT("Face Value: %r" %(stk.bscs.face_value))
-    PRINT("Promoter Stake: %r" %(stk.bscs.promoter_stake))
-    PRINT("Corporate Stake: %r" %(stk.bscs.corp_stake))
-    PRINT("Public Stake: %r" %(stk.bscs.pub_stake))
-    PRINT("FII Stake: %r" % (stk.bscs.fii_stake))
-    PRINT("DII Stake: %r" % (stk.bscs.dii_stake))
-    PRINT("Others Stake: %r" % (stk.bscs.others_stake))
+    PRINT("Name: %r" %(stk['bscs']['name']))
+    PRINT("Symbol: %r" %(stk['bscs']['symbol']))
+    PRINT("Price: %r" %(stk['bscs']['price']))
+    PRINT("Face Value: %r" %(stk['bscs']['face_value']))
+    PRINT("Promoter Stake: %r" %(stk['bscs']['promoter_stake']))
+    PRINT("Corporate Stake: %r" %(stk['bscs']['corp_stake']))
+    PRINT("Public Stake: %r" %(stk['bscs']['pub_stake']))
+    PRINT("FII Stake: %r" % (stk['bscs']['fii_stake']))
+    PRINT("DII Stake: %r" % (stk['bscs']['dii_stake']))
+    PRINT("Others Stake: %r" % (stk['bscs']['others_stake']))
 
 def remove_dir(path):
     filelist = [f for f in os.listdir(path)]

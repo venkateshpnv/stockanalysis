@@ -121,15 +121,15 @@ def populate_India_entry(stk, div, row, convert):
     entry.reverse()
     if convert:
         entry = list(map(float, entry))
-    #stk.fig.entries[row] = entry.copy()
-    #stk.fig.entries.append(entry)
-    stk.fig.entries.insert(row, entry)
+    #stk['fig']['entries'][row] = entry.copy()
+    #stk['fig']['entries'].append(entry)
+    stk['fig']['entries'].insert(row, entry)
     #PRINT_DBG("Entries:")
-    #PRINT_DBG(stk.fig.entries[row])
+    #PRINT_DBG(stk['fig']['entries'][row])
 
-    #stk.fig.fig_years.append(i)
-    #stk.fig.fig_years.insert(row, i)
-    #PRINT_DBG("Years : %r" % (stk.fig.fig_years[row]))
+    #stk['fig']['fig_years'].append(i)
+    #stk['fig']['fig_years'].insert(row, i)
+    #PRINT_DBG("Years : %r" % (stk['fig']['fig_years'][row]))
 
 def populate_India_item(stk, pattern, section, row, convert):
     div = section.find("div", text=pattern)
@@ -140,7 +140,7 @@ def populate_India_item(stk, pattern, section, row, convert):
     div = div.parent
     div = div.find_next("div", {"class": "CHead"})
     populate_India_entry(stk, div, row, convert)
-    PRINT_DBG(stk.fig.entries[row])
+    PRINT_DBG(stk['fig']['entries'][row])
     return True
 
 def populate_India_stock(html_page):
@@ -156,48 +156,48 @@ def populate_India_stock(html_page):
     except:
         PRINT_ERR("Unable to get Company name")
         return None
-    stk.bscs.name = l.lstrip().rstrip().replace(".","")
-    print(stk.bscs.name)
+    stk['bscs']['name'] = l.lstrip().rstrip().replace(".","")
+    print(stk['bscs']['name'])
 
     # Ticker
     l=soup.find(id='lblBSE').get_text()
     #l=soup.find(id='lblNSE').get_text()
     l = l.split(": ", 1)[1]
-    stk.bscs.bse_symbol = l
+    stk['bscs']['bse_symbol'] = l
    
     excel.get_India_symbol_and_sector(stk)
 
     # Price
-    l = internet.get_LTP('India', stk.bscs.symbol)
+    l = internet.get_LTP('India', stk['bscs']['symbol'])
     try:
-        stk.bscs.price = l
-        #stk.bscs.price = str_to_float(l)
+        stk['bscs']['price'] = l
+        #stk['bscs']['price'] = str_to_float(l)
     except ValueError:
-        stk.bscs.price = 0
-#    if stk.bscs.price < 1:
+        stk['bscs']['price'] = 0
+#    if stk['bscs']['price'] < 1:
 #        PRINT_ERR("Price less than 1")
 #        return None
 
     # Face Value
     l=soup.find(id='lblFaceValue').get_text()
     try:
-        stk.bscs.face_value = int(l)
+        stk['bscs']['face_value'] = int(l)
     except ValueError:
-        stk.bscs.face_value = 10
+        stk['bscs']['face_value'] = 10
 
     excel.get_India_stock_split_info(stk)
 
     # Volume
     l=soup.find(id='lblVolume').get_text()
     try:
-        stk.bscs.volume = int(l)
+        stk['bscs']['volume'] = int(l)
     except ValueError:
-        stk.bscs.volume = 0
+        stk['bscs']['volume'] = 0
 
-#    if stk.bscs.volume < 50000:
+#    if stk['bscs']['volume'] < 50000:
 #        return None
 
-    PRINT_DBG("Volume %r" %(stk.bscs.volume))
+    PRINT_DBG("Volume %r" %(stk['bscs']['volume']))
 
     #Market Cap
     try:
@@ -206,9 +206,9 @@ def populate_India_stock(html_page):
         PRINT_ERR("Unable to get market cap")
         return None
     try:
-        stk.bscs.mcap = float(l.lstrip().rstrip().replace(",", ""))
+        stk['bscs']['mcap'] = float(l.lstrip().rstrip().replace(",", ""))
     except ValueError:
-        stk.bscs.mcap = 0
+        stk['bscs']['mcap'] = 0
 
 
     #soup=BeautifulSoup(html_page,'lxml')     
@@ -220,15 +220,15 @@ def populate_India_stock(html_page):
     #divTag2 = divTag.find("div", {"class" : "float-lt com-mid-share-tab2", "align" : "right"})
     li = divTag2.ul.li
     pshare = li.get_text()
-    stk.bscs.promoter_stake = p2f(pshare.lstrip())
+    stk['bscs']['promoter_stake'] = p2f(pshare.lstrip())
     li = li.find_next("li")
     # Corporate Stake
     pshare = li.get_text()
-    stk.bscs.corp_stake = p2f(pshare.lstrip())
+    stk['bscs']['corp_stake'] = p2f(pshare.lstrip())
     li = li.find_next("li")
     # Public Stake
     pshare = li.get_text()
-    stk.bscs.pub_stake = p2f(pshare.lstrip())
+    stk['bscs']['pub_stake'] = p2f(pshare.lstrip())
 
     divTag = divTag.find_next("div", {"class": "com-mid-share-table-wrap", "align": "right"})
     divTag2 = divTag
@@ -239,17 +239,17 @@ def populate_India_stock(html_page):
     # FII Stake
     #pshare = divTag2.ul.li.get_text()
     pshare = li.get_text()
-    stk.bscs.fii_stake = p2f(pshare.lstrip())
+    stk['bscs']['fii_stake'] = p2f(pshare.lstrip())
     li = li.find_next("li")
     # DII Stake
     #pshare = divTag2.ul.li.find_next_sibling("li").get_text()
     pshare = li.get_text()
-    stk.bscs.dii_stake = p2f(pshare.lstrip())
+    stk['bscs']['dii_stake'] = p2f(pshare.lstrip())
     li = li.find_next("li")
     #Others Stake
     #pshare = divTag2.ul.li.find_next_sibling("li").find_next_sibling("li").get_text()
     pshare = li.get_text()
-    stk.bscs.others_stake = p2f(pshare.lstrip())
+    stk['bscs']['others_stake'] = p2f(pshare.lstrip())
 
 
 
@@ -290,7 +290,7 @@ def populate_India_stock(html_page):
     PRINT_DBG("Years: %r" %(Years))
     pattern = re.compile(r'Description\n')
     populate_India_item(stk, pattern, annual_cons, Years, 0)
-    PRINT_DBG(stk.fig.entries[Years])
+    PRINT_DBG(stk['fig']['entries'][Years])
     #Sales
     PRINT("Sales: %r"%(Sales))
     pattern = re.compile(r'Net Sales')
@@ -327,12 +327,12 @@ def populate_India_stock(html_page):
     populate_India_item(stk, pattern, annual_cons, EPS, 1)
 
     try:
-        stk.fig.ttm_eps = stk.fig.entries[EPS][-1]
-        PRINT("TTM EPS: %r" %(stk.fig.ttm_eps))
+        stk['fig']['ttm_eps'] = stk['fig']['entries'][EPS][-1]
+        PRINT("TTM EPS: %r" %(stk['fig']['ttm_eps']))
     except IndexError:
         PRINT_DBG("")
 
-#    if stk.fig.ttm_eps <= 0:
+#    if stk['fig']['ttm_eps'] <= 0:
 #        PRINT_ERR("Negative EPS")
 #        return None
 
@@ -503,7 +503,7 @@ def populate_US_stocks_quarterly(root, files, stk):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
         try:
             y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
@@ -523,14 +523,14 @@ def populate_US_stocks_quarterly(root, files, stk):
             shares.extend(entries)
         else:
             shares.extend(get_entries(soup, re.compile('^ Common Shares $')))
-            stk.fig.common_shares = 1
+            stk['fig']['common_shares'] = 1
         liabilities.extend(get_entries(soup, 'Total liabilities'))
         assets.extend(get_entries(soup, 'Total Liabilities And Equity'))
         #debt.extend(get_debt(soup, 'TOTAL'))
     
     if(len(shares) == 0):
         PRINT_ERR("Shares data not found, still continuing")
-        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(stk['bscs']['name'])
         write_to_unparsed("Shares data not found")
         ##return False
 
@@ -552,7 +552,7 @@ def populate_US_stocks_quarterly(root, files, stk):
     if(len(book) == 0):
         err = "len(assets): %d, len(liabilities): %d , len(book): %d data not found"%(len(assets), len(liabilities), len(book))
         PRINT_ERR(err)
-        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(stk['bscs']['name'])
         write_to_unparsed(err)
         ##return False
 
@@ -572,7 +572,7 @@ def populate_US_stocks_quarterly(root, files, stk):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
  
         depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
@@ -592,7 +592,7 @@ def populate_US_stocks_quarterly(root, files, stk):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
  
         #print(soup.prettify())
@@ -607,7 +607,7 @@ def populate_US_stocks_quarterly(root, files, stk):
 
     #if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
     #    err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
-    #    write_to_unparsed(stk.bscs.name)
+    #    write_to_unparsed(stk['bscs']['name'])
     #    write_to_unparsed(err)
     #    return False
 
@@ -634,43 +634,45 @@ def populate_US_stocks_quarterly(root, files, stk):
             roce.append(0)
 
     if len(diluted_cont_eps) > 0:
-        stk.fig.ttm_eps = diluted_cont_eps[0]
+        stk['fig']['ttm_eps'] = diluted_cont_eps[0]
     else:
-        stk.fig.ttm_eps = 0
+        stk['fig']['ttm_eps'] = 0
 
-    stk.quart_fig.Quarters.extend(reversed(quarters))
-    stk.quart_fig.Sales.extend(reversed(sales))
-    stk.quart_fig.PBT.extend(reversed(pbt))
-    stk.quart_fig.PAT.extend(reversed(pat))
-    stk.quart_fig.Taxes.extend(reversed(income_tax))
-    stk.quart_fig.PAT_M.extend(reversed(pat_m))
-    stk.quart_fig.BASIC_EPS.extend(reversed(basic_eps))
-    stk.quart_fig.BASIC_CONT_EPS.extend(reversed(basic_cont_eps))
-    stk.quart_fig.DILUTED_EPS.extend(reversed(diluted_eps))
-    stk.quart_fig.DILUTED_CONT_EPS.extend(reversed(diluted_cont_eps))
+    stk['quart_fig']['Quarters'].extend(reversed(quarters))
+    stk['quart_fig']['Sales'].extend(reversed(sales))
+    stk['quart_fig']['PBT'].extend(reversed(pbt))
+    stk['quart_fig']['PAT'].extend(reversed(pat))
+    stk['quart_fig']['Taxes'].extend(reversed(income_tax))
+    stk['quart_fig']['PAT_M'].extend(reversed(pat_m))
+    stk['quart_fig']['BASIC_EPS'].extend(reversed(basic_eps))
+    stk['quart_fig']['BASIC_CONT_EPS'].extend(reversed(basic_cont_eps))
+    stk['quart_fig']['DILUTED_EPS'].extend(reversed(diluted_eps))
+    stk['quart_fig']['DILUTED_CONT_EPS'].extend(reversed(diluted_cont_eps))
 
-    stk.quart_fig.BOOK.extend(reversed(book))
-    stk.quart_fig.LIABILITIES.extend(reversed(liabilities))
-    #stk.fig.DEBT.extend(reversed(debt))
-    stk.quart_fig.ASSETS.extend(reversed(assets))
-    stk.quart_fig.EQUITY.extend(reversed(equity))
-    stk.quart_fig.SHARES.extend(reversed(shares))
+    stk['quart_fig']['BOOK'].extend(reversed(book))
+    stk['quart_fig']['LIABILITIES'].extend(reversed(liabilities))
+    #stk['fig']['DEBT'].extend(reversed(debt))
+    stk['quart_fig']['ASSETS'].extend(reversed(assets))
+    stk['quart_fig']['EQUITY'].extend(reversed(equity))
+    stk['quart_fig']['SHARES'].extend(reversed(shares))
 
-    stk.quart_fig.CASH.extend(reversed(cash))
-    stk.quart_fig.PPE.extend(reversed(ppe))
-    stk.quart_fig.DEPRECIATION.extend(reversed(depreciation))
-    stk.quart_fig.CAPEX.extend(reversed(capex))
+    stk['quart_fig']['CASH'].extend(reversed(cash))
+    stk['quart_fig']['PPE'].extend(reversed(ppe))
+    stk['quart_fig']['DEPRECIATION'].extend(reversed(depreciation))
+    stk['quart_fig']['CAPEX'].extend(reversed(capex))
     
-    stk.quart_fig.ROA.extend(reversed(roa))
-    stk.quart_fig.ROE.extend(reversed(roe))
-    stk.quart_fig.ROCE.extend(reversed(roce))
-    stk.quart_fig.DtoE.extend(reversed(dtoe))
-    stk.quart_fig.INTR.extend(reversed(intr))
+    stk['quart_fig']['ROA'].extend(reversed(roa))
+    stk['quart_fig']['ROE'].extend(reversed(roe))
+    stk['quart_fig']['ROCE'].extend(reversed(roce))
+    stk['quart_fig']['DtoE'].extend(reversed(dtoe))
+    stk['quart_fig']['INTR'].extend(reversed(intr))
 
     return stk
 
 def populate_US_stocks(db, root, files, symbol, name, sector, industry):
-    stk = Stock()
+    #stk = Stock()
+    db = DB.open_db('Stocks')
+    stk = db.US_Stocks.find({"bscs.symbol":"BORR"}).next()
     shares = []
     liabilities = []
     debt = []
@@ -738,15 +740,15 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
     #    count = 1
 
     #Name and Symbol
-    stk.bscs.symbol = symbol
-    stk.bscs.name = name
-    stk.bscs.sector = sector
-    stk.bscs.industry = industry
+    stk['bscs']['symbol'] = symbol
+    stk['bscs']['name'] = name
+    stk['bscs']['sector'] = sector
+    stk['bscs']['industry'] = industry
     #s = soup.find("div", {"class": "symbol-name"})
     #print(s)
-    #stk.bscs.symbol = s.find_next("span").find_next("span").get_text().replace("(","").replace(")","")
-    #stk.bscs.name   = yf(stk.bscs.symbol).get_stock_quote_type_data()[stk.bscs.symbol]['shortName'] 
-    #stk.bscs.name   = s.find_next("span").get_text()
+    #stk['bscs']['symbol'] = s.find_next("span").find_next("span").get_text().replace("(","").replace(")","")
+    #stk['bscs']['name']   = yf(stk['bscs']['symbol']).get_stock_quote_type_data()[stk['bscs']['symbol']]['shortName'] 
+    #stk['bscs']['name']   = s.find_next("span").get_text()
    
 
 #    for f in [s for s in files if 'profile' in s]:
@@ -763,13 +765,13 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
  
         try:
             y = soup.find("tr", {"class":"bc-financial-report__row-dates"})
             if not y and len(years) == 0:
-                PRINT_ERR("%s: %s: Unable to get annual balance sheet data" %(stk.bscs.symbol, stk.bscs.name))
+                PRINT_ERR("%s: %s: Unable to get annual balance sheet data" %(stk['bscs']['symbol'], stk['bscs']['name']))
                 return False
 
             l=y.find_all("td")
@@ -782,20 +784,20 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
         shares.extend(get_entries(soup, re.compile('^ Shares Outstanding, K $')))
         if(len(shares) == 0):
             shares.extend(get_entries(soup, re.compile('^ Common Shares $')))
-            stk.fig.common_shares = 1
+            stk['fig']['common_shares'] = 1
         liabilities.extend(get_entries(soup, 'Total liabilities'))
         assets.extend(get_entries(soup, 'Total Liabilities And Equity'))
         #debt.extend(get_debt(soup, 'TOTAL'))
     
     if(len(shares) == 0):
         PRINT_ERR("Shares data not found, still continuing")
-        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(stk['bscs']['name'])
         write_to_unparsed("Shares data not found")
         ##return False
 
-#    stk.bscs.price  = yf(stk.bscs.symbol).get_current_price()
-#    stk.bscs.volume = yf(stk.bscs.symbol).get_current_volume()
-#    stk.bscs.mcap   = yf(stk.bscs.symbol).get_market_cap()/1000000
+#    stk['bscs']['price']  = yf(stk['bscs']['symbol']).get_current_price()
+#    stk['bscs']['volume'] = yf(stk['bscs']['symbol']).get_current_volume()
+#    stk['bscs']['mcap']   = yf(stk['bscs']['symbol']).get_market_cap()/1000000
 
 
     for i in range(lowest_3(len(assets), len(liabilities), len(shares))):
@@ -816,7 +818,7 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
     if(len(book) == 0):
         err = "len(assets): %d, len(liabilities): %d , len(book): %d data not found, still continuing"%(len(assets), len(liabilities), len(book))
         PRINT_ERR(err)
-        write_to_unparsed(stk.bscs.name)
+        write_to_unparsed(stk['bscs']['name'])
         write_to_unparsed(err)
         ##return False
 
@@ -837,7 +839,7 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
  
         depreciation.extend(get_entries(soup, re.compile('^ Depreciation Amortization $')))
@@ -858,7 +860,7 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
         pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
         div = soup.find(text=pattern)
         if div:
-            PRINT_ERR("%s has no data in %s" %(stk.bscs.symbol, f))
+            PRINT_ERR("%s has no data in %s" %(stk['bscs']['symbol'], f))
             continue
  
         #print(soup.prettify())
@@ -870,7 +872,7 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
 
     #if len(sales) == 0 or len(pat) == 0 or len(eps) == 0:
     #    err= "len(sales): %d, len(pat): %d len(eps): %d data not found"%(len(sales), len(pat), len(eps))
-    #    write_to_unparsed(stk.bscs.name)
+    #    write_to_unparsed(stk['bscs']['name'])
     #    write_to_unparsed(err)
     #    return False
 
@@ -897,35 +899,35 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
             roce.append(0)
 
     if len(eps) > 0:
-        stk.fig.ttm_eps = eps[0]
+        stk['fig']['ttm_eps'] = eps[0]
     else:
-        stk.fig.ttm_eps = 0
+        stk['fig']['ttm_eps'] = 0
 
-    stk.fig.Years.extend(reversed(years))
-    stk.fig.Sales.extend(reversed(sales))
-    stk.fig.PBT.extend(reversed(pbt))
-    stk.fig.PAT.extend(reversed(pat))
-    stk.fig.Taxes.extend(reversed(income_tax))
-    stk.fig.PAT_M.extend(reversed(pat_m))
-    stk.fig.EPS.extend(reversed(eps))
+    stk['fig']['Years'].extend(reversed(years))
+    stk['fig']['Sales'].extend(reversed(sales))
+    stk['fig']['PBT'].extend(reversed(pbt))
+    stk['fig']['PAT'].extend(reversed(pat))
+    stk['fig']['Taxes'].extend(reversed(income_tax))
+    stk['fig']['PAT_M'].extend(reversed(pat_m))
+    stk['fig']['EPS'].extend(reversed(eps))
 
-    stk.fig.BOOK.extend(reversed(book))
-    stk.fig.LIABILITIES.extend(reversed(liabilities))
-    #stk.fig.DEBT.extend(reversed(debt))
-    stk.fig.ASSETS.extend(reversed(assets))
-    stk.fig.EQUITY.extend(reversed(equity))
-    stk.fig.SHARES.extend(reversed(shares))
+    stk['fig']['BOOK'].extend(reversed(book))
+    stk['fig']['LIABILITIES'].extend(reversed(liabilities))
+    #stk['fig']['DEBT'].extend(reversed(debt))
+    stk['fig']['ASSETS'].extend(reversed(assets))
+    stk['fig']['EQUITY'].extend(reversed(equity))
+    stk['fig']['SHARES'].extend(reversed(shares))
 
-    stk.fig.CASH.extend(reversed(cash))
-    stk.fig.PPE.extend(reversed(ppe))
-    stk.fig.DEPRECIATION.extend(reversed(depreciation))
-    stk.fig.CAPEX.extend(reversed(capex))
+    stk['fig']['CASH'].extend(reversed(cash))
+    stk['fig']['PPE'].extend(reversed(ppe))
+    stk['fig']['DEPRECIATION'].extend(reversed(depreciation))
+    stk['fig']['CAPEX'].extend(reversed(capex))
     
-    stk.fig.ROA.extend(reversed(roa))
-    stk.fig.ROE.extend(reversed(roe))
-    stk.fig.ROCE.extend(reversed(roce))
-    stk.fig.DtoE.extend(reversed(dtoe))
-    stk.fig.INTR.extend(reversed(intr))
+    stk['fig']['ROA'].extend(reversed(roa))
+    stk['fig']['ROE'].extend(reversed(roe))
+    stk['fig']['ROCE'].extend(reversed(roce))
+    stk['fig']['DtoE'].extend(reversed(dtoe))
+    stk['fig']['INTR'].extend(reversed(intr))
 
     #stk = get_price_volume(stk, 'US')
 

@@ -73,58 +73,58 @@ def build_files(files):
     f.close()
 
 def update_dummy_dcf_numbers(col, stock):
-    update_field(col, stock.bscs.symbol, "num.discount_rate", 0)
-    update_field(col, stock.bscs.symbol, "num.inflation", 0)
-    update_field(col, stock.bscs.symbol, "num.growth_1to5", 0)
-    update_field(col, stock.bscs.symbol, "num.growth_6to8", 0)
-    update_field(col, stock.bscs.symbol, "num.growth_9to10", 0)
-    update_field(col, stock.bscs.symbol, "num.growth_16to20", 0)
-    update_field(col, stock.bscs.symbol, "num.eps", 0)
-    update_field(col, stock.bscs.symbol, "num.eps_20yr", 0)
-    update_field(col, stock.bscs.symbol, "num.fig_yr", 0)
-    update_field(col, stock.bscs.symbol, "num.cur_yr", 0)
-    update_field(col, stock.bscs.symbol, "num.term_yr", 0)
-    update_field(col, stock.bscs.symbol, "num.dcf_price", 0)
-    update_field(col, stock.bscs.symbol, "num.dcf_years", 0)
-    update_field(col, stock.bscs.symbol, "num.inflated_eps_price", 0)
-    update_field(col, stock.bscs.symbol, "num.margin_of_safety", 0)
-    update_field(col, stock.bscs.symbol, "num.dcf_return_rate", 0)
-    update_field(col, stock.bscs.symbol, "num.cp_return_rate", 0)
+    update_field(col, stock['bscs']['symbol'], "num.discount_rate", 0)
+    update_field(col, stock['bscs']['symbol'], "num.inflation", 0)
+    update_field(col, stock['bscs']['symbol'], "num.growth_1to5", 0)
+    update_field(col, stock['bscs']['symbol'], "num.growth_6to8", 0)
+    update_field(col, stock['bscs']['symbol'], "num.growth_9to10", 0)
+    update_field(col, stock['bscs']['symbol'], "num.growth_16to20", 0)
+    update_field(col, stock['bscs']['symbol'], "num.eps", 0)
+    update_field(col, stock['bscs']['symbol'], "num.eps_20yr", 0)
+    update_field(col, stock['bscs']['symbol'], "num.fig_yr", 0)
+    update_field(col, stock['bscs']['symbol'], "num.cur_yr", 0)
+    update_field(col, stock['bscs']['symbol'], "num.term_yr", 0)
+    update_field(col, stock['bscs']['symbol'], "num.dcf_price", 0)
+    update_field(col, stock['bscs']['symbol'], "num.dcf_years", 0)
+    update_field(col, stock['bscs']['symbol'], "num.inflated_eps_price", 0)
+    update_field(col, stock['bscs']['symbol'], "num.margin_of_safety", 0)
+    update_field(col, stock['bscs']['symbol'], "num.dcf_return_rate", 0)
+    update_field(col, stock['bscs']['symbol'], "num.cp_return_rate", 0)
     
-    update_field(col, stock.bscs.symbol, "fig.price_growth", 0)
-    update_field(col, stock.bscs.symbol, "fig.sales_growth", 0)
-    update_field(col, stock.bscs.symbol, "fig.profit_growth", 0)
-    update_field(col, stock.bscs.symbol, "fig.book_growth", 0)
-    update_field(col, stock.bscs.symbol, "fig.cash_growth", 0)
-    update_field(col, stock.bscs.symbol, "fig.growth", 0)
-    update_field(col, stock.bscs.symbol, "bscs.dcf_calc", "NO")
+    update_field(col, stock['bscs']['symbol'], "fig.price_growth", 0)
+    update_field(col, stock['bscs']['symbol'], "fig.sales_growth", 0)
+    update_field(col, stock['bscs']['symbol'], "fig.profit_growth", 0)
+    update_field(col, stock['bscs']['symbol'], "fig.book_growth", 0)
+    update_field(col, stock['bscs']['symbol'], "fig.cash_growth", 0)
+    update_field(col, stock['bscs']['symbol'], "fig.growth", 0)
+    update_field(col, stock['bscs']['symbol'], "bscs.dcf_calc", "NO")
  
 def update_dcf_numbers(col, stock):
-    update_field(col, stock.bscs.symbol, "num.discount_rate", stock.num.discount_rate)
-    update_field(col, stock.bscs.symbol, "num.inflation", stock.num.inflation)
-    update_field(col, stock.bscs.symbol, "num.growth_1to5", stock.num.growth_1to5)
-    update_field(col, stock.bscs.symbol, "num.growth_6to8", stock.num.growth_6to8)
-    update_field(col, stock.bscs.symbol, "num.growth_9to10", stock.num.growth_9to10)
-    update_field(col, stock.bscs.symbol, "num.growth_16to20", stock.num.growth_16to20)
-    update_field(col, stock.bscs.symbol, "num.eps", stock.fig.ttm_eps)
-    update_field(col, stock.bscs.symbol, "num.eps_20yr", stock.num.eps_20yr)
-    update_field(col, stock.bscs.symbol, "num.fig_yr", stock.num.fig_yr)
-    update_field(col, stock.bscs.symbol, "num.cur_yr", stock.num.cur_yr)
-    update_field(col, stock.bscs.symbol, "num.term_yr", stock.num.term_yr)
-    update_field(col, stock.bscs.symbol, "num.dcf_price", stock.num.dcf_price)
-    update_field(col, stock.bscs.symbol, "num.dcf_years", stock.num.dcf_years)
-    update_field(col, stock.bscs.symbol, "num.inflated_eps_price", stock.num.inflated_eps_price)
-    update_field(col, stock.bscs.symbol, "num.margin_of_safety", stock.num.margin_of_safety)
-    update_field(col, stock.bscs.symbol, "num.dcf_return_rate", stock.num.dcf_return_rate)
-    update_field(col, stock.bscs.symbol, "num.cp_return_rate", stock.num.cp_return_rate)
+    update_field(col, stock['bscs']['symbol'], "num.discount_rate", stock['num']['discount_rate'])
+    update_field(col, stock['bscs']['symbol'], "num.inflation", stock['num']['inflation'])
+    update_field(col, stock['bscs']['symbol'], "num.growth_1to5", stock['num']['growth_1to5'])
+    update_field(col, stock['bscs']['symbol'], "num.growth_6to8", stock['num']['growth_6to8'])
+    update_field(col, stock['bscs']['symbol'], "num.growth_9to10", stock['num']['growth_9to10'])
+    update_field(col, stock['bscs']['symbol'], "num.growth_16to20", stock['num']['growth_16to20'])
+    update_field(col, stock['bscs']['symbol'], "num.eps", stock['fig']['ttm_eps'])
+    update_field(col, stock['bscs']['symbol'], "num.eps_20yr", stock['num']['eps_20yr'])
+    update_field(col, stock['bscs']['symbol'], "num.fig_yr", stock['num']['fig_yr'])
+    update_field(col, stock['bscs']['symbol'], "num.cur_yr", stock['num']['cur_yr'])
+    update_field(col, stock['bscs']['symbol'], "num.term_yr", stock['num']['term_yr'])
+    update_field(col, stock['bscs']['symbol'], "num.dcf_price", stock['num']['dcf_price'])
+    update_field(col, stock['bscs']['symbol'], "num.dcf_years", stock['num']['dcf_years'])
+    update_field(col, stock['bscs']['symbol'], "num.inflated_eps_price", stock['num']['inflated_eps_price'])
+    update_field(col, stock['bscs']['symbol'], "num.margin_of_safety", stock['num']['margin_of_safety'])
+    update_field(col, stock['bscs']['symbol'], "num.dcf_return_rate", stock['num']['dcf_return_rate'])
+    update_field(col, stock['bscs']['symbol'], "num.cp_return_rate", stock['num']['cp_return_rate'])
     
-    update_field(col, stock.bscs.symbol, "fig.price_growth", stock.fig.price_growth)
-    update_field(col, stock.bscs.symbol, "fig.sales_growth", stock.fig.sales_growth)
-    update_field(col, stock.bscs.symbol, "fig.profit_growth", stock.fig.profit_growth)
-    update_field(col, stock.bscs.symbol, "fig.book_growth", stock.fig.book_growth)
-    update_field(col, stock.bscs.symbol, "fig.cash_growth", stock.fig.cash_growth)
-    update_field(col, stock.bscs.symbol, "fig.growth", stock.fig.growth)
-    update_field(col, stock.bscs.symbol, "bscs.dcf_calc", "YES")
+    update_field(col, stock['bscs']['symbol'], "fig.price_growth", stock['fig']['price_growth'])
+    update_field(col, stock['bscs']['symbol'], "fig.sales_growth", stock['fig']['sales_growth'])
+    update_field(col, stock['bscs']['symbol'], "fig.profit_growth", stock['fig']['profit_growth'])
+    update_field(col, stock['bscs']['symbol'], "fig.book_growth", stock['fig']['book_growth'])
+    update_field(col, stock['bscs']['symbol'], "fig.cash_growth", stock['fig']['cash_growth'])
+    update_field(col, stock['bscs']['symbol'], "fig.growth", stock['fig']['growth'])
+    update_field(col, stock['bscs']['symbol'], "bscs.dcf_calc", "YES")
     
 
 def build_India_database(files, data_type):
@@ -141,13 +141,13 @@ def build_India_database(files, data_type):
                 PRINT_ERR("Unable to get stock info of %s" %(stock_page))
                 continue
             if data_type == 'HOT':
-                val = internet.get_LTP('India', stock.bscs.symbol)
+                val = internet.get_LTP('India', stock['bscs']['symbol'])
                 if val == -1:
-                    PRINT_ERR("Unable to get LTP for %s"%(stock.bscs.name))
+                    PRINT_ERR("Unable to get LTP for %s"%(stock['bscs']['name']))
                 else:
-                    stock.bscs.price = val
+                    stock['bscs']['price'] = val
 
-            print(stock.bscs)
+            print(stock['bscs'])
             obj = build_json_object(stock)
             #write_to_collection(db['Indian_Stocks'], obj)
             stock = None
@@ -392,10 +392,10 @@ def build_US_database():
         #break
 
 def update_db_price_volume(collection, stk):
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.price": stk.bscs.price}})
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.volume": stk.bscs.volume}})
-    collection.update({'bscs.symbol': stk.bscs.symbol}, {'$set': {"bscs.mcap": stk.bscs.mcap}})
-    collection.update({'bscs.symbol': stk.bscs.outstanding_shares}, {'$set': {"bscs.outstanding_shares": stk.bscs.outstanding_shares}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.price": stk['bscs']['price']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": stk['bscs']['volume']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": stk['bscs']['mcap']}})
+    collection.update({'bscs.symbol': stk['bscs']['outstanding_shares']}, {'$set': {"bscs.outstanding_shares": stk['bscs']['outstanding_shares']}})
 
 def update_all_price_volume_db(country):
     db = open_db('Stocks')
@@ -404,9 +404,10 @@ def update_all_price_volume_db(country):
         docs = db.US_Stocks.find({},no_cursor_timeout=True).sort([["sno",1]])
         for doc in docs:
             if i > -1:
-                stk = dbObject(**doc)
-                #if stk.bscs.price == 0:
-                print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
+                #stk = dbObject(**doc)
+                stk = doc
+                #if stk['bscs']['price'] == 0:
+                print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
                 stk = internet.get_price_volume(stk, country)
                 if stk:
                     update_db_price_volume(db.US_Stocks, stk)
@@ -416,9 +417,10 @@ def update_all_price_volume_db(country):
         docs = db.Indian_Stocks.find({}).sort([["sno",1]])
         for doc in docs:
             if i > -1:
-                stk = dbObject(**doc)
-                #if stk.bscs.price == 0:
-                print("%d: %s: %s"%(i,stk.bscs.symbol,stk.bscs.name))
+                #stk = dbObject(**doc)
+                stk = doc
+                #if stk['bscs']['price'] == 0:
+                print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
                 stk = internet.get_price_volume(stk, country)
                 if stk:
                     update_db_price_volume(db.Indian_Stocks, stk)
@@ -565,10 +567,11 @@ def build_US_all_EPS_New():
             docs = db.US_Stocks.find({"bscs.symbol":stock})
             if docs.count() == 1:
                 for doc in docs:
-                    stk = dbObject(**doc)
-                    #if stk.bscs.price == 0:
-                    print("%d: %s: %s"%(stk.sno,stk.bscs.symbol,stk.bscs.name))
-                    write_to_file(stk.bscs.symbol, "file2.txt", "a")
+                    #stk = dbObject(**doc)
+                    stk = doc
+                    #if stk['bscs']['price'] == 0:
+                    print("%d: %s: %s"%(stk['sno'],stk['bscs']['symbol'],stk['bscs']['name']))
+                    write_to_file(stk['bscs']['symbol'], "file2.txt", "a")
                     internet.populate_US_EPS(stk)
                     #break
     f1.close()
@@ -599,10 +602,11 @@ def build_US_all_EPS():
         #if sno > 3000:
         #    break
         #if sno > 664:
-            stk = dbObject(**doc)
-            #if stk.bscs.price == 0:
-            print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
-            write_to_file(stk.bscs.symbol, "file2.txt", "a")
+            #stk = dbObject(**doc)
+            stk = doc
+            #if stk['bscs']['price'] == 0:
+            print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
+            write_to_file(stk['bscs']['symbol'], "file2.txt", "a")
             internet.populate_US_EPS(stk)
             #break
  
@@ -625,9 +629,10 @@ def build_US_all_earnings_estimates():
         #if sno > 3000:
         #    break
         #if sno > 664:
-            stk = dbObject(**doc)
-            #if stk.bscs.price == 0:
-            print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+            #stk = dbObject(**doc)
+            stk = doc
+            #if stk['bscs']['price'] == 0:
+            print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
             internet.populate_US_earnings_estimates(stk)
             #break
     #except Exception as e:
@@ -645,14 +650,15 @@ def build_US_all_earnings_estimates():
         #    if sno > num-1:
         #    #    break
         #    #if sno > 24:
-        #        stk = dbObject(**doc)
-        #        #if stk.bscs.price == 0:
-        #        print("%d: %s: %s"%(sno,stk.bscs.symbol,stk.bscs.name))
+        #        #stk = dbObject(**doc)
+        #        stk = doc
+        #        #if stk['bscs']['price'] == 0:
+        #        print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
         #        internet.populate_US_earnings_estimates(stk)
         #        #break
  
 def build_US_quarterly_stock_information(stk):
-    path = internet.get_US_quarterly_stock_page(stk.bscs.symbol, stk.bscs.name)
+    path = internet.get_US_quarterly_stock_page(stk['bscs']['symbol'], stk['bscs']['name'])
     for (root,dirs,files) in os.walk(path, topdown=True):
        files = [f for f in files if not f[0] == '.']
        dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]

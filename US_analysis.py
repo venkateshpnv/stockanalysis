@@ -17,7 +17,7 @@ def US_main():
     #db=DB.open_db('Stocks')
     #DB.update_US_stk_profile(html_text, db.US_Stocks)
     #DB.build_US_All_Stocks_List()
-    DB.build_US_all_stock_information()
+    #DB.build_US_all_stock_information()
     #DB.update_US_all_stk_profile()
     #DB.update_sector_info()
     #internet.price_surprises('US', 0.10, WEEK | DAY, 'COLD', 'SYNC_DB')
