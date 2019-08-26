@@ -347,7 +347,6 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                     DB.update_dummy_dcf_numbers(collection, stock)
                 del stock
                 continue
-            continue
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
                 write_to_excel(com, ash, stock, years)

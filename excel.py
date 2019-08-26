@@ -390,6 +390,81 @@ def add_figs_growth_header(sheet, i, years):
 #    conf.THREE_CSH=i
     return i
 
+def add_betas_header(sheet, i):
+    # Recession 2007 Beta
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "2007 Beta", style_wrap)
+    conf.R2007_BETA=i
+
+    i+=1
+    # 2007 alpha
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "2007 Alpha", style_wrap)
+    conf.R2007_ALPHA=i
+
+    i+=1
+    # 2007 pure alpha
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "2007 Pure Alpha", style_wrap)
+    conf.R2007_PURE_ALPHA=i
+
+    i+=1
+    # Whole Beta
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Whole Beta", style_wrap)
+    conf.W_BETA=i
+
+    i+=1
+    # Whole Alpha
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Whole Alpha", style_wrap)
+    conf.W_ALPHA=i
+
+    i+=1
+    # Whole Pure Alpha
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Whole Pure Alpha", style_wrap)
+    conf.W_PURE_ALPHA=i
+
+    #i+=1
+    ## Profit Margin
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Profit Mgn", style_wrap)
+    #conf.PRF_M=i
+
+    #i+=1
+    ## RoE
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "RoE", style_wrap)
+    #conf.ROE=i
+
+    #i+=1
+    ## RoA
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "RoA", style_wrap)
+    #conf.ROA=i
+
+    #i+=1
+    ## RoCE
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "RoCE", style_wrap)
+    #conf.ROCE=i
+
+    #i+=1
+    ## Dividend Yield
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "Div Yield", style_wrap)
+    #conf.DIV=i
+
+    #i+=1
+    ## Dividend Payout Ratio
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "Div Payout", style_wrap)
+    #conf.DIV_PAY=i
+    return i
+
+
+
 def add_ratios_header(sheet, i):
     # P/E
     sheet.col(i).width = 4*367
@@ -413,11 +488,11 @@ def add_ratios_header(sheet, i):
     sheet.write(0, i, "DtoTE", style_wrap)
     conf.DTOTE=i
 
-    i+=1
-    # Interest Coverage
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Intr Covr", style_wrap)
-    conf.INT_C=i
+    #i+=1
+    ## Interest Coverage
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "Intr Covr", style_wrap)
+    #conf.INT_C=i
 
     i+=1
     # Profit Margin
@@ -487,6 +562,9 @@ def add_dcf_header(sheet, years):
 
     i+=1
     i = add_ratios_header(sheet, i)
+
+    i+=1
+    i = add_betas_header(sheet, i)
 
     i+=1
     # Float
@@ -759,6 +837,18 @@ def write_to_excel(com, ash, stk, years):
     ash.write(conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
     ash.write(conf.COUNT, conf.DIV, stk['Dividend']['yld']/100, style_percent)
     ash.write(conf.COUNT, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
+   
+    #Betas
+    if stk['fig']['betas']:
+        if stk['fig']['betas']['recession']['2007']:
+            ash.write(conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
+            ash.write(conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
+            ash.write(conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
+        if stk['fig']['betas']['whole']:
+            ash.write(conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
+            ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
+            ash.write(conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
+
     ash.write(conf.COUNT, conf.FLT, stk['bscs']['float']/100)
     ash.write(conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
 
