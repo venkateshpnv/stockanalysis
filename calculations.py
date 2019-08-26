@@ -293,6 +293,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
             #obj = bunchify(doc)
             
+            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             if not stock:
                 PRINT_ERR("Stock not present")
                 no_dcf += 1
@@ -337,7 +338,6 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #    del stock
             #    continue
 
-            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             stock['num']['inflation'] = inflation
             stock['num']['discount_rate'] = discount_rate
             stock['num']['margin_of_safety'] = mos

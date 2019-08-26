@@ -460,8 +460,7 @@ def get_India_stock_info(stock_page):
     return stk
 
 def populate_US_stocks_quarterly(root, files, stk):
-    stk = Stock()
-    stk = json_code.build_json_object(stk)
+    #stk = Stock()
     shares = []
     liabilities = []
     debt = []
@@ -677,6 +676,7 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
     #del stk['_id']
     #stk = DB.clear_dict(stk)
     stk = json_code.build_json_object(stk)
+    stk['ignore'] = 'No'
     shares = []
     liabilities = []
     debt = []
