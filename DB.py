@@ -983,6 +983,9 @@ def update_stock_betas():
     
         update_stock_recession_beta(db, doc, sym)
 
+        if not 'betas' in doc['fig'].keys():
+            doc['fig']['betas']={}
+
         if not 'since_last_recession' in doc['fig']['betas'].keys() or not doc['fig']['betas']['since_last_recession']:
             print(doc['fig']['betas'].keys())
             #Since last recession
