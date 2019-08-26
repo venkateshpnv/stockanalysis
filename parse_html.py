@@ -460,7 +460,8 @@ def get_India_stock_info(stock_page):
     return stk
 
 def populate_US_stocks_quarterly(root, files, stk):
-    #stk = Stock()
+    stk = Stock()
+    stk = json_code.build_json_object(stk)
     shares = []
     liabilities = []
     debt = []
@@ -670,9 +671,12 @@ def populate_US_stocks_quarterly(root, files, stk):
     return stk
 
 def populate_US_stocks(db, root, files, symbol, name, sector, industry):
-    #stk = Stock()
-    db = DB.open_db('Stocks')
-    stk = db.US_Stocks.find({"bscs.symbol":"BORR"}).next()
+    stk = Stock()
+    #db = DB.open_db('Stocks')
+    #stk = db.US_Stocks.find({"bscs.symbol":"BORR"}).next()
+    #del stk['_id']
+    #stk = DB.clear_dict(stk)
+    stk = json_code.build_json_object(stk)
     shares = []
     liabilities = []
     debt = []
@@ -933,11 +937,12 @@ def populate_US_stocks(db, root, files, symbol, name, sector, industry):
 
     DB.build_US_quarterly_stock_information(stk)
 
-    obj = json_code.build_json_object(stk)
-    if obj:
-        DB.write_to_collection(db['US_Stocks'], obj)
-        del obj
-        obj = None
+    #obj = json_code.build_json_object(stk)
+    #if obj:
+    #    DB.write_to_collection(db['US_Stocks'], obj)
+    #    del obj
+    #    obj = None
+    DB.write_to_collection(db['US_Stocks'], stk)
  
     del stk
     stk = None

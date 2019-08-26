@@ -28,6 +28,19 @@ class dbObject:
             else:
                 self.__dict__[k] = v
 
+def clear_dict(d):
+    ed = {}
+    for k,v in d.items():
+        if isinstance(v,dict):
+            ed[k] = clear_dict(v)
+        else:
+            if type(ed[k]) is list:
+                ed[k] = {}
+            else:
+                ed[k] = None
+    print(ed)
+    return ed
+
 ########################### DB Related Calls ########3###################
 def open_db(db_name):
     client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -367,7 +380,8 @@ def update_US_stk_profile(html_text, collection):
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_year": split_year}})
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.split_factor": split_factor}})
 
-# Can be obsoleted. Replaced with build_US_all_stock_information()
+# This function has been deprecated.
+# It is replaced with build_US_all_stock_information()
 def build_US_database():
     db = open_db('Stocks')
     #db.US_Stocks.drop()
@@ -758,14 +772,11 @@ def build_US_stock_information(doc):
         #print(root)
         #print(dirs)
         #print(sorted(files))
-        if parse_html.populate_US_stocks(db, root, sorted(files), sym, name, doc['Sector'], doc['Industry']) is True:
+        ret = parse_html.populate_US_stocks(db, root, sorted(files), sym, name, doc['Sector'], doc['Industry']) 
+        if ret is True:
             db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-        else:
-            ret = False
+            remove_dir(path)
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
-   
-    if ret is True:
-        remove_dir(path)
  
 def build_US_all_stock_information():
     db = open_db('Stocks')
@@ -788,8 +799,8 @@ def build_US_all_stock_information():
 
         #if i > -1:
             obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
-            if obj.count() == 0:
-            #if doc['parsed'] != 'YES' and obj.count() == 0:
+            #if obj.count() == 0:
+            if doc['parsed'] != 'YES' and obj.count() == 0:
                 print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
                 build_US_stock_information(doc)
                 #j += 1
@@ -808,8 +819,8 @@ def build_US_all_stock_information():
 
     set_sno('US')
     # Create index based on sno
-    db.US_Stocks.createIndex({sno: -1})
-    db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
+    #db.US_Stocks.createIndex({sno: -1})
+    #db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
 
     print("Total : %d" %(j))
 
