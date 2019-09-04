@@ -103,3 +103,20 @@ def remove_dir(path):
         file_path = "%s/%s" %(path, f)
         os.remove(file_path)
     os.rmdir(path)
+
+def write_to_file(val, filename, mode):
+    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
+    f = open(filename, mode)
+    val=val+"\n"
+    f.write(val)
+    f.close()
+
+def read_from_file(filename):
+    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
+    f = open(filename, "r")
+    val=f.read()
+    f.close()
+    return val
+
+
+

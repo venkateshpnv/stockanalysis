@@ -232,7 +232,6 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta):
         #if stk['bscs']['price'] <= stk['num']['dcf_price'] or stk['num']['cp_return_rate'] > 0.01:
         #if stk['bscs']['price'] <= stk['num']['dcf_price']:
 
-    conf.COUNT+=1
 
     return True
     #return False
@@ -282,7 +281,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     no_dcf = 0
     for doc in collection.find({}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
-        #if sno > 4628:
+        #if sno > 2913:
         if sno > 0:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
@@ -338,15 +337,17 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #    del stock
             #    continue
 
-            stock['num']['inflation'] = inflation
-            stock['num']['discount_rate'] = discount_rate
-            stock['num']['margin_of_safety'] = mos
             #Company Excel File
-            if calculate_dcf(country, stock, years, data_type, criteria, beta) is False:
-                if db_state == 'SYNC_DB':
-                    DB.update_dummy_dcf_numbers(collection, stock)
-                del stock
-                continue
+            if data_type != 'NO_CALC':
+                stock['num']['inflation'] = inflation
+                stock['num']['discount_rate'] = discount_rate
+                stock['num']['margin_of_safety'] = mos
+                if calculate_dcf(country, stock, years, data_type, criteria, beta) is False:
+                    if db_state == 'SYNC_DB':
+                        DB.update_dummy_dcf_numbers(collection, stock)
+                    del stock
+                    continue
+            conf.COUNT+=1
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
                 write_to_excel(com, ash, stock, years)

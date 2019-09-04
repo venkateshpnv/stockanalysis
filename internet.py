@@ -126,7 +126,13 @@ def price_change(country, sym, name, num_days, data_type):
         sym = sym.replace('.', '-')
     if data_type == 'HOT':
         end = dt.now()
+        diff = end.weekday() - 4
+        if diff > 0:
+            end = end - timedelta(days=diff+1)
         start = end - timedelta(days=num_days)
+        diff = start.weekday() - 4
+        if diff > 0:
+            start = start - timedelta(days=diff+1)
         try:
             #print("Symbol: %s, Name: %s" %(sym, name))
             #read = pdr.DataReader(sym, 'morningstar', start, end)
@@ -274,14 +280,20 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
         #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
         #for doc in col.find({}):
         #docs = col.find({"bscs.symbol":"HEXO"}).sort([["sno",1]])
-        docs = col.find({}).sort([["sno",1]])
+        docs = col.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Count: %r" %(docs.count()))
         i=0
         len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0
         for doc in docs:
+            #last_sno = int(read_from_file("price_surprise.txt"))
             sno = doc['sno']
-            if sno > 150:
-            #if sno > 0:
+            #if last_sno == docs.count():
+            #    return
+            #if sno < last_sno:
+            #    print("Skipping %r: %r" %(sno, doc['bscs']['symbol']))
+            #    continue
+ 
+            if sno > 0:
                 doc['id'] = doc.pop('_id')
                 #stock = DB.dbObject(**doc)
                 stock = doc
@@ -296,20 +308,22 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 if "dcf_years" not in list.keys():
                     dcf_skip+=1
                     continue
-                if stock.bscs.price < 1:
+                if stock['bscs']['price'] < 1:
                     price_skip+=1
                     continue
-                if stock.bscs.trading != 'YES':
+                if stock['bscs']['trading'] != 'YES':
                     trading_skip+=1
                     continue
-                if stock.bscs.volume < 40000:
+                if stock['bscs']['volume'] < 40000:
                     vol_skip+=1
                     continue
                 i+=1
                 print("%d: %d: %s: %s" %(i, sno, sym, name))
-                if type(stock.num.eps_20yr) is int:
-                    stock.num.eps_20yr=[]
+                if type(stock['num']['eps_20yr']) is int:
+                    stock['num']['eps_20yr']=[]
                 price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
+                #write_to_file(str(doc['sno']), "price_surprise.txt", "w")
+
         print("len_skip: %r, dcf_skip = %d, price_skip = %d, trading_skip = %d, vol_skip = %d" %(len_skip, dcf_skip, price_skip, trading_skip, vol_skip))
     elif country == 'India':
         col = db['India_Stocks']
@@ -323,7 +337,7 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 sym = sym + '.BO'
                 price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
             i += 1
-
+    
     #now = datetime.datetime.now().date()
     now = datetime.datetime.now()
     excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HOME_DIR=/home/vpetla/work/stockanalysis
-SCRIPT=US_Price_Surprises.py
+SCRIPT=price_surprises.py
 
 #export DISPLAY=:0.0
 val=`ps ax | grep $SCRIPT | grep -v grep | wc -l`

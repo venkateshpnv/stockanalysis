@@ -29,17 +29,14 @@ class dbObject:
                 self.__dict__[k] = v
 
 def clear_dict(d):
-    ed = {}
     for k,v in d.items():
         if isinstance(v,dict):
-            ed[k] = clear_dict(v)
+            d[k] = clear_dict(v)
         else:
-            if type(ed[k]) is list:
-                ed[k] = {}
-            else:
-                ed[k] = None
-    print(ed)
-    return ed
+            if d[k] is None:
+                print("%r is None, setting to 0" %(k))
+                d[k]=0
+    return d
 
 ########################### DB Related Calls ########3###################
 def open_db(db_name):
@@ -415,7 +412,7 @@ def update_all_price_volume_db(country):
     db = open_db('Stocks')
     i=0
     if country == 'US':
-        docs = db.US_Stocks.find({},no_cursor_timeout=True).sort([["sno",1]])
+        docs = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         for doc in docs:
             if i > -1:
                 #stk = dbObject(**doc)
@@ -521,21 +518,6 @@ def build_US_Stocks_List(excel_file):
     #        db.US_Stocks_List.insert_one(stk)
     #    else:
     #        print("%s already present" %(sheet.cell_value(i,0)))
-
-def write_to_file(val, filename, mode):
-    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
-    f = open(filename, mode)
-    val=val+"\n"
-    f.write(val)
-    f.close()
-
-def read_from_file(filename):
-    filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
-    f = open(filename, "r")
-    val=f.read()
-    f.close()
-    return val
-
 
 def get_nin(filename, ninname):
     line=None
@@ -844,37 +826,49 @@ def get_beta(sym, bindex, sdate, edate):
     betas = {}
     sym = sym.replace('.', '-')
     try:
-        df = pdr.DataReader(sym,'yahoo',sdate,edate)
+        #from pandas_datareader.quandl import QuandlReader
+        #df = pdr.DataReader(sym,'morningstar',sdate,edate)
+        #print(df)
+        df = pdr.DataReader(sym,'yahoo',sdate,edate, retry_count=3)
     except KeyError:
         print("Could not get data. Failed to calculate beta")
         return None
 
-    dfb = pdr.DataReader(bindex,'yahoo',sdate,edate)
+    dfb = pdr.DataReader(bindex,'yahoo',sdate,edate, retry_count=3)
    
     # Calculate CAGR
-    first = df['Adj Close'][0]
-    if isinstance(first, complex):
+    s_first = df['Adj Close'][0]
+    if isinstance(s_first, complex):
         print("first is complex number")
-    last = df['Adj Close'][-1]
-    if isinstance(last, complex):
+    s_last = df['Adj Close'][-1]
+    if isinstance(s_last, complex):
         print("last is complex number")
     #print(df['Adj Close'].head(5))
     #print(df['Adj Close'].tail(5))
-    years = (edate-sdate).days/365
-    #print("sdate: %r, edate: %r, last: %r, first: %r"%(sdate, edate, last, first))
     try:
-        cagr = round((((last/first)**(1/years))-1), 4)
+        years = (edate-sdate).days/365
+    except Exception:
+        print("edate: %s, sdate: %s"%(edate,sdate))
+        sys.exit(1)
+
+    #print("sdate: %r, edate: %r, last: %r, first: %r"%(sdate, edate, last, first))
+    growth_percent = s_last/s_first - 1
+    print("**************1 *********************")
+    try:
+        cagr = round((((s_last/s_first)**(1/years))-1), 4)
     except Exception as e:
         print(str(e))
         print("Failed to calculate CAGR for : %r" %(sym))
-        print("First: %r, last: %r, years: %r" %(first, last, years))
+        print("First: %r, last: %r, years: %r" %(s_first, s_last, years))
         cagr = None
         #sys.exit()
 
     first = dfb['Adj Close'][0]
     last = dfb['Adj Close'][-1]
+    bgrowth_percent = last/first - 1
     b_cagr = round((((last/first)**(1/years))-1), 4)
     first = dfb['Adj Close'][0]
+    print("**************2 *********************")
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # create a time-series of monthly data points
@@ -884,12 +878,14 @@ def get_beta(sym, bindex, sdate, edate):
     dfsm = pd.DataFrame({'s_adjclose' : rts['Adj Close'],
                             'b_adjclose' : rbts['Adj Close']},
                             index=rts.index)
+    print("**************3 *********************")
     
     # compute returns
     dfsm[['s_returns','b_returns']] = dfsm[['s_adjclose','b_adjclose']]/\
         dfsm[['s_adjclose','b_adjclose']].shift(1) -1
     dfsm = dfsm.dropna()
     covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
+    print("**************4 *********************")
     
     # calculate measures now
     beta = covmat[0,1]/covmat[1,1]
@@ -902,6 +898,7 @@ def get_beta(sym, bindex, sdate, edate):
     SS_res = np.sum(np.power(ypred-dfsm["s_returns"],2))
     SS_tot = covmat[0,0]*(len(dfsm)-1) # SS_tot is sample_variance*(n-1)
     r_squared = 1. - SS_res/SS_tot
+    print("************** 5*********************")
 
     # 5- year volatiity and 1-year momentum
     volatility = np.sqrt(covmat[0,0])
@@ -916,14 +913,22 @@ def get_beta(sym, bindex, sdate, edate):
     #print("alpha/year: %r" %(alpha))
     #print("alpha_pure/year: %r" %(alpha_pure))
     volatility = volatility*np.sqrt(time_period)
+    print("************** 6*********************")
 
+    betas.update({"Start Price":float(s_first)})
+    print("************** 7*********************")
+    betas.update({"End Price":float(s_last)})
+    print("************** 8*********************")
     betas.update({"Index_CAGR":b_cagr})
+    betas.update({"Index Percent Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
+    betas.update({"Percent Change":growth_percent})
     betas.update({"beta":beta})
     betas.update({"alpha":alpha})
     betas.update({"alpha_pure":alpha_pure})
     betas.update({"r_squared":r_squared})
     betas.update({"volatility":volatility})
+    print("************** 9*********************")
     #print(betas)
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
@@ -933,24 +938,25 @@ def update_stock_recession_beta(db, doc, sym):
 
     for year in years:
         try:
-            if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
-                print("Recession Betas")
-                st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
-                en_date = datetime.strptime(recessions[year]['end'], "%B %Y").date()
-                print(st_date)
-                print(en_date)
+            #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
+            if True:
+                #print("Recession Betas")
+                st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
+                en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
+                #print(st_date)
+                #print(en_date)
                 betas = get_beta(sym, '^GSPC', st_date, en_date)
-                print("Beta: %r" %(betas))
+                #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 db.update({'bscs.symbol':sym},{'$set': {field : betas}})
         except KeyError:
-                print("Recession Betas")
-                st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
-                en_date = datetime.strptime(recessions[year]['end'], "%B %Y").date()
-                print(st_date)
-                print(en_date)
+                #print("Recession Betas")
+                st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
+                en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
+                #print(st_date)
+                #print(en_date)
                 betas = get_beta(sym, '^GSPC', st_date, en_date)
-                print("Beta: %r" %(betas))
+                #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 db.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
@@ -964,42 +970,53 @@ def update_stock_betas():
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({}, no_cursor_timeout=True).sort([["sno",1]])
-    docs = db.find({"bscs.symbol":{"$nin" : ["AAN", "SFS"]}}, no_cursor_timeout=True).sort([["sno",1]])
+    #docs = db.find({"bscs.symbol":{"$in" : ["LLL"]}}, no_cursor_timeout=True).sort([["sno",1]])
+    docs = db.find({"bscs.symbol":{"$nin" : ["AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
-    #for i, doc in enumerate(docs):
-    for doc in docs:
+    for i, doc in enumerate(docs):
+    #for doc in docs:
         if doc['ignore'] == 'Yes':
             print("Ignore set")
+            continue
+
+        if doc['sno'] < 4094:
             continue
 
         sym = doc['bscs']['symbol']
         print("%r: %r" %(doc['sno'], sym))
         since = doc['bscs']['since']
-        print("since: %r" %(since))
+        #print("since: %r" %(since))
         #sno = int(read_from_file("beta.txt"))
         #if sno > doc['sno']:
         #    continue
+        print("************** 10*********************")
         since_start = datetime.strptime(since, "%Y-%m-%d").date()
     
         update_stock_recession_beta(db, doc, sym)
+        print("************** 11*********************")
 
         if not 'betas' in doc['fig'].keys():
             doc['fig']['betas']={}
 
-        if not 'since_last_recession' in doc['fig']['betas'].keys() or not doc['fig']['betas']['since_last_recession']:
-            print(doc['fig']['betas'].keys())
+        #if not 'since_last_recession' in doc['fig']['betas'].keys() or not doc['fig']['betas']['since_last_recession']:
+        if True:
+            #print(doc['fig']['betas'].keys())
             #Since last recession
             betas = None
             year = sorted(recessions.keys())[-1]
-            st_date = datetime.strptime(recessions[year]['start'], "%B %Y").date()
+            print("************** 12*********************")
+            st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
             en_date = datetime.now().date()
+            print("************** 13*********************")
             #print("Since last recession")
             #print(st_date)
             #print(en_date)
             betas = get_beta(sym, bindex, st_date, en_date)
+            print("************** 14*********************")
             #print("Betas: %r" %(betas))
             field="fig.betas.since_last_recession"
             db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        continue
 
         #whole beta
         if not 'whole' in doc['fig']['betas'].keys() or not doc['fig']['betas']['whole']:

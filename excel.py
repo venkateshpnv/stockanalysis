@@ -11,6 +11,7 @@ import datetime
 from datetime import datetime as dt, timedelta
 #from datetime import date
 import arrow
+import markdown
 
 import conf
 import DB
@@ -163,10 +164,14 @@ def get_radar_stocks():
         #entries.append(entry)
         ##print(entries)
     s = parse_html.html_table(entries)
+    #s = markdown.markdown(entries)
     #print(s)
     subject = 'Radar Stocks :' + str(dt.now().date())
     print(subject)
-    internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
+    f=open("stocks.html","w")
+    f.write(s)
+    f.close()
+    internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
 
 def get_India_stock_split_info(stk):
     wb = xlrd.open_workbook('India_Stocks/split_data.xls')
@@ -224,6 +229,12 @@ def add_basic_header(sheet, i):
     sheet.col(i).width = 10*367
     sheet.write(0, i, "Industry", style_wrap)
     conf.IND=i
+
+    i+=1
+    #Since
+    sheet.col(i).width = 10*367
+    sheet.write(0, i, "Since", style_wrap)
+    conf.SINCE=i
 
     i+=1
     #Current Price
@@ -407,6 +418,36 @@ def add_betas_header(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "2007 Pure Alpha", style_wrap)
     conf.R2007_PURE_ALPHA=i
+
+    i+=1
+    # 2007 Index Percent Change
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "2007 Index Percent Change", style_wrap)
+    conf.R2007_IPER_CHG=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "2007 Percent Change", style_wrap)
+    conf.R2007_PER_CHG=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 9*367
+    sheet.write(0, i, "Since Last Recession", style_wrap)
+    conf.SINCE_LAST_PER_CHG=i
+
+    i+=1
+    # 2007 CAGR
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "2007 CAGR", style_wrap)
+    conf.R2007_CAGR=i
+
+    i+=1
+    # 2007 Index CAGR
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "2007 Index CAGR", style_wrap)
+    conf.R2007_ICAGR=i
 
     i+=1
     # Whole Beta
@@ -667,6 +708,15 @@ def add_price_surprise_header(sheet, sheet_type):
 
 def write_to_price_change_excel(count, ash, stk, sheet_type):
 
+    #DB.clear_dict(stk)
+
+    if not isinstance(stk['num']['eps_20yr'], list):
+        db=DB.open_db('Stocks')
+        db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"num.eps_20yr":[]}})
+        print("Setting eps_20yr to []")
+        stk['num']['eps_20yr']=[]
+
+
     if sheet_type == 'YEAR':
         ash.write(count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
     if sheet_type == 'QUARTER':
@@ -685,11 +735,16 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.DIV, stk['Dividend']['yld']/100, style_percent)
     ash.write(count, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
     ash.write(count, conf.FLT, stk['bscs']['float']/100)
-    ash.write(count, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
+    try:
+        ash.write(count, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
+    except Exception:
+        pass
 
     ash.write(count, conf.SYM, stk['bscs']['symbol'], style_text)
     ash.write(count, conf.SEC, stk['bscs']['sector'], style_text)
     ash.write(count, conf.IND, stk['bscs']['industry'], style_text)
+    ash.write(count, conf.MCAP, stk['bscs']['mcap'], style_num)
+    ash.write(count, conf.SINCE, stk['bscs']['since'], style_text)
     ash.write(count, conf.CUR_PR, stk['bscs']['price'])
 
     ash.write(count, conf.VOL, stk['bscs']['volume'])
@@ -734,7 +789,6 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
         ash.write(count, conf.PRF_M, stk['fig']['PAT_M'][-1]/100, style_percent)
     except Exception as e:
         PRINT_ERR(str(e))
-        ash.write(count, conf.MCAP, stk['bscs']['mcap'], style_num)
     try:
         ash.write(count, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent)
     except Exception as e:
@@ -768,6 +822,12 @@ def check_and_write(ash, count, col, entry, index, factor, style):
 def write_to_excel(com, ash, stk, years):
     #wb = xlwt.Workbook()
 
+    if not isinstance(stk['num']['eps_20yr'], list):
+        db=DB.open_db('Stocks')
+        db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"num.eps_20yr":[]}})
+        print("Setting eps_20yr to []")
+        stk['num']['eps_20yr']=[]
+
     #open a company sheet
     sheet = com.add_sheet(stk['bscs']['symbol'])
     sheet.col(0).width = 28*367
@@ -776,46 +836,32 @@ def write_to_excel(com, ash, stk, years):
 
     if not stk['bscs']['dii_stake']:
         stk['bscs']['dii_stake']=0
-    try:
-        if not stk['Dividend']['yld']:
-            stk['Dividend']['yld']=0
-        if not stk['Dividend']['payout_ratio']:
-            stk['Dividend']['payout_ratio']=0
-    except AttributeError:
+    if not 'yld' in stk['Dividend']:
         db=DB.open_db('Stocks')
-        DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Dividend.yld", 0)
-        DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Dividend.payout_ratio", 0)
-
-    try:
-        if not stk['Ratios']['interest_coverage']:
-            stk['Ratios']['interest_coverage']=0
-    except AttributeError:
+        db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"Dividend.yld":0}})
+        db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"Dividend.payout_ratio":0}})
+        stk['Dividend']['yld']=0
+        stk['Dividend']['payout_ratio']=0
+    if not 'interest_coverage' in stk['Ratios']:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.interest_coverage", 0)
-    try:
-        if not stk['Ratios']['forward_PE']:
-            stk['Ratios']['forward_PE']=0
-    except AttributeError:
+        stk['Ratios']['interest_coverage']=0
+    if not 'forward_PE' in stk['Ratios']:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.forward_PE", 0)
-    try:
-        if not stk['Ratios']['ttm_PE']:
-            stk['Ratios']['ttm_PE']=0
-    except AttributeError:
+        stk['Ratios']['forward_PE']=0
+    if not 'ttm_PE' in stk['Ratios']:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.ttm_PE", 0)
-    try:
-        if not stk['bscs']['float']:
-            stk['bscs']['float'] = 0
-    except AttributeError:
+        stk['Ratios']['ttm_PE']=0
+    if not 'float' in stk['bscs']:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.float", 0)
-    try:
-        if not stk['bscs']['float_percent']:
-            stk['bscs']['float_percent'] = 0
-    except AttributeError:
+        stk['bscs']['float'] = 0
+    if not 'float_percent' in stk['bscs'] or not stk['bscs']['float_percent']:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.float_percent", 0)
+        stk['bscs']['float_percent'] = 0
 
     i = 0
     sheet.write(i, 0, "Date", style_bold)
@@ -844,6 +890,14 @@ def write_to_excel(com, ash, stk, years):
             ash.write(conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
             ash.write(conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
             ash.write(conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
+            try:
+                ash.write(conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index Percent Change'], 2), style_percent)
+                ash.write(conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent Change'], 2), style_percent)
+                ash.write(conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['since_last_recession']['Percent Change'], 2), style_percent)
+            except Exception:
+                pass
+            ash.write(conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal)
+            ash.write(conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal)
         if stk['fig']['betas']['whole']:
             ash.write(conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
             ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
@@ -858,6 +912,7 @@ def write_to_excel(com, ash, stk, years):
     ash.write(conf.COUNT, conf.SYM, stk['bscs']['symbol'], style_text)
     ash.write(conf.COUNT, conf.SEC, stk['bscs']['sector'], style_text)
     ash.write(conf.COUNT, conf.IND, stk['bscs']['industry'], style_text)
+    ash.write(conf.COUNT, conf.SINCE, stk['bscs']['since'], style_text)
 
     sheet.write(i, 3, "Public Stake")
     sheet.write(i, 4, stk['bscs']['pub_stake']/100, style_percent)

@@ -378,16 +378,16 @@ class Stock:
         self.sno=0
 
 recessions = { 
-                "1990" : { "start" : "July 1990",
-                           "end" : "March 1991",
+                "1990" : { "start" : "16 July 1990",
+                           "end" : "14 January 1991",
                            "duration" : 8
                          },
-                "2001" : { "start" : "March 2001",
-                           "end" : "November 2001",
-                           "duration" : 8
+                "2001" : { "start" : "31 August 2000",
+                           "end" : "12 March 2003",
+                           "duration" : 31
                          },
-                "2007" : { "start" : "December 2007",
-                           "end" : "June 2009",
-                           "duration" : 18
+                "2007" : { "start" : "12 October 2007",
+                           "end" : "27 February 2009",
+                           "duration" : 14
                          }
              }
