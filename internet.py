@@ -111,7 +111,9 @@ def send_email2(user, pwd, recipient, subject, body):
     message['To'] = recipient
     message.attach(MIMEText(body, 'html'))
 
+    #server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
     server = smtplib.SMTP("smtp.gmail.com", 587)
+    #server.set_debuglevel(1)
     server.ehlo()
     server.starttls()
     server.login(user, pwd)

@@ -15,7 +15,7 @@ from conf import *
 import json_code
 import DB
 
-def html_table(lol):
+def html_head():
     s = ''
     s += "%s\n" %('<style type="text/css">')
     s += "%s\n" %('.tg  {border-collapse:collapse;border-spacing:0;}')
@@ -24,11 +24,18 @@ def html_table(lol):
     s += "%s\n" %('.tg .tg-0lax{text-align:left;vertical-align:top}')
     s += "%s\n" %('</style>')
     s += "%s\n" %('<table class=tg>')
+    return s
+ 
+def html_text(s, lol):
     for sublist in lol:
-      s += "%s\n" %('  <tr>')
-      s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
-      s += "%s\n" %('  </tr>')
+        s += "%s\n" %('  <tr>')
+        s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
+        s += "%s\n" %('  </tr>')
     s += "%s\n" %('</table>')
+    return s
+
+def html_set_line(s):
+    s += "%s\n" %('<hr />')
     return s
 
 #def html_table(lol):
