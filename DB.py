@@ -740,51 +740,71 @@ def build_US_stock_information(doc):
         db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
 
 
-    obj = db.US_Stocks.find({"bscs.symbol":sym})
-    if obj.count() > 0:
-        print("%s: %s: already exists. Skipping" %(sym, name))
-        return
+    #obj = db.US_Stocks.find({"bscs.symbol":sym})
+    #if obj.count() > 0:
+    #    print("%s: %s: already exists. Skipping" %(sym, name))
+    #    return
 
-    path = internet.get_US_stock_page(sym, name)
+    # Get financial data from the internet
+    #path = internet.get_US_stock_page(sym, name)
+    
+    path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
+    path = path.lstrip().rstrip().replace(",","")
     
     ret=True
     for (root,dirs,files) in os.walk(path, topdown=True):
         files = [f for f in files if not f[0] == '.']
         dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
         dirs[:] = [d for d in dirs if not d[0] == '.']
-        #print(root)
+        #print("Root: %r" %(root))
         #print(dirs)
         #print(sorted(files))
-        ret = parse_html.populate_US_stocks(db, root, sorted(files), sym, name, doc['Sector'], doc['Industry']) 
-        if ret is True:
-            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-            remove_dir(path)
-        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+
+        # For a new stock
+        #stock = {}
+
+        #for an existing stock
+        stocks = db.US_Stocks.find({"bscs.symbol":sym})
+        if stocks and stocks.count() > 0:
+            ret = parse_html.populate_US_stocks(db, root, sorted(files), stocks[0], sym, name, doc['Sector'], doc['Industry']) 
+            #if ret is True:
+            #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+            #    #remove_dir(path)
+            #db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
  
 def build_US_all_stock_information():
+    j=0
     db = open_db('Stocks')
 
-    stocks_list = db.US_Stocks_List.find({})
-    j=0
-    for i, doc in enumerate(stocks_list):
-    #for doc in db.US_Stocks_List.find({"symbol":"PLG"}).sort([["sno",1]]):
+    s=[]
+    f = open("stocks.txt","r")
+    for line in f:
+        line = line.replace("\n","")
+        s.append(line)
+    if len(s) > 0:
+        del s[-1]
+    syms = {"$nin" : s}
+    stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks_list = db.US_Stocks_List.find({"symbol":"FAX"})
+    print(stocks_list.count())
+
+    for doc in stocks_list:
         sno = doc['sno']
-        #if sno > 3443:
-        #    break
+        #if sno > 373:
         if sno > 0:
-        #if sno > 5896:
-        #if sno > 2134:
-            name = doc['Name']
+            #name = doc['Name']
             #if name.find("Fund") != -1 or name.find("Trust") != -1:
             #    print("Skipping: %r" %(name))
             #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
             #    continue
 
         #if i > -1:
-            obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
-            #if obj.count() == 0:
-            if doc['parsed'] != 'YES' and obj.count() == 0:
+            #obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
+            ##if obj.count() == 0:
+            #if doc['parsed'] != 'YES' and obj.count() == 0:
+            if True:
                 print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
+                write_stock_to_file(doc['symbol'], "stocks.txt", "a")
                 build_US_stock_information(doc)
                 #j += 1
                 #update_field(db.US_Stocks, doc['symbol'], "sno", j)
@@ -800,7 +820,7 @@ def build_US_all_stock_information():
             #db.US_Stocks_List.update({'symbol': stock['symbol']}, {'$set': {"symbol": sym}})
 
 
-    set_sno('US')
+    #set_sno('US')
     # Create index based on sno
     #db.US_Stocks.createIndex({sno: -1})
     #db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
@@ -854,7 +874,6 @@ def get_beta(sym, bindex, sdate, edate):
 
     #print("sdate: %r, edate: %r, last: %r, first: %r"%(sdate, edate, last, first))
     growth_percent = s_last/s_first - 1
-    print("**************1 *********************")
     try:
         cagr = round((((s_last/s_first)**(1/years))-1), 4)
     except Exception as e:
@@ -869,7 +888,6 @@ def get_beta(sym, bindex, sdate, edate):
     bgrowth_percent = last/first - 1
     b_cagr = round((((last/first)**(1/years))-1), 4)
     first = dfb['Adj Close'][0]
-    print("**************2 *********************")
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # create a time-series of monthly data points
@@ -879,14 +897,12 @@ def get_beta(sym, bindex, sdate, edate):
     dfsm = pd.DataFrame({'s_adjclose' : rts['Adj Close'],
                             'b_adjclose' : rbts['Adj Close']},
                             index=rts.index)
-    print("**************3 *********************")
     
     # compute returns
     dfsm[['s_returns','b_returns']] = dfsm[['s_adjclose','b_adjclose']]/\
         dfsm[['s_adjclose','b_adjclose']].shift(1) -1
     dfsm = dfsm.dropna()
     covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
-    print("**************4 *********************")
     
     # calculate measures now
     beta = covmat[0,1]/covmat[1,1]
@@ -899,7 +915,6 @@ def get_beta(sym, bindex, sdate, edate):
     SS_res = np.sum(np.power(ypred-dfsm["s_returns"],2))
     SS_tot = covmat[0,0]*(len(dfsm)-1) # SS_tot is sample_variance*(n-1)
     r_squared = 1. - SS_res/SS_tot
-    print("************** 5*********************")
 
     # 5- year volatiity and 1-year momentum
     volatility = np.sqrt(covmat[0,0])
@@ -914,12 +929,9 @@ def get_beta(sym, bindex, sdate, edate):
     #print("alpha/year: %r" %(alpha))
     #print("alpha_pure/year: %r" %(alpha_pure))
     volatility = volatility*np.sqrt(time_period)
-    print("************** 6*********************")
 
     betas.update({"Start Price":float(s_first)})
-    print("************** 7*********************")
     betas.update({"End Price":float(s_last)})
-    print("************** 8*********************")
     betas.update({"Index_CAGR":b_cagr})
     betas.update({"Index Percent Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
@@ -929,7 +941,6 @@ def get_beta(sym, bindex, sdate, edate):
     betas.update({"alpha_pure":alpha_pure})
     betas.update({"r_squared":r_squared})
     betas.update({"volatility":volatility})
-    print("************** 9*********************")
     #print(betas)
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
@@ -990,11 +1001,9 @@ def update_stock_betas():
         #sno = int(read_from_file("beta.txt"))
         #if sno > doc['sno']:
         #    continue
-        print("************** 10*********************")
         since_start = datetime.strptime(since, "%Y-%m-%d").date()
     
         update_stock_recession_beta(db, doc, sym)
-        print("************** 11*********************")
 
         if not 'betas' in doc['fig'].keys():
             doc['fig']['betas']={}
@@ -1005,15 +1014,12 @@ def update_stock_betas():
             #Since last recession
             betas = None
             year = sorted(recessions.keys())[-1]
-            print("************** 12*********************")
             st_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
             en_date = datetime.now().date()
-            print("************** 13*********************")
             #print("Since last recession")
             #print(st_date)
             #print(en_date)
             betas = get_beta(sym, bindex, st_date, en_date)
-            print("************** 14*********************")
             #print("Betas: %r" %(betas))
             field="fig.betas.since_last_recession"
             db.update({'bscs.symbol':sym},{'$set': {field : betas}})

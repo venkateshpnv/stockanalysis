@@ -1,5 +1,6 @@
 from inspect import currentframe
 import os
+import pprint
 
 YEAR=1
 QUARTER=2
@@ -20,6 +21,10 @@ def PRINT_DBG(x):
 def PRINT(x):
     None
     #print(x)
+
+def pretty_print(entry):
+    pp = pprint.PrettyPrinter(indent=2)
+    pp.pprint(entry)
 
 def goto(linenum):
     global line
@@ -44,9 +49,9 @@ def str_to_float(x):
         #val = float(x)
         val = float(x.lstrip().rstrip().replace("$","").replace(",","").replace("%",""))
     except ValueError:
-        return 0
+        return None
     except TypeError:
-        return 0
+        return None
     return val
 
 def str_to_float_valid(x):
@@ -104,7 +109,7 @@ def remove_dir(path):
         os.remove(file_path)
     os.rmdir(path)
 
-def write_to_file(val, filename, mode):
+def write_stock_to_file(val, filename, mode):
     filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
     f = open(filename, mode)
     val=val+"\n"
