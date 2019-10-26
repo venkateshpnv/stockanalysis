@@ -19,3 +19,5 @@ timestring
 Action
 markdown
 quandl
+
+apt-get install python3-tk

@@ -756,9 +756,10 @@ def populate_financial_statement(stock, root, files, sheet_type, tenure):
     for f in [s for s in files if substr in s]:
         #balance sheets
         stock_page = "%s/%s" %(root, f)
-        html_page  = internet.get_html(stock_page)
-        soup=BeautifulSoup(html_page,'html.parser')
-        populate_statement(soup, stock, sheet_type, tenure)
+        print(stock_page)
+        #html_page  = internet.get_html(stock_page)
+        #soup=BeautifulSoup(html_page,'html.parser')
+        #populate_statement(soup, stock, sheet_type, tenure)
     #sorted_entries = {}
     #for e in sorted(stock[fig]['financial-statements'][sheet_type].keys()):
     #    sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
@@ -779,6 +780,8 @@ def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
     stock['bscs']['name'] = name
     stock['bscs']['sector'] = sector
     stock['bscs']['industry'] = industry
+    stock['fig']['financial-statements']={}
+    stock['quart_fig']['financial-statements']={}
 
     populate_financial_statement(stock, root, files, 'balance-sheet', 'annual')
     populate_financial_statement(stock, root, files, 'balance-sheet', 'quarterly')
@@ -789,9 +792,9 @@ def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
 
     #pretty_print(stock)
 
-    DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig.financial-statements", stock['fig']['financial-statements'])
-    DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "quart_fig.financial-statements", stock['quart_fig']['financial-statements'])
-    #DB.update_US_stk_profile(html_page, db.US_Stocks)
+    #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig.financial-statements", stock['fig']['financial-statements'])
+    #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "quart_fig.financial-statements", stock['quart_fig']['financial-statements'])
+    ##DB.update_US_stk_profile(html_page, db.US_Stocks)
 
     return True
 

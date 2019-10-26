@@ -13,6 +13,7 @@ from selenium.webdriver import ActionChains as ac
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import multiprocessing
 
 import gc
 
@@ -35,6 +36,7 @@ import xlwt
 # Date
 import datetime
 from datetime import datetime as dt, timedelta
+from dateutil.relativedelta import relativedelta
 from datetime import date
 
 #List Files
@@ -55,6 +57,7 @@ from datastructures import *
 import parse_html
 import DB
 from common import *
+import hdf5
 
 def open_browser():
     profile = webdriver.FirefoxProfile()
@@ -122,10 +125,10 @@ def send_email2(user, pwd, recipient, subject, body):
     server.close()
     print('successfully sent the mail')
 
+# Deprecated. Use hdf_price_change().
 def price_change(country, sym, name, num_days, data_type):
     change = 0
-    if '.' in sym:
-        sym = sym.replace('.', '-')
+    symbol = sym.replace('.', '-')
     if data_type == 'HOT':
         end = dt.now()
         diff = end.weekday() - 4
@@ -137,8 +140,8 @@ def price_change(country, sym, name, num_days, data_type):
             start = start - timedelta(days=diff+1)
         try:
             #print("Symbol: %s, Name: %s" %(sym, name))
-            #read = pdr.DataReader(sym, 'morningstar', start, end)
-            read = pdr.DataReader(sym, 'yahoo', start, end)
+            #read = pdr.DataReader(symbol, 'morningstar', start, end)
+            read = pdr.DataReader(symbol, 'yahoo', start, end)
         except pdr._utils.RemoteDataError:
             PRINT_ERR("Unable to get data for %s"%(sym))
             return None
@@ -178,7 +181,7 @@ def price_change(country, sym, name, num_days, data_type):
         if country == 'US':
             doc = db.US_Stocks.find({"bscs.symbol":sym})
         elif country == 'India':
-            docs = db.Indian_Stocks.find({"bscs.symbol":sym})
+            doc = db.Indian_Stocks.find({"bscs.symbol":sym})
         else:
             return 0
         if num_days == 365:
@@ -204,77 +207,253 @@ def price_change(country, sym, name, num_days, data_type):
 
     return change
 
-def check_price_change(country, sym, stock, name, change, req_change, count, sheet, sheet_type):
+def check_price_change(country, sym, stock, name, change, req_change, count, sheet, sheet_type, excel_type):
     if change >= req_change:
         #print("sym: %s, name: %s, change: %d percent" %(sym, name, change*100))
-        count += 1 
-        excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
+        count += 1
+        if excel_type == 'EXCEL':
+            excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
 
     elif change < -(req_change):
         #print("sym: %s, name: %s, change: -%d percent" %(sym, name, change*100))
         count += 1 
-        excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
+        if excel_type == 'EXCEL':
+            excel.write_to_price_change_excel(count, sheet, stock, sheet_type)
 
     return count
 
 
-def price_suprise(country, collection, stock, sym, name, change_percent, xl, data_type, criteria, db_type):
+def price_suprise(country, collection, stock, sym, name, change_percent, xl, criteria, db_type, excel_type):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
    
-    if data_type == 'HOT':
-        DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
-
     if criteria == ALL or criteria & YEAR:
-        change = price_change(country, sym, name, 365, data_type)
+        change = hdf5.hdf_price_change(country, sym, 365)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.year", change)
-            conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, xl.get_sheet(0), 'YEAR')
+            if excel_type == 'EXCEL':
+                sheet = xl.get_sheet(0)
+            else:
+                sheet = None
+            conf.PR_YR_COUNT = check_price_change(country, sym, stock, name, change, 0.40, conf.PR_YR_COUNT, sheet, 'YEAR', excel_type)
     
     if criteria == ALL or criteria & QUARTER:
-        change = price_change(country, sym, name, 90, data_type)
+        change = hdf5.hdf_price_change(country, sym, 90)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.quarter", change)
-            conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, xl.get_sheet(1), 'QUARTER')
+            if excel_type == 'EXCEL':
+                sheet = xl.get_sheet(1)
+            else:
+                sheet = None
+            conf.PR_QR_COUNT = check_price_change(country, sym, stock, name, change, 0.30, conf.PR_QR_COUNT, sheet, 'QUARTER', excel_type)
     
     if criteria == ALL or criteria & MONTH:
-        change = price_change(country, sym, name, 30, data_type)
+        change = hdf5.hdf_price_change(country, sym, 30)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.month", change)
-            conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, xl.get_sheet(2), 'MONTH')
+            if excel_type == 'EXCEL':
+                sheet = xl.get_sheet(2)
+            else:
+                sheet = None
+            conf.PR_MON_COUNT = check_price_change(country, sym, stock, name, change, 0.20, conf.PR_MON_COUNT, sheet, 'MONTH', excel_type)
     
     if criteria == ALL or criteria & WEEK:
-        change = price_change(country, sym, name, 7, data_type)
+        change = hdf5.hdf_price_change(country, sym, 7)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.week", change)
-            conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, xl.get_sheet(3), 'WEEK')
+            if excel_type == 'EXCEL':
+                sheet = xl.get_sheet(3)
+            else:
+                sheet = None
+            conf.PR_WEEK_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_WEEK_COUNT, sheet, 'WEEK', excel_type)
 
     if criteria == ALL or criteria & DAY:
-        change = price_change(country, sym, name, 2, data_type)
+        change = hdf5.hdf_price_change(country, sym, 1)
         if change:
             if db_type == 'SYNC_DB':
                 DB.update_field(collection, sym, "price_change.day", change)
-            conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, xl.get_sheet(4), 'DAY')
+            if excel_type == 'EXCEL':
+                sheet = xl.get_sheet(4)
+            else:
+                sheet = None
+            conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, sheet, 'DAY', excel_type)
 
-def price_surprises(country, change_percent, criteria, data_type, db_type):
+    DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
+
+def update_price_change(country, collection, sym, sem, lock):
+   #st_price = read.iat[0, read.columns.get_loc('Close')]
+    #en_price = read.iat[-1, read.columns.get_loc('Close')]
+    df = None
+    try:
+        try:
+            lock.acquire()
+            df = hdf5.get_dataframe(country, sym)
+        except KeyError:
+            print("No price data for %r. Skipping price change calculations" %(sym))
+        lock.release()
+        
+        if not df.empty:
+            change = hdf5.hdf_price_change(df, 1)
+            DB.update_field(collection, sym, "price_change.day", change)
+            change = hdf5.hdf_price_change(df, 7)
+            DB.update_field(collection, sym, "price_change.week", change)
+            change = hdf5.hdf_price_change(df, 30)
+            DB.update_field(collection, sym, "price_change.month", change)
+            change = hdf5.hdf_price_change(df, 90)
+            DB.update_field(collection, sym, "price_change.quarter", change)
+            change = hdf5.hdf_price_change(df, 180)
+            DB.update_field(collection, sym, "price_change.half_year", change)
+            change = hdf5.hdf_price_change(df, 365)
+            DB.update_field(collection, sym, "price_change.year", change)
+
+            DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
+    finally:
+        sem.release()
+
+def fork_hdf5_process(country, sem, lock):
+    db = DB.open_db('Stocks')
+    today=str(dt.now().date())
+    num_docs = db.US_Stocks.find({}).count()
+    # Randomly get all records whose price is not updated till today
+    pipeline = [{'$sample': {'size':num_docs}},
+                {'$match' : {"price_change.date": {'$ne':today}}},
+                #{"$group": {"_id": _id, "count": {"$sum":1}}},
+                #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+                ]
+
+    stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    #stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+    i=0
+    for stk in stocks:
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            continue
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            continue
+        print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        sem.acquire()
+        threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
+        #break
+        i = i + 1
+    DB.close_db()
+    print("Total stocks: %r" %(i))
+
+
+# Update the DB with yearly, quarterly and monthly percentage price change
+def update_all_stocks_price_change(country):
+    i = 0
+    max_threads = multiprocessing.cpu_count() * 2
+    hdf5_sem = threading.BoundedSemaphore(max_threads)
+    hdf5_lock = threading.Lock()
+ 
+    if country == 'US':
+        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
+        hdf5_process.start()
+        hdf5_process.join()
+
+def pcent(val):
+    return str(round(val *100, 2))+'%'
+
+# direction : -1 -> ascending order. Used for negative percent change
+# direction : 1 -> descending order. Used for positive percent change.
+def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
+
+    # duration can be "day", "week", "month", "quarter", "half_year", "year"
+    price_change="price_change.%s"%(duration)
+    # get all stocks with percentage greater than change in descending order
+    if direction == -1:
+        cond = '$lte'
+    # get all stocks with percentage less than change in ascending order
+    else:
+        cond = '$gte'
+
+    factor = 1
+    mcap = "Mcap in Millions"
+    #Convert to billions for mcap greater than 1 billion.
+    if high_mcap > 1000:
+        factor = 1/1000
+        mcap = "Mcap in Bn"
+
+    entries = []
+    head=["Symbol", "Name", "Price", mcap, "Day Change", "Week Change", "Month Change", "Quarter Change", "Year Change"]
+    entries.append(head)
+    if country == 'US':
+        db = DB.open_db('Stocks')
+        stocks = db.US_Stocks.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
+        #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
+        #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
+        for stk in stocks:
+            bscs  = stk['bscs']
+            pchg = stk['price_change']
+            #print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
+            entry = [bscs['symbol'], bscs['name'], str(bscs['price']), str(round(bscs['mcap']*factor, 2)), 
+                    pcent(pchg['day']), pcent(pchg['week']), pcent(pchg['month']), 
+                    pcent(pchg['quarter']), pcent(pchg['year'])]
+            entries.append(entry)
+
+    DB.close_db()
+    return entries
+
+def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, duration, segment): 
+    e = get_stocks(country, low_mcap, high_mcap, direction, change, duration)
+    if len(e) > 1:
+        #entries = [["Up"]]
+        entries = e
+        s = parse_html.html_text(s, segment)
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, ["Up"])
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries)
+        s = parse_html.html_set_line(s)
+    e = get_stocks(country, low_mcap, high_mcap, -direction, -change, duration)
+    if len(e) > 1:
+        #entries = [["Down"]]
+        entries = e
+        s = parse_html.html_text(s, ["Down"])
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries)
+        s = parse_html.html_set_line(s)
+    return s
+
+def send_email_price_changes(country):
+    update_all_stocks_price_change(country)
+    s = parse_html.html_head()
+
+    #s = parse_html.html_set_line(s)
+    s = build_html_price_change(s, 'US', 100000, 10000000, 1, 0.05, 'day', ["MCap 100 Bn and above"])
+    s = build_html_price_change(s, 'US', 10000, 100000, 1, 0.05, 'day', ["MCap 10 Bn and 100 Bn"])
+    s = build_html_price_change(s, 'US', 5000, 10000, 1, 0.05, 'day', ["MCap 5 Bn and 10 Bn"])
+    s = build_html_price_change(s, 'US', 1000, 5000, 1, 0.05, 'day', ["MCap 1 Bn and 5 Bn"])
+    s = build_html_price_change(s, 'US', 1, 1000, 1, 0.10, 'day', ["MCap < 1 Bn"])
+
+    f = open("/tmp/test.html","w")
+    f.write(s)
+    f.close()
+    subject='Daily Price Surprises: %r' %(str(datetime.datetime.now().date()))
+    send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
+
+def price_surprises(country, change_percent, criteria, db_type, excel_type):
     print("Criteria: %r" %(criteria))
-    xl = xlwt.Workbook()
+    if excel_type == 'EXCEL':
+        xl = xlwt.Workbook()
 
-    yr_sheet = xl.add_sheet("365 days change")
-    qr_sheet = xl.add_sheet("90 days change")
-    mon_sheet = xl.add_sheet("30 days change")
-    week_sheet = xl.add_sheet("7 days change")
-    day_sheet = xl.add_sheet("one day change")
+        yr_sheet = xl.add_sheet("365 days change")
+        qr_sheet = xl.add_sheet("90 days change")
+        mon_sheet = xl.add_sheet("30 days change")
+        week_sheet = xl.add_sheet("7 days change")
+        day_sheet = xl.add_sheet("one day change")
 
-    excel.add_price_surprise_header(yr_sheet, 'YEAR')
-    excel.add_price_surprise_header(qr_sheet, 'QUARTER')
-    excel.add_price_surprise_header(mon_sheet, 'MONTH')
-    excel.add_price_surprise_header(week_sheet, 'WEEK')
-    excel.add_price_surprise_header(day_sheet, 'DAY')
+        excel.add_price_surprise_header(yr_sheet, 'YEAR')
+        excel.add_price_surprise_header(qr_sheet, 'QUARTER')
+        excel.add_price_surprise_header(mon_sheet, 'MONTH')
+        excel.add_price_surprise_header(week_sheet, 'WEEK')
+        excel.add_price_surprise_header(day_sheet, 'DAY')
+    else:
+        xl = None
 
     db = DB.open_db('Stocks')
     if country == 'US':
@@ -295,6 +474,7 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
             #    print("Skipping %r: %r" %(sno, doc['bscs']['symbol']))
             #    continue
  
+            #if sno > 2211:
             if sno > 0:
                 doc['id'] = doc.pop('_id')
                 #stock = DB.dbObject(**doc)
@@ -323,7 +503,7 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 print("%d: %d: %s: %s" %(i, sno, sym, name))
                 if type(stock['num']['eps_20yr']) is int:
                     stock['num']['eps_20yr']=[]
-                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
+                price_suprise(country, col, stock, sym, name, change_percent, xl, criteria, db_type, excel_type)
                 #write_to_file(str(doc['sno']), "price_surprise.txt", "w")
 
         print("len_skip: %r, dcf_skip = %d, price_skip = %d, trading_skip = %d, vol_skip = %d" %(len_skip, dcf_skip, price_skip, trading_skip, vol_skip))
@@ -337,14 +517,15 @@ def price_surprises(country, change_percent, criteria, data_type, db_type):
                 sym = doc['bscs']['symbol']
                 name = doc['bscs']['name']
                 sym = sym + '.BO'
-                price_suprise(country, col, stock, sym, name, change_percent, xl, data_type, criteria, db_type)
+                price_suprise(country, col, stock, sym, name, change_percent, xl, criteria, db_type, excel_type)
             i += 1
     
     #now = datetime.datetime.now().date()
     now = datetime.datetime.now()
-    excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))
-    #xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
-    xl.save(excel_file)
+    if excel_type == 'EXCEL':
+        excel_file = "US_Stocks/DCF_Calc/price_surprises_%s.xls" % (str(now))
+        #xl.save("US_Stocks/DCF_Calc/price_surprises.xls")
+        xl.save(excel_file)
 
 
 def get_price_volume(stk, country):
@@ -357,11 +538,20 @@ def get_price_volume(stk, country):
     #stk['bscs']['volume'] = sum / len(vol.values.tolist())
     
     ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
+
+    # Skip the stop if mark ignored
+    if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+        return None
+    if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+        return None
+
+    symbol = stk['bscs']['symbol'].replace('.','-')
+
     try:
         if country == 'India':
-            d = data.get_quote_yahoo(stk['bscs']['symbol']+'.BO')
+            d = data.get_quote_yahoo(symbol+'.BO')
         elif country == 'US':
-            d = data.get_quote_yahoo(stk['bscs']['symbol'])
+            d = data.get_quote_yahoo(symbol)
         else:
             PRINT_ERR("Unknown Country Name")
             return None
@@ -491,19 +681,21 @@ def get_LTP(country, sym):
             col = db.India_Stocks
         else:
             return 0
-        DB.update_field(col, sym1, "bscs.trading", "NO")
+        #DB.update_field(col, sym1, "bscs.trading", "NO")
         return 0
     return price
 
 def get_page(url, html_file):
-    html=requests.get(url)
+    headers={"User-Agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0"}
+    html=requests.get(url, headers=headers)
     if html.status_code == 200:
         write_to_file(html.text, html_file)
     else:
         PRINT_ERR("Couldnt get page : %s" %(url))
 
 def get_webpage(url):
-    return requests.get(url).text
+    headers={"User-Agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:69.0) Gecko/20100101 Firefox/69.0"}
+    return requests.get(url, headers=headers).text
 
 def browse_US_stock_page(stock, url):
     driver = webdriver.Firefox()

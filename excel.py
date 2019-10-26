@@ -615,6 +615,9 @@ def add_dcf_header(sheet, years):
     conf.PRICE_YR_DAT=i
 
     i+=1
+    i = add_price_change_header(sheet, i, 'ALL')
+
+    i+=1
     # Price Growth
     sheet.col(i).width = 5*367
     st = "%s yr Price Gr" %(years)
@@ -644,41 +647,62 @@ def add_dcf_header(sheet, years):
     conf.FLT_PER=i
 
 def add_price_change_header(sheet, i, sheet_type):
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Yr Price Change", style_wrap)
+    conf.YR_PR_CHANGE=i
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Qr Price Change", style_wrap)
+    conf.QR_PR_CHANGE=i
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Mon Price Change", style_wrap)
+    conf.MON_PR_CHANGE=i
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Week Price Change", style_wrap)
+    conf.WEEK_PR_CHANGE=i
+    i = i + 1
+    sheet.col(i).width = 8*367
+    sheet.write(0, i, "Day Price Change", style_wrap)
+    conf.DAY_PR_CHANGE=i
+    return i
 
-    # Year Price Change
-    if sheet_type == 'YEAR':
-        sheet.col(i).width = 6*367
-        sheet.write(0, i, "Yr Price Change", style_wrap)
-        conf.YR_PR_CHANGE=i
-        return i
 
-    # Quarter Price Change
-    if sheet_type == 'QUARTER':
-        sheet.col(i).width = 6*367
-        sheet.write(0, i, "Qr Price Change", style_wrap)
-        conf.QR_PR_CHANGE=i
-        return i
-
-    # Month Price Change
-    if sheet_type == 'MONTH':
-        sheet.col(i).width = 6*367
-        sheet.write(0, i, "Mon Price Change", style_wrap)
-        conf.MON_PR_CHANGE=i
-        return i
-
-    # Week Price Change
-    if sheet_type == 'WEEK':
-        sheet.col(i).width = 6*367
-        sheet.write(0, i, "Week Price Change", style_wrap)
-        conf.WEEK_PR_CHANGE=i
-        return i
-
-    # DAY Price Change
-    if sheet_type == 'DAY':
-        sheet.col(i).width = 8*367
-        sheet.write(0, i, "Day Price Change", style_wrap)
-        conf.DAY_PR_CHANGE=i
-        return i
+#    # Year Price Change
+#    if sheet_type == 'YEAR':
+#        sheet.col(i).width = 6*367
+#        sheet.write(0, i, "Yr Price Change", style_wrap)
+#        conf.YR_PR_CHANGE=i
+#        return i
+#
+#    # Quarter Price Change
+#    if sheet_type == 'QUARTER':
+#        sheet.col(i).width = 6*367
+#        sheet.write(0, i, "Qr Price Change", style_wrap)
+#        conf.QR_PR_CHANGE=i
+#        return i
+#
+#    # Month Price Change
+#    if sheet_type == 'MONTH':
+#        sheet.col(i).width = 6*367
+#        sheet.write(0, i, "Mon Price Change", style_wrap)
+#        conf.MON_PR_CHANGE=i
+#        return i
+#
+#    # Week Price Change
+#    if sheet_type == 'WEEK':
+#        sheet.col(i).width = 6*367
+#        sheet.write(0, i, "Week Price Change", style_wrap)
+#        conf.WEEK_PR_CHANGE=i
+#        return i
+#
+#    # DAY Price Change
+#    if sheet_type == 'DAY':
+#        sheet.col(i).width = 8*367
+#        sheet.write(0, i, "Day Price Change", style_wrap)
+#        conf.DAY_PR_CHANGE=i
+#        return i
 
 def add_price_surprise_header(sheet, sheet_type):
     years=""
@@ -740,16 +764,22 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
         stk['num']['eps_20yr']=[]
 
 
-    if sheet_type == 'YEAR':
-        ash.write(count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
-    if sheet_type == 'QUARTER':
-        ash.write(count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
-    if sheet_type == 'MONTH':
-        ash.write(count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
-    if sheet_type == 'WEEK':
-        ash.write(count, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
-    if sheet_type == 'DAY':
-        ash.write(count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
+#    if sheet_type == 'YEAR':
+#        ash.write(count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+#    if sheet_type == 'QUARTER':
+#        ash.write(count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
+#    if sheet_type == 'MONTH':
+#        ash.write(count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
+#    if sheet_type == 'WEEK':
+#        ash.write(count, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+#    if sheet_type == 'DAY':
+#        ash.write(count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
+
+    ash.write(count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+    ash.write(count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
+    ash.write(count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
+    ash.write(count, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+    ash.write(count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
 
     ash.write(count, conf.COMP, stk['bscs']['name'], style_text)
     ash.write(count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
@@ -1152,6 +1182,11 @@ def write_to_excel(com, ash, stk, years):
     ##ash.write(conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1])
     check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
     ash.write(conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num)
+    ash.write(conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+    ash.write(conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
+    ash.write(conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
+    ash.write(conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+    ash.write(conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     ash.write(conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent)
     ash.write(conf.COUNT, conf.TEN_SAL, stk['fig']['sales_growth'], style_percent)
     ash.write(conf.COUNT, conf.TEN_PR, stk['fig']['profit_growth'], style_percent)

@@ -18,6 +18,9 @@ import parse_html
 from common import *
 from datastructures import *
 import conf
+import hdf5
+import threading
+import multiprocessing
 
 j = 0
 class dbObject:
@@ -38,11 +41,19 @@ def clear_dict(d):
                 d[k]=0
     return d
 
+client=None
 ########################### DB Related Calls ########3###################
 def open_db(db_name):
-    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    global client
+    client = pymongo.MongoClient("mongodb://localhost:27017/", maxPoolSize=1)
+    #print("Opening: %r" %(client))
     db = client[db_name]
     return db
+
+def close_db():
+    global client
+    #print("Closing: %r" %(client))
+    client.close()
 
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
@@ -187,8 +198,8 @@ def update_US_all_stk_profile():
     i = 0
     docs = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     for doc in docs:
-        #if i > 3444:
-        if i > -1: # and not doc['bscs']['price']:
+        if i > 3696:
+        #if i > -1: # and not doc['bscs']['price']:
             sym = doc['bscs']['symbol']
             url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(sym)
             html_text=internet.get_webpage(url)
@@ -409,23 +420,119 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": stk['bscs']['mcap']}})
     collection.update({'bscs.symbol': stk['bscs']['outstanding_shares']}, {'$set': {"bscs.outstanding_shares": stk['bscs']['outstanding_shares']}})
 
-def update_all_price_volume_db(country):
+j=0
+
+def fork_db_process(country, sem, lock):
     db = open_db('Stocks')
+    today=str(datetime.now().date())
+    num_docs = db.US_Stocks.find({}).count()
+    if num_docs == 0:
+        return
+    #Randomly get all records whose price is not updated till today
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
+ 
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
     i=0
+    for stk in stocks:
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            continue
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            continue
+        print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        sem.acquire()
+        threading.Thread(target=update_stk_bscs_db, args=(db, stk, country, sem, lock,)).start()
+        i = i + 1
+        #break
+    close_db()
+    print("DB Process Stocks tried :%r"%(i))
+
+def fork_hdf5_process(sem, lock):
+    db = open_db('Stocks')
+    today=str(datetime.now().date())
+    num_docs = db.US_Stocks.find({}).count()
+    #docs = db.US_Stocks.find({"bscs.price_date": {'$ne':today}})
+    if num_docs == 0:
+        return
+    # Randomly get all records whose price is not updated till today
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
+
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+    i=0
+    for stk in stocks:
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            continue
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            continue
+        print("hdf5: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        sem.acquire()
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(stk,sem, lock,)).start()
+        #break
+        i = i + 1
+    close_db()
+    print("HDF5 Stocks tried :%r"%(i))
+
+
+# Update price, mcap, volume etc
+def update_stk_bscs_db(db, stk, country, sem, lock):
+    global j
+    try:
+        today=str(datetime.now().date())
+        stock = internet.get_price_volume(stk, country)
+        if stock:
+            lock.acquire()
+            # Update price and volume to db
+            update_db_price_volume(db.US_Stocks, stock)
+            # Update the date on which the price is updated
+            update_field(db.US_Stocks, stock['bscs']['symbol'], "bscs.price_date", today)
+            lock.release()
+            j = j+1
+        else:
+            failcount=1
+            if 'price_failcount' in stk['bscs'].keys():
+                failcount = failcount + stk['bscs']['price_failcount']
+            # Ignore the stock for future purposes if failed to get data
+            # for more than 10 times.
+            lock.acquire()
+            if failcount > 10:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.trading", "NO")
+            update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
+            lock.release()
+    finally:
+        sem.release()
+
+def update_all_price_volume_db(country):
+    global j
+    max_threads = multiprocessing.cpu_count() * 2
+    hdf5_sem = threading.BoundedSemaphore(max_threads)
+    hdf5_lock = threading.Lock()
+    db_sem = threading.BoundedSemaphore(max_threads)
+    db_lock = threading.Lock()
+    today=str(datetime.now().date())
+    count=0
+    i=0
+
     if country == 'US':
-        docs = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        for doc in docs:
-            if i > -1:
-                #stk = dbObject(**doc)
-                stk = doc
-                #if stk['bscs']['price'] == 0:
-                print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-                stk = internet.get_price_volume(stk, country)
-                if stk:
-                    update_db_price_volume(db.US_Stocks, stk)
-            i+=1
-            #break
+        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
+        db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+        hdf5_process.start()
+        db_process.start()
+
+        hdf5_process.join()
+        db_process.join()
     elif country == 'India':
+        db = open_db('Stocks')
         docs = db.Indian_Stocks.find({}).sort([["sno",1]])
         for doc in docs:
             if i > -1:
@@ -470,7 +577,6 @@ def build_US_Stocks_List(excel_file):
         reader=csv.reader(f)
         next(reader)
         for row in reader:
-            #print(row[0], row[1], row[2])
             sym = str(row[0]).replace("^","-").replace("~","").lstrip().rstrip()
             name = str(row[1]).replace("^","-").replace("&#39;", "\'").replace("/", "").replace("?", "").replace("*", "").replace(",","").lstrip().rstrip()
             #obj = db.US_Stocks_List.find({"Name":name})
@@ -482,6 +588,7 @@ def build_US_Stocks_List(excel_file):
             syms={"$in" : s}
             obj = db.US_Stocks_List.find({"symbol":syms})
             if obj.count() == 0:
+                print(row[0], row[1], row[2])
                 entry = []
                 entry.append(sym)
                 entry.append(name)
@@ -666,19 +773,22 @@ def build_US_quarterly_stock_information(stk):
        parse_html.populate_US_stocks_quarterly(root, sorted(files), stk)
 
 def get_US_Stock_list():
-    nasdaq_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
+    #nasdaq_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
+    nasdaq_url="https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
     wb=requests.get(nasdaq_url)
     f=open(conf.nasdaq_stocks,"wb")
     f.write(wb.content)
     f.close()
 
-    nyse_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nyse&render=download"
+    #nyse_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nyse&render=download"
+    nyse_url="https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nyse&render=download"
     wb=requests.get(nyse_url)
     f=open(conf.nyse_stocks,"wb")
     f.write(wb.content)
     f.close()
 
-    amex_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=amex&render=download"
+    #amex_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=amex&render=download"
+    amex_url="https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=amex&render=download"
     wb=requests.get(amex_url)
     f=open(conf.amex_stocks,"wb")
     f.write(wb.content)
@@ -694,9 +804,12 @@ def build_US_All_Stocks_List():
     new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
     # If atleast one new IPO
     if len(new_stocks) > 1:
-        s = parse_html.html_table(new_stocks)
+        s = parse_html.html_head()
+        s = parse_html.html_text(s, new_stocks)
+        #s = parse_html.html_table(new_stocks)
         #print(s)
         subject = 'New Stocks :' + str(datetime.now().date())
+        write_to_file(s, '/tmp/new_listings.html')
         internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
     return len(new_stocks)
 
@@ -746,7 +859,7 @@ def build_US_stock_information(doc):
     #    return
 
     # Get financial data from the internet
-    #path = internet.get_US_stock_page(sym, name)
+    path = internet.get_US_stock_page(sym, name)
     
     path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
     path = path.lstrip().rstrip().replace(",","")
@@ -784,8 +897,8 @@ def build_US_all_stock_information():
     if len(s) > 0:
         del s[-1]
     syms = {"$nin" : s}
-    stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    #stocks_list = db.US_Stocks_List.find({"symbol":"FAX"})
+    #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks_list = db.US_Stocks_List.find({"symbol":"EPAC"})
     print(stocks_list.count())
 
     for doc in stocks_list:
@@ -930,12 +1043,12 @@ def get_beta(sym, bindex, sdate, edate):
     #print("alpha_pure/year: %r" %(alpha_pure))
     volatility = volatility*np.sqrt(time_period)
 
-    betas.update({"Start Price":float(s_first)})
-    betas.update({"End Price":float(s_last)})
+    betas.update({"Start_Price":float(s_first)})
+    betas.update({"End_Price":float(s_last)})
     betas.update({"Index_CAGR":b_cagr})
-    betas.update({"Index Percent Change":bgrowth_percent})
+    betas.update({"Index_Percent_Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
-    betas.update({"Percent Change":growth_percent})
+    betas.update({"Percent_Change":growth_percent})
     betas.update({"beta":beta})
     betas.update({"alpha":alpha})
     betas.update({"alpha_pure":alpha_pure})
