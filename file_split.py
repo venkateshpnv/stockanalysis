@@ -14,12 +14,11 @@ def natural_keys(text):
     '''
     return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
-db_file="/home/vpetla/work/stockanalysis/db_backup/Stocks/US_Stocks.bson"
 max_size = 50*1024*1024 # 50MB
 
-def split(db_file, max_size, store_path):
-    if not os.path.exists(store_path):
-        os.mkdir(store_path)
+def split(db_file, max_size, split_path):
+    if not os.path.exists(split_path):
+        os.mkdir(split_path)
     f = open(db_file,"rb")
     size = os.path.getsize(db_file)
     print(size)
@@ -27,7 +26,7 @@ def split(db_file, max_size, store_path):
     print(splits)
 
     for i in range(splits):
-        filex = store_path + "/US_Stocks.bson%r" %(i)
+        filex = split_path + "/US_Stocks.bson%r" %(i)
         print(filex)
         f.seek(i*max_size)
         buf = f.read(max_size)
@@ -35,8 +34,8 @@ def split(db_file, max_size, store_path):
         fx.write(buf)
         fx.close()
 
-def combine(store_path, combine_name):
-    #db_file = store_path+combine_name
+def combine(split_path, combine_name):
+    #db_file = split_path+combine_name
     db_file = "/tmp/US_Stocks.bson"
     cmd = "rm -rf %s" %(db_file)
     os.system(cmd)
@@ -44,10 +43,10 @@ def combine(store_path, combine_name):
     #os.system(cmd)
     f = open(db_file, "ab")
     print(f.tell())
-    for (root,dirs,files) in os.walk(store_path, topdown=True):
+    for (root,dirs,files) in os.walk(split_path, topdown=True):
         files.sort(key=natural_keys)
     for fx in files:
-        fx = store_path+'/'+fx
+        fx = split_path+'/'+fx
         print(fx)
         #fxb = open(fx, "r")
         with open(fx, 'rb') as fxb:
@@ -55,5 +54,8 @@ def combine(store_path, combine_name):
     f.close()
         
 
-split(db_file, max_size,"/home/vpetla/work/stockanalysis/db_backup/Stocks/US_Stocks")
+dir_path = os.path.dirname(os.path.realpath(__file__))
+split_path=dir_path+'/db_backup/Stocks/US_Stocks'
+db_file = dir_path+'/db_backup/Stocks/US_Stocks.bson'
+split(db_file, max_size,split_path)
 #combine("/home/vpetla/work/stockanalysis/db_backup/Stocks/US_Stocks", "US_Stocks.bson")
