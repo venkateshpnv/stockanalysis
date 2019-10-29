@@ -38,11 +38,20 @@ def hdf_price_change(df, num_days):
     st_price = hdf_get_price(df, dt.now().date() - relativedelta(days=num_days+1))
     return (en_price/st_price - 1)
 
+# get the index of the nearest date entry for a particular dataframe.
+# example if date is 27-oct-2019 sunday, the nearest date the stock
+# has traded will be friday 25-oct-2019. If friday is a holiday,
+# the nearest date will be 24-oct-2019.
+# if the date is 24-oct-2019, its nearest will be the same date.
+def get_nearest_index(df, date):
+    return df.index.get_loc(date, method='nearest')
+    #return df.index.get_loc(date, method='nearest', tolerance=30)
+
 def hdf_get_price(df, date):
     # Get nearest date entry not greater than 30 days
     # if the required date entry does not exist
     try:
-        index = df.index.get_loc(date, method='nearest', tolerance=30)
+        index = get_nearest_index(df, date)
     except Exception as e:
         print(str(e))
         index=-1

@@ -319,14 +319,14 @@ def fork_hdf5_process(country, sem, lock):
     today=str(dt.now().date())
     num_docs = db.US_Stocks.find({}).count()
     # Randomly get all records whose price is not updated till today
-    pipeline = [{'$sample': {'size':num_docs}},
-                {'$match' : {"price_change.date": {'$ne':today}}},
-                #{"$group": {"_id": _id, "count": {"$sum":1}}},
-                #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-                ]
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"price_change.date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
 
-    stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    #stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
     for stk in stocks:
@@ -419,22 +419,30 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         s = parse_html.html_set_line(s)
     return s
 
-def send_email_price_changes(country):
-    update_all_stocks_price_change(country)
+def send_email_price_changes_duration(country, duration):
     s = parse_html.html_head()
 
     #s = parse_html.html_set_line(s)
-    s = build_html_price_change(s, 'US', 100000, 10000000, 1, 0.05, 'day', ["MCap 100 Bn and above"])
-    s = build_html_price_change(s, 'US', 10000, 100000, 1, 0.05, 'day', ["MCap 10 Bn and 100 Bn"])
-    s = build_html_price_change(s, 'US', 5000, 10000, 1, 0.05, 'day', ["MCap 5 Bn and 10 Bn"])
-    s = build_html_price_change(s, 'US', 1000, 5000, 1, 0.05, 'day', ["MCap 1 Bn and 5 Bn"])
-    s = build_html_price_change(s, 'US', 1, 1000, 1, 0.10, 'day', ["MCap < 1 Bn"])
+    s = build_html_price_change(s, 'US', 100000, 10000000, 1, 0.05, duration, ["MCap 100 Bn and above"])
+    s = build_html_price_change(s, 'US', 10000, 100000, 1, 0.05, duration, ["MCap 10 Bn and 100 Bn"])
+    s = build_html_price_change(s, 'US', 5000, 10000, 1, 0.05, duration, ["MCap 5 Bn and 10 Bn"])
+    s = build_html_price_change(s, 'US', 1000, 5000, 1, 0.05, duration, ["MCap 1 Bn and 5 Bn"])
+    s = build_html_price_change(s, 'US', 1, 1000, 1, 0.10, duration, ["MCap < 1 Bn"])
 
     f = open("/tmp/test.html","w")
     f.write(s)
     f.close()
-    subject='Daily Price Surprises: %r' %(str(datetime.datetime.now().date()))
+    subject='%r Price Surprises: %r' %(duration, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
+
+
+def send_email_price_changes(country):
+    send_email_price_changes_duration(country, 'day')
+    send_email_price_changes_duration(country, 'week')
+    send_email_price_changes_duration(country, 'month')
+    send_email_price_changes_duration(country, 'quarter')
+    send_email_price_changes_duration(country, 'half_year')
+    send_email_price_changes_duration(country, 'year')
 
 def price_surprises(country, change_percent, criteria, db_type, excel_type):
     print("Criteria: %r" %(criteria))
