@@ -80,7 +80,11 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
 
     change = None
     try:
-        change = internet.price_change(country, sym, name, 2, 'HOT')
+        if index:
+            change,diff = internet.index_change(country, sym, name, 2, 'HOT')
+            entry.append(str(round(diff,2)))
+        else:
+            change = internet.price_change(country, sym, name, 2, 'HOT')
         entry.append(str(round(change*100, 2))+'%')
         change = internet.price_change(country, sym, name, 7, 'HOT')
         entry.append(str(round(change*100, 2))+'%')
@@ -123,7 +127,7 @@ def get_radar_stocks():
     
     ##Indices
     entries = []
-    head = [ "Index", "Price", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change", "5 Year Change", "10 Year Change"]
+    head = [ "Index", "Price", "Points", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change", "5 Year Change", "10 Year Change"]
     #print(head)
     entries.append(head)
     entry = []

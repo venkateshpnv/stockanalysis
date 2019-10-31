@@ -50,10 +50,17 @@ def open_db(db_name):
     db = client[db_name]
     return db
 
+def open_db_client():
+    c = pymongo.MongoClient("mongodb://localhost:27017/", maxPoolSize=1)
+    return c 
+
 def close_db():
     global client
     #print("Closing: %r" %(client))
     client.close()
+
+def close_db_client(c):
+    c.close()
 
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
@@ -423,7 +430,8 @@ def update_db_price_volume(collection, stk):
 j=0
 
 def fork_db_process(country, sem, lock):
-    db = open_db('Stocks')
+    c = open_db_client()
+    db = c['Stocks']
     today=str(datetime.now().date())
     num_docs = db.US_Stocks.find({}).count()
     if num_docs == 0:
@@ -449,11 +457,12 @@ def fork_db_process(country, sem, lock):
         threading.Thread(target=update_stk_bscs_db, args=(db, stk, country, sem, lock,)).start()
         i = i + 1
         #break
-    close_db()
+    close_db_client(c)
     print("DB Process Stocks tried :%r"%(i))
 
 def fork_hdf5_process(sem, lock):
-    db = open_db('Stocks')
+    c = open_db_client()
+    db = c['Stocks']
     today=str(datetime.now().date())
     num_docs = db.US_Stocks.find({}).count()
     #docs = db.US_Stocks.find({"bscs.price_date": {'$ne':today}})
@@ -475,12 +484,15 @@ def fork_hdf5_process(sem, lock):
             continue
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             continue
-        print("hdf5: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(stk,sem, lock,)).start()
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, stk, sem, lock,)).start()
         #break
         i = i + 1
-    close_db()
+
+    # Wait till all threads are completed. You can use join() instead.
+    # But need to track threads and update variables.
+    time.sleep(10)
+    close_db_client(c)
     print("HDF5 Stocks tried :%r"%(i))
 
 
@@ -494,8 +506,6 @@ def update_stk_bscs_db(db, stk, country, sem, lock):
             lock.acquire()
             # Update price and volume to db
             update_db_price_volume(db.US_Stocks, stock)
-            # Update the date on which the price is updated
-            update_field(db.US_Stocks, stock['bscs']['symbol'], "bscs.price_date", today)
             lock.release()
             j = j+1
         else:

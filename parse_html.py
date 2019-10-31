@@ -29,7 +29,7 @@ def html_head():
 def html_text(s, lol):
     for sublist in lol:
         s += "%s\n" %('  <tr>')
-        s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
+        s += "%s\n" %('    </td><td class="tg-0lax">'.join(str(sublist)))
         s += "%s\n" %('  </tr>')
     s += "%s\n" %('</table>')
     return s

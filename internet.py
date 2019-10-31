@@ -25,6 +25,7 @@ from yahoofinancials import YahooFinancials as yf
 
 import pandas_datareader as pdr
 import pandas_datareader.data as data
+import pandas as pd
 
 import timestring
 
@@ -126,7 +127,7 @@ def send_email2(user, pwd, recipient, subject, body):
     print('successfully sent the mail')
 
 # Deprecated. Use hdf_price_change().
-def price_change(country, sym, name, num_days, data_type):
+def index_change(country, sym, name, num_days, data_type):
     change = 0
     symbol = sym.replace('.', '-')
     if data_type == 'HOT':
@@ -149,62 +150,13 @@ def price_change(country, sym, name, num_days, data_type):
             PRINT_ERR("Unable to get data for %s"%(sym))
             return None
  
-        #st_price = None
-        #start = end - timedelta(days=num_days)
-        ##end = dt.now()
-        #
-        ## Get data's first row date
-        #data_start_date = read.index.to_pydatetime()[0]
-
-        ## Some times, the stock has been started trading recently.
-        ## You don't have yearly or even longer historical data
-        ## Assume the start point as the earliest start date
-        #if start.date() < data_start_date.date():
-        #    start = data_start_date
-
-        #num_days = (end-start).days
-
-#        for index, row in read.iterrows():
-#            if index.date() == start.date():
-#                st_price = row['Adj Close']
-#                break
-#
-#        if not st_price:
-#            PRINT_ERR("Unable to get start price for sym: %s, name: %s, num_days: %d" %(sym, name, num_days))
-#            return 0
-
         en_price = read.iat[-1, read.columns.get_loc('Adj Close')]
         st_price = read.iat[0, read.columns.get_loc('Adj Close')]
         change = en_price/st_price - 1
-    elif data_type == 'COLD':
-        db = DB.open_db('Stocks')
-        if country == 'US':
-            doc = db.US_Stocks.find({"bscs.symbol":sym})
-        elif country == 'India':
-            doc = db.Indian_Stocks.find({"bscs.symbol":sym})
-        else:
-            return 0
-        if num_days == 365:
-            val = doc[0]['price_change']['year']
-            if val:
-                change = float(val)
-        elif num_days == 90:
-            val = doc[0]['price_change']['quarter']
-            if val:
-                change = float(val)
-        elif num_days == 30:
-            val = doc[0]['price_change']['month']
-            if val:
-                change = float(val)
-        elif num_days == 7:
-            val = doc[0]['price_change']['week']
-            if val:
-                change = float(val)
-        elif num_days == 2 or num_days == 3:
-            val = doc[0]['price_change']['day']
-            if val:
-                change = float(val)
+    return change, round((en_price-st_price), 2)
 
+def price_change(country, sym, name, num_days, data_type):
+    change,diff=index_change(country,sym,name,num_days,data_type)
     return change
 
 def check_price_change(country, sym, stock, name, change, req_change, count, sheet, sheet_type, excel_type):
@@ -287,7 +239,7 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
 def update_price_change(country, collection, sym, sem, lock):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
-    df = None
+    df=pd.DataFrame() 
     try:
         try:
             lock.acquire()
@@ -297,25 +249,44 @@ def update_price_change(country, collection, sym, sem, lock):
         lock.release()
         
         if not df.empty:
-            change = hdf5.hdf_price_change(df, 1)
+            change = hdf5.hdf_price_change(sym, df, 1)
             DB.update_field(collection, sym, "price_change.day", change)
-            change = hdf5.hdf_price_change(df, 7)
+            change = hdf5.hdf_price_change(sym, df, 7)
             DB.update_field(collection, sym, "price_change.week", change)
-            change = hdf5.hdf_price_change(df, 30)
+            change = hdf5.hdf_price_change(sym, df, 30)
             DB.update_field(collection, sym, "price_change.month", change)
-            change = hdf5.hdf_price_change(df, 90)
+            change = hdf5.hdf_price_change(sym, df, 90)
             DB.update_field(collection, sym, "price_change.quarter", change)
-            change = hdf5.hdf_price_change(df, 180)
+            change = hdf5.hdf_price_change(sym, df, 180)
             DB.update_field(collection, sym, "price_change.half_year", change)
-            change = hdf5.hdf_price_change(df, 365)
+            #if sym == 'NTRS':
+            #    input("Press enter to continue")
+            change = hdf5.hdf_price_change(sym, df, 365)
             DB.update_field(collection, sym, "price_change.year", change)
+
+            #get 52 week high
+            high_price = hdf5.hdf_get_high_n_days(df, 365)
+            DB.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
+            #get 52 week low
+            low_price = hdf5.hdf_get_low_n_days(df, 365)
+            DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
+
+            price = hdf5.hdf_get_price(sym, df, dt.now().date())
+            
+            change = (price/high_price) - 1
+            DB.update_field(collection, sym, "price_change.with_52week_high", change)
+            if sym == 'HCAT':
+                print("***************** HCAT 52week high updated ********************")
+            change = (price/low_price) - 1
+            DB.update_field(collection, sym, "price_change.with_52week_low", change)
 
             DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
     finally:
         sem.release()
 
 def fork_hdf5_process(country, sem, lock):
-    db = DB.open_db('Stocks')
+    c = DB.open_db_client()
+    db = c['Stocks']
     today=str(dt.now().date())
     num_docs = db.US_Stocks.find({}).count()
     # Randomly get all records whose price is not updated till today
@@ -334,12 +305,12 @@ def fork_hdf5_process(country, sem, lock):
             continue
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             continue
-        print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        #print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
         #break
         i = i + 1
-    DB.close_db()
+    DB.close_db_client(c)
     print("Total stocks: %r" %(i))
 
 
@@ -379,7 +350,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         mcap = "Mcap in Bn"
 
     entries = []
-    head=["Symbol", "Name", "Price", mcap, "Day Change", "Week Change", "Month Change", "Quarter Change", "Year Change"]
+    head=["Symbol", "Name", "Since", "Sector", mcap, "Price", "52Week High", "52Week Low", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year Change", "Year Change", "With 52Week High", "With 52Week Low"]
     entries.append(head)
     if country == 'US':
         db = DB.open_db('Stocks')
@@ -387,12 +358,32 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
         #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
         for stk in stocks:
+            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+                continue
+            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+                continue
+ 
             bscs  = stk['bscs']
             pchg = stk['price_change']
-            #print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
-            entry = [bscs['symbol'], bscs['name'], str(bscs['price']), str(round(bscs['mcap']*factor, 2)), 
-                    pcent(pchg['day']), pcent(pchg['week']), pcent(pchg['month']), 
-                    pcent(pchg['quarter']), pcent(pchg['year'])]
+            print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
+            entry = [   
+                        bscs['symbol'], 
+                        bscs['name'],
+                        str(bscs['since']),
+                        bscs['sector'],
+                        str(round(bscs['mcap']*factor, 2)),
+                        str(bscs['price']),
+                        str(bscs['fiftytwoweek_high']),
+                        str(bscs['fiftytwoweek_low']),
+                        pcent(pchg['day']),
+                        pcent(pchg['week']),
+                        pcent(pchg['month']),
+                        pcent(pchg['quarter']),
+                        pcent(pchg['half_year']),
+                        pcent(pchg['year']),
+                        pcent(pchg['with_52week_high']),
+                        pcent(pchg['with_52week_low'])
+                    ]
             entries.append(entry)
 
     DB.close_db()
@@ -419,30 +410,55 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         s = parse_html.html_set_line(s)
     return s
 
-def send_email_price_changes_duration(country, duration):
-    s = parse_html.html_head()
+#Minimum percent changes per day, week, month etc that should
+# be considered for stocks with different ranges of mcaps
+# in descending order
+# [> 100bn, 10bn to 100bn, 5bn to 10bn, 1bn to 5bn, 1mn to 1bn]
+pcent_chg = {}
+pcent_chg['day']       = [0.03, 0.05, 0.05, 0.05, 0.10]
+pcent_chg['week']      = [0.05, 0.05, 0.05, 0.05, 0.15]
+pcent_chg['month']     = [0.05, 0.05, 0.05, 0.05, 0.15]
+pcent_chg['quarter']   = [0.10, 0.10, 0.10, 0.10, 0.20]
+pcent_chg['half_year'] = [0.10, 0.10, 0.10, 0.15, 0.30]
+pcent_chg['year']      = [0.15, 0.15, 0.15, 0.20, 0.30]
+
+Bn = 1000
+Tn = 1000*Bn
+def get_price_changes(s, country, duration):
 
     #s = parse_html.html_set_line(s)
-    s = build_html_price_change(s, 'US', 100000, 10000000, 1, 0.05, duration, ["MCap 100 Bn and above"])
-    s = build_html_price_change(s, 'US', 10000, 100000, 1, 0.05, duration, ["MCap 10 Bn and 100 Bn"])
-    s = build_html_price_change(s, 'US', 5000, 10000, 1, 0.05, duration, ["MCap 5 Bn and 10 Bn"])
-    s = build_html_price_change(s, 'US', 1000, 5000, 1, 0.05, duration, ["MCap 1 Bn and 5 Bn"])
-    s = build_html_price_change(s, 'US', 1, 1000, 1, 0.10, duration, ["MCap < 1 Bn"])
+    s = build_html_price_change(s, 'US', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
+    s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
+    s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
+    s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
+    s = build_html_price_change(s, 'US', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 1 Bn"])
+    return s
 
+def send_email_price_changes(country):
+    s = parse_html.html_head()
+    s = parse_html.html_text(s, ["Daily Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'day')
+    s = parse_html.html_text(s, ["Weekly Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'week')
+    s = parse_html.html_text(s, ["Monthly Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'month')
+    s = parse_html.html_text(s, ["Quarterly Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'quarter')
+    s = parse_html.html_text(s, ["Half Yearly Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'half_year')
+    s = parse_html.html_text(s, ["Yearly Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_price_changes(s, country, 'year')
     f = open("/tmp/test.html","w")
     f.write(s)
     f.close()
-    subject='%r Price Surprises: %r' %(duration, str(datetime.datetime.now().date()))
+    subject='Price Surprises: %r' %(str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
-
-
-def send_email_price_changes(country):
-    send_email_price_changes_duration(country, 'day')
-    send_email_price_changes_duration(country, 'week')
-    send_email_price_changes_duration(country, 'month')
-    send_email_price_changes_duration(country, 'quarter')
-    send_email_price_changes_duration(country, 'half_year')
-    send_email_price_changes_duration(country, 'year')
 
 def price_surprises(country, change_percent, criteria, db_type, excel_type):
     print("Criteria: %r" %(criteria))
