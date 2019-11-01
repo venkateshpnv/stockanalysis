@@ -485,7 +485,8 @@ def fork_hdf5_process(sem, lock):
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             continue
         sem.acquire()
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, stk, sem, lock,)).start()
+        hdf5.update_dataframe_price_volume(db, stk, sem, lock)
+        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, stk, sem, lock,)).start()
         #break
         i = i + 1
 
@@ -534,13 +535,14 @@ def update_all_price_volume_db(country):
     i=0
 
     if country == 'US':
-        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
-        db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-        hdf5_process.start()
-        db_process.start()
+        fork_hdf5_process(hdf5_sem, hdf5_lock)
+        #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
+        #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+        #hdf5_process.start()
+        ##db_process.start()
 
-        hdf5_process.join()
-        db_process.join()
+        #hdf5_process.join()
+        ##db_process.join()
     elif country == 'India':
         db = open_db('Stocks')
         docs = db.Indian_Stocks.find({}).sort([["sno",1]])

@@ -20,14 +20,18 @@ def get_stock_data(symbol, start, end):
     return df
 
 def write_to_hdf(hdf_path, df, symbol, lock):
-    lock.acquire()
-    df.to_hdf(hdf_path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='bzip2')
-    lock.release()
+    try:
+        lock.acquire()
+        df.to_hdf(hdf_path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='bzip2')
+    finally:
+        lock.release()
 
 def read_from_hdf(hdf_path, symbol, lock):
-    lock.acquire()
-    rdf = pd.read_hdf(hdf_path, symbol)
-    lock.release()
+    try:
+        lock.acquire()
+        rdf = pd.read_hdf(hdf_path, symbol)
+    finally:
+        lock.release()
     return rdf
 
 def get_dataframe(country, sym):
@@ -122,7 +126,7 @@ def update_dataframe_price_volume(db, stk, sem, lock):
             return
 
         today=str(dt.now().date())
-        end=dt.now().date()
+        end=dt.now().date()#-timedelta(2)
         if stk['bscs']['symbol'] == 'UI':
             print("****************** Getting data for UI **********************")
         #Updating the price and volume for the first time
@@ -144,12 +148,16 @@ def update_dataframe_price_volume(db, stk, sem, lock):
         else:
             # Read the existing data of the symbol
             rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
+            if rdf.empty:
+                sem.release()
+                return
             #get timestamp of the last entry
             start = rdf.index[-1].date() + timedelta(1)
             #get data from next date till today
+            print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start <= end:
                 df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
-                print("sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+                print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 #print(str(start), str(end), symbol, df)
                 # df should not be empty.
                 # sometimes, the df has entries older than the last entry in hdf5.
@@ -160,6 +168,8 @@ def update_dataframe_price_volume(db, stk, sem, lock):
                     for i in df.index:
                         if i not in rdf.index:
                             write_to_hdf(hdf_path, df.loc[i], stk['bscs']['symbol'], lock)
+                            rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
+                    print(stk['bscs']['symbol'], rdf.tail(5))
                     # Update the date on which the price is updated
                     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
                     print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))

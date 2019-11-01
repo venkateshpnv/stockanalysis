@@ -246,7 +246,8 @@ def update_price_change(country, collection, sym, sem, lock):
             df = hdf5.get_dataframe(country, sym)
         except KeyError:
             print("No price data for %r. Skipping price change calculations" %(sym))
-        lock.release()
+        finally:
+            lock.release()
         
         if not df.empty:
             change = hdf5.hdf_price_change(sym, df, 1)
