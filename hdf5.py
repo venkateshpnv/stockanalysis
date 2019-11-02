@@ -104,6 +104,11 @@ def hdf_get_low_n_days(df, num_days):
  
 def update_dataframe_price_volume(db, stk, sem, lock):
     print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+    if stk is None:
+        print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
+        sem.release()
+        return
+
     df=pd.DataFrame() 
     try:
         lock.acquire()
@@ -111,19 +116,9 @@ def update_dataframe_price_volume(db, stk, sem, lock):
             f=h5py.File(hdf_path, 'x')
             f.close()
 
-        f=h5py.File(hdf_path, 'r')
-        if f is None:
-            PRINT_ERR("Unable to open %r" %(hdf_path))
-            lock.release()
-            print("hdf5: file error, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
-            return
-        symbols = list(f.keys())
-        f.close()
+        with h5py.File(hdf_path,'r') as f:
+            symbols = list(f.keys())
         lock.release()
-
-        if stk is None:
-            print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
-            return
 
         today=str(dt.now().date())
         end=dt.now().date()#-timedelta(2)
@@ -149,6 +144,7 @@ def update_dataframe_price_volume(db, stk, sem, lock):
             # Read the existing data of the symbol
             rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
             if rdf.empty:
+                PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
                 sem.release()
                 return
             #get timestamp of the last entry
@@ -156,23 +152,53 @@ def update_dataframe_price_volume(db, stk, sem, lock):
             #get data from next date till today
             print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start <= end:
+                # If date difference is less than a week, get atleast
+                # a week of prices. yahoofinance sometimes misbehaves
+                # in case of a shorter timespan and returns inconsistent data.
+                # Min of week is a safer timespan.
+                # Though you get a week data, insert only the entries that are missing.
+                # Taken care below.
+                if end-start < timedelta(7):
+                    start = end - timedelta(7)
+
                 df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
                 print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
-                #print(str(start), str(end), symbol, df)
-                # df should not be empty.
-                # sometimes, the df has entries older than the last entry in hdf5.
-                # if so, ignore them.
                 if not df.empty:
-                    if stk['bscs']['symbol'] == 'VISI':
-                        print(stk['bscs']['symbol'], df.index[0], rdf.index[-1])
-                    for i in df.index:
-                        if i not in rdf.index:
-                            write_to_hdf(hdf_path, df.loc[i], stk['bscs']['symbol'], lock)
-                            rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
+                    rdf = rdf.append(df)
+                    rdf = rdf.sort_index()
+                    rdf = rdf.drop_duplicates()
+                    #lock.acquire()
+                    with h5py.File(hdf_path,'w') as f1:
+                        entry = stk['bscs']['symbol']+'/table'
+                        del f1[entry]
+                        f1.create_dataset(entry, data=rdf)
+                    #lock.release()
+                    rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
                     print(stk['bscs']['symbol'], rdf.tail(5))
                     # Update the date on which the price is updated
                     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
                     print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+
+
+                ##print(str(start), str(end), symbol, df)
+                ## df should not be empty.
+                ## sometimes, the df has entries older than the last entry in hdf5.
+                ## if so, ignore them.
+                #if not df.empty:
+                #    if stk['bscs']['symbol'] == 'VISI':
+                #        print(stk['bscs']['symbol'], df.index[0], rdf.index[-1])
+                #    for i in df.index:
+                #        if i not in rdf.index:
+                #            write_to_hdf(hdf_path, df.loc[i], stk['bscs']['symbol'], lock)
+                #            # Always read back the dataframe
+                #            # YahooFinance sometimes return duplicate entries.
+                #            # Rechecking with the updated dataframe will avoid us 
+                #            # having duplicate entries in our records
+                #            rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
+                #    print(stk['bscs']['symbol'], rdf.tail(5))
+                #    # Update the date on which the price is updated
+                #    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
+                #    print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
     except Exception as E:
         print("hdf5: update_dataframe_price_volume:",str(E))
     finally:
