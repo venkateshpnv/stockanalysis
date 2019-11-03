@@ -479,19 +479,22 @@ def fork_hdf5_process(sem, lock):
     stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
+    symbols = hdf5.get_symbols_hdf_store(lock)
     for stk in stocks:
         if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
             continue
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             continue
+        print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        hdf5.update_dataframe_price_volume(db, stk, sem, lock)
-        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, stk, sem, lock,)).start()
-        #break
+        #hdf5.update_dataframe_price_volume(db, symbols, stk, sem, lock)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, symbols, stk, sem, lock,)).start()
         i = i + 1
 
     # Wait till all threads are completed. You can use join() instead.
     # But need to track threads and update variables.
+    # Simplest way is to wait for tentative time taken for the end threads to complete
+    # Randomly estimated it to be 10 sec and it perfectly works.
     time.sleep(10)
     close_db_client(c)
     print("HDF5 Stocks tried :%r"%(i))
@@ -535,14 +538,14 @@ def update_all_price_volume_db(country):
     i=0
 
     if country == 'US':
-        fork_hdf5_process(hdf5_sem, hdf5_lock)
-        #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
-        #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-        #hdf5_process.start()
-        ##db_process.start()
+        #fork_hdf5_process(hdf5_sem, hdf5_lock)
+        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
+        db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+        hdf5_process.start()
+        db_process.start()
 
-        #hdf5_process.join()
-        ##db_process.join()
+        hdf5_process.join()
+        db_process.join()
     elif country == 'India':
         db = open_db('Stocks')
         docs = db.Indian_Stocks.find({}).sort([["sno",1]])

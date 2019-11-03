@@ -8,7 +8,9 @@ from dateutil.relativedelta import relativedelta
 import DB
 import os
 
-hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
+#hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
+hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
+hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.h5'
 
 def get_stock_data(symbol, start, end):
     try:
@@ -19,10 +21,53 @@ def get_stock_data(symbol, start, end):
         return pd.DataFrame()
     return df
 
+def hdf_replace_dataset(hdf_path, symbol, rdf, lock):
+    try:
+        #lock.acquire()
+        with h5py.File(hdf_path,mode='w') as f1:
+            entry = symbol+'/table'
+            del f1[entry]
+            f1.create_dataset(entry, data=rdf)
+        with h5py.File(hdf_path,mode='r') as f1:
+            df = f1[symbol]['table']
+            print(df.tail(10))
+    finally:
+        #lock.release()
+        True
+
+def open_hdf_store(hdf_store_path):
+        return pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2')
+
+def get_symbols_hdf_store(lock):
+    try:
+        lock.acquire()
+        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+            symbols = store.keys()
+    finally:
+        lock.release()
+    return symbols
+
+def write_to_hdf_store(df, symbol, lock):
+    try:
+        lock.acquire()
+        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+            store[symbol] = df
+    finally:
+        lock.release()
+
+def read_from_hdf_store(symbol, lock):
+    try:
+        lock.acquire()
+        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+            df = store[symbol]
+    finally:
+        lock.release()
+    return df
+
 def write_to_hdf(hdf_path, df, symbol, lock):
     try:
         lock.acquire()
-        df.to_hdf(hdf_path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='bzip2')
+        df.to_hdf(hdf_path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
     finally:
         lock.release()
 
@@ -102,8 +147,7 @@ def hdf_get_low_n_days(df, num_days):
 #    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
 #    change = en_price/st_price - 1
  
-def update_dataframe_price_volume(db, stk, sem, lock):
-    print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+def update_dataframe_price_volume(db, symbols, stk, sem, lock):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
@@ -111,47 +155,33 @@ def update_dataframe_price_volume(db, stk, sem, lock):
 
     df=pd.DataFrame() 
     try:
-        lock.acquire()
-        if not os.path.exists(hdf_path):
-            f=h5py.File(hdf_path, 'x')
-            f.close()
-
-        with h5py.File(hdf_path,'r') as f:
-            symbols = list(f.keys())
-        lock.release()
-
         today=str(dt.now().date())
         end=dt.now().date()#-timedelta(2)
-        if stk['bscs']['symbol'] == 'UI':
-            print("****************** Getting data for UI **********************")
         #Updating the price and volume for the first time
-        if stk['bscs']['symbol'] not in symbols:
-            #if not 'since' in stk['bscs'].keys():
-            #    PRINT_ERR("Since not present in %r" %(stk['bscs']['symbol']))
-            #    since = "1970-01-01"
-            #else:
-            #    since = stk['bscs']['since']
+        symbol = '/' + stk['bscs']['symbol']
+        if symbol not in symbols:
+            #print("%r : symbol not preset getting full data" %(stk['bscs']['symbol']))
             since = "1970-01-01"
             start = dt.strptime(since, "%Y-%m-%d").date()
             df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
             if not df.empty:
-                write_to_hdf(hdf_path, df, stk['bscs']['symbol'], lock)
+                write_to_hdf_store(df, stk['bscs']['symbol'], lock)
                 # Update the date on which the price is updated
                 DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
-                print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+                #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
         #Updating today's price and volume
         else:
             # Read the existing data of the symbol
-            rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
+            rdf = read_from_hdf_store(stk['bscs']['symbol'], lock)
             if rdf.empty:
                 PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
                 sem.release()
                 return
             #get timestamp of the last entry
-            start = rdf.index[-1].date() + timedelta(1)
+            start = rdf.index[-1].date()
             #get data from next date till today
-            print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
-            if start <= end:
+            #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+            if start < end:
                 # If date difference is less than a week, get atleast
                 # a week of prices. yahoofinance sometimes misbehaves
                 # in case of a shorter timespan and returns inconsistent data.
@@ -162,43 +192,17 @@ def update_dataframe_price_volume(db, stk, sem, lock):
                     start = end - timedelta(7)
 
                 df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
-                print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+                #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 if not df.empty:
                     rdf = rdf.append(df)
                     rdf = rdf.sort_index()
-                    rdf = rdf.drop_duplicates()
-                    #lock.acquire()
-                    with h5py.File(hdf_path,'w') as f1:
-                        entry = stk['bscs']['symbol']+'/table'
-                        del f1[entry]
-                        f1.create_dataset(entry, data=rdf)
-                    #lock.release()
-                    rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
-                    print(stk['bscs']['symbol'], rdf.tail(5))
+                    #rdf = rdf.drop_duplicates()
+                    rdf=rdf[~rdf.index.duplicated(keep='last')]
+                    write_to_hdf_store(rdf, stk['bscs']['symbol'], lock)
+                    #print(stk['bscs']['symbol'], rdf.tail(5))
                     # Update the date on which the price is updated
                     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
-                    print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
-
-
-                ##print(str(start), str(end), symbol, df)
-                ## df should not be empty.
-                ## sometimes, the df has entries older than the last entry in hdf5.
-                ## if so, ignore them.
-                #if not df.empty:
-                #    if stk['bscs']['symbol'] == 'VISI':
-                #        print(stk['bscs']['symbol'], df.index[0], rdf.index[-1])
-                #    for i in df.index:
-                #        if i not in rdf.index:
-                #            write_to_hdf(hdf_path, df.loc[i], stk['bscs']['symbol'], lock)
-                #            # Always read back the dataframe
-                #            # YahooFinance sometimes return duplicate entries.
-                #            # Rechecking with the updated dataframe will avoid us 
-                #            # having duplicate entries in our records
-                #            rdf = read_from_hdf(hdf_path, stk['bscs']['symbol'], lock)
-                #    print(stk['bscs']['symbol'], rdf.tail(5))
-                #    # Update the date on which the price is updated
-                #    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
-                #    print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+                    #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
     except Exception as E:
         print("hdf5: update_dataframe_price_volume:",str(E))
     finally:

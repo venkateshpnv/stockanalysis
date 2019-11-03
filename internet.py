@@ -241,13 +241,7 @@ def update_price_change(country, collection, sym, sem, lock):
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     df=pd.DataFrame() 
     try:
-        try:
-            lock.acquire()
-            df = hdf5.get_dataframe(country, sym)
-        except KeyError:
-            print("No price data for %r. Skipping price change calculations" %(sym))
-        finally:
-            lock.release()
+        df = hdf5.read_from_hdf_store(sym, lock)
         
         if not df.empty:
             change = hdf5.hdf_price_change(sym, df, 1)
