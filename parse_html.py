@@ -26,10 +26,13 @@ def html_head():
     s += "%s\n" %('<table class=tg>')
     return s
  
-def html_text(s, lol):
+def html_text(s, lol, col=None):
     for sublist in lol:
         s += "%s\n" %('  <tr>')
-        s += "%s\n" %('    </td><td class="tg-0lax">'.join(str(sublist)))
+        if col:
+            val= '<mark> ' + sublist[col] + ' </mark>'
+            sublist[col] = val
+        s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
         s += "%s\n" %('  </tr>')
     s += "%s\n" %('</table>')
     return s

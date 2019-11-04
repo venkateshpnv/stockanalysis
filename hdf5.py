@@ -64,6 +64,11 @@ def read_from_hdf_store(symbol, lock):
         lock.release()
     return df
 
+def read_from_hdf_store_nolock(symbol):
+    with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+        df = store[symbol]
+    return df
+
 def write_to_hdf(hdf_path, df, symbol, lock):
     try:
         lock.acquire()
@@ -85,6 +90,8 @@ def get_dataframe(country, sym):
 def hdf_price_change(sym, df, num_days):
     en_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=1))
     st_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=num_days+1))
+    if st_price == 0:
+        return 0
     return (en_price/st_price - 1)
 
 # get the index of the nearest date entry for a particular dataframe.

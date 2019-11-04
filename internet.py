@@ -268,11 +268,20 @@ def update_price_change(country, collection, sym, sem, lock):
 
             price = hdf5.hdf_get_price(sym, df, dt.now().date())
             
-            change = (price/high_price) - 1
+            if high_price == 0:
+                change = 0
+            else:
+                change = (price/high_price) - 1
+
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             if sym == 'HCAT':
                 print("***************** HCAT 52week high updated ********************")
-            change = (price/low_price) - 1
+            
+            if low_price == 0:
+                change = 0
+            else:
+                change = (price/low_price) - 1
+
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
 
             DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
@@ -300,11 +309,17 @@ def fork_hdf5_process(country, sem, lock):
             continue
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             continue
-        #print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
+        if stk['bscs']['symbol'] == 'SNDL':
+            print("%r stock" %(stk['bscs']['symbol']))
+        #update_price_change(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock)
         threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
         #break
         i = i + 1
+
+    # Wait randomly till all threads are completed
+    time.sleep(10)
     DB.close_db_client(c)
     print("Total stocks: %r" %(i))
 
@@ -317,6 +332,7 @@ def update_all_stocks_price_change(country):
     hdf5_lock = threading.Lock()
  
     if country == 'US':
+        #fork_hdf5_process(country, hdf5_sem, hdf5_lock)
         hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
         hdf5_process.start()
         hdf5_process.join()
@@ -342,10 +358,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     #Convert to billions for mcap greater than 1 billion.
     if high_mcap > 1000:
         factor = 1/1000
-        mcap = "Mcap in Bn"
+        mcap = "Mcap Bn"
 
     entries = []
-    head=["Symbol", "Name", "Since", "Sector", mcap, "Price", "52Week High", "52Week Low", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year Change", "Year Change", "With 52Week High", "With 52Week Low"]
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Price", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
     entries.append(head)
     if country == 'US':
         db = DB.open_db('Stocks')
@@ -365,11 +381,11 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
                         bscs['symbol'], 
                         bscs['name'],
                         str(bscs['since']),
-                        bscs['sector'],
+                        str(bscs['sector']),
                         str(round(bscs['mcap']*factor, 2)),
                         str(bscs['price']),
-                        str(bscs['fiftytwoweek_high']),
-                        str(bscs['fiftytwoweek_low']),
+                        str(round(bscs['fiftytwoweek_high'], 2)),
+                        str(round(bscs['fiftytwoweek_low'], 2)),
                         pcent(pchg['day']),
                         pcent(pchg['week']),
                         pcent(pchg['month']),
@@ -393,7 +409,7 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         s = parse_html.html_set_line(s)
         s = parse_html.html_text(s, ["Up"])
         s = parse_html.html_set_line(s)
-        s = parse_html.html_text(s, entries)
+        s = parse_html.html_text(s, entries, highlight_columns[duration])
         s = parse_html.html_set_line(s)
     e = get_stocks(country, low_mcap, high_mcap, -direction, -change, duration)
     if len(e) > 1:
@@ -401,7 +417,7 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         entries = e
         s = parse_html.html_text(s, ["Down"])
         s = parse_html.html_set_line(s)
-        s = parse_html.html_text(s, entries)
+        s = parse_html.html_text(s, entries, highlight_columns[duration])
         s = parse_html.html_set_line(s)
     return s
 
@@ -410,15 +426,28 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
 # in descending order
 # [> 100bn, 10bn to 100bn, 5bn to 10bn, 1bn to 5bn, 1mn to 1bn]
 pcent_chg = {}
-pcent_chg['day']       = [0.03, 0.05, 0.05, 0.05, 0.10]
-pcent_chg['week']      = [0.05, 0.05, 0.05, 0.05, 0.15]
-pcent_chg['month']     = [0.05, 0.05, 0.05, 0.05, 0.15]
-pcent_chg['quarter']   = [0.10, 0.10, 0.10, 0.10, 0.20]
-pcent_chg['half_year'] = [0.10, 0.10, 0.10, 0.15, 0.30]
-pcent_chg['year']      = [0.15, 0.15, 0.15, 0.20, 0.30]
+pcent_chg['day']       = [0.03, 0.05, 0.05, 0.10, 0.15]
+pcent_chg['week']      = [0.05, 0.05, 0.10, 0.15, 0.20]
+pcent_chg['month']     = [0.05, 0.05, 0.10, 0.15, 0.20]
+pcent_chg['quarter']   = [0.10, 0.10, 0.20, 0.25, 0.25]
+pcent_chg['half_year'] = [0.15, 0.15, 0.25, 0.30, 0.50]
+pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
 
 Bn = 1000
 Tn = 1000*Bn
+
+# Day change column position.
+# Week = Day + 1
+# Month = Week + 1 etc
+day_col = 8
+week_col = day_col + 1
+month_col = week_col + 1
+quarter_col = month_col + 1
+half_year_col = quarter_col + 1
+year_col = half_year_col + 1
+
+highlight_columns = { 'day': 8, 'week':9, 'month':10, 'quarter':11, 'half_year':12, 'year':13 }
+
 def get_price_changes(s, country, duration):
 
     #s = parse_html.html_set_line(s)
