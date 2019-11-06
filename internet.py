@@ -313,8 +313,8 @@ def fork_hdf5_process(country, sem, lock):
         sem.acquire()
         if stk['bscs']['symbol'] == 'SNDL':
             print("%r stock" %(stk['bscs']['symbol']))
-        #update_price_change(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock)
-        threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
+        update_price_change(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock)
+        #threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
         #break
         i = i + 1
 
@@ -332,10 +332,10 @@ def update_all_stocks_price_change(country):
     hdf5_lock = threading.Lock()
  
     if country == 'US':
-        #fork_hdf5_process(country, hdf5_sem, hdf5_lock)
-        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
-        hdf5_process.start()
-        hdf5_process.join()
+        fork_hdf5_process(country, hdf5_sem, hdf5_lock)
+        #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
+        #hdf5_process.start()
+        #hdf5_process.join()
 
 def pcent(val):
     return str(round(val *100, 2))+'%'
@@ -463,21 +463,21 @@ def send_email_price_changes(country):
     s = parse_html.html_text(s, ["Daily Price Surprises"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'day')
-    s = parse_html.html_text(s, ["Weekly Price Surprises"])
-    s = parse_html.html_set_line(s)
-    s = get_price_changes(s, country, 'week')
-    s = parse_html.html_text(s, ["Monthly Price Surprises"])
-    s = parse_html.html_set_line(s)
-    s = get_price_changes(s, country, 'month')
-    s = parse_html.html_text(s, ["Quarterly Price Surprises"])
-    s = parse_html.html_set_line(s)
-    s = get_price_changes(s, country, 'quarter')
-    s = parse_html.html_text(s, ["Half Yearly Price Surprises"])
-    s = parse_html.html_set_line(s)
-    s = get_price_changes(s, country, 'half_year')
-    s = parse_html.html_text(s, ["Yearly Price Surprises"])
-    s = parse_html.html_set_line(s)
-    s = get_price_changes(s, country, 'year')
+    #s = parse_html.html_text(s, ["Weekly Price Surprises"])
+    #s = parse_html.html_set_line(s)
+    #s = get_price_changes(s, country, 'week')
+    #s = parse_html.html_text(s, ["Monthly Price Surprises"])
+    #s = parse_html.html_set_line(s)
+    #s = get_price_changes(s, country, 'month')
+    #s = parse_html.html_text(s, ["Quarterly Price Surprises"])
+    #s = parse_html.html_set_line(s)
+    #s = get_price_changes(s, country, 'quarter')
+    #s = parse_html.html_text(s, ["Half Yearly Price Surprises"])
+    #s = parse_html.html_set_line(s)
+    #s = get_price_changes(s, country, 'half_year')
+    #s = parse_html.html_text(s, ["Yearly Price Surprises"])
+    #s = parse_html.html_set_line(s)
+    #s = get_price_changes(s, country, 'year')
     f = open("/tmp/test.html","w")
     f.write(s)
     f.close()
