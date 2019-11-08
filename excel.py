@@ -270,6 +270,30 @@ def add_basic_header(sheet, i):
     conf.CUR_PR=i
 
     i+=1
+    #52 Week High
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "52Wk Hgh", style_wrap)
+    conf.F2WK_HG=i
+
+    i+=1
+    #52 Week Low
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "52Wk Lw", style_wrap)
+    conf.F2WK_LW=i
+
+    i+=1
+    #52 Week Low
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "With 52Wk Lw", style_wrap)
+    conf.W_F2WK_LW=i
+
+    i+=1
+    #52 Week Low
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "With 52Wk Hgh", style_wrap)
+    conf.W_F2WK_HG=i
+
+    i+=1
     #Volume
     sheet.col(i).width = 7*367
     sheet.write(0, i, "Volume", style_wrap)
@@ -803,6 +827,10 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.MCAP, stk['bscs']['mcap'], style_num)
     ash.write(count, conf.SINCE, stk['bscs']['since'], style_text)
     ash.write(count, conf.CUR_PR, stk['bscs']['price'])
+    ash.write(count, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'])
+    ash.write(count, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'])
+    ash.write(count, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
+    ash.write(count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
     ash.write(count, conf.VOL, stk['bscs']['volume'])
     ash.write(count, conf.BETA, stk['bscs']['five_yr_beta'])
@@ -880,7 +908,8 @@ def write_to_excel(com, ash, stk, years):
     #wb = xlwt.Workbook()
 
     try:
-        if not isinstance(stk['num']['eps_20yr'], list):
+        #if not isinstance(stk['num']['eps_20yr'], list):
+        if 'eps_20yr' not in stk['num'].keys():
             db=DB.open_db('Stocks')
             db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"num.eps_20yr":[]}})
             print("Setting eps_20yr to []")
@@ -981,6 +1010,11 @@ def write_to_excel(com, ash, stk, years):
     sheet.write(i, 0, "Price")
     sheet.write(i, 1, stk['bscs']['price'])
     ash.write(conf.COUNT, conf.CUR_PR, stk['bscs']['price'])
+    ash.write(conf.COUNT, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'])
+    ash.write(conf.COUNT, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'])
+    ash.write(conf.COUNT, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
+    ash.write(conf.COUNT, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
+
 
     sheet.write(i, 3, "Volume")
     sheet.write(i, 4, stk['bscs']['volume'])

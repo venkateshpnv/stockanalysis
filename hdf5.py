@@ -88,8 +88,8 @@ def get_dataframe(country, sym):
     return pd.read_hdf(hdf_path, sym)
 
 def hdf_price_change(sym, df, num_days):
-    en_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=1))
-    st_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=num_days+1))
+    en_price = hdf_get_price(sym, df, dt.now().date())
+    st_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=num_days))
     if st_price == 0:
         return 0
     return (en_price/st_price - 1)
