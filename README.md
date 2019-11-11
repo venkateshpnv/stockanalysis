@@ -120,6 +120,7 @@ git update-index --assume-unchanged "main/dontcheckmein.txt"
 
 mongodb create index
 -----------------------
+db.US_Stocks.createIndex({'bscs.symbol': -1},{unique:true}) # Create unique index
 db.US_Stocks.createIndex({'price_change.day': -1})
 db.US_Stocks.createIndex({sno: -1})
 db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })

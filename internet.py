@@ -132,6 +132,7 @@ def index_change(country, sym, name, num_days, data_type):
     if data_type == 'HOT':
         end = dt.now()
         diff = end.weekday() - 4
+        #If weekend
         if diff > 0:
             end = end - timedelta(days=diff+1)
         start = end - timedelta(days=num_days)
@@ -352,11 +353,14 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         cond = '$gte'
 
     factor = 1
-    mcap = "Mcap in Millions"
-    #Convert to billions for mcap greater than 1 billion.
-    if high_mcap > 1000:
-        factor = 1/1000
-        mcap = "Mcap Bn"
+    if country == 'US':
+        mcap = "MCap in Millions"
+        #Convert to billions for mcap greater than 1 billion.
+        if high_mcap > 1000:
+            factor = 1/1000
+            mcap = "Mcap Bn"
+    elif country == 'India':
+        mcap = "MCap in Crores"
 
     db = DB.open_db('Stocks')
     collection = DB.get_collection(country, db)
@@ -463,9 +467,9 @@ def get_price_changes(s, country, duration):
         Bn = 100 # crores
         Tn = 100 * Bn
         #s = parse_html.html_set_line(s)
-        s = build_html_price_change(s, 'India', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap One Lac Cr and above"])
-        s = build_html_price_change(s, 'India', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 1000 Cr and One Lac Cr"])
-        s = build_html_price_change(s, 'India', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 500 Cr and 1000 Cr"])
+        s = build_html_price_change(s, 'India', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 10k Cr and above"])
+        s = build_html_price_change(s, 'India', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 1k Cr and 10k Cr"])
+        s = build_html_price_change(s, 'India', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 500 Cr and 1k Cr"])
         s = build_html_price_change(s, 'India', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 100 Cr and 500 Cr"])
         s = build_html_price_change(s, 'India', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 100 Cr"])
     return s

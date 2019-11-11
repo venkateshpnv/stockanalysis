@@ -111,11 +111,26 @@ def get_dataframe(country, sym):
     return pd.read_hdf(path, sym)
 
 def hdf_price_change(country, sym, df, num_days):
-    en_price = hdf_get_price(sym, df, dt.now().date())
-    st_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=num_days))
+    end = dt.now().date()
+    diff = end.weekday() - 4
+    #If weekend take friday entry
+    if diff > 0:
+        end = end - timedelta(days=diff)
+
+    start = end - relativedelta(days=num_days)
+    diff = start.weekday() - 4
+    #If weekend take friday entry
+    if diff > 0:
+        start = start - timedelta(days=diff)
+
+    en_price = hdf_get_price(sym, df, end)
+    st_price = hdf_get_price(sym, df, start)
+    #print(start, st_price)
+    #print(end, en_price)
     if st_price == 0:
         return 0
-    return (en_price/st_price - 1)
+    chg = (en_price/st_price - 1)
+    return chg
 
 # get the index of the nearest date entry for a particular dataframe.
 # example if date is 27-oct-2019 sunday, the nearest date the stock

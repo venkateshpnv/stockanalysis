@@ -80,12 +80,16 @@ def write_to_collection(col, doc):
     #print(x)
 
 def remove_duplicates(collection):
+    print("entering remove duplicates")
     stocks = collection.find({})
     for stk in stocks:
-        count = collection.find({"bscs.symbol" : stk['bscs']['symbol']}).count()
-        if count > 1:
-            #collection.remove({"bscs.symbol" : stk['bscs']['symbol']}, 1)
-            print(stk['bscs']['symbol'], count)
+        if stk['bscs']['symbol'] == 'DEAD':
+            continue
+        print(stk['bscs']['symbol'])
+        entries = collection.find({"bscs.symbol" : stk['bscs']['symbol']})
+        if entries.count() > 1:
+            print(stk['bscs']['symbol'], entries.count())
+            collection.remove({"_id" : entries[1]['_id']})
 
 # Fetches symbol name from BSE_Stocks.xls file
 # for BSE symbol and updates the "sample" collection
@@ -450,9 +454,6 @@ def fork_db_process(country, sem, lock):
     if num_docs == 0:
         return
 
-    #remove_duplicates(collection)
-    #return
-
     today=str(datetime.now().date())
     #Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -462,7 +463,7 @@ def fork_db_process(country, sem, lock):
     #            ]
  
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    stocks = collection.find({'bscs.symbol':'KOTAKBANK'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
     for stk in stocks:
@@ -474,8 +475,8 @@ def fork_db_process(country, sem, lock):
                 continue
         print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        update_stk_bscs_db(country, db, stk, sem, lock)
-        #threading.Thread(target=update_stk_bscs_db, args=(country, db, stk, sem, lock,)).start()
+        #update_stk_bscs_db(country, db, stk, sem, lock)
+        threading.Thread(target=update_stk_bscs_db, args=(country, db, stk, sem, lock,)).start()
         i = i + 1
         #break
     close_db_client(c)
@@ -570,14 +571,14 @@ def update_all_price_volume_db(country):
         return
 
     #fork_hdf5_process(country, hdf5_sem, hdf5_lock)
-    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock,))
-    fork_db_process(country, db_sem, db_lock)
-    #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-    #hdf5_process.start()
-    #db_process.start()
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock,))
+    #fork_db_process(country, db_sem, db_lock)
+    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    hdf5_process.start()
+    db_process.start()
     
-    #hdf5_process.join()
-    #db_process.join()
+    hdf5_process.join()
+    db_process.join()
 
 #Find missing entries in the db.
 # Compare with entries in BSE_Stocks.xls
