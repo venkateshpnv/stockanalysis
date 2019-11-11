@@ -99,7 +99,7 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta):
         i = 0
         startyr = stk['fig']['Years'][0]
         startyr = int(startyr.split("-")[1].lstrip().rstrip())
-        print(startyr)
+        PRINT(startyr)
         endyr = stk['fig']['Years'][len(stk['fig']['Years'])-2]
         endyr = int(endyr.split("-")[1].lstrip().rstrip())
         if years > len(stk['fig']['Years']):

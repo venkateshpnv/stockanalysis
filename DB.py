@@ -64,7 +64,12 @@ def close_db_client(c):
 
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
- 
+
+def get_collection(country, db):
+    if country == 'US':
+        return db.US_Stocks
+    return db.Indian_Stocks
+
 def write_to_collection(col, doc):
     if col.find({"bscs.symbol":doc['bscs']['symbol']}).count() > 0 :
         print("Stock exists")
@@ -73,6 +78,14 @@ def write_to_collection(col, doc):
     print("Count: %r" %(col.count()))
     #x = col.find_one()
     #print(x)
+
+def remove_duplicates(collection):
+    stocks = collection.find({})
+    for stk in stocks:
+        count = collection.find({"bscs.symbol" : stk['bscs']['symbol']}).count()
+        if count > 1:
+            #collection.remove({"bscs.symbol" : stk['bscs']['symbol']}, 1)
+            print(stk['bscs']['symbol'], count)
 
 # Fetches symbol name from BSE_Stocks.xls file
 # for BSE symbol and updates the "sample" collection
@@ -108,7 +121,7 @@ def update_dummy_dcf_numbers(col, stock):
     update_field(col, stock['bscs']['symbol'], "num.growth_9to10", 0)
     update_field(col, stock['bscs']['symbol'], "num.growth_16to20", 0)
     update_field(col, stock['bscs']['symbol'], "num.eps", 0)
-    update_field(col, stock['bscs']['symbol'], "num.eps_20yr", 0)
+    update_field(col, stock['bscs']['symbol'], "num.eps_20yr", {})
     update_field(col, stock['bscs']['symbol'], "num.fig_yr", 0)
     update_field(col, stock['bscs']['symbol'], "num.cur_yr", 0)
     update_field(col, stock['bscs']['symbol'], "num.term_yr", 0)
@@ -425,17 +438,22 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.price": stk['bscs']['price']}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": stk['bscs']['volume']}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": stk['bscs']['mcap']}})
-    collection.update({'bscs.symbol': stk['bscs']['outstanding_shares']}, {'$set': {"bscs.outstanding_shares": stk['bscs']['outstanding_shares']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": stk['bscs']['outstanding_shares']}})
 
 j=0
 
 def fork_db_process(country, sem, lock):
     c = open_db_client()
     db = c['Stocks']
-    today=str(datetime.now().date())
-    num_docs = db.US_Stocks.find({}).count()
+    collection = get_collection(country, db)
+    num_docs = collection.find({}).count()
     if num_docs == 0:
         return
+
+    #remove_duplicates(collection)
+    #return
+
+    today=str(datetime.now().date())
     #Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
     #            {'$match' : {"bscs.price_date": {'$ne':today}}},
@@ -444,30 +462,36 @@ def fork_db_process(country, sem, lock):
     #            ]
  
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = collection.find({'bscs.symbol':'KOTAKBANK'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
     for stk in stocks:
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-            continue
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-            continue
+        if 'trading' in stk['bscs'].keys():
+            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+                continue
+        if 'ignore' in stk.keys():
+            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+                continue
         print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        threading.Thread(target=update_stk_bscs_db, args=(db, stk, country, sem, lock,)).start()
+        update_stk_bscs_db(country, db, stk, sem, lock)
+        #threading.Thread(target=update_stk_bscs_db, args=(country, db, stk, sem, lock,)).start()
         i = i + 1
         #break
     close_db_client(c)
     print("DB Process Stocks tried :%r"%(i))
 
-def fork_hdf5_process(sem, lock):
+def fork_hdf5_process(country, sem, lock):
     c = open_db_client()
     db = c['Stocks']
-    today=str(datetime.now().date())
-    num_docs = db.US_Stocks.find({}).count()
+    collection = get_collection(country, db)
+
+    num_docs = collection.find({}).count()
     #docs = db.US_Stocks.find({"bscs.price_date": {'$ne':today}})
     if num_docs == 0:
         return
+
+    today=str(datetime.now().date())
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
     #            {'$match' : {"bscs.price_date": {'$ne':today}}},
@@ -476,19 +500,22 @@ def fork_hdf5_process(sem, lock):
     #            ]
 
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = collection.find({'bscs.symbol':'PREMIERPOL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
-    symbols = hdf5.get_symbols_hdf_store(lock)
+    symbols = hdf5.get_symbols_hdf_store(country, lock)
     for stk in stocks:
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-            continue
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-            continue
+        if 'trading' in stk['bscs'].keys():
+            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+                continue
+        if 'ignore' in stk.keys():
+            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+                continue
         print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        #hdf5.update_dataframe_price_volume(db, symbols, stk, sem, lock)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(db, symbols, stk, sem, lock,)).start()
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem, lock)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem, lock,)).start()
         i = i + 1
 
     # Wait till all threads are completed. You can use join() instead.
@@ -501,15 +528,16 @@ def fork_hdf5_process(sem, lock):
 
 
 # Update price, mcap, volume etc
-def update_stk_bscs_db(db, stk, country, sem, lock):
+def update_stk_bscs_db(country, db, stk, sem, lock):
     global j
     try:
         today=str(datetime.now().date())
         stock = internet.get_price_volume(stk, country)
+        collection = get_collection(country, db)
         if stock:
             lock.acquire()
             # Update price and volume to db
-            update_db_price_volume(db.US_Stocks, stock)
+            update_db_price_volume(collection, stock)
             lock.release()
             j = j+1
         else:
@@ -520,8 +548,8 @@ def update_stk_bscs_db(db, stk, country, sem, lock):
             # for more than 10 times.
             lock.acquire()
             if failcount > 10:
-                update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.trading", "NO")
-            update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
+                update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
+            update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
             lock.release()
     finally:
         sem.release()
@@ -537,31 +565,19 @@ def update_all_price_volume_db(country):
     count=0
     i=0
 
-    if country == 'US':
-        #fork_hdf5_process(hdf5_sem, hdf5_lock)
-        hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(hdf5_sem, hdf5_lock,))
-        db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-        hdf5_process.start()
-        db_process.start()
-
-        hdf5_process.join()
-        db_process.join()
-    elif country == 'India':
-        db = open_db('Stocks')
-        docs = db.Indian_Stocks.find({}).sort([["sno",1]])
-        for doc in docs:
-            if i > -1:
-                #stk = dbObject(**doc)
-                stk = doc
-                #if stk['bscs']['price'] == 0:
-                print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-                stk = internet.get_price_volume(stk, country)
-                if stk:
-                    update_db_price_volume(db.Indian_Stocks, stk)
-            i+=1
-            #break
-    else:
+    if country != 'US' and country != 'India':
         PRINT_ERR("Unknown Country")
+        return
+
+    #fork_hdf5_process(country, hdf5_sem, hdf5_lock)
+    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock,))
+    fork_db_process(country, db_sem, db_lock)
+    #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    #hdf5_process.start()
+    #db_process.start()
+    
+    #hdf5_process.join()
+    #db_process.join()
 
 #Find missing entries in the db.
 # Compare with entries in BSE_Stocks.xls
@@ -1223,5 +1239,6 @@ def set_sno(country):
     i = 1
     for doc in col.find({}).sort([["_id",1]]):
         update_field(col, doc['bscs']['symbol'], "sno", i)
-
         i += 1
+
+

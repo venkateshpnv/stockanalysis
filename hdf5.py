@@ -10,17 +10,26 @@ import os
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
-hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.h5'
+US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.h5'
+India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store.h5'
 
-def get_stock_data(symbol, start, end):
+def get_stock_data(country, symbol, start, end):
     try:
-        df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
+        if country == 'India':
+            symbol = symbol + '.BO'
+        df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=5)
         df = df.astype('float64')
     except Exception as E:
         PRINT_ERR(str(E))
         return pd.DataFrame()
     return df
 
+def get_hdf_store_path(country):
+    if country == 'US':
+        return US_hdf_store_path
+    else:
+        return India_hdf_store_path
+ 
 def hdf_replace_dataset(hdf_path, symbol, rdf, lock):
     try:
         #lock.acquire()
@@ -35,59 +44,73 @@ def hdf_replace_dataset(hdf_path, symbol, rdf, lock):
         #lock.release()
         True
 
-def open_hdf_store(hdf_store_path):
-        return pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2')
+def open_hdf_store(country):
+    if country == 'US':
+        return pd.HDFStore(US_hdf_store_path, mode='a', complevel=9, complib='bzip2')
+    if country == 'India':
+        return pd.HDFStore(India_hdf_store_path, mode='a', complevel=9, complib='bzip2')
 
-def get_symbols_hdf_store(lock):
+def get_symbols_hdf_store(country, lock):
+    symbols = []
     try:
+        path = get_hdf_store_path(country)
         lock.acquire()
-        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
             symbols = store.keys()
     finally:
         lock.release()
     return symbols
 
-def write_to_hdf_store(df, symbol, lock):
+def write_to_hdf_store(country, df, symbol, lock):
     try:
+        path = get_hdf_store_path(country)
         lock.acquire()
-        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
             store[symbol] = df
     finally:
         lock.release()
 
-def read_from_hdf_store(symbol, lock):
+def read_from_hdf_store(country, symbol, lock):
     try:
+        path = get_hdf_store_path(country)
         lock.acquire()
-        with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
             df = store[symbol]
+    except Exception as e:
+        print(str(e))
+        return pd.DataFrame()
     finally:
         lock.release()
     return df
 
-def read_from_hdf_store_nolock(symbol):
-    with pd.HDFStore(hdf_store_path, mode='a', complevel=9, complib='bzip2') as store:
+def read_from_hdf_store_nolock(country, symbol):
+    path = get_hdf_store_path(country)
+    with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
         df = store[symbol]
     return df
 
-def write_to_hdf(hdf_path, df, symbol, lock):
+def write_to_hdf(country, df, symbol, lock):
     try:
+        path = get_hdf_store_path(country)
         lock.acquire()
-        df.to_hdf(hdf_path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
+        df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
     finally:
         lock.release()
 
-def read_from_hdf(hdf_path, symbol, lock):
+def read_from_hdf(country, symbol, lock):
     try:
         lock.acquire()
-        rdf = pd.read_hdf(hdf_path, symbol)
+        path = get_hdf_store_path(country)
+        rdf  = pd.read_hdf(path, symbol)
     finally:
         lock.release()
     return rdf
 
 def get_dataframe(country, sym):
-    return pd.read_hdf(hdf_path, sym)
+    path = get_hdf_store_path(country)
+    return pd.read_hdf(path, sym)
 
-def hdf_price_change(sym, df, num_days):
+def hdf_price_change(country, sym, df, num_days):
     en_price = hdf_get_price(sym, df, dt.now().date())
     st_price = hdf_get_price(sym, df, dt.now().date() - relativedelta(days=num_days))
     if st_price == 0:
@@ -154,13 +177,14 @@ def hdf_get_low_n_days(df, num_days):
 #    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
 #    change = en_price/st_price - 1
  
-def update_dataframe_price_volume(db, symbols, stk, sem, lock):
+def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
         return
 
     df=pd.DataFrame() 
+    collection = DB.get_collection(country, db)
     try:
         today=str(dt.now().date())
         end=dt.now().date()#-timedelta(2)
@@ -170,16 +194,16 @@ def update_dataframe_price_volume(db, symbols, stk, sem, lock):
             #print("%r : symbol not preset getting full data" %(stk['bscs']['symbol']))
             since = "1970-01-01"
             start = dt.strptime(since, "%Y-%m-%d").date()
-            df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
+            df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             if not df.empty:
-                write_to_hdf_store(df, stk['bscs']['symbol'], lock)
+                write_to_hdf_store(country, df, stk['bscs']['symbol'], lock)
                 # Update the date on which the price is updated
-                DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
+                DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)
                 #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
         #Updating today's price and volume
         else:
             # Read the existing data of the symbol
-            rdf = read_from_hdf_store(stk['bscs']['symbol'], lock)
+            rdf = read_from_hdf_store(country, stk['bscs']['symbol'], lock)
             if rdf.empty:
                 PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
                 sem.release()
@@ -198,47 +222,19 @@ def update_dataframe_price_volume(db, symbols, stk, sem, lock):
                 if end-start < timedelta(7):
                     start = end - timedelta(7)
 
-                df = get_stock_data(stk['bscs']['symbol'].replace('.','-'), start, end)
+                df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 if not df.empty:
                     rdf = rdf.append(df)
                     rdf = rdf.sort_index()
                     #rdf = rdf.drop_duplicates()
                     rdf=rdf[~rdf.index.duplicated(keep='last')]
-                    write_to_hdf_store(rdf, stk['bscs']['symbol'], lock)
+                    write_to_hdf_store(country, rdf, stk['bscs']['symbol'], lock)
                     #print(stk['bscs']['symbol'], rdf.tail(5))
                     # Update the date on which the price is updated
-                    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_date", today)
+                    DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)
                     #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
     except Exception as E:
         print("hdf5: update_dataframe_price_volume:",str(E))
     finally:
         sem.release()
-
-##start = "2000-01-01"
-##end = "2018-01-01"
-##start = "2018-01-02"
-##end = "2019-01-01"
-#start = "2019-01-02"
-#end = "2019-10-17"
-#
-#
-#st_date = dt.strptime(start, "%Y-%m-%d").date()
-#end_date = dt.strptime(end, "%Y-%m-%d").date()
-#
-#symbol = 'AAPL'
-#df = get_stock_data(symbol, start, end)
-#write_to_hdf(hdf_path, df, symbol)
-#
-#df = get_stock_data('PG', start, end)
-#df.to_hdf(hdf_path, key='PG', mode='a', format='table', append=True, complevel=9, complib='bzip2')
-#
-#df = get_stock_data('MSFT', start, end)
-#df.to_hdf(hdf_path, key='MSFT', mode='a', format='table', append=True, complevel=9, complib='bzip2'
-#
-#df = get_stock_data('IBM', start, end)
-#df.to_hdf(hdf_path, key='IBM', mode='a', format='table', append=True, complevel=9, complib='bzip2')
-#rdf=pd.read_hdf('/tmp/US_Stocks.hd5', 'AAPL')
-#print(rdf.loc['2019-10-06 00:00:00':'2019-10-17 00:00:00'])
-#dates = rdf.index
-#print(rdf.loc[list(dates)[0]:list(dates[10])])

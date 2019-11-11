@@ -126,7 +126,6 @@ def send_email2(user, pwd, recipient, subject, body):
     server.close()
     print('successfully sent the mail')
 
-# Deprecated. Use hdf_price_change().
 def index_change(country, sym, name, num_days, data_type):
     change = 0
     symbol = sym.replace('.', '-')
@@ -155,6 +154,7 @@ def index_change(country, sym, name, num_days, data_type):
         change = en_price/st_price - 1
     return change, round((en_price-st_price), 2)
 
+# Deprecated. Use hdf_price_change().
 def price_change(country, sym, name, num_days, data_type):
     change,diff=index_change(country,sym,name,num_days,data_type)
     return change
@@ -234,29 +234,29 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
                 sheet = None
             conf.PR_DAY_COUNT = check_price_change(country, sym, stock, name, change, 0.10, conf.PR_DAY_COUNT, sheet, 'DAY', excel_type)
 
-    DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
+    DB.update_field(collection, sym, "price_change.date", str(dt.now()))
 
 def update_price_change(country, collection, sym, sem, lock):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     df=pd.DataFrame() 
     try:
-        df = hdf5.read_from_hdf_store(sym, lock)
+        df = hdf5.read_from_hdf_store(country, sym, lock)
         
         if not df.empty:
-            change = hdf5.hdf_price_change(sym, df, 1)
+            change = hdf5.hdf_price_change(country, sym, df, 1)
             DB.update_field(collection, sym, "price_change.day", change)
-            change = hdf5.hdf_price_change(sym, df, 7)
+            change = hdf5.hdf_price_change(country, sym, df, 7)
             DB.update_field(collection, sym, "price_change.week", change)
-            change = hdf5.hdf_price_change(sym, df, 30)
+            change = hdf5.hdf_price_change(country, sym, df, 30)
             DB.update_field(collection, sym, "price_change.month", change)
-            change = hdf5.hdf_price_change(sym, df, 90)
+            change = hdf5.hdf_price_change(country, sym, df, 90)
             DB.update_field(collection, sym, "price_change.quarter", change)
-            change = hdf5.hdf_price_change(sym, df, 180)
+            change = hdf5.hdf_price_change(country, sym, df, 180)
             DB.update_field(collection, sym, "price_change.half_year", change)
             #if sym == 'NTRS':
             #    input("Press enter to continue")
-            change = hdf5.hdf_price_change(sym, df, 365)
+            change = hdf5.hdf_price_change(country, sym, df, 365)
             DB.update_field(collection, sym, "price_change.year", change)
 
             #get 52 week high
@@ -291,8 +291,8 @@ def update_price_change(country, collection, sym, sem, lock):
 def fork_hdf5_process(country, sem, lock):
     c = DB.open_db_client()
     db = c['Stocks']
-    today=str(dt.now().date())
-    num_docs = db.US_Stocks.find({}).count()
+    collection = DB.get_collection(country, db)
+    num_docs = collection.find({}).count()
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
     #            {'$match' : {"price_change.date": {'$ne':today}}},
@@ -301,8 +301,9 @@ def fork_hdf5_process(country, sem, lock):
     #            ]
 
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    stocks = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
+    today=str(dt.now().date())
     i=0
     for stk in stocks:
         if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
@@ -311,9 +312,7 @@ def fork_hdf5_process(country, sem, lock):
             continue
         print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        if stk['bscs']['symbol'] == 'SNDL':
-            print("%r stock" %(stk['bscs']['symbol']))
-        update_price_change(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock)
+        update_price_change(country, collection, stk['bscs']['symbol'], sem, lock)
         #threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
         #break
         i = i + 1
@@ -331,11 +330,10 @@ def update_all_stocks_price_change(country):
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     hdf5_lock = threading.Lock()
  
-    if country == 'US':
-        fork_hdf5_process(country, hdf5_sem, hdf5_lock)
-        #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
-        #hdf5_process.start()
-        #hdf5_process.join()
+    fork_hdf5_process(country, hdf5_sem, hdf5_lock)
+    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
+    #hdf5_process.start()
+    #hdf5_process.join()
 
 def pcent(val):
     return str(round(val *100, 2))+'%'
@@ -360,42 +358,47 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         factor = 1/1000
         mcap = "Mcap Bn"
 
+    db = DB.open_db('Stocks')
+    collection = DB.get_collection(country, db)
+    
     entries = []
     head=["Symbol", "Name", "Since", "Sectr", mcap, "Price", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+
     entries.append(head)
-    if country == 'US':
-        db = DB.open_db('Stocks')
-        stocks = db.US_Stocks.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
-        #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
-        #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
-        for stk in stocks:
-            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-                continue
-            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-                continue
- 
-            bscs  = stk['bscs']
-            pchg = stk['price_change']
-            print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
-            entry = [   
-                        bscs['symbol'], 
-                        bscs['name'],
-                        str(bscs['since']),
-                        str(bscs['sector']),
-                        str(round(bscs['mcap']*factor, 2)),
-                        str(bscs['price']),
-                        str(round(bscs['fiftytwoweek_high'], 2)),
-                        str(round(bscs['fiftytwoweek_low'], 2)),
-                        pcent(pchg['day']),
-                        pcent(pchg['week']),
-                        pcent(pchg['month']),
-                        pcent(pchg['quarter']),
-                        pcent(pchg['half_year']),
-                        pcent(pchg['year']),
-                        pcent(pchg['with_52week_high']),
-                        pcent(pchg['with_52week_low'])
-                    ]
-            entries.append(entry)
+    stocks = collection.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
+    #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
+    #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
+    for stk in stocks:
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            continue
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            continue
+
+        bscs  = stk['bscs']
+        pchg = stk['price_change']
+        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
+        entry = [ ]
+        entry.append(bscs['symbol'])
+        entry.append(bscs['name'])
+        if country == 'US':
+            entry.append(str(bscs['since']))
+        else:
+            entry.append(str("-"))
+        entry.append(str(bscs['sector']))
+        entry.append(str(round(bscs['mcap']*factor, 2)))
+        entry.append(str(bscs['price']))
+        entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
+        entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
+        entry.append(pcent(pchg['day']))
+        entry.append(pcent(pchg['week']))
+        entry.append(pcent(pchg['month']))
+        entry.append(pcent(pchg['quarter']))
+        entry.append(pcent(pchg['half_year']))
+        entry.append(pcent(pchg['year']))
+        entry.append(pcent(pchg['with_52week_high']))
+        entry.append(pcent(pchg['with_52week_low']))
+        
+        entries.append(entry)
 
     DB.close_db()
     return entries
@@ -433,9 +436,6 @@ pcent_chg['quarter']   = [0.10, 0.10, 0.20, 0.25, 0.25]
 pcent_chg['half_year'] = [0.15, 0.15, 0.25, 0.30, 0.50]
 pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
 
-Bn = 1000
-Tn = 1000*Bn
-
 # Day change column position.
 # Week = Day + 1
 # Month = Week + 1 etc
@@ -450,12 +450,24 @@ highlight_columns = { 'day': 8, 'week':9, 'month':10, 'quarter':11, 'half_year':
 
 def get_price_changes(s, country, duration):
 
-    #s = parse_html.html_set_line(s)
-    s = build_html_price_change(s, 'US', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
-    s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
-    s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
-    s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
-    s = build_html_price_change(s, 'US', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 1 Bn"])
+    if country == 'US':
+        Bn = 1000
+        Tn = 1000*Bn
+        #s = parse_html.html_set_line(s)
+        s = build_html_price_change(s, 'US', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
+        s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
+        s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
+        s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
+        s = build_html_price_change(s, 'US', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 1 Bn"])
+    elif country == 'India':
+        Bn = 100 # crores
+        Tn = 100 * Bn
+        #s = parse_html.html_set_line(s)
+        s = build_html_price_change(s, 'India', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap One Lac Cr and above"])
+        s = build_html_price_change(s, 'India', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 1000 Cr and One Lac Cr"])
+        s = build_html_price_change(s, 'India', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 500 Cr and 1000 Cr"])
+        s = build_html_price_change(s, 'India', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 100 Cr and 500 Cr"])
+        s = build_html_price_change(s, 'India', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 100 Cr"])
     return s
 
 def send_email_price_changes(country):
@@ -481,7 +493,7 @@ def send_email_price_changes(country):
     f = open("/tmp/test.html","w")
     f.write(s)
     f.close()
-    subject='Price Surprises: %r' %(str(datetime.datetime.now().date()))
+    subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
 
 def price_surprises(country, change_percent, criteria, db_type, excel_type):
@@ -588,10 +600,12 @@ def get_price_volume(stk, country):
     ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
 
     # Skip the stop if mark ignored
-    if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-        return None
-    if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-        return None
+    if 'ignore' in stk.keys():
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            return None
+    if 'trading' in stk['bscs']:
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            return None
 
     symbol = stk['bscs']['symbol'].replace('.','-')
 
@@ -613,10 +627,15 @@ def get_price_volume(stk, country):
         # Add moving average etc. Refer /tmp/test.csv for details
         stk['bscs']['volume'] = (d.averageDailyVolume3Month.to_list()[0])
         #stk['bscs']['volume'] = d.regularMarketVolume.to_list()[0]
-        stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/1000000
+        if country == 'India':
+            stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/10000000 # in crores
+        else:
+            stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/1000000 # in millions
         stk['bscs']['price']  = (d.price.to_list()[0])
         stk['bscs']['outstanding_shares'] = d.sharesOutstanding.to_list()[0]
     except AttributeError as e:
+        if 'outstanding_shares' not in stk['bscs'].keys():
+            stk['bscs']['outstanding_shares'] = 0
         PRINT_ERR(str(e))
         PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
     return stk
