@@ -5,6 +5,6 @@ if __name__ == "__main__":
     # Get today's price from yahoo and update db and hdf5
     DB.update_all_price_volume_db('US')
     ## Calculate and store price change
-    #internet.update_all_stocks_price_change('US')
+    internet.update_all_stocks_price_change('US')
     ### send email
-    #internet.send_email_price_changes('US')
+    internet.send_email_price_changes('US')

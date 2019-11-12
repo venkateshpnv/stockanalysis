@@ -79,6 +79,19 @@ def write_to_collection(col, doc):
     #x = col.find_one()
     #print(x)
 
+def get_since(country, symbol):
+    c = open_db_client()
+    db = c['Stocks']
+    if country == 'US':
+        col = db.US_Stocks
+    else:
+        col = db.Indian_Stocks
+    stk = col.find({'bscs.symbol':symbol})
+    close_db_client(c)
+    if stk.count() > 0:
+        return stk[0]['bscs']['since']
+    return None
+
 def remove_duplicates(collection):
     print("entering remove duplicates")
     stocks = collection.find({})

@@ -255,10 +255,10 @@ def update_price_change(country, collection, sym, sem, lock):
             DB.update_field(collection, sym, "price_change.quarter", change)
             change = hdf5.hdf_price_change(country, sym, df, 180)
             DB.update_field(collection, sym, "price_change.half_year", change)
-            #if sym == 'NTRS':
-            #    input("Press enter to continue")
             change = hdf5.hdf_price_change(country, sym, df, 365)
             DB.update_field(collection, sym, "price_change.year", change)
+            change = hdf5.hdf_price_change(country, sym, df, -1)
+            DB.update_field(collection, sym, "price_change.whole", change)
 
             #get 52 week high
             high_price = hdf5.hdf_get_high_n_days(df, 365)

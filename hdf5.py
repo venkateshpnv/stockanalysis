@@ -117,11 +117,16 @@ def hdf_price_change(country, sym, df, num_days):
     if diff > 0:
         end = end - timedelta(days=diff)
 
-    start = end - relativedelta(days=num_days)
-    diff = start.weekday() - 4
-    #If weekend take friday entry
-    if diff > 0:
-        start = start - timedelta(days=diff)
+    #Price Change since beginning
+    if num_days == -1:
+        since = DB.get_since(country, sym)
+        start = dt.strptime(since, "%Y-%m-%d").date()
+    else:
+        start = end - relativedelta(days=num_days)
+        diff = start.weekday() - 4
+        #If weekend take friday entry
+        if diff > 0:
+            start = start - timedelta(days=diff)
 
     en_price = hdf_get_price(sym, df, end)
     st_price = hdf_get_price(sym, df, start)
@@ -144,11 +149,15 @@ def get_nearest_index(df, req_date):
 def hdf_get_price(sym, df, req_date):
     # Get nearest date entry not greater than 30 days
     # if the required date entry does not exist
-    try:
-        index = get_nearest_index(df, req_date)
-    except Exception as e:
-        print("hdf_get_price: %r: sym: %r: %r" %(str(req_date), sym, str(e)))
-        index=-1
+
+    #if req_date is None, return first trading day price
+    index = 0
+    if req_date:
+        try:
+            index = get_nearest_index(df, req_date)
+        except Exception as e:
+            print("hdf_get_price: %r: sym: %r: %r" %(str(req_date), sym, str(e)))
+            index=-1
     #print("index: %r" %(index))
     df = df.iloc[index]
     #print("df: %r" %(df))
