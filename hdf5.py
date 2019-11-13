@@ -210,7 +210,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
     df=pd.DataFrame() 
     collection = DB.get_collection(country, db)
     try:
-        today=str(dt.now().date())
+        today=str(dt.now())
         end=dt.now().date()#-timedelta(2)
         #Updating the price and volume for the first time
         symbol = '/' + stk['bscs']['symbol']

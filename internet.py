@@ -257,8 +257,9 @@ def update_price_change(country, collection, sym, sem, lock):
             DB.update_field(collection, sym, "price_change.half_year", change)
             change = hdf5.hdf_price_change(country, sym, df, 365)
             DB.update_field(collection, sym, "price_change.year", change)
-            change = hdf5.hdf_price_change(country, sym, df, -1)
-            DB.update_field(collection, sym, "price_change.whole", change)
+            if country == 'US':
+                change = hdf5.hdf_price_change(country, sym, df, -1)
+                DB.update_field(collection, sym, "price_change.whole", change)
 
             #get 52 week high
             high_price = hdf5.hdf_get_high_n_days(df, 365)
@@ -285,7 +286,7 @@ def update_price_change(country, collection, sym, sem, lock):
 
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
 
-            DB.update_field(collection, sym, "price_change.date", str(dt.now().date()))
+            DB.update_field(collection, sym, "price_change.date", str(dt.now()))
     finally:
         sem.release()
 
