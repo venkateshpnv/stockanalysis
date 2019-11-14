@@ -469,14 +469,14 @@ def fork_db_process(country, sem, lock):
 
     today=str(datetime.now().date())
     #Randomly get all records whose price is not updated till today
-    pipeline = [{'$sample': {'size':num_docs}},
-                {'$match' : {"bscs.price_date": {'$ne':today}}},
-                #{"$group": {"_id": _id, "count": {"$sum":1}}},
-                #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-                ]
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
  
-    stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     i=0
     for stk in stocks:
         if 'trading' in stk['bscs'].keys():
@@ -506,14 +506,14 @@ def fork_hdf5_process(country, sem, lock):
 
     today=str(datetime.now().date())
     # Randomly get all records whose price is not updated till today
-    pipeline = [{'$sample': {'size':num_docs}},
-                {'$match' : {"bscs.price_date": {'$ne':today}}},
-                #{"$group": {"_id": _id, "count": {"$sum":1}}},
-                #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-                ]
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
 
-    stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #stocks = collection.find({'bscs.symbol':'PREMIERPOL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
