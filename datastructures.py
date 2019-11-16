@@ -391,3 +391,6 @@ recessions = {
                            "duration" : 14
                          }
              }
+
+India_indices = {"^BSESN": "BSE", "^NSEI":"NSE"}
+US_indices = { "^GSPC":"S&P 500", "^DJI": "Dow Jones", "^IXIC": "Nasdaq", "^RUT": "Russel 2000"}  

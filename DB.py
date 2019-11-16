@@ -62,6 +62,15 @@ def close_db():
 def close_db_client(c):
     c.close()
 
+def ignore_stock(stk):
+    if 'trading' in stk['bscs'].keys():
+        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+            return True
+    if 'ignore' in stk.keys():
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            return True
+    return False
+
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
 
@@ -504,6 +513,21 @@ def fork_hdf5_process(country, sem, lock):
     if num_docs == 0:
         return
 
+    symbols = hdf5.get_symbols_hdf_store(country, lock)
+    
+    if country == 'India':
+        indices = India_indices
+    else:
+        indices = US_indices 
+    stk = {}
+    stk['bscs']={}
+    for k in indices.keys():
+        stk['bscs']['symbol'] = k
+        stk['bscs']['name'] = indices[k]
+        sem.acquire()
+        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem, lock)
+        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem, lock,)).start()
+
     today=str(datetime.now().date())
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -517,7 +541,6 @@ def fork_hdf5_process(country, sem, lock):
     #stocks = collection.find({'bscs.symbol':'PREMIERPOL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
-    symbols = hdf5.get_symbols_hdf_store(country, lock)
     for stk in stocks:
         if 'trading' in stk['bscs'].keys():
             if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
@@ -530,6 +553,8 @@ def fork_hdf5_process(country, sem, lock):
         #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem, lock)
         threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem, lock,)).start()
         i = i + 1
+        if i > 5:
+            break
 
     # Wait till all threads are completed. You can use join() instead.
     # But need to track threads and update variables.
@@ -1102,13 +1127,12 @@ def get_beta(sym, bindex, sdate, edate):
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
     
-def update_stock_recession_beta(db, doc, sym):
+def update_stock_recession_betas(db, doc, sym):
     years = recessions.keys()
 
     for year in years:
         try:
-            #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
-            if True:
+            if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
                 #print("Recession Betas")
                 st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
                 en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
@@ -1130,116 +1154,113 @@ def update_stock_recession_beta(db, doc, sym):
                 db.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
+def update_stock_betas(stk, index):
+    sym = stk['bscs']['symbol']
+    print("%r: %r" %(stk['sno'], sym))
+    since = stk['bscs']['since']
+    #print("since: %r" %(since))
+    #sno = int(read_from_file("beta.txt"))
+    #if sno > stk['sno']:
+    #    continue
+    since_start = datetime.strptime(since, "%Y-%m-%d").date()
+    
+    update_stock_recession_betas(db, stk, sym)
+    
+    if not 'betas' in stk['fig'].keys():
+        stk['fig']['betas']={}
+    
+    if not 'since_last_recession' in stk['fig']['betas'].keys():
+        #print(stk['fig']['betas'].keys())
+        #Since last recession
+        betas = None
+        year = sorted(recessions.keys())[-1]
+        st_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
+        en_date = datetime.now().date()
+        #print("Since last recession")
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(sym, bindex, st_date, en_date)
+        #print("Betas: %r" %(betas))
+        field="fig.betas.since_last_recession"
+        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+    
+    #whole beta
+    print("whole beta")
+    st_date = since_start
+    en_date = datetime.now().date()
+    #print(st_date)
+    #print(en_date)
+    betas = get_beta(sym, bindex, st_date, en_date)
+    #print("Betas: %r" %(betas))
+    field="fig.betas.whole"
+    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+    
+    #5 year beta
+    print("5 year beta")
+    en_date = datetime.now().date()
+    betas = None
+    st_date = en_date - timedelta(days=5*365)
+    #print(st_date)
+    #print(en_date)
+    betas = get_beta(sym, bindex, st_date, en_date)
+    #print("Betas: %r" %(betas))
+    field="fig.betas.five_year"
+    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+    
+    #1 year beta
+    print("1 year beta")
+    st_date = since_start
+    en_date = datetime.now().date()
+    betas = None
+    st_date = en_date - timedelta(days=1*365)
+    #print(st_date)
+    #print(en_date)
+    betas = get_beta(sym, bindex, st_date, en_date)
+    field="fig.betas.one_year"
+    #print("Betas: %r" %(betas))
+    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+    
+    #6 months beta
+    print("6 months beta")
+    st_date = since_start
+    en_date = datetime.now().date()
+    betas = None
+    st_date = en_date - timedelta(days=365/2)
+    #print(st_date)
+    #print(en_date)
+    betas = get_beta(sym, bindex, st_date, en_date)
+    field="fig.betas.six_months"
+    #print("Betas: %r" %(betas))
+    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+    
+def update_all_stock_betas(country):
+    c = open_db_client()
+    db = c['Stocks']
+    collection = get_collection(country, db)
 
-def update_stock_betas():
-    db_handle = open_db('Stocks')
-    db = db_handle.US_Stocks
-    bindex='^GSPC'
+    if country == 'US':
+        bindex = '^GSPC'
+    elif country == 'India':
+        bindex = '^BSESN' 
+    else:
+        return
+
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
-    #docs = db.find({}, no_cursor_timeout=True).sort([["sno",1]])
+    docs = collection.find({}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
-    docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
     for i, doc in enumerate(docs):
     #for doc in docs:
-        if doc['ignore'] == 'Yes':
-            print("Ignore set")
-            continue
-
-        #if doc['sno'] < 4094:
-        #    continue
-
-        sym = doc['bscs']['symbol']
-        print("%r: %r" %(doc['sno'], sym))
-        since = doc['bscs']['since']
-        #print("since: %r" %(since))
-        #sno = int(read_from_file("beta.txt"))
-        #if sno > doc['sno']:
-        #    continue
-        since_start = datetime.strptime(since, "%Y-%m-%d").date()
-    
-        update_stock_recession_beta(db, doc, sym)
-
-        if not 'betas' in doc['fig'].keys():
-            doc['fig']['betas']={}
-
-        #if not 'since_last_recession' in doc['fig']['betas'].keys() or not doc['fig']['betas']['since_last_recession']:
-        if True:
-            #print(doc['fig']['betas'].keys())
-            #Since last recession
-            betas = None
-            year = sorted(recessions.keys())[-1]
-            st_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
-            en_date = datetime.now().date()
-            #print("Since last recession")
-            #print(st_date)
-            #print(en_date)
-            betas = get_beta(sym, bindex, st_date, en_date)
-            #print("Betas: %r" %(betas))
-            field="fig.betas.since_last_recession"
-            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-
-        #whole beta
-        #if not 'whole' in doc['fig']['betas'].keys() or not doc['fig']['betas']['whole']:
-        if True:
-            print("whole beta")
-            st_date = since_start
-            en_date = datetime.now().date()
-            #print(st_date)
-            #print(en_date)
-            betas = get_beta(sym, bindex, st_date, en_date)
-            #print("Betas: %r" %(betas))
-            field="fig.betas.whole"
-            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-
-        #5 year beta
-        #if not 'five_year' in doc['fig']['betas'].keys() or not doc['fig']['betas']['five_year']:
-        if True:
-            print("5 year beta")
-            en_date = datetime.now().date()
-            betas = None
-            st_date = en_date - timedelta(days=5*365)
-            #print(st_date)
-            #print(en_date)
-            betas = get_beta(sym, bindex, st_date, en_date)
-            #print("Betas: %r" %(betas))
-            field="fig.betas.five_year"
-            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-
-        #1 year beta
-        #if not 'one_year' in doc['fig']['betas'].keys() or not doc['fig']['betas']['one_year']:
-        if True:
-            print("1 year beta")
-            st_date = since_start
-            en_date = datetime.now().date()
-            betas = None
-            st_date = en_date - timedelta(days=1*365)
-            #print(st_date)
-            #print(en_date)
-            betas = get_beta(sym, bindex, st_date, en_date)
-            field="fig.betas.one_year"
-            #print("Betas: %r" %(betas))
-            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-
-        #6 months beta
-        #if not 'six_months' in doc['fig']['betas'].keys() or not doc['fig']['betas']['six_months']:
-        if True:
-            print("6 months beta")
-            st_date = since_start
-            en_date = datetime.now().date()
-            betas = None
-            st_date = en_date - timedelta(days=365/2)
-            #print(st_date)
-            #print(en_date)
-            betas = get_beta(sym, bindex, st_date, en_date)
-            field="fig.betas.six_months"
-            #print("Betas: %r" %(betas))
-            db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-
-        write_to_file(str(doc['sno']), "beta.txt", "w")
-
+        if ignore_stock(doc):
+            return
+        
+        update_stock_betas(doc, bindex)
+    time.sleep(10)
+    close_db_client(c)
+ 
 def set_sno(country):
     db = open_db('Stocks')
     if country == 'US':

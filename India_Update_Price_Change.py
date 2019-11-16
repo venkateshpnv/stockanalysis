@@ -6,5 +6,5 @@ if __name__ == "__main__":
     DB.update_all_price_volume_db('India')
     ## Calculate and store price change
     internet.update_all_stocks_price_change('India')
-    ### send email
+    ## send email
     internet.send_email_price_changes('India')

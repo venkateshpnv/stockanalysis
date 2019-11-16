@@ -3,10 +3,12 @@ import pandas_datareader as pdr
 import h5py
 from datetime import date, timedelta, datetime as dt
 from common import *
+from datastructures import *
 import time
 from dateutil.relativedelta import relativedelta
 import DB
 import os
+from arctic import Arctic
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
@@ -15,7 +17,7 @@ India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_
 
 def get_stock_data(country, symbol, start, end):
     try:
-        if country == 'India':
+        if country == 'India' and symbol not in India_indices.keys():
             symbol = symbol + '.BO'
         df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=5)
         df = df.astype('float64')
@@ -70,6 +72,20 @@ def write_to_hdf_store(country, df, symbol, lock):
     finally:
         lock.release()
 
+#def write_to_hdf_store(country, df, symbol, lock):
+#    if country == 'India':
+#        store = library = 'India_Stocks_Prices'
+#    else:
+#        store = library = 'US_Stocks_Prices'
+#    try:
+#        with Arctic('localhost') as st:
+#           if library not in store.list_libraries:
+#                st.initialize_library(library)
+#            lib = st[library]
+#            lib.write(symbol, df)
+#    finally:
+#        return
+
 def read_from_hdf_store(country, symbol, lock):
     try:
         path = get_hdf_store_path(country)
@@ -82,6 +98,25 @@ def read_from_hdf_store(country, symbol, lock):
     finally:
         lock.release()
     return df
+
+#def read_from_hdf_store(country, symbol, lock):
+#    df = pd.DataFrame()
+#    if country == 'India':
+#        store = library = 'India_Stocks_Prices'
+#    else:
+#        store = library = 'US_Stocks_Prices'
+#    try:
+#        with Arctic('localhost') as st:
+#           if library not in store.list_libraries:
+#                st.initialize_library(library)
+#            lib = st[library]
+#            if lib.has_symbol(symbol):
+#                df  = lib.read(symbol).data
+#    except Exception as e:
+#        print(str(e))
+#        return pd.DataFrame()
+#    finally:
+#        return df
 
 def read_from_hdf_store_nolock(country, symbol):
     path = get_hdf_store_path(country)
@@ -111,7 +146,17 @@ def get_dataframe(country, sym):
     return pd.read_hdf(path, sym)
 
 def hdf_price_change(country, sym, df, num_days):
-    end = dt.now().date()
+    if country == 'US':
+        hour=13
+    else: # India
+        hour=15
+        minute=30
+
+    end = dt.now()
+    if end.hour < hour:
+        end = end - timedelta(1)
+
+    end = end.date()
     diff = end.weekday() - 4
     #If weekend take friday entry
     if diff > 0:
@@ -216,8 +261,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
         symbol = '/' + stk['bscs']['symbol']
         if symbol not in symbols:
             #print("%r : symbol not preset getting full data" %(stk['bscs']['symbol']))
-            since = "1970-01-01"
-            start = dt.strptime(since, "%Y-%m-%d").date()
+            start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             if not df.empty:
                 write_to_hdf_store(country, df, stk['bscs']['symbol'], lock)
@@ -230,12 +274,12 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
             rdf = read_from_hdf_store(country, stk['bscs']['symbol'], lock)
             if rdf.empty:
                 PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
-                sem.release()
-                return
-            #get timestamp of the last entry
-            start = rdf.index[-1].date()
+                start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+            else:
+                #get timestamp of the last entry
+                start = rdf.index[-1].date()
             #get data from next date till today
-            #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+            print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start < end:
                 # If date difference is less than a week, get atleast
                 # a week of prices. yahoofinance sometimes misbehaves
