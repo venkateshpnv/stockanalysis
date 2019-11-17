@@ -10,11 +10,15 @@ import DB
 import os
 from arctic import Arctic
 
+import threading
+
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
 US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.h5'
 India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store.h5'
 
+lock = threading.Lock()
+ 
 def get_stock_data(country, symbol, start, end):
     try:
         if country == 'India' and symbol not in India_indices.keys():
@@ -32,7 +36,7 @@ def get_hdf_store_path(country):
     else:
         return India_hdf_store_path
  
-def hdf_replace_dataset(hdf_path, symbol, rdf, lock):
+def hdf_replace_dataset(hdf_path, symbol, rdf):
     try:
         #lock.acquire()
         with h5py.File(hdf_path,mode='w') as f1:
@@ -52,7 +56,7 @@ def open_hdf_store(country):
     if country == 'India':
         return pd.HDFStore(India_hdf_store_path, mode='a', complevel=9, complib='bzip2')
 
-def get_symbols_hdf_store(country, lock):
+def get_symbols_hdf_store(country):
     symbols = []
     try:
         path = get_hdf_store_path(country)
@@ -63,7 +67,7 @@ def get_symbols_hdf_store(country, lock):
         lock.release()
     return symbols
 
-def write_to_hdf_store(country, df, symbol, lock):
+def write_to_hdf_store(country, df, symbol):
     try:
         path = get_hdf_store_path(country)
         lock.acquire()
@@ -72,7 +76,7 @@ def write_to_hdf_store(country, df, symbol, lock):
     finally:
         lock.release()
 
-#def write_to_hdf_store(country, df, symbol, lock):
+#def write_to_hdf_store(country, df, symbol):
 #    if country == 'India':
 #        store = library = 'India_Stocks_Prices'
 #    else:
@@ -86,7 +90,7 @@ def write_to_hdf_store(country, df, symbol, lock):
 #    finally:
 #        return
 
-def read_from_hdf_store(country, symbol, lock):
+def read_from_hdf_store(country, symbol):
     try:
         path = get_hdf_store_path(country)
         lock.acquire()
@@ -99,7 +103,7 @@ def read_from_hdf_store(country, symbol, lock):
         lock.release()
     return df
 
-#def read_from_hdf_store(country, symbol, lock):
+#def read_from_hdf_store(country, symbol):
 #    df = pd.DataFrame()
 #    if country == 'India':
 #        store = library = 'India_Stocks_Prices'
@@ -124,7 +128,7 @@ def read_from_hdf_store_nolock(country, symbol):
         df = store[symbol]
     return df
 
-def write_to_hdf(country, df, symbol, lock):
+def write_to_hdf(country, df, symbol):
     try:
         path = get_hdf_store_path(country)
         lock.acquire()
@@ -132,7 +136,7 @@ def write_to_hdf(country, df, symbol, lock):
     finally:
         lock.release()
 
-def read_from_hdf(country, symbol, lock):
+def read_from_hdf(country, symbol):
     try:
         lock.acquire()
         path = get_hdf_store_path(country)
@@ -141,9 +145,26 @@ def read_from_hdf(country, symbol, lock):
         lock.release()
     return rdf
 
-def get_dataframe(country, sym):
+def get_dataframe(country, sym, start=None, end=None):
     path = get_hdf_store_path(country)
-    return pd.read_hdf(path, sym)
+    try:
+        lock.acquire()
+        df = pd.read_hdf(path, sym)
+    except Exception as e:
+        PRINT_ERR(str(e))
+        lock.release()
+        return pd.DataFrame()
+    finally:
+        lock.release()
+    if start == None:
+        sindex = None
+    else:
+        sindex = get_nearest_index(df, start)
+    if end == None:
+        eindex = None
+    else:
+        eindex = get_nearest_index(df, end)+1
+    return df[sindex:eindex]
 
 def hdf_price_change(country, sym, df, num_days):
     if country == 'US':
@@ -246,7 +267,7 @@ def hdf_get_low_n_days(df, num_days):
 #    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
 #    change = en_price/st_price - 1
  
-def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
+def update_dataframe_price_volume(country, db, symbols, stk, sem):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
@@ -264,14 +285,14 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             if not df.empty:
-                write_to_hdf_store(country, df, stk['bscs']['symbol'], lock)
+                write_to_hdf_store(country, df, stk['bscs']['symbol'])
                 # Update the date on which the price is updated
                 DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)
                 #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
         #Updating today's price and volume
         else:
             # Read the existing data of the symbol
-            rdf = read_from_hdf_store(country, stk['bscs']['symbol'], lock)
+            rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
             if rdf.empty:
                 PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
@@ -279,7 +300,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
                 #get timestamp of the last entry
                 start = rdf.index[-1].date()
             #get data from next date till today
-            print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+            #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start < end:
                 # If date difference is less than a week, get atleast
                 # a week of prices. yahoofinance sometimes misbehaves
@@ -297,7 +318,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem, lock):
                     rdf = rdf.sort_index()
                     #rdf = rdf.drop_duplicates()
                     rdf=rdf[~rdf.index.duplicated(keep='last')]
-                    write_to_hdf_store(country, rdf, stk['bscs']['symbol'], lock)
+                    write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     #print(stk['bscs']['symbol'], rdf.tail(5))
                     # Update the date on which the price is updated
                     DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)

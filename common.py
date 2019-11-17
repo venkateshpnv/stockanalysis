@@ -8,6 +8,11 @@ MONTH=4
 WEEK=8
 DAY=16
 ALL=0x1F
+
+sender_email_id="petlafin@gmail.com"
+receiver_email_id="petlafin@gmail.com"
+sender_passwd="Tasche3#Gm"
+
 #Supportive calls
 def PRINT_ERR(x):
     f = open("error_log.txt", "a")

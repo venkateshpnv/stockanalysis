@@ -19,6 +19,7 @@ from common import *
 from datastructures import *
 import conf
 import hdf5
+
 import threading
 import multiprocessing
 
@@ -503,7 +504,7 @@ def fork_db_process(country, sem, lock):
     close_db_client(c)
     print("DB Process Stocks tried :%r"%(i))
 
-def fork_hdf5_process(country, sem, lock):
+def fork_hdf5_process(country, sem):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
@@ -513,7 +514,7 @@ def fork_hdf5_process(country, sem, lock):
     if num_docs == 0:
         return
 
-    symbols = hdf5.get_symbols_hdf_store(country, lock)
+    symbols = hdf5.get_symbols_hdf_store(country)
     
     if country == 'India':
         indices = India_indices
@@ -525,8 +526,8 @@ def fork_hdf5_process(country, sem, lock):
         stk['bscs']['symbol'] = k
         stk['bscs']['name'] = indices[k]
         sem.acquire()
-        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem, lock)
-        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem, lock,)).start()
+        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
 
     today=str(datetime.now().date())
     # Randomly get all records whose price is not updated till today
@@ -550,11 +551,9 @@ def fork_hdf5_process(country, sem, lock):
                 continue
         print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem, lock)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem, lock,)).start()
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
         i = i + 1
-        if i > 5:
-            break
 
     # Wait till all threads are completed. You can use join() instead.
     # But need to track threads and update variables.
@@ -596,7 +595,6 @@ def update_all_price_volume_db(country):
     global j
     max_threads = multiprocessing.cpu_count() * 2
     hdf5_sem = threading.BoundedSemaphore(max_threads)
-    hdf5_lock = threading.Lock()
     db_sem = threading.BoundedSemaphore(max_threads)
     db_lock = threading.Lock()
     today=str(datetime.now().date())
@@ -607,8 +605,8 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
-    #fork_hdf5_process(country, hdf5_sem, hdf5_lock)
-    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock,))
+    #fork_hdf5_process(country, hdf5_sem)
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
     #fork_db_process(country, db_sem, db_lock)
     db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
     hdf5_process.start()
@@ -665,16 +663,16 @@ def build_US_Stocks_List(excel_file):
                 entry.append(row[6])
                 entry.append(row[3])
                 entry.append(row[2])
-                if "." in sym:
-                    price_change = internet.price_change('US', sym.split(".")[0], name, 365, 'HOT')
-                elif "-" in sym:
-                    price_change = internet.price_change('US', sym.split("-")[0], name, 365, 'HOT')
-                else:
-                    price_change = internet.price_change('US', sym, name, 365, 'HOT')
-                if price_change:
-                    entry.append(str(round(price_change*100, 2))+'%')
-                else:
-                    entry.append("-")
+                #if "." in sym:
+                #    price_change = internet.price_change('US', sym.split(".")[0], name, 365, 'HOT')
+                #elif "-" in sym:
+                #    price_change = internet.price_change('US', sym.split("-")[0], name, 365, 'HOT')
+                #else:
+                #    price_change = internet.price_change('US', sym, name, 365, 'HOT')
+                #if price_change:
+                #    entry.append(str(round(price_change*100, 2))+'%')
+                #else:
+                #    entry.append("-")
                 #print(row)
                 entries.append(entry)
 
@@ -866,7 +864,7 @@ def get_US_Stock_list():
 def build_US_All_Stocks_List():
     get_US_Stock_list()
     new_stocks = [] 
-    head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price", "Max Price Change"]
+    head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
     new_stocks.append(head)
     new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
     new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
@@ -879,7 +877,7 @@ def build_US_All_Stocks_List():
         #print(s)
         subject = 'New Stocks :' + str(datetime.now().date())
         write_to_file(s, '/tmp/new_listings.html')
-        internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', subject, s)
+        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
     return len(new_stocks)
 
 def build_US_stock_information(doc):
@@ -888,91 +886,60 @@ def build_US_stock_information(doc):
     name = doc['Name']
 
     name = name.replace(",","").lstrip().rstrip()
-    if "&#39;" in name:
-        print("stk has &")
-        name = name.replace("&#39;", "\'")
-        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}})
-    if "/" in name:
-        print("stk has /")
-        name = name.replace("/", "")
-        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
-    if "?" in name:
-        print("stk has ?")
-        name = name.replace("?", "")
-        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
-    if "*" in name:
-        print("stk has *")
-        name = name.replace("*", "")
-        db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}}) 
-    
-    if "^" in sym:
-        print("symbol has ^")
-        sym = sym.replace("^", "-").lstrip().rstrip()
-        print(sym)
-        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
-    if "~" in sym:
-        print("symbol has ~")
-        sym = sym.replace("~", "").lstrip().rstrip()
-        print(sym)
-        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
-    if "?" in sym:
-        print("symbol has ?")
-        sym = sym.replace("?", "").lstrip().rstrip()
-        print(sym)
-        db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
+    name = name.replace("&#39;", "\'")
+    name = name.replace("/", "")
+    name = name.replace("?", "")
+    name = name.replace("*", "")
+    sym = sym.replace("^", "-").lstrip().rstrip()
+    sym = sym.replace("~", "").lstrip().rstrip()
+    sym = sym.replace("?", "").lstrip().rstrip()
+    db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}})
+    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
 
+    stocks = db.US_Stocks.find({"bscs.symbol":sym})
+    if stocks.count() == 0:
+        print("%d: %s: %s "%(doc['sno'],doc['symbol'], doc['Name']))
+        # Get financial data from the internet
+        path = internet.get_US_stock_page(sym, name)
+        
+        #path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
+        #path = path.lstrip().rstrip().replace(",","")
+        
+        ret=True
+        for (root,dirs,files) in os.walk(path, topdown=True):
+            files = [f for f in files if not f[0] == '.']
+            dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
+            dirs[:] = [d for d in dirs if not d[0] == '.']
+            print("Root: %r" %(root))
+            print(dirs)
+            print(sorted(files))
 
-    #obj = db.US_Stocks.find({"bscs.symbol":sym})
-    #if obj.count() > 0:
-    #    print("%s: %s: already exists. Skipping" %(sym, name))
-    #    return
-
-    # Get financial data from the internet
-    path = internet.get_US_stock_page(sym, name)
-    
-    path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
-    path = path.lstrip().rstrip().replace(",","")
-    
-    ret=True
-    for (root,dirs,files) in os.walk(path, topdown=True):
-        files = [f for f in files if not f[0] == '.']
-        dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
-        dirs[:] = [d for d in dirs if not d[0] == '.']
-        #print("Root: %r" %(root))
-        #print(dirs)
-        #print(sorted(files))
-
-        # For a new stock
-        #stock = {}
-
-        #for an existing stock
-        stocks = db.US_Stocks.find({"bscs.symbol":sym})
-        if stocks and stocks.count() > 0:
-            ret = parse_html.populate_US_stocks(db, root, sorted(files), stocks[0], sym, name, doc['Sector'], doc['Industry']) 
-            #if ret is True:
-            #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-            #    #remove_dir(path)
-            #db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+            stock = {}
+            ret = parse_html.populate_US_stocks(db, root, sorted(files), stock, sym, name, doc['Sector'], doc['Industry']) 
+        if ret is True:
+            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+            #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
+            #remove_dir(path)
+    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
  
 def build_US_all_stock_information():
     j=0
     db = open_db('Stocks')
 
-    s=[]
-    f = open("stocks.txt","r")
-    for line in f:
-        line = line.replace("\n","")
-        s.append(line)
-    if len(s) > 0:
-        del s[-1]
-    syms = {"$nin" : s}
+    #s=[]
+    #f = open("stocks.txt","r")
+    #for line in f:
+    #    line = line.replace("\n","")
+    #    s.append(line)
+    #if len(s) > 0:
+    #    del s[-1]
+    #syms = {"$nin" : s}
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks_list = db.US_Stocks_List.find({"symbol":"EPAC"})
+    stocks_list = db.US_Stocks_List.find({'parsed':'NO'})
     print(stocks_list.count())
 
     for doc in stocks_list:
         sno = doc['sno']
-        #if sno > 373:
         if sno > 0:
             #name = doc['Name']
             #if name.find("Fund") != -1 or name.find("Trust") != -1:
@@ -980,26 +947,7 @@ def build_US_all_stock_information():
             #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
             #    continue
 
-        #if i > -1:
-            #obj = db.US_Stocks.find({"bscs.symbol":doc['symbol']})
-            ##if obj.count() == 0:
-            #if doc['parsed'] != 'YES' and obj.count() == 0:
-            if True:
-                print("%d: %s: %s "%(sno,doc['symbol'], doc['Name']))
-                write_stock_to_file(doc['symbol'], "stocks.txt", "a")
-                build_US_stock_information(doc)
-                #j += 1
-                #update_field(db.US_Stocks, doc['symbol'], "sno", j)
-            else:
-                #print("%d: %s: %s already present, skipping" %(sno,doc['symbol'], doc['Name']))
-                pass
-            #name = stock['Name']
-            #sym = stock['symbol']
-            #name = name.replace("&#39;", "\'")
-            #name = name.replace("/", "")
-            #sym = sym.replace("^", "-")
-            #db.US_Stocks_List.update({"symbol":stock['symbol']},{'$set':{"Name":name}})
-            #db.US_Stocks_List.update({'symbol': stock['symbol']}, {'$set': {"symbol": sym}})
+            build_US_stock_information(doc)
 
 
     #set_sno('US')
@@ -1025,19 +973,27 @@ def update_sector_info():
                 j += 1
     print("Total : %d" %(j))
 
-def get_beta(sym, bindex, sdate, edate):
+def get_beta(country, sym, sdate, edate):
     betas = {}
-    sym = sym.replace('.', '-')
     try:
         #from pandas_datareader.quandl import QuandlReader
         #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
         #print(df)
-        df = pdr.DataReader(sym, 'yahoo', sdate, edate, retry_count=3)
+        df = hdf5.get_dataframe(country, sym, sdate, edate)
     except KeyError:
         print("Could not get data. Failed to calculate beta")
         return None
 
-    dfb = pdr.DataReader(bindex,'yahoo',sdate,edate, retry_count=3)
+    if country == 'US':
+        bindex = "^GSPC"
+    elif country == 'India':
+        bindex = "^BSESN" 
+    else:
+        PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
+        return betas
+
+    dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
+    #dfb = hdf5.get_dataframe(country, bindex, sdate, edate)
    
     # Calculate CAGR
     s_first = df['Adj Close'][0]
@@ -1065,14 +1021,28 @@ def get_beta(sym, bindex, sdate, edate):
         cagr = None
         #sys.exit()
 
+    ## Take symbol's indexes as inputs
+    ## For example, the recession happened in 2008.
+    ## If the symbol started trading in 2011, the symbol's dataframe will not have
+    ## info in 2008 but the S&P 500 does. The S&P 500 then takes the entries of 2008
+    ## and uses it as the start where as the symbol started in 2011.
+    ## To avoid this ambiquity, take symbol's timestamps as the indices for the S&P500
+    ## (Pdb) df.index[0]
+    ## Timestamp('2011-01-26 00:00:00')
+    ## (Pdb) df.index[-1]
+    ## Timestamp('2019-11-15 00:00:00')
+    ## (Pdb)
+    # Taken care above. Not required here
+    #dfb = dfb[df.index[0]:df.index[-1]]
+
     first = dfb['Adj Close'][0]
-    last = dfb['Adj Close'][-1]
+    last  = dfb['Adj Close'][-1]
+
     bgrowth_percent = last/first - 1
     b_cagr = round((((last/first)**(1/years))-1), 4)
-    first = dfb['Adj Close'][0]
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
-    # create a time-series of monthly data points
+    # from daily data points, create a time-series of monthly data points
     time_period=12. #months
     rts = df.resample('M').last()
     rbts = dfb.resample('M').last()
@@ -1114,6 +1084,8 @@ def get_beta(sym, bindex, sdate, edate):
 
     betas.update({"Start_Price":float(s_first)})
     betas.update({"End_Price":float(s_last)})
+    betas.update({"Start_Date":str(df.index[0].date())})
+    betas.update({"End_Date":str(df.index[-1].date())})
     betas.update({"Index_CAGR":b_cagr})
     betas.update({"Index_Percent_Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
@@ -1127,7 +1099,7 @@ def get_beta(sym, bindex, sdate, edate):
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
     
-def update_stock_recession_betas(db, doc, sym):
+def update_stock_recession_betas(country, collection, doc, sym):
     years = recessions.keys()
 
     for year in years:
@@ -1138,38 +1110,38 @@ def update_stock_recession_betas(db, doc, sym):
                 en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(sym, '^GSPC', st_date, en_date)
+                betas = get_beta(country, sym, st_date, en_date)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
-                db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+                collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
         except KeyError:
                 #print("Recession Betas")
                 st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
                 en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(sym, '^GSPC', st_date, en_date)
+                betas = get_beta(country, sym, st_date, en_date)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
-                db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+                collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
-def update_stock_betas(stk, index):
-    sym = stk['bscs']['symbol']
-    print("%r: %r" %(stk['sno'], sym))
-    since = stk['bscs']['since']
-    #print("since: %r" %(since))
-    #sno = int(read_from_file("beta.txt"))
-    #if sno > stk['sno']:
-    #    continue
-    since_start = datetime.strptime(since, "%Y-%m-%d").date()
-    
-    update_stock_recession_betas(db, stk, sym)
-    
-    if not 'betas' in stk['fig'].keys():
-        stk['fig']['betas']={}
-    
-    if not 'since_last_recession' in stk['fig']['betas'].keys():
+def update_stock_betas(country, collection, stk, sem):
+    try:
+        sym = stk['bscs']['symbol']
+        #print("%r: %r" %(stk['sno'], sym))
+        since = stk['bscs']['since']
+        #print("since: %r" %(since))
+        #sno = int(read_from_file("beta.txt"))
+        #if sno > stk['sno']:
+        #    continue
+        since_start = datetime.strptime(since, "%Y-%m-%d").date()
+        
+        update_stock_recession_betas(country, collection, stk, sym)
+        
+        if not 'betas' in stk['fig'].keys():
+            stk['fig']['betas']={}
+        
         #print(stk['fig']['betas'].keys())
         #Since last recession
         betas = None
@@ -1179,71 +1151,67 @@ def update_stock_betas(stk, index):
         #print("Since last recession")
         #print(st_date)
         #print(en_date)
-        betas = get_beta(sym, bindex, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date)
         #print("Betas: %r" %(betas))
         field="fig.betas.since_last_recession"
-        db.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        
+        #whole beta
+        #print("whole beta")
+        st_date = since_start
+        en_date = datetime.now().date()
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(country, sym, st_date, en_date)
+        #print("Betas: %r" %(betas))
+        field="fig.betas.whole"
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        
+        #5 year beta
+        #print("5 year beta")
+        en_date = datetime.now().date()
+        betas = None
+        st_date = en_date - timedelta(days=5*365)
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(country, sym, st_date, en_date)
+        #print("Betas: %r" %(betas))
+        field="fig.betas.five_year"
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        
+        #1 year beta
+        #print("1 year beta")
+        st_date = since_start
+        en_date = datetime.now().date()
+        betas = None
+        st_date = en_date - timedelta(days=1*365)
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(country, sym, st_date, en_date)
+        field="fig.betas.one_year"
+        #print("Betas: %r" %(betas))
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        
+        #6 months beta
+        #print("6 months beta")
+        st_date = since_start
+        en_date = datetime.now().date()
+        betas = None
+        st_date = en_date - timedelta(days=365/2)
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(country, sym, st_date, en_date)
+        field="fig.betas.six_months"
+        #print("Betas: %r" %(betas))
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     
-    #whole beta
-    print("whole beta")
-    st_date = since_start
-    en_date = datetime.now().date()
-    #print(st_date)
-    #print(en_date)
-    betas = get_beta(sym, bindex, st_date, en_date)
-    #print("Betas: %r" %(betas))
-    field="fig.betas.whole"
-    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-    
-    #5 year beta
-    print("5 year beta")
-    en_date = datetime.now().date()
-    betas = None
-    st_date = en_date - timedelta(days=5*365)
-    #print(st_date)
-    #print(en_date)
-    betas = get_beta(sym, bindex, st_date, en_date)
-    #print("Betas: %r" %(betas))
-    field="fig.betas.five_year"
-    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-    
-    #1 year beta
-    print("1 year beta")
-    st_date = since_start
-    en_date = datetime.now().date()
-    betas = None
-    st_date = en_date - timedelta(days=1*365)
-    #print(st_date)
-    #print(en_date)
-    betas = get_beta(sym, bindex, st_date, en_date)
-    field="fig.betas.one_year"
-    #print("Betas: %r" %(betas))
-    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-    
-    #6 months beta
-    print("6 months beta")
-    st_date = since_start
-    en_date = datetime.now().date()
-    betas = None
-    st_date = en_date - timedelta(days=365/2)
-    #print(st_date)
-    #print(en_date)
-    betas = get_beta(sym, bindex, st_date, en_date)
-    field="fig.betas.six_months"
-    #print("Betas: %r" %(betas))
-    db.update({'bscs.symbol':sym},{'$set': {field : betas}})
-    
+    finally:
+        sem.release()
+
 def update_all_stock_betas(country):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-
-    if country == 'US':
-        bindex = '^GSPC'
-    elif country == 'India':
-        bindex = '^BSESN' 
-    else:
-        return
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
@@ -1252,12 +1220,17 @@ def update_all_stock_betas(country):
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
-    for i, doc in enumerate(docs):
-    #for doc in docs:
+
+    max_threads = multiprocessing.cpu_count() * 2
+    sem = threading.BoundedSemaphore(max_threads)
+
+    for doc in docs:
         if ignore_stock(doc):
-            return
-        
-        update_stock_betas(doc, bindex)
+            continue
+        #update_stock_betas(country, collection, doc, sem)
+        sem.acquire()
+        threading.Thread(target=update_stock_betas, args=(country, collection, doc, sem,)).start()
+
     time.sleep(10)
     close_db_client(c)
  

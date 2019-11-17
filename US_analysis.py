@@ -25,7 +25,7 @@ def US_main():
     #internet.price_surprises('US', 0.10, WEEK | DAY, 'COLD', 'SYNC_DB')
     #DB.set_sno('US')
     #internet.send_email("Hello World")
-    #internet.send_email2('petlafin@gmail.com', 'Tasche3#Fin', 'petlafin@gmail.com', 'Test', 'Hello')
+    #internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', 'Test', 'Hello')
     #get_radar_stocks()
 
     #stock = Stock()

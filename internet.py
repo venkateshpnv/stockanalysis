@@ -13,7 +13,9 @@ from selenium.webdriver import ActionChains as ac
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
 import multiprocessing
+import threading
 
 import gc
 
@@ -49,8 +51,6 @@ import re
 from bs4 import BeautifulSoup
 
 import pprint
-
-import threading
 
 import excel
 import conf
@@ -237,12 +237,12 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
 
     DB.update_field(collection, sym, "price_change.date", str(dt.now()))
 
-def update_price_change(country, collection, sym, sem, lock):
+def update_price_change(country, collection, sym, sem):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     df=pd.DataFrame() 
     try:
-        df = hdf5.read_from_hdf_store(country, sym, lock)
+        df = hdf5.read_from_hdf_store(country, sym)
         
         if not df.empty:
             change = hdf5.hdf_price_change(country, sym, df, 1)
@@ -276,8 +276,6 @@ def update_price_change(country, collection, sym, sem, lock):
                 change = (price/high_price) - 1
 
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
-            if sym == 'HCAT':
-                print("***************** HCAT 52week high updated ********************")
             
             if low_price == 0:
                 change = 0
@@ -290,7 +288,7 @@ def update_price_change(country, collection, sym, sem, lock):
     finally:
         sem.release()
 
-def fork_hdf5_process(country, sem, lock):
+def fork_hdf5_process(country, sem):
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
@@ -308,16 +306,52 @@ def fork_hdf5_process(country, sem, lock):
     today=str(dt.now().date())
     i=0
     for stk in stocks:
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+        if DB.ignore_stock(stk):
             continue
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-            continue
-        print("%d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+
+        print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        update_price_change(country, collection, stk['bscs']['symbol'], sem, lock)
-        #threading.Thread(target=update_price_change, args=(country, db.US_Stocks, stk['bscs']['symbol'], sem, lock,)).start()
+        #update_price_change(country, collection, stk['bscs']['symbol'], sem)
+        threading.Thread(target=update_price_change, args=(country, collection, stk['bscs']['symbol'], sem,)).start()
         #break
         i = i + 1
+        #if i > 10:
+        #    break
+
+    # Wait randomly till all threads are completed
+    time.sleep(10)
+    DB.close_db_client(c)
+    print("Total stocks: %r" %(i))
+
+def fork_betas_process(country, sem):
+    c = DB.open_db_client()
+    db = c['Stocks']
+    collection = DB.get_collection(country, db)
+    num_docs = collection.find({}).count()
+    # Randomly get all records whose price is not updated till today
+    #pipeline = [{'$sample': {'size':num_docs}},
+    #            {'$match' : {"price_change.date": {'$ne':today}}},
+    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    #            ]
+
+    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+    today=str(dt.now().date())
+    i=0
+    for stk in stocks:
+        if DB.ignore_stock(stk):
+            continue
+
+        print("Betas: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        sem.acquire()
+        #DB.update_stock_betas(country, collection, stk)
+        threading.Thread(target=DB.update_stock_betas, args=(country, collection, stk, sem,)).start()
+        #break
+        i = i + 1
+        #if i > 10:
+        #    break
 
     # Wait randomly till all threads are completed
     time.sleep(10)
@@ -330,12 +364,18 @@ def update_all_stocks_price_change(country):
     i = 0
     max_threads = multiprocessing.cpu_count() * 2
     hdf5_sem = threading.BoundedSemaphore(max_threads)
-    hdf5_lock = threading.Lock()
+    #betas_sem = threading.BoundedSemaphore(max_threads)
  
-    fork_hdf5_process(country, hdf5_sem, hdf5_lock)
-    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, hdf5_lock, ))
-    #hdf5_process.start()
-    #hdf5_process.join()
+    #fork_hdf5_process(country, hdf5_sem)
+    #fork_betas_process(country, betas_sem)
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, ))
+    #betas_process = multiprocessing.Process(target=fork_betas_process, args=(country, betas_sem, ))
+    
+    hdf5_process.start()
+    #betas_process.start()
+
+    hdf5_process.join()
+    #betas_process.join()
 
 def pcent(val):
     return str(round(val *100, 2))+'%'
