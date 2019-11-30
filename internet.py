@@ -456,10 +456,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
 
 def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, duration, segment): 
     e = get_stocks(country, low_mcap, high_mcap, direction, change, duration)
+    s = parse_html.html_text(s, segment)
     if len(e) > 1:
         #entries = [["Up"]]
         entries = e
-        s = parse_html.html_text(s, segment)
         s = parse_html.html_set_line(s)
         s = parse_html.html_text(s, ["Up"])
         s = parse_html.html_set_line(s)

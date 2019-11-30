@@ -306,11 +306,11 @@ def add_basic_header(sheet, i):
     conf.BETA=i
 
 
-    i+=1
-    # Face Value
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Face Value", style_wrap)
-    conf.FV=i
+    #i+=1
+    ## Face Value
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Face Value", style_wrap)
+    #conf.FV=i
 
     i+=1
     # Market Cap in Cr
@@ -638,11 +638,11 @@ def add_dcf_header(sheets, years):
         sheet.write(0, i, "Years of Data", style_wrap)
         conf.YR_DAT=i
 
-        i+=1
-        #Price Years of Data
-        sheet.col(i).width = 5*367
-        sheet.write(0, i, "Price Years of Data", style_wrap)
-        conf.PRICE_YR_DAT=i
+        #i+=1
+        ##Price Years of Data
+        #sheet.col(i).width = 5*367
+        #sheet.write(0, i, "Price Years of Data", style_wrap)
+        #conf.PRICE_YR_DAT=i
 
         i+=1
         i = add_price_change_header(sheet, i, 'ALL')
@@ -751,11 +751,11 @@ def add_price_surprise_header(sheet, sheet_type):
     sheet.write(0, i, "Years of Data", style_wrap)
     conf.YR_DAT=i
 
-    i+=1
-    #Price Years of Data
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Price Years of Data", style_wrap)
-    conf.PRICE_YR_DAT=i
+    #i+=1
+    ##Price Years of Data
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Price Years of Data", style_wrap)
+    #conf.PRICE_YR_DAT=i
 
     i+=1
     # Price Growth
@@ -849,7 +849,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.TTM_PE, stk['Ratios']['ttm_PE'])
 
     ash.write(count, conf.YR_DAT, stk['num']['dcf_years'])
-    ash.write(count, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
+    #ash.write(count, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
     ash.write(count, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
     ash.write(count, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
     ash.write(count, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
@@ -1056,11 +1056,11 @@ def write_to_excel(country, com, ashs, stk, years):
         sheet.write(i, 4, stk['bscs']['volume'])
         ash.write(conf.COUNT, conf.VOL, stk['bscs']['volume'])
 
-    i += 1 #row 7
-    sheet.write(i, 0, "Face Value")
-    if 'Face Value' in stk['bscs'].keys():
-        sheet.write(i, 1, stk['bscs']['face_value'])
-        ash.write(conf.COUNT, conf.FV, stk['bscs']['face_value'])
+    #i += 1 #row 7
+    #sheet.write(i, 0, "Face Value")
+    #if 'Face Value' in stk['bscs'].keys():
+    #    sheet.write(i, 1, stk['bscs']['face_value'])
+    #    ash.write(conf.COUNT, conf.FV, stk['bscs']['face_value'])
 
     i += 1 #row 8
     sheet.write(i, 0, "P/E")

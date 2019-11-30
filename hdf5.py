@@ -19,7 +19,7 @@ US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.
 India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store.h5'
 
 lock = threading.Lock()
-cal = get_calendar('USFederalHolidayCalendar')
+US_Cal = get_calendar('USFederalHolidayCalendar')
 
 def get_stock_data(country, symbol, start, end):
     try:
@@ -168,6 +168,21 @@ def get_dataframe(country, sym, start=None, end=None):
         eindex = get_nearest_index(df, end)+1
     return df[sindex:eindex]
 
+# Exclude weekends and holidays. Return closest trading day
+def get_valid_date(country, d):
+    diff = d.weekday() - 4
+    #If weekend take friday entry
+    if diff > 0:
+        d = d - timedelta(days=diff)
+    # If it is holiday
+    if country == 'US':
+        while True:
+            if d in US_Cal.holidays():
+                d = d - timedelta(1)
+            else:
+                break
+    return d
+
 def hdf_price_change(country, sym, df, num_days):
     if country == 'US':
         hour=13
@@ -178,18 +193,7 @@ def hdf_price_change(country, sym, df, num_days):
     end = dt.now()
     if end.hour < hour:
         end = end - timedelta(1)
-
-    end = end.date()
-    diff = end.weekday() - 4
-    #If weekend take friday entry
-    if diff > 0:
-        end = end - timedelta(days=diff)
-    # If it is holiday
-    while True:
-        if end in cal.holidays():
-            end = end - timedelta(1)
-        else:
-            break
+    end = get_valid_date(country, end.date())
 
     #Price Change since beginning
     if num_days == -1:
@@ -197,16 +201,7 @@ def hdf_price_change(country, sym, df, num_days):
         start = dt.strptime(since, "%Y-%m-%d").date()
     else:
         start = end - relativedelta(days=num_days)
-        diff = start.weekday() - 4
-        #If weekend take friday entry
-        if diff > 0:
-            start = start - timedelta(days=diff)
-        #If it is holiday
-        while True:
-            if start in cal.holidays():
-                start = start - timedelta(1)
-            else:
-                break
+        start = get_valid_date(country, start)
 
     en_price = hdf_get_price(sym, df, end)
     st_price = hdf_get_price(sym, df, start)

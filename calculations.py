@@ -344,7 +344,8 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                 stock['num']['discount_rate'] = discount_rate
                 stock['num']['margin_of_safety'] = mos
                 if calculate_dcf(country, stock, years, data_type, criteria, beta) is False:
-                    if db_state == 'SYNC_DB':
+                    #if db_state == 'SYNC_DB':
+                    if True:
                         DB.update_dummy_dcf_numbers(collection, stock)
                     del stock
                     continue

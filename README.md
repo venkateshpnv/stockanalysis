@@ -97,6 +97,8 @@ db.Indian_Stocks.update({},{$rename:{"fig.Return on Equity": "fig.ROE"}}, false,
 Delete a field in a collection for all documents
 db.US_Stocks.update({}, {$unset:{"fig.SPLIT_History":1}}, {multi:true})
 
+# Add since fields to the docs that doesnt have since
+db.US_Stocks.update({'bscs.since':{'$exists': false}},{'$set':{'bscs.since':'1900-01-01'}}, false, true)
 
 Randomly get records from db
 One record:
