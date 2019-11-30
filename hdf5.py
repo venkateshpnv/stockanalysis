@@ -6,10 +6,11 @@ from common import *
 from datastructures import *
 import time
 from dateutil.relativedelta import relativedelta
+from pandas.tseries.holiday import get_calendar
+
 import DB
 import os
 from arctic import Arctic
-
 import threading
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
@@ -18,7 +19,8 @@ US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.
 India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store.h5'
 
 lock = threading.Lock()
- 
+cal = get_calendar('USFederalHolidayCalendar')
+
 def get_stock_data(country, symbol, start, end):
     try:
         if country == 'India' and symbol not in India_indices.keys():
@@ -182,6 +184,12 @@ def hdf_price_change(country, sym, df, num_days):
     #If weekend take friday entry
     if diff > 0:
         end = end - timedelta(days=diff)
+    # If it is holiday
+    while True:
+        if end in cal.holidays():
+            end = end - timedelta(1)
+        else:
+            break
 
     #Price Change since beginning
     if num_days == -1:
@@ -193,6 +201,12 @@ def hdf_price_change(country, sym, df, num_days):
         #If weekend take friday entry
         if diff > 0:
             start = start - timedelta(days=diff)
+        #If it is holiday
+        while True:
+            if start in cal.holidays():
+                start = start - timedelta(1)
+            else:
+                break
 
     en_price = hdf_get_price(sym, df, end)
     st_price = hdf_get_price(sym, df, start)
