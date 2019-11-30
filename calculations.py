@@ -240,7 +240,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     if excel_state == 'EXCEL':
         # All Stocks Excel File
         all_stk = xlwt.Workbook()
-        ash = all_stk.add_sheet("All Stocks")
+        ash = {}
+        ash['Above_100bn'] = all_stk.add_sheet("Above 100 Bn")
+        ash['10bn_100bn'] = all_stk.add_sheet("10Bn to 100 Bn")
+        ash['5bn_10bn'] = all_stk.add_sheet("5Bn to 10 Bn")
+        ash['1bn_5bn'] = all_stk.add_sheet("1Bn 5 Bn")
+        ash['Below_1bn'] = all_stk.add_sheet("Below 1Bn")
         add_dcf_header(ash, years)
     j = 0
     init_variables()
@@ -279,7 +284,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
         #for doc in docs:
     no_dcf = 0
+    count = 0
     for doc in collection.find({}, no_cursor_timeout=True).sort([["sno",1]]):
+    #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:
         if sno > 0:
@@ -292,12 +299,11 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
             #obj = bunchify(doc)
             
-            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             if not stock:
                 PRINT_ERR("Stock not present")
                 no_dcf += 1
                 continue
-            if stock['ignore'] == 'Yes':
+            if DB.ignore_stock(stock):
                 no_dcf += 1
                 continue
             if 'ETF' in str(stock['bscs']['name']):
@@ -319,14 +325,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #if stock.bscs.volume < 50000:
             #    del stock
             #    continue
-            if stock['bscs']['price'] < 1:
-                PRINT("Skipping : %s. Price < 1" %(stock['bscs']['symbol']))
+            if 'price' not in stock['bscs'].keys() or stock['bscs']['price'] < 1:
                 no_dcf += 1
                 del stock
-                continue
-            if stock['bscs']['trading'] != 'YES':
-                PRINT("Skipping : %s. Not Trading" %(stock['bscs']['symbol']))
-                no_dcf += 1
                 continue
             # Atleast a billion
             #if stock.bscs.mcap < 1000: #millions
@@ -347,10 +348,13 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                         DB.update_dummy_dcf_numbers(collection, stock)
                     del stock
                     continue
-            conf.COUNT+=1
+            #conf.COUNT+=1
+            count+=1
+            #print("count: %r, symb: %r" %(count, stock['bscs']['symbol']))
+            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
-                write_to_excel(com, ash, stock, years)
+                write_to_excel(country, com, ash, stock, years)
                 excel = "%s/excel_files/%s.xls" % (path, stock['bscs']['name'])
                 PRINT("Writing to %s" % (excel))
                 com.save(excel)

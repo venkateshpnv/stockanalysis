@@ -7,6 +7,7 @@ import pymongo
 import re
 import time
 import requests
+import math
 
 from datetime import date, timedelta, datetime
 import numpy as np
@@ -88,6 +89,12 @@ def write_to_collection(col, doc):
     print("Count: %r" %(col.count()))
     #x = col.find_one()
     #print(x)
+
+def update_since_dataframe(country, collection, stk):
+    df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
+    stk['bscs']['since'] = str(df.index[0].date())
+    DB.update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
+    return stk
 
 def get_since(country, symbol):
     c = open_db_client()
@@ -243,15 +250,17 @@ def update_US_all_stk_profile():
     db = open_db('Stocks')
     col = db['US_Stocks']
     i = 0
-    docs = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #docs = db.US_Stocks.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    docs = db.US_Stocks.find({"bscs.dii_stake":{"$exists":False}},no_cursor_timeout=True)
+    print("count: %r" %(docs.count()))
     for doc in docs:
-        if i > 3696:
+        if i > -1:
         #if i > -1: # and not doc['bscs']['price']:
             sym = doc['bscs']['symbol']
+            print("%d: %s" %(i, sym))
             url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(sym)
             html_text=internet.get_webpage(url)
             update_US_stk_profile(html_text, col)
-            print("%d: %s" %(i, sym))
         i = i + 1
 
 def update_US_stk_profile(html_text, collection):
@@ -272,12 +281,11 @@ def update_US_stk_profile(html_text, collection):
     else:
         val = 0
     collection.update({'bscs.symbol': symbol}, {'$set': {"bscs.mcap": val}})
-    
 
     #Outstanding Shares
     pattern=re.compile(r'Shares Outstanding, K')
     val = get_stat_params(soup, pattern)
-    if val:
+    if val and not math.isnan(val):
         val = int(val * 1000)
     else:
         val = 1
@@ -310,7 +318,7 @@ def update_US_stk_profile(html_text, collection):
     # Float
     pattern=re.compile(r'Float, K')
     val = get_stat_params(soup, pattern)
-    if val:
+    if val and not math.isnan(val):
         val = int(val) * 1000
     else:
         val = 0
@@ -462,10 +470,10 @@ def build_US_database():
         #break
 
 def update_db_price_volume(collection, stk):
-    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.price": stk['bscs']['price']}})
-    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": stk['bscs']['volume']}})
-    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": stk['bscs']['mcap']}})
-    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": stk['bscs']['outstanding_shares']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.price": to_float(stk['bscs']['price'])}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": to_int(stk['bscs']['volume'])}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": to_float(stk['bscs']['mcap'])}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": to_int(stk['bscs']['outstanding_shares'])}})
 
 j=0
 
@@ -486,6 +494,7 @@ def fork_db_process(country, sem, lock):
     #            ]
  
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     i=0
     for stk in stocks:
@@ -509,8 +518,9 @@ def fork_hdf5_process(country, sem):
     db = c['Stocks']
     collection = get_collection(country, db)
 
+    today=str(datetime.now().date())
     num_docs = collection.find({}).count()
-    #docs = db.US_Stocks.find({"bscs.price_date": {'$ne':today}})
+    #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
     if num_docs == 0:
         return
 
@@ -526,10 +536,9 @@ def fork_hdf5_process(country, sem):
         stk['bscs']['symbol'] = k
         stk['bscs']['name'] = indices[k]
         sem.acquire()
-        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
 
-    today=str(datetime.now().date())
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
     #            {'$match' : {"bscs.price_date": {'$ne':today}}},
@@ -538,8 +547,8 @@ def fork_hdf5_process(country, sem):
     #            ]
 
     #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    #stocks = collection.find({'bscs.symbol':'PREMIERPOL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
     i=0
     for stk in stocks:
@@ -574,6 +583,7 @@ def update_stk_bscs_db(country, db, stk, sem, lock):
         if stock:
             lock.acquire()
             # Update price and volume to db
+            #print("%r: %r" %(stock['bscs']['symbol'], stock['bscs']['volume']))
             update_db_price_volume(collection, stock)
             lock.release()
             j = j+1
@@ -606,14 +616,16 @@ def update_all_price_volume_db(country):
         return
 
     #fork_hdf5_process(country, hdf5_sem)
-    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
     #fork_db_process(country, db_sem, db_lock)
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
     db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-    hdf5_process.start()
-    db_process.start()
-    
-    hdf5_process.join()
-    db_process.join()
+    try:
+        hdf5_process.start()
+        db_process.start()
+    finally:
+        hdf5_process.join()
+        db_process.join()
+    print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.
 # Compare with entries in BSE_Stocks.xls
@@ -742,7 +754,7 @@ def build_US_all_EPS_New():
                     stk = doc
                     #if stk['bscs']['price'] == 0:
                     print("%d: %s: %s"%(stk['sno'],stk['bscs']['symbol'],stk['bscs']['name']))
-                    write_to_file(stk['bscs']['symbol'], "file2.txt", "a")
+                    write_stock_to_file(stk['bscs']['symbol'], "file2.txt", "a")
                     internet.populate_US_EPS(stk)
                     #break
     f1.close()
@@ -759,27 +771,23 @@ def build_US_all_EPS():
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
-    docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, ]},no_cursor_timeout=True)
+    stocks = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, ]},no_cursor_timeout=True)
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]},no_cursor_timeout=True)
-    count = docs.count()
+    count = stocks.count()
     print(count)
     if count == 0:
         print("***************** Completed fetching EPS  *************")
         return
-    #try:
-    for doc in docs:
-        sno = doc['sno']
-        if sno > 0:
-        #if sno > 3000:
-        #    break
-        #if sno > 664:
-            #stk = dbObject(**doc)
-            stk = doc
-            #if stk['bscs']['price'] == 0:
-            print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
-            write_to_file(stk['bscs']['symbol'], "file2.txt", "a")
-            internet.populate_US_EPS(stk)
-            #break
+    for stock in stocks:
+        try:
+            sno = stock['sno']
+            if sno > 0:
+                print("%d: %s: %s"%(sno,stock['bscs']['symbol'],stock['bscs']['name']))
+                write_stock_to_file(stock['bscs']['symbol'], "file2.txt", "a")
+                internet.populate_US_EPS(stock)
+        except Exception as E:
+            print(str(E))
+            continue
  
 def build_US_all_earnings_estimates():
 
@@ -787,24 +795,23 @@ def build_US_all_earnings_estimates():
     #docs = db.US_Stocks.find({"bscs.symbol":"AVGO"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
-    docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}},no_cursor_timeout=True)
+    #docs = db.US_Stocks.find({"quart_fig.Earning_Estimates":{"$exists":False}},no_cursor_timeout=True)
+    docs = db.US_Stocks.find({},no_cursor_timeout=True)
     count = docs.count()
     print(count)
     if count == 0:
         print("***************** Completed fetching earnings estimates *************")
         return
     #try:
+    today=dt.now().date()
     for doc in docs:
         sno = doc['sno']
         if sno > 0:
         #if sno > 3000:
-        #    break
-        #if sno > 664:
-            #stk = dbObject(**doc)
             stk = doc
-            #if stk['bscs']['price'] == 0:
-            print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
-            internet.populate_US_earnings_estimates(stk)
+            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - dt.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
+                print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
+                internet.populate_US_earnings_estimates(stk)
             #break
     #except Exception as e:
         #PRINT_ERR("Mongo DB exception")
@@ -902,24 +909,28 @@ def build_US_stock_information(doc):
         # Get financial data from the internet
         path = internet.get_US_stock_page(sym, name)
         
-        #path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
-        #path = path.lstrip().rstrip().replace(",","")
+        path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
+        path = path.lstrip().rstrip().replace(",","")
         
         ret=True
         for (root,dirs,files) in os.walk(path, topdown=True):
             files = [f for f in files if not f[0] == '.']
             dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
             dirs[:] = [d for d in dirs if not d[0] == '.']
-            print("Root: %r" %(root))
-            print(dirs)
-            print(sorted(files))
+            #print("Root: %r" %(root))
+            #print(dirs)
+
+            #Sort strings with numbers
+            # natural_keys() is a function defined in common.py
+            files.sort(key=natural_keys)
+            #print(files)
 
             stock = {}
-            ret = parse_html.populate_US_stocks(db, root, sorted(files), stock, sym, name, doc['Sector'], doc['Industry']) 
+            ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name, doc['Sector'], doc['Industry']) 
         if ret is True:
             db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
             #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
-            #remove_dir(path)
+            remove_dir(path)
     db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
  
 def build_US_all_stock_information():
@@ -948,7 +959,6 @@ def build_US_all_stock_information():
             #    continue
 
             build_US_stock_information(doc)
-
 
     #set_sno('US')
     # Create index based on sno
@@ -1129,7 +1139,10 @@ def update_stock_recession_betas(country, collection, doc, sym):
 def update_stock_betas(country, collection, stk, sem):
     try:
         sym = stk['bscs']['symbol']
-        #print("%r: %r" %(stk['sno'], sym))
+        print("%r: %r" %(stk['sno'], sym))
+        if 'since' not in stk['bscs'].keys():
+            stk  = update_since_dataframe(country, collection, stk)
+
         since = stk['bscs']['since']
         #print("since: %r" %(since))
         #sno = int(read_from_file("beta.txt"))

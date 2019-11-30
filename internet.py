@@ -10,6 +10,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains as ac
+from selenium.webdriver.firefox.options import Options
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -60,15 +61,21 @@ import DB
 from common import *
 import hdf5
 
-def open_browser():
+
+def open_browser(head=None):
     profile = webdriver.FirefoxProfile()
+
+    options = Options()
+    if head == 'headless':
+        options.add_argument('--headless')
+
     profile.set_preference("browser.cache.disk.enable", False)
     profile.set_preference("browser.cache.memory.enable", False)
     profile.set_preference("browser.cache.offline.enable", False)
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
     profile.set_preference("dom.webnotifications.enabled", False)
-    browser = webdriver.Firefox(profile)
+    browser = webdriver.Firefox(profile, options=options)
     #browser.set_page_load_timeout(30)
     #browser.maximize_window()
     return browser
@@ -407,16 +414,14 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     collection = DB.get_collection(country, db)
     
     entries = []
-    head=["Symbol", "Name", "Since", "Sectr", mcap, "Price", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
     entries.append(head)
     stocks = collection.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
     #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
     for stk in stocks:
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-            continue
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+        if DB.ignore_stock(stk):
             continue
 
         bscs  = stk['bscs']
@@ -431,6 +436,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
             entry.append(str("-"))
         entry.append(str(bscs['sector']))
         entry.append(str(round(bscs['mcap']*factor, 2)))
+        entry.append(str(round(bscs['volume']/1000, 2))+'k')
         entry.append(str(bscs['price']))
         entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
         entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
@@ -484,14 +490,14 @@ pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
 # Day change column position.
 # Week = Day + 1
 # Month = Week + 1 etc
-day_col = 8
+day_col = 9
 week_col = day_col + 1
 month_col = week_col + 1
 quarter_col = month_col + 1
 half_year_col = quarter_col + 1
 year_col = half_year_col + 1
 
-highlight_columns = { 'day': 8, 'week':9, 'month':10, 'quarter':11, 'half_year':12, 'year':13 }
+highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quarter':quarter_col, 'half_year':half_year_col, 'year':year_col }
 
 def get_price_changes(s, country, duration):
 
@@ -670,17 +676,31 @@ def get_price_volume(stk, country):
         return None
     try:
         # Add moving average etc. Refer /tmp/test.csv for details
-        stk['bscs']['volume'] = (d.averageDailyVolume3Month.to_list()[0])
-        #stk['bscs']['volume'] = d.regularMarketVolume.to_list()[0]
-        if country == 'India':
-            stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/10000000 # in crores
+        if 'regularMarketVolume' in d.keys():
+            stk['bscs']['volume'] = (d['regularMarketVolume'][0])
+        elif 'averageDailyVolume3Month' in d.keys():
+            stk['bscs']['volume'] = (d['averageDailyVolume3Month'][0])
         else:
-            stk['bscs']['mcap']   = float(d.marketCap.to_list()[0])/1000000 # in millions
+            stk['bscs']['volume'] = 0
+        if 'marketCap' in d.keys():
+            if country == 'India':
+                stk['bscs']['mcap']   = float(d['marketCap'][0])/10000000 # in crores
+            else:
+                stk['bscs']['mcap']   = float(d['marketCap'][0])/1000000 # in millions
+        else:
+            stk['bscs']['mcap'] = 0
+
         stk['bscs']['price']  = (d.price.to_list()[0])
-        stk['bscs']['outstanding_shares'] = d.sharesOutstanding.to_list()[0]
+        if 'sharesOutstanding' in d.keys():
+            stk['bscs']['outstanding_shares'] = d['sharesOutstanding'][0]
+        else:
+            stk['bscs']['outstanding_shares'] = 0
+
     except AttributeError as e:
         if 'outstanding_shares' not in stk['bscs'].keys():
             stk['bscs']['outstanding_shares'] = 0
+        if 'volume' not in stk['bscs'].keys():
+            stk['bscs']['volume'] = 0
         PRINT_ERR(str(e))
         PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
     return stk
@@ -938,7 +958,7 @@ def populate_US_earnings_estimates(stk):
     earnings = Earnings()
 
     url = "https://www.barchart.com/stocks/quotes/%s/earnings-estimates" %(stk['bscs']['symbol'])
-    br = open_browser()
+    br = open_browser('headless')
     try:
         br.get(url)
     except Exception:
@@ -994,7 +1014,8 @@ def populate_US_earnings_estimates(stk):
     fiftytwoweek_low = str_to_float(l.parent.text.split(' ')[-1])
 
 
-    l = soup.find("span", {"class": "last-change ng-binding"})
+    l = soup.find("span", {"class": "last-change"})
+    #l = soup.find("span", {"class": "last-change ng-binding"})
     DB.update_field(DB.open_db('Stocks').US_Stocks, stk['bscs']['symbol'], "bscs.price", str_to_float(l.text))
 
     l=soup.find_all(text=re.compile('^Qtr Ending'))
@@ -1016,11 +1037,14 @@ def populate_US_earnings_estimates(stk):
     for i in range(len(earnings.hist.estimate)):
         est = earnings.hist.estimate[i]
         rep = earnings.hist.reported[i]
-        earnings.hist.difference.append(round(rep-est,3))
+        try:
+            earnings.hist.difference.append(round(rep-est,3))
+        except Exception as e:
+            earnings.hist.difference.append(float('NaN'))
         try:
             earnings.hist.surprise.append(round(((rep - est)/ est), 4))
-        except ZeroDivisionError:
-            earnings.hist.surprise.append(0)
+        except Exception as e:
+            earnings.hist.surprise.append(float('NaN'))
 
     l=soup.find(text=re.compile('^Current Qtr'))
     earnings.est.quarters.append(l.parent.parent.text.split(' ')[-2])
@@ -1090,6 +1114,8 @@ def populate_US_earnings_estimates(stk):
     count=0
     for entry in entries[14:-1]:
         if entry != '':
+            if entry == 'unch':
+                entry = '0'
             if count < 2:
                 earnings.est.q_gr_rate.append(round(str_to_float(entry)/100,4))
             else:

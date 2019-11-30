@@ -54,9 +54,25 @@ def str_to_float(x):
         #val = float(x)
         val = float(x.lstrip().rstrip().replace("$","").replace(",","").replace("%",""))
     except ValueError:
-        return None
+        return float('NaN')
     except TypeError:
-        return None
+        return float('NaN')
+    return val
+
+def to_float(x):
+    try:
+        val = float(x)
+    except Exception as e:
+        print(x, val, str(e))
+        return float('NaN')
+    return val
+
+def to_int(x):
+    try:
+        val = int(x)
+    except Exception as e:
+        print(x, val, str(e))
+        return float('NaN')
     return val
 
 def str_to_float_valid(x):
@@ -93,6 +109,19 @@ def lowest_3(a, b, c):
     if b < c:
         return b
     return c
+
+import re
+
+def p_atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [ p_atoi(c) for c in re.split(r'(\d+)', text) ]
 
 #Print Stock Info
 def print_stock_info(stk):

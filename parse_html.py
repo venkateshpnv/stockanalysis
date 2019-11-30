@@ -14,6 +14,7 @@ from common import *
 from conf import *
 import json_code
 import DB
+from datetime import datetime
 
 def html_head():
     s = ''
@@ -705,7 +706,8 @@ def populate_statement(soup, stock, statement, tenure):
         tds = trs[i].findAll('td')
 
         for j in range(1, len(tds)):
-            dates.append(tds[j].get_text().lstrip().rstrip())
+            #dates.append(tds[j].get_text().lstrip().rstrip())
+            dates.append(datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date())
         i = i + 1
         # Create statement entry for each date
         for j in range(len(dates)):
@@ -747,6 +749,7 @@ def populate_statement(soup, stock, statement, tenure):
                     #stock['fig'][statement][dates[j]][group_label].insert(-1, sub_label = str_to_float(tds[k].get_text()))
 
             i = i + 1
+    return stock
 
 def populate_financial_statement(stock, root, files, sheet_type, tenure):
     substr="%s_%s" %(sheet_type, tenure) #balance-sheet_annual
@@ -760,25 +763,50 @@ def populate_financial_statement(stock, root, files, sheet_type, tenure):
         #balance sheets
         stock_page = "%s/%s" %(root, f)
         print(stock_page)
-        #html_page  = internet.get_html(stock_page)
-        #soup=BeautifulSoup(html_page,'html.parser')
-        #populate_statement(soup, stock, sheet_type, tenure)
-    #sorted_entries = {}
-    #for e in sorted(stock[fig]['financial-statements'][sheet_type].keys()):
-    #    sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
-    #stock[fig]['financial-statements']['balance-sheet'] = sorted_entries
+        html_page  = internet.get_html(stock_page)
+        soup=BeautifulSoup(html_page,'html.parser')
+        stock = populate_statement(soup, stock, sheet_type, tenure)
 
+    #Some time quarterly or annual balance or other sheets data is not available.
+    #Handle it
+    if sheet_type not in stock[fig]['financial-statements'].keys():
+        return stock
+
+    sorted_entries = {}
+    # Sort entries based on date
+    for e in sorted(stock[fig]['financial-statements'][sheet_type].keys()):
+        #sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
+        sorted_entries[e.strftime('%m-%Y')] = stock[fig]['financial-statements'][sheet_type][e]
+
+    stock[fig]['financial-statements'][sheet_type] = sorted_entries
+    return stock
 
 def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
 
     if len(files) == 0:
         PRINT_ERR("len(files): %d" %(len(files)))
-        DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig.financial-statements", {})
-        DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "quart_fig.financial-statements", {})
+        count = db.US_Stocks.find({'bscs.symbol':symbol})
+        if count == 0:
+            stock['bscs']={}
+            stock['bscs']['symbol'] = symbol
+            stock['bscs']['name'] = name
+            stock['fig']={}
+            stock['fig']['financial-statements'] = {}
+            stock['quart_fig']['financial-statements'] = {}
+            DB.write_to_collection(db['US_Stocks'], stock)
+        else:
+            DB.update_field(db['US_Stocks'], symbol, "fig.financial-statements", {})
+            DB.update_field(db['US_Stocks'], symbol, "quart_fig.financial-statements", {})
         return False
 
     #Name and Symbol
-    stock['bscs']={}
+    if 'bscs' not in stock.keys():
+        stock['bscs']={}
+    if 'fig' not in stock.keys():
+        stock['fig']={}
+    if 'quart_fig' not in stock.keys():
+        stock['quart_fig']={}
+
     stock['bscs']['symbol'] = symbol
     stock['bscs']['name'] = name
     stock['bscs']['sector'] = sector
@@ -786,18 +814,22 @@ def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
     stock['fig']['financial-statements']={}
     stock['quart_fig']['financial-statements']={}
 
-    populate_financial_statement(stock, root, files, 'balance-sheet', 'annual')
-    populate_financial_statement(stock, root, files, 'balance-sheet', 'quarterly')
-    populate_financial_statement(stock, root, files, 'cash-flow', 'annual')
-    populate_financial_statement(stock, root, files, 'cash-flow', 'quarterly')
-    populate_financial_statement(stock, root, files, 'income-statement', 'annual')
-    populate_financial_statement(stock, root, files, 'income-statement', 'quarterly')
+    stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'annual')
+    stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'quarterly')
+    stock = populate_financial_statement(stock, root, files, 'cash-flow', 'annual')
+    stock = populate_financial_statement(stock, root, files, 'cash-flow', 'quarterly')
+    stock = populate_financial_statement(stock, root, files, 'income-statement', 'annual')
+    stock = populate_financial_statement(stock, root, files, 'income-statement', 'quarterly')
 
     #pretty_print(stock)
+    DB.write_to_collection(db['US_Stocks'], stock)
 
+    #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig", stock['fig']['financial-statements'])
     #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig.financial-statements", stock['fig']['financial-statements'])
     #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "quart_fig.financial-statements", stock['quart_fig']['financial-statements'])
-    ##DB.update_US_stk_profile(html_page, db.US_Stocks)
+    url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(symbol)
+    html_page=internet.get_webpage(url)
+    DB.update_US_stk_profile(html_page, db.US_Stocks)
 
     return True
 
