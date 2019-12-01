@@ -19,6 +19,7 @@ import conf
 import internet
 import parse_html
 from common import *
+import  hdf5
 
 pattern = xlwt.Pattern()
 pattern.pattern = xlwt.Pattern.SOLID_PATTERN
@@ -71,8 +72,13 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
     if not index:
         entry.append(sym)
     entry.append(name)
-    price = internet.get_LTP(country, sym)
-    entry.append(str(price))
+    price = hdf5.get_latest_price(country, sym)
+    if not index:
+        stk =  DB.get_stock_from_db(country, sym)
+        entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        del stk
+    entry.append(str(round(price,2)))
+
     if not index:
         entry.append(str(shortlist_price))
         since_shortlist = price / shortlist_price - 1  
@@ -80,26 +86,24 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
 
     change = None
     try:
+        change,diff = hdf5.hdf_price_change(country, sym, days=1, index=1)
         if index:
-            change,diff = internet.index_change(country, sym, name, 2, 'HOT')
             entry.append(str(round(diff,2)))
-        else:
-            change = internet.price_change(country, sym, name, 2, 'HOT')
         entry.append(str(round(change*100, 2))+'%')
-        change = internet.price_change(country, sym, name, 7, 'HOT')
+        change = hdf5.hdf_price_change(country, sym, weeks=1)
         entry.append(str(round(change*100, 2))+'%')
-        change = internet.price_change(country, sym, name, 30, 'HOT')
+        change = hdf5.hdf_price_change(country, sym, months=1)
         entry.append(str(round(change*100, 2))+'%')
-        change = internet.price_change(country, sym, name, 90, 'HOT')
+        change = hdf5.hdf_price_change(country, sym, months=3)
         entry.append(str(round(change*100, 2))+'%')
-        change = internet.price_change(country, sym, name, 180, 'HOT')
+        change = hdf5.hdf_price_change(country, sym, months=6)
         entry.append(str(round(change*100, 2))+'%')
-        change = internet.price_change(country, sym, name, 365, 'HOT')
+        change = hdf5.hdf_price_change(country, sym, years=1)
         entry.append(str(round(change*100, 2))+'%')
         if index:
-            change = internet.price_change(country, sym, name, 365*5, 'HOT')
+            change = hdf5.hdf_price_change(country, sym, years=5)
             entry.append(str(round(change*100, 2))+'%')
-            change = internet.price_change(country, sym, name, 365*10, 'HOT')
+            change = hdf5.hdf_price_change(country, sym, years=10)
             if change:
                 entry.append(str(round(change*100, 2))+'%')
     except Exception as e:
@@ -132,8 +136,8 @@ def get_radar_stocks():
     entries.append(head)
     entry = []
     print("Indices")
-    entries.append(get_symbol_prices("^BSESN", "BSE", 'US', 1, 0))
-    entries.append(get_symbol_prices("^NSEI", "NSE", 'US', 1, 0))
+    entries.append(get_symbol_prices("^BSESN", "BSE", 'India', 1, 0))
+    entries.append(get_symbol_prices("^NSEI", "NSE", 'India', 1, 0))
     entries.append(get_symbol_prices("^GSPC", "S&P 500", 'US', 1, 0))
     entries.append(get_symbol_prices("^DJI", "Dow Jones", 'US', 1, 0))
     entries.append(get_symbol_prices("^IXIC", "Nasdaq", 'US', 1, 0))
@@ -152,18 +156,18 @@ def get_radar_stocks():
         s = parse_html.html_text(s, [wb.sheet_names()[j]])
         s = parse_html.html_set_line(s)
         #Stocks
-        head=["Symbol", "Name", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
+        head=["Symbol", "Name", "6Mon Beta", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
         entries.append(head)
         #for i in range(1,3):
         for i in range(1,sheet.nrows):
             entry = []
-            sym  = str(sheet.cell_value(i, 1))
+            sym  = str(sheet.cell_value(i, 0))
             if sym == '':
                 continue
-            name = str(sheet.cell_value(i, 0))
+            name = str(sheet.cell_value(i, 1))
             print("Symbol: %r, Name: %r" %(sym, name))
             #print("\"%s\"" %(sheet.cell_value(i,4)))
-            shortlist_price = float(sheet.cell_value(i, 4))
+            shortlist_price = float(sheet.cell_value(i, 3))
 
             entries.append(get_symbol_prices(sym, name, 'US', None, shortlist_price))
             #cur_price = internet.get_LTP('US', sym)

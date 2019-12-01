@@ -183,33 +183,62 @@ def get_valid_date(country, d):
                 break
     return d
 
-def hdf_price_change(country, sym, df, num_days):
-    if country == 'US':
-        hour=13
-    else: # India
+#Get price change with different inputs
+# Price change in a 
+# - days hdf_price(change('US', 'AAPL', df, 10) (or days=10)
+# - months hdf_price_change('US', 'AAPL', df, months=6)
+# - years hdf_price_change('US', 'AAPL', df, years=1)
+# - range hdf_price_change('US', 'AAPL', df, start='2018-08-01', end='2019-06-12')
+# - price change since start till date hdf_price_change('US', 'AAPL', df)
+# - price change since a particular date till today hdf_price_change('US', 'AAPL', df, since='2017-08-12')
+# - price change since start till a particular date hdf_price_change('US', 'AAPL', df, end='2014-02-11')
+def hdf_price_change(country, sym=None, df=None, days=None, weeks=None, months=None, years=None, start=None, end=None, index=None):
+#def hdf_price_change(country, sym, df, num_days):
+    hour = 13
+    if country is None:
+        print("Please provide country")
+        return None
+    if country == 'India': # India
         hour=15
-        minute=30
-
-    end = dt.now()
-    if end.hour < hour:
-        end = end - timedelta(1)
-    end = get_valid_date(country, end.date())
-
-    #Price Change since beginning
-    if num_days == -1:
+    if df is None:
+        if not sym:
+            print("No dataframe or symbol provided")
+            return None
+        df = get_dataframe(country, sym)
+    if end:
+        end = dt.strptime(end, '%Y-%m-%d')
+    else:
+        end = dt.now()
+        if end.hour < hour:
+            end = end - timedelta(1)
+        end = get_valid_date(country, end.date())
+    if years:
+        start = end - relativedelta(years=years)
+        start = get_valid_date(country, start)
+    elif months:
+        start = end - relativedelta(months=months)
+        start = get_valid_date(country, start)
+    elif weeks:
+        start = end - relativedelta(weeks=weeks)
+        start = get_valid_date(country, start)
+    elif days:
+        start = end - relativedelta(days=days)
+        start = get_valid_date(country, start)
+    elif start:
+        start = dt.strptime(start, '%Y-%m-%d')
+    else:
+        print("no args, take from start")
+        #Price Change since beginning
         since = DB.get_since(country, sym)
         start = dt.strptime(since, "%Y-%m-%d").date()
-    else:
-        start = end - relativedelta(days=num_days)
-        start = get_valid_date(country, start)
-
+ 
     en_price = hdf_get_price(sym, df, end)
     st_price = hdf_get_price(sym, df, start)
-    #print(start, st_price)
-    #print(end, en_price)
     if st_price == 0:
         return 0
     chg = (en_price/st_price - 1)
+    if index:
+        return chg, (en_price-st_price)
     return chg
 
 # get the index of the nearest date entry for a particular dataframe.
@@ -241,6 +270,12 @@ def hdf_get_price(sym, df, req_date):
     return price
     #return df.iloc[df.index.get_loc(date, method='nearest')]['Adj Close']
     #return df.loc[date]['Adj Close']
+
+def get_latest_price(country, sym):
+    df = get_dataframe(country, sym)
+    if not df.empty:
+        return df['Adj Close'][-1]
+    return None
 
 #Get lowest price between a particular date range
 def hdf_get_low(df, start, end):

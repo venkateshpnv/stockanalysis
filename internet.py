@@ -414,7 +414,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     collection = DB.get_collection(country, db)
     
     entries = []
-    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6Mon Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
     entries.append(head)
     stocks = collection.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
@@ -438,6 +438,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         entry.append(str(round(bscs['mcap']*factor, 2)))
         entry.append(str(round(bscs['volume']/1000, 2))+'k')
         entry.append(str(bscs['price']))
+        entry.append(str(round(bscs['fig']['betas']['six_months']['beta'], 2)))
         entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
         entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
         entry.append(pcent(pchg['day']))

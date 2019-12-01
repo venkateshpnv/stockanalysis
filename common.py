@@ -2,6 +2,13 @@ from inspect import currentframe
 import os
 import pprint
 
+# Date
+import datetime
+from datetime import datetime as dt, timedelta
+from dateutil.relativedelta import relativedelta
+from datetime import date
+
+
 YEAR=1
 QUARTER=2
 MONTH=4
@@ -111,6 +118,11 @@ def lowest_3(a, b, c):
     return c
 
 import re
+
+def years_to_days(y):
+    today=dt.now().date()
+    past=today-relativedelta(years=y)
+    return (today-past).days
 
 def p_atoi(text):
     return int(text) if text.isdigit() else text
