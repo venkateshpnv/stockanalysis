@@ -90,6 +90,17 @@ def write_to_collection(col, doc):
     #x = col.find_one()
     #print(x)
 
+def get_stock_from_db(country, sym):
+    c = open_db_client()
+    db = c['Stocks']
+    if country == 'US':
+        col = db.US_Stocks
+    else:
+        col = db.Indian_Stocks
+    stk = col.find({'bscs.symbol':sym})
+    close_db_client(c)
+    return stk[0]
+ 
 def update_since_dataframe(country, collection, stk):
     df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
     stk['bscs']['since'] = str(df.index[0].date())
@@ -97,15 +108,8 @@ def update_since_dataframe(country, collection, stk):
     return stk
 
 def get_since(country, symbol):
-    c = open_db_client()
-    db = c['Stocks']
-    if country == 'US':
-        col = db.US_Stocks
-    else:
-        col = db.Indian_Stocks
-    stk = col.find({'bscs.symbol':symbol})
-    close_db_client(c)
-    if stk.count() > 0:
+    stk = get_stock_from_db(country, symbol)
+    if stk and stk.count() > 0:
         return stk[0]['bscs']['since']
     return None
 
@@ -601,6 +605,7 @@ def update_stk_bscs_db(country, db, stk, sem, lock):
     finally:
         sem.release()
 
+from datetime import datetime
 def update_all_price_volume_db(country):
     global j
     max_threads = multiprocessing.cpu_count() * 2
@@ -803,13 +808,13 @@ def build_US_all_earnings_estimates():
         print("***************** Completed fetching earnings estimates *************")
         return
     #try:
-    today=dt.now().date()
+    today=datetime.now().date()
     for doc in docs:
         sno = doc['sno']
         if sno > 0:
         #if sno > 3000:
             stk = doc
-            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - dt.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
+            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - datetime.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
                 print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
                 internet.populate_US_earnings_estimates(stk)
             #break
