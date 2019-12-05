@@ -249,20 +249,21 @@ def update_price_change(country, collection, sym, sem):
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     df=pd.DataFrame() 
     try:
-        df = hdf5.read_from_hdf_store(country, sym)
+        df = hdf5.read_from_hdf(country, sym)
+        #df = hdf5.read_from_hdf_store(country, sym)
         
-        if not df.empty:
+        if df is not None and not df.empty:
             change = hdf5.hdf_price_change(country, sym, df, 1)
             DB.update_field(collection, sym, "price_change.day", change)
-            change = hdf5.hdf_price_change(country, sym, df, 7)
+            change = hdf5.hdf_price_change(country, sym, df, weeks=1)
             DB.update_field(collection, sym, "price_change.week", change)
-            change = hdf5.hdf_price_change(country, sym, df, 30)
+            change = hdf5.hdf_price_change(country, sym, df, months=1)
             DB.update_field(collection, sym, "price_change.month", change)
-            change = hdf5.hdf_price_change(country, sym, df, 90)
+            change = hdf5.hdf_price_change(country, sym, df, months=3)
             DB.update_field(collection, sym, "price_change.quarter", change)
-            change = hdf5.hdf_price_change(country, sym, df, 180)
+            change = hdf5.hdf_price_change(country, sym, df, months=6)
             DB.update_field(collection, sym, "price_change.half_year", change)
-            change = hdf5.hdf_price_change(country, sym, df, 365)
+            change = hdf5.hdf_price_change(country, sym, df, years=1)
             DB.update_field(collection, sym, "price_change.year", change)
             if country == 'US':
                 change = hdf5.hdf_price_change(country, sym, df, -1)
@@ -373,15 +374,15 @@ def update_all_stocks_price_change(country):
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  
-    #fork_hdf5_process(country, hdf5_sem)
+    fork_hdf5_process(country, hdf5_sem)
     #fork_betas_process(country, betas_sem)
-    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, ))
+    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, ))
     #betas_process = multiprocessing.Process(target=fork_betas_process, args=(country, betas_sem, ))
     
-    hdf5_process.start()
+    #hdf5_process.start()
     #betas_process.start()
 
-    hdf5_process.join()
+    #hdf5_process.join()
     #betas_process.join()
 
 def pcent(val):
@@ -414,7 +415,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     collection = DB.get_collection(country, db)
     
     entries = []
-    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6Mon Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+    if country == 'US':
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+    else:
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
     entries.append(head)
     stocks = collection.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
@@ -436,9 +440,16 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
             entry.append(str("-"))
         entry.append(str(bscs['sector']))
         entry.append(str(round(bscs['mcap']*factor, 2)))
-        entry.append(str(round(bscs['volume']/1000, 2))+'k')
+        if 'volume' in bscs.keys():
+            entry.append(str(round(bscs['volume']/1000, 2))+'k')
+        else:
+            entry.append("-")
         entry.append(str(bscs['price']))
-        entry.append(str(round(bscs['fig']['betas']['six_months']['beta'], 2)))
+        try:
+            entry.append(str(round(bscs['fig']['betas']['six_months']['beta'], 2)))
+        except Exception as e:
+            collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
+            entry.append(str("None"))
         entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
         entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
         entry.append(pcent(pchg['day']))
@@ -491,7 +502,7 @@ pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
 # Day change column position.
 # Week = Day + 1
 # Month = Week + 1 etc
-day_col = 9
+day_col = 10
 week_col = day_col + 1
 month_col = week_col + 1
 quarter_col = month_col + 1

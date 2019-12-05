@@ -103,8 +103,11 @@ def get_stock_from_db(country, sym):
  
 def update_since_dataframe(country, collection, stk):
     df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
-    stk['bscs']['since'] = str(df.index[0].date())
-    DB.update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
+    if not df.empty:
+        stk['bscs']['since'] = str(df.index[0].date())
+        update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
+    else:
+        stk['bscs']['since']=""
     return stk
 
 def get_since(country, symbol):
@@ -528,7 +531,8 @@ def fork_hdf5_process(country, sem):
     if num_docs == 0:
         return
 
-    symbols = hdf5.get_symbols_hdf_store(country)
+    #symbols = hdf5.get_symbols_hdf_store(country)
+    symbols = hdf5.get_symbols_from_hdf(country)
     
     if country == 'India':
         indices = India_indices
@@ -540,8 +544,8 @@ def fork_hdf5_process(country, sem):
         stk['bscs']['symbol'] = k
         stk['bscs']['name'] = indices[k]
         sem.acquire()
-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
 
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -620,17 +624,17 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
-    #fork_hdf5_process(country, hdf5_sem)
+    fork_hdf5_process(country, hdf5_sem)
     #fork_db_process(country, db_sem, db_lock)
-    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
-    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-    try:
-        hdf5_process.start()
-        db_process.start()
-    finally:
-        hdf5_process.join()
-        db_process.join()
-    print("Exiting hdf5 and db processes")
+    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
+    #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    #try:
+    #    hdf5_process.start()
+    #    db_process.start()
+    #finally:
+    #    hdf5_process.join()
+    #    db_process.join()
+    #print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.
 # Compare with entries in BSE_Stocks.xls
@@ -988,16 +992,17 @@ def update_sector_info():
                 j += 1
     print("Total : %d" %(j))
 
-def get_beta(country, sym, sdate, edate):
+def get_beta(country, sym, sdate, edate, df=None):
     betas = {}
-    try:
-        #from pandas_datareader.quandl import QuandlReader
-        #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
-        #print(df)
-        df = hdf5.get_dataframe(country, sym, sdate, edate)
-    except KeyError:
-        print("Could not get data. Failed to calculate beta")
-        return None
+    if df is None:
+        try:
+            #from pandas_datareader.quandl import QuandlReader
+            #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
+            #print(df)
+            df = hdf5.get_dataframe(country, sym, sdate, edate)
+        except KeyError:
+            print("Could not get data. Failed to calculate beta")
+            return None
 
     if country == 'US':
         bindex = "^GSPC"
@@ -1114,7 +1119,7 @@ def get_beta(country, sym, sdate, edate):
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
     
-def update_stock_recession_betas(country, collection, doc, sym):
+def update_stock_recession_betas(country, collection, doc, sym, df=None):
     years = recessions.keys()
 
     for year in years:
@@ -1125,7 +1130,7 @@ def update_stock_recession_betas(country, collection, doc, sym):
                 en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(country, sym, st_date, en_date)
+                betas = get_beta(country, sym, st_date, en_date, df=None)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -1135,16 +1140,25 @@ def update_stock_recession_betas(country, collection, doc, sym):
                 en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(country, sym, st_date, en_date)
+                betas = get_beta(country, sym, st_date, en_date, df=None)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
-def update_stock_betas(country, collection, stk, sem):
+def update_stock_betas2(country, stk, df=None):
+    c = open_db_client()
+    db = c['Stocks']
+    collection = get_collection(country, db)
+    try:
+        update_stock_betas(country, collection, stk, sem=None, df=df)
+    finally:
+        close_db_client(c)
+
+def update_stock_betas(country, collection, stk, sem=None, df=None):
     try:
         sym = stk['bscs']['symbol']
-        print("%r: %r" %(stk['sno'], sym))
+        print("beta: %r: %r" %(stk['sno'], sym))
         if 'since' not in stk['bscs'].keys():
             stk  = update_since_dataframe(country, collection, stk)
 
@@ -1155,7 +1169,7 @@ def update_stock_betas(country, collection, stk, sem):
         #    continue
         since_start = datetime.strptime(since, "%Y-%m-%d").date()
         
-        update_stock_recession_betas(country, collection, stk, sym)
+        update_stock_recession_betas(country, collection, stk, sym, df=df)
         
         if not 'betas' in stk['fig'].keys():
             stk['fig']['betas']={}
@@ -1169,7 +1183,7 @@ def update_stock_betas(country, collection, stk, sem):
         #print("Since last recession")
         #print(st_date)
         #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
         #print("Betas: %r" %(betas))
         field="fig.betas.since_last_recession"
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -1180,7 +1194,7 @@ def update_stock_betas(country, collection, stk, sem):
         en_date = datetime.now().date()
         #print(st_date)
         #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
         #print("Betas: %r" %(betas))
         field="fig.betas.whole"
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -1192,7 +1206,7 @@ def update_stock_betas(country, collection, stk, sem):
         st_date = en_date - timedelta(days=5*365)
         #print(st_date)
         #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
         #print("Betas: %r" %(betas))
         field="fig.betas.five_year"
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -1205,7 +1219,7 @@ def update_stock_betas(country, collection, stk, sem):
         st_date = en_date - timedelta(days=1*365)
         #print(st_date)
         #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
         field="fig.betas.one_year"
         #print("Betas: %r" %(betas))
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -1218,13 +1232,14 @@ def update_stock_betas(country, collection, stk, sem):
         st_date = en_date - timedelta(days=365/2)
         #print(st_date)
         #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
         field="fig.betas.six_months"
         #print("Betas: %r" %(betas))
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     
     finally:
-        sem.release()
+        if sem:
+            sem.release()
 
 def update_all_stock_betas(country):
     c = open_db_client()
@@ -1233,8 +1248,9 @@ def update_all_stock_betas(country):
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
-    #docs = db.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
+    #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     docs = collection.find({}, no_cursor_timeout=True).sort([["sno",1]])
+    #docs = collection.find({'bscs.mcap' : {'$gt' :  100000, '$lt' : 1000000}}, no_cursor_timeout=True).sort([['sno',1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
@@ -1245,8 +1261,8 @@ def update_all_stock_betas(country):
     for doc in docs:
         if ignore_stock(doc):
             continue
-        #update_stock_betas(country, collection, doc, sem)
         sem.acquire()
+        #update_stock_betas(country, collection, doc, sem)
         threading.Thread(target=update_stock_betas, args=(country, collection, doc, sem,)).start()
 
     time.sleep(10)

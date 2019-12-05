@@ -112,7 +112,10 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
     #print(entry)
     return entry
  
-def get_radar_stocks():
+def get_radar_stocks(country):
+    if country != 'US':
+        return
+
     wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
     if wb.nsheets < 1:
         print("No sheets found")
@@ -136,12 +139,12 @@ def get_radar_stocks():
     entries.append(head)
     entry = []
     print("Indices")
-    entries.append(get_symbol_prices("^BSESN", "BSE", 'India', 1, 0))
-    entries.append(get_symbol_prices("^NSEI", "NSE", 'India', 1, 0))
-    entries.append(get_symbol_prices("^GSPC", "S&P 500", 'US', 1, 0))
-    entries.append(get_symbol_prices("^DJI", "Dow Jones", 'US', 1, 0))
-    entries.append(get_symbol_prices("^IXIC", "Nasdaq", 'US', 1, 0))
-    entries.append(get_symbol_prices("^RUT", "Russel 2000", 'US', 1, 0))
+    #entries.append(get_symbol_prices("BSE", "BSE", 'India', 1, 0))
+    #entries.append(get_symbol_prices("NSE", "NSE", 'India', 1, 0))
+    entries.append(get_symbol_prices("SP500", "S&P 500", 'US', 1, 0))
+    entries.append(get_symbol_prices("DowJones", "Dow Jones", 'US', 1, 0))
+    entries.append(get_symbol_prices("Nasdaq", "Nasdaq", 'US', 1, 0))
+    entries.append(get_symbol_prices("Russel2000", "Russel 2000", 'US', 1, 0))
     entries.append([""])
     #entries.append([""])
     s = parse_html.html_text(s, entries)
@@ -156,7 +159,7 @@ def get_radar_stocks():
         s = parse_html.html_text(s, [wb.sheet_names()[j]])
         s = parse_html.html_set_line(s)
         #Stocks
-        head=["Symbol", "Name", "6Mon Beta", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
+        head=["Symbol", "Name", "6MBeta", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
         entries.append(head)
         #for i in range(1,3):
         for i in range(1,sheet.nrows):

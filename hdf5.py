@@ -15,8 +15,8 @@ import threading
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
-US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store.h5'
-India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store.h5'
+US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store2.h5'
+India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store2.h5'
 
 lock = threading.Lock()
 US_Cal = get_calendar('USFederalHolidayCalendar')
@@ -65,6 +65,8 @@ def get_symbols_hdf_store(country):
         lock.acquire()
         with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
             symbols = store.keys()
+        #with h5py.File(path, 'r') as f:
+        #    symbols=list(f.keys())
     finally:
         lock.release()
     return symbols
@@ -78,6 +80,60 @@ def write_to_hdf_store(country, df, symbol):
     finally:
         lock.release()
 
+def read_from_hdf_store(country, symbol):
+    try:
+        path = get_hdf_store_path(country)
+        lock.acquire()
+        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
+            df = store[symbol]
+    except Exception as e:
+        store.close()
+        print("remove_from_hdf_store: %r" %(str(e)))
+        return pd.DataFrame()
+    finally:
+        lock.release()
+
+def read_from_hdf_store_nolock(country, symbol):
+    path = get_hdf_store_path(country)
+    with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
+        df = store[symbol]
+    return df
+
+def remove_from_hdf_store(country, symbol):
+    try:
+        path = get_hdf_store_path(country)
+        lock.acquire()
+        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
+            symbol = '/' + symbol
+            if symbol in store.keys():
+                store.remove(symbol)
+            else:
+                PRINT_ERR("Symbol: %r not found. Unable to delete the dataframe")
+    except Exception as e:
+        store.close()
+    finally:
+        lock.release()
+    return df
+
+def remove_all_df_duplicates(country):
+    symbols = get_symbols_hdf_store('US')
+    for symbol in symbols:
+        print(symbol)
+        df = read_from_hdf_store(country, symbol)
+        if df is not None and not df.empty and 'True' in df.duplicated():
+            print("duplicates in %r" %(symbol))
+            df=df[~df.index.duplicated(keep='last')]
+            #df = df.drop_duplicates(keep='last')
+            #write_to_hdf_store(country, df, symbol)
+
+def remove_df_duplicates(df):
+    if df is not None and not df.empty:
+        df = df.sort_index()
+        #df = df.drop_duplicates()
+        df = df[~df.index.duplicated(keep='last')]
+        #df = df.drop_duplicates(keep='last')
+    return df
+ 
 #def write_to_hdf_store(country, df, symbol):
 #    if country == 'India':
 #        store = library = 'India_Stocks_Prices'
@@ -91,19 +147,6 @@ def write_to_hdf_store(country, df, symbol):
 #            lib.write(symbol, df)
 #    finally:
 #        return
-
-def read_from_hdf_store(country, symbol):
-    try:
-        path = get_hdf_store_path(country)
-        lock.acquire()
-        with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
-            df = store[symbol]
-    except Exception as e:
-        print(str(e))
-        return pd.DataFrame()
-    finally:
-        lock.release()
-    return df
 
 #def read_from_hdf_store(country, symbol):
 #    df = pd.DataFrame()
@@ -124,28 +167,16 @@ def read_from_hdf_store(country, symbol):
 #    finally:
 #        return df
 
-def read_from_hdf_store_nolock(country, symbol):
-    path = get_hdf_store_path(country)
-    with pd.HDFStore(path, mode='a', complevel=9, complib='bzip2') as store:
-        df = store[symbol]
-    return df
-
-def write_to_hdf(country, df, symbol):
+def get_symbols_from_hdf(country):
+    symbols = []
     try:
         path = get_hdf_store_path(country)
         lock.acquire()
-        df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
+        with h5py.File(path, 'a') as f:
+            symbols=list(f.keys())
     finally:
         lock.release()
-
-def read_from_hdf(country, symbol):
-    try:
-        lock.acquire()
-        path = get_hdf_store_path(country)
-        rdf  = pd.read_hdf(path, symbol)
-    finally:
-        lock.release()
-    return rdf
+    return symbols
 
 def get_dataframe(country, sym, start=None, end=None):
     path = get_hdf_store_path(country)
@@ -156,8 +187,7 @@ def get_dataframe(country, sym, start=None, end=None):
         PRINT_ERR(str(e))
         lock.release()
         return pd.DataFrame()
-    finally:
-        lock.release()
+    lock.release()
     if start == None:
         sindex = None
     else:
@@ -167,6 +197,38 @@ def get_dataframe(country, sym, start=None, end=None):
     else:
         eindex = get_nearest_index(df, end)+1
     return df[sindex:eindex]
+
+def read_from_hdf(country, symbol):
+    rdf=pd.DataFrame() 
+    try:
+        lock.acquire()
+        path = get_hdf_store_path(country)
+        rdf  = pd.read_hdf(path, symbol)
+    except Exception as e:
+        print("read_from_hdf(): symbol: %r, error: %r" %(symbol, str(e)))
+    finally:
+        lock.release()
+    return rdf
+
+def write_to_hdf(country, df, symbol):
+    try:
+        path = get_hdf_store_path(country)
+        lock.acquire()
+        df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
+    finally:
+        lock.release()
+
+def remove_from_hdf(country, symbol):
+    try:
+        path = get_hdf_store_path(country)
+        lock.acquire()
+        with h5py.File(path, 'a') as f:
+            symbols=list(f.keys())
+            if symbol in symbols:
+                del f[symbol]
+    finally:
+        lock.release()
+    return symbols
 
 # Exclude weekends and holidays. Return closest trading day
 def get_valid_date(country, d):
@@ -316,29 +378,39 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
         return
-
+    if country == 'India':
+        indices = India_indices
+    else:
+        indices = US_indices 
+ 
     df=pd.DataFrame() 
     collection = DB.get_collection(country, db)
     try:
         today=str(dt.now())
         end=dt.now().date()#-timedelta(2)
         #Updating the price and volume for the first time
-        symbol = '/' + stk['bscs']['symbol']
+        if stk['bscs']['symbol'] in indices.keys():
+            symbol = indices[stk['bscs']['symbol']]
+        else:
+            symbol = stk['bscs']['symbol']
+        #symbol = '/' + stk['bscs']['symbol']
+
         if symbol not in symbols:
-            #print("%r : symbol not preset getting full data" %(stk['bscs']['symbol']))
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
-            if not df.empty:
-                write_to_hdf_store(country, df, stk['bscs']['symbol'])
+            df = remove_df_duplicates(df)
+            #if not df.empty:
+            if True:
+                write_to_hdf(country, df, symbol)
                 # Update the date on which the price is updated
-                DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)
-                #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+                DB.update_field(collection, symbol, "bscs.price_date", today)
         #Updating today's price and volume
         else:
             # Read the existing data of the symbol
-            rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
+            rdf = read_from_hdf(country, symbol)
+            #rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
             if rdf.empty:
-                PRINT_ERR("Couldnt read %r from %r" %(stk['bscs']['symbol'], hdf_path))
+                PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             else:
                 #get timestamp of the last entry
@@ -359,14 +431,14 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 if not df.empty:
                     rdf = rdf.append(df)
-                    rdf = rdf.sort_index()
-                    #rdf = rdf.drop_duplicates()
-                    rdf=rdf[~rdf.index.duplicated(keep='last')]
-                    write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
-                    #print(stk['bscs']['symbol'], rdf.tail(5))
+                    rdf = remove_df_duplicates(rdf)
+                   #Update Betas
+                    if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+                        DB.update_stock_betas2(country, stk, df=rdf)
+                    write_to_hdf(country, rdf, symbol)
+                    #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
-                    DB.update_field(collection, stk['bscs']['symbol'], "bscs.price_date", today)
-                    #print("hdf5: Done: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+                    DB.update_field(collection, symbol, "bscs.price_date", today)
     except Exception as E:
         print("hdf5: update_dataframe_price_volume:",str(E))
     finally:
