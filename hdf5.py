@@ -120,20 +120,55 @@ def remove_all_df_duplicates(country):
     for symbol in symbols:
         print(symbol)
         df = read_from_hdf_store(country, symbol)
-        if df is not None and not df.empty and 'True' in df.duplicated():
+        if df is not None and not df.empty and df.index.has_duplicates:
             print("duplicates in %r" %(symbol))
             df=df[~df.index.duplicated(keep='last')]
             #df = df.drop_duplicates(keep='last')
             #write_to_hdf_store(country, df, symbol)
 
 def remove_df_duplicates(df):
-    if df is not None and not df.empty:
+    if df is not None and not df.empty and df.index.has_duplicates:
         df = df.sort_index()
         #df = df.drop_duplicates()
         df = df[~df.index.duplicated(keep='last')]
         #df = df.drop_duplicates(keep='last')
     return df
- 
+
+def read_df_from_mongodb(symbol, col):
+    df=pd.DataFrame(list(col.find({'symbol':symbol}))[0]['series'])
+    return df
+
+def insert_df_from_hdf_to_mongodb(symbol, df, col):
+    stock={}
+    stock['symbol'] = symbol
+    df.index=df.index.strftime("%Y-%m-%d")
+    stock['series'] = df.to_dict()
+    col.insert(stock)
+
+def insert_all_dfs_from_hdf_to_mongodb(country):
+    symbols = get_symbols_from_hdf(country)
+    c = DB.open_db_client()
+    db = c['Stocks']
+    if country == 'US':
+        col = db.US_Stocks_Prices
+    elif country == 'India':
+        col = db.India_Stocks_Prices
+    else:
+        PRINT_ERR("insert_all_dfs_to_mongodb(): Unknown Country %r" %(country))
+        DB.close_db_client(c)
+        return
+
+    i = 0
+    for symbol in symbols:
+        print("%r"%(symbol))
+        df = read_from_hdf(country, symbol)
+        insert_df_from_hdf_to_mongodb(symbol, df, col)
+        i = i + 1
+        if i > 100:
+            break
+
+    DB.close_db_client(c)
+
 #def write_to_hdf_store(country, df, symbol):
 #    if country == 'India':
 #        store = library = 'India_Stocks_Prices'
@@ -174,6 +209,8 @@ def get_symbols_from_hdf(country):
         lock.acquire()
         with h5py.File(path, 'a') as f:
             symbols=list(f.keys())
+    except Exception as e:
+        f.close()
     finally:
         lock.release()
     return symbols
@@ -214,7 +251,13 @@ def write_to_hdf(country, df, symbol):
     try:
         path = get_hdf_store_path(country)
         lock.acquire()
+        with h5py.File(path, 'a') as f:
+            symbols=list(f.keys())
+            if symbol in symbols:
+                del f[symbol]
         df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
+    except Exception as e:
+        f.close()
     finally:
         lock.release()
 
@@ -387,7 +430,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
     collection = DB.get_collection(country, db)
     try:
         today=str(dt.now())
-        end=dt.now().date()#-timedelta(2)
+        end=dt.now().date()# - timedelta(7)
         #Updating the price and volume for the first time
         if stk['bscs']['symbol'] in indices.keys():
             symbol = indices[stk['bscs']['symbol']]
@@ -399,6 +442,9 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             df = remove_df_duplicates(df)
+            #Update Betas
+            #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+            #    DB.update_stock_betas2(country, stk, df=df)
             #if not df.empty:
             if True:
                 write_to_hdf(country, df, symbol)
@@ -418,6 +464,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             #get data from next date till today
             #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start < end:
+            #if True:
                 # If date difference is less than a week, get atleast
                 # a week of prices. yahoofinance sometimes misbehaves
                 # in case of a shorter timespan and returns inconsistent data.
@@ -433,12 +480,14 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                     rdf = rdf.append(df)
                     rdf = remove_df_duplicates(rdf)
                    #Update Betas
-                    if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
-                        DB.update_stock_betas2(country, stk, df=rdf)
+                    #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+                    #    DB.update_stock_betas2(country, stk, df=rdf)
                     write_to_hdf(country, rdf, symbol)
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
                     DB.update_field(collection, symbol, "bscs.price_date", today)
+                else:
+                    PRINT_ERR("df empty for %r" %(symbol))
     except Exception as E:
         print("hdf5: update_dataframe_price_volume:",str(E))
     finally:

@@ -540,12 +540,15 @@ def fork_hdf5_process(country, sem):
         indices = US_indices 
     stk = {}
     stk['bscs']={}
+
+    ##Indices
     for k in indices.keys():
         stk['bscs']['symbol'] = k
         stk['bscs']['name'] = indices[k]
         sem.acquire()
-        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
 
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -634,7 +637,7 @@ def update_all_price_volume_db(country):
     #finally:
     #    hdf5_process.join()
     #    db_process.join()
-    #print("Exiting hdf5 and db processes")
+    print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.
 # Compare with entries in BSE_Stocks.xls
@@ -1005,9 +1008,9 @@ def get_beta(country, sym, sdate, edate, df=None):
             return None
 
     if country == 'US':
-        bindex = "^GSPC"
+        bindex = "SP500"
     elif country == 'India':
-        bindex = "^BSESN" 
+        bindex = "BSE" 
     else:
         PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
         return betas
@@ -1025,7 +1028,7 @@ def get_beta(country, sym, sdate, edate, df=None):
     #print(df['Adj Close'].head(5))
     #print(df['Adj Close'].tail(5))
     try:
-        years = (edate-sdate).days/365
+        years = (edate-sdate).days/365.25
     except Exception:
         print("edate: %s, sdate: %s"%(edate,sdate))
         sys.exit(1)
