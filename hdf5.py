@@ -7,6 +7,7 @@ from datastructures import *
 import time
 from dateutil.relativedelta import relativedelta
 from pandas.tseries.holiday import get_calendar
+import sqlalchemy
 
 import DB
 import os
@@ -168,6 +169,31 @@ def insert_all_dfs_from_hdf_to_mongodb(country):
             break
 
     DB.close_db_client(c)
+
+def insert_df_from_hdf_to_sql(country, symbol, engine, table):
+    df = read_from_hdf(country, symbol)
+    df['Symbol'] = symbol
+    df['Date'] = df.index.strftime("%Y-%m-%d")
+    df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
+    query = 'select * from '+ table + ' where symbol=%r' %(symbol)
+    rdf = pd.read_sql_query(query, engine)
+    if not rdf.empty:
+        rdf.index = rdf['Date']
+        df = df[~df.Date.isin(rdf.Date)]
+    if not df.empty:
+        df.to_sql(name=table,con=engine,index=False,if_exists='append')
+
+def insert_all_dfs_from_hdf_to_sql(country):
+    table = 'US_Stocks'
+    symbols = get_symbols_from_hdf(country)
+    engine=sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/sample_db")
+
+    i = 0
+    for symbol in symbols:
+        if i > 1783:
+            print("%d: %r"%(i, symbol))
+            insert_df_from_hdf_to_sql(country, symbol, engine, table)
+        i = i + 1
 
 #def write_to_hdf_store(country, df, symbol):
 #    if country == 'India':

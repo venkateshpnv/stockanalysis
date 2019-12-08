@@ -4,6 +4,7 @@ import internet
 from common import *
 from excel import *
 from datastructures import Stock
+import hdf5
 
 def US_main():
     #internet.get_US_stock_page("MSFT")
@@ -23,7 +24,8 @@ def US_main():
     #DB.update_US_all_stk_profile()
     #DB.update_sector_info()
     #internet.price_surprises('US', 0.10, WEEK | DAY, 'COLD', 'SYNC_DB')
-    DB.set_sno('US')
+    #DB.set_sno('US')
+    hdf5.insert_all_dfs_from_hdf_to_sql('US')
     #internet.send_email("Hello World")
     #internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', 'Test', 'Hello')
     #get_radar_stocks()
