@@ -1,0 +1,653 @@
+diff --git a/DB.py b/DB.py
+index e25a702e..c2cd5309 100644
+--- a/DB.py
++++ b/DB.py
+@@ -20,10 +20,14 @@ from common import *
+ from datastructures import *
+ import conf
+ import hdf5
++import sqlalchemy
+ 
+ import threading
+ import multiprocessing
+ 
++import psycopg2
++from psycopg2 import Error
++
+ j = 0
+ class dbObject:
+     def __init__(self, **obj):
+@@ -64,6 +68,49 @@ def close_db():
+ def close_db_client(c):
+     c.close()
+ 
++#except (Exception, psycopg2.Error) as error :
++def open_postgres_con(db):
++    return psycopg2.connect(database=db, user="postgres", password="petla123",host="127.0.0.1",port="5432")
++
++def close_postgres_con(con):
++    con.close()
++
++#can create any number of cursors.
++# cursors are not thread safe.
++def get_postgres_cursor(con):
++    return con.cursor()
++
++def close_postgres_cursor(cur):
++    cur.close()
++
++def open_sql_connection():
++    max_threads = multiprocessing.cpu_count() * 2
++    return sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/Stocks", pool_size=max_threads)
++
++def close_sql_connection(engine):
++    engine.dispose()
++
++def read_from_sql(query, engine):
++    df = pd.read_sql_query(query, engine)
++    if not df.empty:
++        df.index = pd.to_datetime(df['Date'])
++    return df
++
++def write_to_sql(engine, table, df):
++    df.to_sql(name=table,con=engine,index=False,if_exists='append')
++
++def get_symbols_from_sql(country, engine):
++    symbols = []
++    if country == 'India':
++        table = 'India_Stocks'
++    else:
++        table = 'US_Stocks' 
++    query='select distinct Symbol from ' + table
++    rdf=pd.read_sql_query(query, engine)
++    if not rdf.empty:
++        symbols = list(rdf['Symbol'])
++    return symbols
++
+ def ignore_stock(stk):
+     if 'trading' in stk['bscs'].keys():
+         if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+@@ -524,15 +571,19 @@ def fork_hdf5_process(country, sem):
+     c = open_db_client()
+     db = c['Stocks']
+     collection = get_collection(country, db)
++    sql_engine = open_sql_connection()
+ 
+     today=str(datetime.now().date())
+     num_docs = collection.find({}).count()
+     #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
+     if num_docs == 0:
++        close_db_client(c)
++        close_sql_connection(sql_engine)
+         return
+ 
+     #symbols = hdf5.get_symbols_hdf_store(country)
+-    symbols = hdf5.get_symbols_from_hdf(country)
++    #symbols = hdf5.get_symbols_from_hdf(country)
++    symbols = get_symbols_from_sql(country, sql_engine)
+     
+     if country == 'India':
+         indices = India_indices
+@@ -541,49 +592,51 @@ def fork_hdf5_process(country, sem):
+     stk = {}
+     stk['bscs']={}
+ 
+-    ##Indices
+-    for k in indices.keys():
+-        stk['bscs']['symbol'] = k
+-        stk['bscs']['name'] = indices[k]
+-        sem.acquire()
+-        print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+-
+-    # Randomly get all records whose price is not updated till today
+-    #pipeline = [{'$sample': {'size':num_docs}},
+-    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+-    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+-    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+-    #            ]
+-
+-    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+-    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+-    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
++    try:
++        ##Indices
++        for k in indices.keys():
++            stk['bscs']['symbol'] = k
++            stk['bscs']['name'] = indices[k]
++            sem.acquire()
++            print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
++            #hdf5.update_dataframe_price_volume(country, db, sql_engine, symbols, stk, sem)
++            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, symbols, stk, sem,)).start()
++
++        # Randomly get all records whose price is not updated till today
++        #pipeline = [{'$sample': {'size':num_docs}},
++        #            {'$match' : {"bscs.price_date": {'$ne':today}}},
++        #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
++        #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
++        #            ]
++
++        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
++        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
++        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+  
+-    i=0
+-    for stk in stocks:
+-        if 'trading' in stk['bscs'].keys():
+-            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+-                continue
+-        if 'ignore' in stk.keys():
+-            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+-                continue
+-        print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
+-        sem.acquire()
+-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+-        i = i + 1
++        i=0
++        for stk in stocks:
++            if 'trading' in stk['bscs'].keys():
++                if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
++                    continue
++            if 'ignore' in stk.keys():
++                if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
++                    continue
++            print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
++            sem.acquire()
++            #hdf5.update_dataframe_price_volume(country, db, sql_engine, symbols, stk, sem)
++            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, symbols, stk, sem,)).start()
++            i = i + 1
++    finally:
++        # Wait till all threads are completed. You can use join() instead.
++        # But need to track threads and update variables.
++        # Simplest way is to wait for tentative time taken for the end threads to complete
++        # Randomly estimated it to be 10 sec and it perfectly works.
++        time.sleep(10)
++        close_db_client(c)
++        close_sql_connection(sql_engine)
+ 
+-    # Wait till all threads are completed. You can use join() instead.
+-    # But need to track threads and update variables.
+-    # Simplest way is to wait for tentative time taken for the end threads to complete
+-    # Randomly estimated it to be 10 sec and it perfectly works.
+-    time.sleep(10)
+-    close_db_client(c)
+     print("HDF5 Stocks tried :%r"%(i))
+ 
+-
+ # Update price, mcap, volume etc
+ def update_stk_bscs_db(country, db, stk, sem, lock):
+     global j
+diff --git a/US_analysis.py b/US_analysis.py
+index 40b22022..f19022c4 100644
+--- a/US_analysis.py
++++ b/US_analysis.py
+@@ -25,7 +25,8 @@ def US_main():
+     #DB.update_sector_info()
+     #internet.price_surprises('US', 0.10, WEEK | DAY, 'COLD', 'SYNC_DB')
+     #DB.set_sno('US')
+-    hdf5.insert_all_dfs_from_hdf_to_sql('US')
++    #hdf5.insert_all_dfs_from_hdf_to_sql('US')
++    hdf5.insert_all_dfs_from_hdf_to_postgres('US')
+     #internet.send_email("Hello World")
+     #internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', 'Test', 'Hello')
+     #get_radar_stocks()
+diff --git a/Update_Price_Change.py b/Update_Price_Change.py
+index df85d196..326d6d54 100644
+--- a/Update_Price_Change.py
++++ b/Update_Price_Change.py
+@@ -11,14 +11,14 @@ if __name__ == "__main__":
+         print("$ %s country_name" %(sys.argv[0]))
+         sys.exit(1)
+ 
+-    # Get today's price from yahoo and update db and hdf5
+-    try:
+-        DB.update_all_price_volume_db(sys.argv[1])
+-    except Exception as e:
+-        s = parse_html.html_head()
+-        error = [str(e)]
+-        s = parse_html.html_text(s, error)
+-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
++    ### Get today's price from yahoo and update db and hdf5
++    #try:
++    #    DB.update_all_price_volume_db(sys.argv[1])
++    #except Exception as e:
++    #    s = parse_html.html_head()
++    #    error = [str(e)]
++    #    s = parse_html.html_text(s, error)
++    #    internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
+ 
+     #### Calculate and store price change
+     try:
+@@ -29,8 +29,8 @@ if __name__ == "__main__":
+         s = parse_html.html_text(s, error)
+         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
+     
+-    ## send email
+-    internet.send_email_price_changes(sys.argv[1])
++    #### send email
++    #internet.send_email_price_changes(sys.argv[1])
+ 
+     # Radar Stocks
+     #excel.get_radar_stocks('US')
+diff --git a/hdf5.py b/hdf5.py
+index bc6d19bc..6e0b7c67 100644
+--- a/hdf5.py
++++ b/hdf5.py
+@@ -8,6 +8,8 @@ import time
+ from dateutil.relativedelta import relativedelta
+ from pandas.tseries.holiday import get_calendar
+ import sqlalchemy
++import psycopg2
++import psycopg2.extras
+ 
+ import DB
+ import os
+@@ -172,28 +174,79 @@ def insert_all_dfs_from_hdf_to_mongodb(country):
+ 
+ def insert_df_from_hdf_to_sql(country, symbol, engine, table):
+     df = read_from_hdf(country, symbol)
+-    df['Symbol'] = symbol
++    #df['Symbol'] = symbol
+     df['Date'] = df.index.strftime("%Y-%m-%d")
+     df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
+-    query = 'select * from '+ table + ' where symbol=%r' %(symbol)
++    symbol = symbol.replace('.','_')
++    symbol = 'STK'+symbol.replace('.','_')
++    query = 'show tables like %r;' %(symbol)
++    output= engine.execute(query)
++    if output.first() is None:
++        query = 'create table '+ symbol + ' like test2;'
++        engine.execute(query)
++    query = 'select * from '+ symbol
++    #query = 'select * from '+ table + ' where Symbol=%r' %(symbol)
+     rdf = pd.read_sql_query(query, engine)
+     if not rdf.empty:
+-        rdf.index = rdf['Date']
++        rdf.index = rdf['Date'] #Is this required?
++        #Select all rows except that in SQL Database
+         df = df[~df.Date.isin(rdf.Date)]
+     if not df.empty:
+-        df.to_sql(name=table,con=engine,index=False,if_exists='append')
++        df.to_sql(name=symbol, con=engine,index=False,if_exists='append')
++        #df.to_sql(name=table, con=engine,index=False,if_exists='append')
+ 
+ def insert_all_dfs_from_hdf_to_sql(country):
+-    table = 'US_Stocks'
++    if country == 'India':
++        table = 'India_Stocks'
++    else:
++        table = 'US_Stocks'
+     symbols = get_symbols_from_hdf(country)
+-    engine=sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/sample_db")
+-
+-    i = 0
+-    for symbol in symbols:
+-        if i > 1783:
++    try:
++        engine =  DB.open_sql_connection()
++        for i, symbol in enumerate(symbols):
++            #if i > 1113: #ALL, ASC, BY, ELSE
+             print("%d: %r"%(i, symbol))
+             insert_df_from_hdf_to_sql(country, symbol, engine, table)
+-        i = i + 1
++    finally:
++        DB.close_sql_connection(engine)
++
++def insert_df_from_hdf_to_postgres(country, symbol, engine, schema):
++    cursor = engine.cursor()
++    df = read_from_hdf(country, symbol)
++    #df['Symbol'] = symbol
++    #symbol = symbol.replace('.','_')
++    symbol = schema+'.'+symbol.replace('.','_')
++    query = 'CREATE TABLE IF NOT EXISTS '+symbol+'(high decimal, low decimal, open decimal, close decimal, volume BIGINT, adj_close decimal, symbol char(20), Date timestamptz primary key);'
++    cursor.execute(query)
++    engine.commit()
++    #query = 'SELECT create_hypertable(%r, %r);' %(symbol, 'date')
++    #cursor.execute(query)
++    #engine.commit()
++    #query = 'select * from '+ schema+'.'+symbol
++    df.rename(columns={'Adj Close': 'Adj_Close'}, inplace=True)
++    df['Date'] = df.index
++    df_columns = list(df)
++    columns = ",".join(df_columns)
++    values = "VALUES({})".format(",".join(["%s" for _ in df_columns]))
++    insert_stmt = "INSERT INTO {} ({}) {} on conflict(\"date\") do nothing".format(symbol,columns,values)
++    psycopg2.extras.execute_batch(cursor, insert_stmt,df.values)
++    engine.commit()
++
++def insert_all_dfs_from_hdf_to_postgres(country):
++    symbols = get_symbols_from_hdf(country)
++    try:
++        if country == 'India':
++            engine = DB.open_postgres_con('india_stocks')
++        else:
++            engine = DB.open_postgres_con('us_stocks')
++        for i, symbol in enumerate(symbols):
++            #if i > 1113: #ALL, ASC, BY, ELSE
++            print("%d: %r"%(i, symbol))
++            insert_df_from_hdf_to_postgres(country, symbol, engine, 'prices')
++            if i > 10:
++                break;
++    finally:
++        DB.close_postgres_con(engine)
+ 
+ #def write_to_hdf_store(country, df, symbol):
+ #    if country == 'India':
+@@ -442,18 +495,21 @@ def hdf_get_low_n_days(df, num_days):
+ #    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
+ #    change = en_price/st_price - 1
+  
+-def update_dataframe_price_volume(country, db, symbols, stk, sem):
++def update_dataframe_price_volume(country, db, sql_engine, symbols, stk, sem):
+     if stk is None:
+         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
+         sem.release()
+         return
+     if country == 'India':
+         indices = India_indices
++        table = 'India_Stocks'
+     else:
+         indices = US_indices 
++        table = 'US_Stocks'
+  
+     df=pd.DataFrame() 
+     collection = DB.get_collection(country, db)
++
+     try:
+         today=str(dt.now())
+         end=dt.now().date()# - timedelta(7)
+@@ -467,51 +523,60 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
+         if symbol not in symbols:
+             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+-            df = remove_df_duplicates(df)
++            if not df.empty:
++                df['Symbol'] = symbol
++                df['Date'] = df.index.strftime("%Y-%m-%d")
++                df.index = df['Date'] #Is it required?
++                DB.write_to_sql(sql_engine, table, df)
++                # Update the date on which the price is updated
++                DB.update_field(collection, symbol, "bscs.price_date", today)
+             #Update Betas
+             #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+             #    DB.update_stock_betas2(country, stk, df=df)
+-            #if not df.empty:
+-            if True:
+-                write_to_hdf(country, df, symbol)
+-                # Update the date on which the price is updated
+-                DB.update_field(collection, symbol, "bscs.price_date", today)
++ 
+         #Updating today's price and volume
+         else:
+             # Read the existing data of the symbol
+-            rdf = read_from_hdf(country, symbol)
++            query='select Date from ' + symbol + ' order by Date DESC limit 1'
++            #rdf = read_from_hdf(country, symbol)
++            rdf = DB.read_from_sql(query, sql_engine)
+             #rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
+             if rdf.empty:
+                 PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
+                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+             else:
+                 #get timestamp of the last entry
+-                start = rdf.index[-1].date()
++                #start = rdf.index[-1].date()
++                start = dt.strptime(rdf['Date'][0], "%Y-%m-%d").date()
+             #get data from next date till today
+             #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+             if start < end:
+-            #if True:
+                 # If date difference is less than a week, get atleast
+                 # a week of prices. yahoofinance sometimes misbehaves
+                 # in case of a shorter timespan and returns inconsistent data.
+                 # Min of week is a safer timespan.
+                 # Though you get a week data, insert only the entries that are missing.
+                 # Taken care below.
+-                if end-start < timedelta(7):
+-                    start = end - timedelta(7)
++                if end-start < timedelta(10):
++                    start = end - timedelta(10)
+ 
+                 df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+                 if not df.empty:
+-                    rdf = rdf.append(df)
+-                    rdf = remove_df_duplicates(rdf)
++                    df['Symbol'] = symbol
++                    df['Date'] = df.index.strftime("%Y-%m-%d")
++                    df.index = df['Date'] #Is it required?
++                    #df = df[~df.Date.isin(rdf.Date)]
++                    # Get the data starting from the next day of the last entry in MySQL database
++                    df=df.loc[rdf['Date'][0]:].drop(rdf['Date'][0])
++                    if not df.empty:
++                        DB.write_to_sql(sql_engine, table, df)
++                        # Update the date on which the price is updated
++                        DB.update_field(collection, symbol, "bscs.price_date", today)
+                    #Update Betas
+                     #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+                     #    DB.update_stock_betas2(country, stk, df=rdf)
+-                    write_to_hdf(country, rdf, symbol)
+-                    #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
+-                    # Update the date on which the price is updated
+-                    DB.update_field(collection, symbol, "bscs.price_date", today)
++                    #write_to_hdf(country, rdf, symbol)
+                 else:
+                     PRINT_ERR("df empty for %r" %(symbol))
+     except Exception as E:
+diff --git a/internet.py b/internet.py
+index 8d3bff1e..6d109bd2 100644
+--- a/internet.py
++++ b/internet.py
+@@ -15,6 +15,8 @@ from selenium.webdriver.firefox.options import Options
+ from email.mime.multipart import MIMEMultipart
+ from email.mime.text import MIMEText
+ 
++import pymysql
++
+ import multiprocessing
+ import threading
+ 
+@@ -244,55 +246,104 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
+ 
+     DB.update_field(collection, sym, "price_change.date", str(dt.now()))
+ 
+-def update_price_change(country, collection, sym, sem):
++def update_price_change(country, collection, sym, sem, sql_engine):
+    #st_price = read.iat[0, read.columns.get_loc('Close')]
+     #en_price = read.iat[-1, read.columns.get_loc('Close')]
+-    df=pd.DataFrame() 
++    df=pd.DataFrame()
++    if country == 'India':
++        table = 'India_Stocks'
++    else:
++        table = 'US_Stocks'
+     try:
+-        df = hdf5.read_from_hdf(country, sym)
+-        #df = hdf5.read_from_hdf_store(country, sym)
+-        
+-        if df is not None and not df.empty:
+-            change = hdf5.hdf_price_change(country, sym, df, 1)
++        query = 'show tables like \'STK'+sym+'\';'
++        output= sql_engine.execute(query)
++        if output.first() is not None:
++            #df = hdf5.read_from_hdf(country, sym)
++            #df = hdf5.read_from_hdf_store(country, sym)
++            #query='select \`Adj Close\` from ' + table + ' where Symbol=\'%s\';' %(sym)
++    
++            #query='select `Adj Close` , Date from ' + 'STK' + sym.replace('.','_')+';'
++            #df = DB.read_from_sql(query, sql_engine)
++            #query = 'select \`Adj Close\` from US_Stocks where Symbol=\'%s\' and Date between date_sub(now(),INTERVAL 1 DAY) and now() order by Date desc limit 1; 
++     
++            query = 'select `Adj Close`, Date from '+'STK'+sym.replace('.','_')+' order by Date desc limit 1;'
++            df = DB.read_from_sql(query, sql_engine)
++            end = df['Adj Close'][0]
++            end_date = df['Date'][0].strftime("%Y-%m-%d")
++            end_date = '\'%s\'' %(end_date)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 1 DAY) and %s order by Date asc limit 1;' %(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.day", change)
+-            change = hdf5.hdf_price_change(country, sym, df, weeks=1)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 1 WEEK) and %s order by Date asc limit 1;'%(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.week", change)
+-            change = hdf5.hdf_price_change(country, sym, df, months=1)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 1 MONTH) and %s order by Date asc limit 1;'%(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.month", change)
+-            change = hdf5.hdf_price_change(country, sym, df, months=3)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 3 MONTH) and %s order by Date asc limit 1;'%(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.quarter", change)
+-            change = hdf5.hdf_price_change(country, sym, df, months=6)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 6 MONTH) and %s order by Date asc limit 1;' %(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.half_year", change)
+-            change = hdf5.hdf_price_change(country, sym, df, years=1)
++            query = 'select `Adj Close`, Date from STK'+sym.replace('.','_')+' where Date between date_sub(%s, INTERVAL 1 YEAR) and %s order by Date asc limit 1;'%(end_date, end_date)
++            df = DB.read_from_sql(query, sql_engine)
++            start = df['Adj Close'][0];
++            change = (end/start - 1)
+             DB.update_field(collection, sym, "price_change.year", change)
+-            if country == 'US':
+-                change = hdf5.hdf_price_change(country, sym, df, -1)
+-                DB.update_field(collection, sym, "price_change.whole", change)
+-
+-            #get 52 week high
+-            high_price = hdf5.hdf_get_high_n_days(df, 365)
+-            DB.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
+-            #get 52 week low
+-            low_price = hdf5.hdf_get_low_n_days(df, 365)
+-            DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
+-
+-            price = hdf5.hdf_get_price(sym, df, dt.now().date())
+-            
+-            if high_price == 0:
+-                change = 0
+-            else:
+-                change = (price/high_price) - 1
+-
+-            DB.update_field(collection, sym, "price_change.with_52week_high", change)
+-            
+-            if low_price == 0:
+-                change = 0
+-            else:
+-                change = (price/low_price) - 1
+-
+-            DB.update_field(collection, sym, "price_change.with_52week_low", change)
++    
++            #if df is not None and not df.empty:
++            #    change = hdf5.hdf_price_change(country, sym, df, 1)
++            #    DB.update_field(collection, sym, "price_change.day", change)
++            #    change = hdf5.hdf_price_change(country, sym, df, weeks=1)
++            #    DB.update_field(collection, sym, "price_change.week", change)
++            #    change = hdf5.hdf_price_change(country, sym, df, months=1)
++            #    DB.update_field(collection, sym, "price_change.month", change)
++            #    change = hdf5.hdf_price_change(country, sym, df, months=3)
++            #    DB.update_field(collection, sym, "price_change.quarter", change)
++            #    change = hdf5.hdf_price_change(country, sym, df, months=6)
++            #    DB.update_field(collection, sym, "price_change.half_year", change)
++            #    change = hdf5.hdf_price_change(country, sym, df, years=1)
++            #    DB.update_field(collection, sym, "price_change.year", change)
++            #    if country == 'US':
++            #        change = hdf5.hdf_price_change(country, sym, df, -1)
++            #        DB.update_field(collection, sym, "price_change.whole", change)
++    
++            #    #get 52 week high
++            #    high_price = hdf5.hdf_get_high_n_days(df, 365)
++            #    DB.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
++            #    #get 52 week low
++            #    low_price = hdf5.hdf_get_low_n_days(df, 365)
++            #    DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
++    
++            #    price = hdf5.hdf_get_price(sym, df, dt.now().date())
++            #    
++            #    if high_price == 0:
++            #        change = 0
++            #    else:
++            #        change = (price/high_price) - 1
++    
++            #    DB.update_field(collection, sym, "price_change.with_52week_high", change)
++            #    
++            #    if low_price == 0:
++            #        change = 0
++            #    else:
++            #        change = (price/low_price) - 1
++    
++            #    DB.update_field(collection, sym, "price_change.with_52week_low", change)
++    
++            #    DB.update_field(collection, sym, "price_change.date", str(dt.now()))
+ 
+-            DB.update_field(collection, sym, "price_change.date", str(dt.now()))
+     finally:
+         sem.release()
+ 
+@@ -300,6 +351,7 @@ def fork_hdf5_process(country, sem):
+     c = DB.open_db_client()
+     db = c['Stocks']
+     collection = DB.get_collection(country, db)
++    sql_engine = DB.open_sql_connection()
+     num_docs = collection.find({}).count()
+     # Randomly get all records whose price is not updated till today
+     #pipeline = [{'$sample': {'size':num_docs}},
+@@ -308,27 +360,28 @@ def fork_hdf5_process(country, sem):
+     #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+     #            ]
+ 
+-    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+-    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+- 
+-    today=str(dt.now().date())
+-    i=0
+-    for stk in stocks:
+-        if DB.ignore_stock(stk):
+-            continue
+-
+-        print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+-        sem.acquire()
+-        #update_price_change(country, collection, stk['bscs']['symbol'], sem)
+-        threading.Thread(target=update_price_change, args=(country, collection, stk['bscs']['symbol'], sem,)).start()
+-        #break
+-        i = i + 1
+-        #if i > 10:
+-        #    break
+-
+-    # Wait randomly till all threads are completed
+-    time.sleep(10)
+-    DB.close_db_client(c)
++    try:
++        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
++        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
++        today=str(dt.now().date())
++        i=0
++        for stk in stocks:
++            if DB.ignore_stock(stk):
++                continue
++
++            print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
++            sem.acquire()
++            #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
++            threading.Thread(target=update_price_change, args=(country, collection, stk['bscs']['symbol'], sem, sql_engine,)).start()
++            #break
++            i = i + 1
++            #if i > 10:
++            #    break
++    finally:
++        # Wait randomly till all threads are completed
++        time.sleep(10)
++        DB.close_db_client(c)
++        DB.close_sql_connection(sql_engine)
+     print("Total stocks: %r" %(i))
+ 
+ def fork_betas_process(country, sem):
