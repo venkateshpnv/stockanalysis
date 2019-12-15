@@ -1,0 +1,2054 @@
+diff --git a/DB.py b/DB.py
+index e25a702e..42a1e60f 100644
+--- a/DB.py
++++ b/DB.py
+@@ -24,6 +24,9 @@ import hdf5
+ import threading
+ import multiprocessing
+ 
++from influxdb import DataFrameClient
++from influxdb import InfluxDBClient
++
+ j = 0
+ class dbObject:
+     def __init__(self, **obj):
+@@ -64,6 +67,17 @@ def close_db():
+ def close_db_client(c):
+     c.close()
+ 
++def open_influx_client(country):
++    if country == 'US':
++        database='US_Stocks'
++    else:
++        database = 'India_Stocks'
++    client = DataFrameClient('localhost', 8086, 'vpetla', 'petla123', database)
++    return client
++
++def close_influx_client(c):
++    c.close()
++
+ def ignore_stock(stk):
+     if 'trading' in stk['bscs'].keys():
+         if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+diff --git a/India_Stocks/excel_files/3I Infotech Ltd.xls b/India_Stocks/excel_files/3I Infotech Ltd.xls
+deleted file mode 100644
+index bdc94395..00000000
+Binary files a/India_Stocks/excel_files/3I Infotech Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/8K Miles Software Services Ltd.xls b/India_Stocks/excel_files/8K Miles Software Services Ltd.xls
+deleted file mode 100644
+index df0d6cd1..00000000
+Binary files a/India_Stocks/excel_files/8K Miles Software Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/ACC Ltd.xls b/India_Stocks/excel_files/ACC Ltd.xls
+deleted file mode 100644
+index 55f17b69..00000000
+Binary files a/India_Stocks/excel_files/ACC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/ADF Foods Ltd.xls b/India_Stocks/excel_files/ADF Foods Ltd.xls
+deleted file mode 100644
+index 249c1070..00000000
+Binary files a/India_Stocks/excel_files/ADF Foods Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Aarey Drugs & Pharmaceuticals Ltd.xls b/India_Stocks/excel_files/Aarey Drugs & Pharmaceuticals Ltd.xls
+deleted file mode 100644
+index e3023ce9..00000000
+Binary files a/India_Stocks/excel_files/Aarey Drugs & Pharmaceuticals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Action Construction Equipment Ltd.xls b/India_Stocks/excel_files/Action Construction Equipment Ltd.xls
+deleted file mode 100644
+index 2138a317..00000000
+Binary files a/India_Stocks/excel_files/Action Construction Equipment Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Adani Gas Ltd.xls b/India_Stocks/excel_files/Adani Gas Ltd.xls
+deleted file mode 100644
+index ce011a04..00000000
+Binary files a/India_Stocks/excel_files/Adani Gas Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Adani Ports and Special Economic Zone Ltd.xls b/India_Stocks/excel_files/Adani Ports and Special Economic Zone Ltd.xls
+deleted file mode 100644
+index 8a735b01..00000000
+Binary files a/India_Stocks/excel_files/Adani Ports and Special Economic Zone Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Aditya Birla Fashion and Retail Ltd.xls b/India_Stocks/excel_files/Aditya Birla Fashion and Retail Ltd.xls
+deleted file mode 100644
+index 3a445c3e..00000000
+Binary files a/India_Stocks/excel_files/Aditya Birla Fashion and Retail Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Advanced Enzyme Technologies Ltd.xls b/India_Stocks/excel_files/Advanced Enzyme Technologies Ltd.xls
+deleted file mode 100644
+index 1516815f..00000000
+Binary files a/India_Stocks/excel_files/Advanced Enzyme Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Aegis Logistics Ltd.xls b/India_Stocks/excel_files/Aegis Logistics Ltd.xls
+deleted file mode 100644
+index 37cea981..00000000
+Binary files a/India_Stocks/excel_files/Aegis Logistics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ajanta Pharma Ltd.xls b/India_Stocks/excel_files/Ajanta Pharma Ltd.xls
+deleted file mode 100644
+index 4ebb3038..00000000
+Binary files a/India_Stocks/excel_files/Ajanta Pharma Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ajmera Realty & Infra India Ltd.xls b/India_Stocks/excel_files/Ajmera Realty & Infra India Ltd.xls
+deleted file mode 100644
+index 9b2f8efd..00000000
+Binary files a/India_Stocks/excel_files/Ajmera Realty & Infra India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Akashdeep Metal Industries Ltd.xls b/India_Stocks/excel_files/Akashdeep Metal Industries Ltd.xls
+deleted file mode 100644
+index 70c05f19..00000000
+Binary files a/India_Stocks/excel_files/Akashdeep Metal Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Aksh Optifibre Ltd.xls b/India_Stocks/excel_files/Aksh Optifibre Ltd.xls
+deleted file mode 100644
+index f08e0627..00000000
+Binary files a/India_Stocks/excel_files/Aksh Optifibre Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Alankit Ltd.xls b/India_Stocks/excel_files/Alankit Ltd.xls
+deleted file mode 100644
+index 103c4647..00000000
+Binary files a/India_Stocks/excel_files/Alankit Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Alembic Ltd.xls b/India_Stocks/excel_files/Alembic Ltd.xls
+deleted file mode 100644
+index c9dfb4c5..00000000
+Binary files a/India_Stocks/excel_files/Alembic Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Allcargo Logistics Ltd.xls b/India_Stocks/excel_files/Allcargo Logistics Ltd.xls
+deleted file mode 100644
+index 4688b235..00000000
+Binary files a/India_Stocks/excel_files/Allcargo Logistics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ambuja Cements Ltd.xls b/India_Stocks/excel_files/Ambuja Cements Ltd.xls
+deleted file mode 100644
+index a685515d..00000000
+Binary files a/India_Stocks/excel_files/Ambuja Cements Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Anant Raj Ltd.xls b/India_Stocks/excel_files/Anant Raj Ltd.xls
+deleted file mode 100644
+index 0e2424e9..00000000
+Binary files a/India_Stocks/excel_files/Anant Raj Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Apex Frozen Foods Ltd.xls b/India_Stocks/excel_files/Apex Frozen Foods Ltd.xls
+deleted file mode 100644
+index 90c17fef..00000000
+Binary files a/India_Stocks/excel_files/Apex Frozen Foods Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Apollo Tyres Ltd.xls b/India_Stocks/excel_files/Apollo Tyres Ltd.xls
+deleted file mode 100644
+index cae8247f..00000000
+Binary files a/India_Stocks/excel_files/Apollo Tyres Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Arshiya Ltd.xls b/India_Stocks/excel_files/Arshiya Ltd.xls
+deleted file mode 100644
+index 3fd11de1..00000000
+Binary files a/India_Stocks/excel_files/Arshiya Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Arvind Ltd.xls b/India_Stocks/excel_files/Arvind Ltd.xls
+deleted file mode 100644
+index 0d4f28fb..00000000
+Binary files a/India_Stocks/excel_files/Arvind Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ashok Leyland Ltd.xls b/India_Stocks/excel_files/Ashok Leyland Ltd.xls
+deleted file mode 100644
+index 60c8d9be..00000000
+Binary files a/India_Stocks/excel_files/Ashok Leyland Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Astra Microwave Products Ltd.xls b/India_Stocks/excel_files/Astra Microwave Products Ltd.xls
+deleted file mode 100644
+index 1c0302bc..00000000
+Binary files a/India_Stocks/excel_files/Astra Microwave Products Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Astral Poly Technik Ltd.xls b/India_Stocks/excel_files/Astral Poly Technik Ltd.xls
+deleted file mode 100644
+index 99a36a47..00000000
+Binary files a/India_Stocks/excel_files/Astral Poly Technik Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Astron Paper & Board Mill Ltd.xls b/India_Stocks/excel_files/Astron Paper & Board Mill Ltd.xls
+deleted file mode 100644
+index dbec9a96..00000000
+Binary files a/India_Stocks/excel_files/Astron Paper & Board Mill Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Aurobindo Pharma Ltd.xls b/India_Stocks/excel_files/Aurobindo Pharma Ltd.xls
+deleted file mode 100644
+index a274adee..00000000
+Binary files a/India_Stocks/excel_files/Aurobindo Pharma Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Automotive Axles Ltd.xls b/India_Stocks/excel_files/Automotive Axles Ltd.xls
+deleted file mode 100644
+index dc511503..00000000
+Binary files a/India_Stocks/excel_files/Automotive Axles Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Avanti Feeds Ltd.xls b/India_Stocks/excel_files/Avanti Feeds Ltd.xls
+deleted file mode 100644
+index 0b9a2581..00000000
+Binary files a/India_Stocks/excel_files/Avanti Feeds Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BAG Films & Media Ltd.xls b/India_Stocks/excel_files/BAG Films & Media Ltd.xls
+deleted file mode 100644
+index 6caffda7..00000000
+Binary files a/India_Stocks/excel_files/BAG Films & Media Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BC Power Controls Ltd.xls b/India_Stocks/excel_files/BC Power Controls Ltd.xls
+deleted file mode 100644
+index a79f9d93..00000000
+Binary files a/India_Stocks/excel_files/BC Power Controls Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BF Investment Ltd.xls b/India_Stocks/excel_files/BF Investment Ltd.xls
+deleted file mode 100644
+index 7bfb298d..00000000
+Binary files a/India_Stocks/excel_files/BF Investment Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BF Utilities Ltd.xls b/India_Stocks/excel_files/BF Utilities Ltd.xls
+deleted file mode 100644
+index 4a1c2e21..00000000
+Binary files a/India_Stocks/excel_files/BF Utilities Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BL Kashyap & Sons Ltd.xls b/India_Stocks/excel_files/BL Kashyap & Sons Ltd.xls
+deleted file mode 100644
+index 45f9f32a..00000000
+Binary files a/India_Stocks/excel_files/BL Kashyap & Sons Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/BLS International Services Ltd.xls b/India_Stocks/excel_files/BLS International Services Ltd.xls
+deleted file mode 100644
+index 526590b1..00000000
+Binary files a/India_Stocks/excel_files/BLS International Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bajaj Auto Ltd.xls b/India_Stocks/excel_files/Bajaj Auto Ltd.xls
+deleted file mode 100644
+index 63f0fe17..00000000
+Binary files a/India_Stocks/excel_files/Bajaj Auto Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bajaj Finserv Ltd.xls b/India_Stocks/excel_files/Bajaj Finserv Ltd.xls
+deleted file mode 100644
+index c0f18073..00000000
+Binary files a/India_Stocks/excel_files/Bajaj Finserv Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Balkrishna Industries Ltd.xls b/India_Stocks/excel_files/Balkrishna Industries Ltd.xls
+deleted file mode 100644
+index 04fc2697..00000000
+Binary files a/India_Stocks/excel_files/Balkrishna Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Balrampur Chini Mills Ltd.xls b/India_Stocks/excel_files/Balrampur Chini Mills Ltd.xls
+deleted file mode 100644
+index b24db43c..00000000
+Binary files a/India_Stocks/excel_files/Balrampur Chini Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bhandari Hosiery Exports Ltd.xls b/India_Stocks/excel_files/Bhandari Hosiery Exports Ltd.xls
+deleted file mode 100644
+index d432c672..00000000
+Binary files a/India_Stocks/excel_files/Bhandari Hosiery Exports Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bhansali Engineering Polymers Ltd.xls b/India_Stocks/excel_files/Bhansali Engineering Polymers Ltd.xls
+deleted file mode 100644
+index 491a07e4..00000000
+Binary files a/India_Stocks/excel_files/Bhansali Engineering Polymers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bharat Electronics Ltd.xls b/India_Stocks/excel_files/Bharat Electronics Ltd.xls
+deleted file mode 100644
+index 42bc1bd7..00000000
+Binary files a/India_Stocks/excel_files/Bharat Electronics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bharat Financial Inclusion Ltd.xls b/India_Stocks/excel_files/Bharat Financial Inclusion Ltd.xls
+deleted file mode 100644
+index 86b0accf..00000000
+Binary files a/India_Stocks/excel_files/Bharat Financial Inclusion Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bharat Petroleum Corporation Ltd.xls b/India_Stocks/excel_files/Bharat Petroleum Corporation Ltd.xls
+deleted file mode 100644
+index 4750c56a..00000000
+Binary files a/India_Stocks/excel_files/Bharat Petroleum Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bharat Road Network Ltd.xls b/India_Stocks/excel_files/Bharat Road Network Ltd.xls
+deleted file mode 100644
+index fd2c12df..00000000
+Binary files a/India_Stocks/excel_files/Bharat Road Network Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Birla Cable Ltd.xls b/India_Stocks/excel_files/Birla Cable Ltd.xls
+deleted file mode 100644
+index 8ce80158..00000000
+Binary files a/India_Stocks/excel_files/Birla Cable Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Birla Corporation Ltd.xls b/India_Stocks/excel_files/Birla Corporation Ltd.xls
+deleted file mode 100644
+index 6cf12c18..00000000
+Binary files a/India_Stocks/excel_files/Birla Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Birla Precision Technologies Ltd.xls b/India_Stocks/excel_files/Birla Precision Technologies Ltd.xls
+deleted file mode 100644
+index 62c771ad..00000000
+Binary files a/India_Stocks/excel_files/Birla Precision Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Birlasoft Ltd.xls b/India_Stocks/excel_files/Birlasoft Ltd.xls
+deleted file mode 100644
+index e99aab73..00000000
+Binary files a/India_Stocks/excel_files/Birlasoft Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bliss GVS Pharma Ltd.xls b/India_Stocks/excel_files/Bliss GVS Pharma Ltd.xls
+deleted file mode 100644
+index f7208bd5..00000000
+Binary files a/India_Stocks/excel_files/Bliss GVS Pharma Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Bodal Chemicals Ltd.xls b/India_Stocks/excel_files/Bodal Chemicals Ltd.xls
+deleted file mode 100644
+index 89d348d8..00000000
+Binary files a/India_Stocks/excel_files/Bodal Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Borosil Glass Works Ltd.xls b/India_Stocks/excel_files/Borosil Glass Works Ltd.xls
+deleted file mode 100644
+index b039ec67..00000000
+Binary files a/India_Stocks/excel_files/Borosil Glass Works Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Brigade Enterprises Ltd.xls b/India_Stocks/excel_files/Brigade Enterprises Ltd.xls
+deleted file mode 100644
+index 04218e2b..00000000
+Binary files a/India_Stocks/excel_files/Brigade Enterprises Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Brightcom Group Ltd.xls b/India_Stocks/excel_files/Brightcom Group Ltd.xls
+deleted file mode 100644
+index 7dc2f673..00000000
+Binary files a/India_Stocks/excel_files/Brightcom Group Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Burnpur Cement Ltd.xls b/India_Stocks/excel_files/Burnpur Cement Ltd.xls
+deleted file mode 100644
+index da7bcd2d..00000000
+Binary files a/India_Stocks/excel_files/Burnpur Cement Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Butterfly Gandhimathi Appliances Ltd.xls b/India_Stocks/excel_files/Butterfly Gandhimathi Appliances Ltd.xls
+deleted file mode 100644
+index 810a510b..00000000
+Binary files a/India_Stocks/excel_files/Butterfly Gandhimathi Appliances Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/CCL Products (India) Ltd.xls b/India_Stocks/excel_files/CCL Products (India) Ltd.xls
+deleted file mode 100644
+index 25c4feff..00000000
+Binary files a/India_Stocks/excel_files/CCL Products (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/CESC Ltd.xls b/India_Stocks/excel_files/CESC Ltd.xls
+deleted file mode 100644
+index 9509769a..00000000
+Binary files a/India_Stocks/excel_files/CESC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/CMI Ltd.xls b/India_Stocks/excel_files/CMI Ltd.xls
+deleted file mode 100644
+index 3a87830f..00000000
+Binary files a/India_Stocks/excel_files/CMI Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/CRP Risk Management Ltd.xls b/India_Stocks/excel_files/CRP Risk Management Ltd.xls
+deleted file mode 100644
+index 07f83856..00000000
+Binary files a/India_Stocks/excel_files/CRP Risk Management Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cadila Healthcare Ltd.xls b/India_Stocks/excel_files/Cadila Healthcare Ltd.xls
+deleted file mode 100644
+index 3265a915..00000000
+Binary files a/India_Stocks/excel_files/Cadila Healthcare Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Can Fin Homes Ltd.xls b/India_Stocks/excel_files/Can Fin Homes Ltd.xls
+deleted file mode 100644
+index b1d25023..00000000
+Binary files a/India_Stocks/excel_files/Can Fin Homes Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Capacite Infraprojects Ltd.xls b/India_Stocks/excel_files/Capacite Infraprojects Ltd.xls
+deleted file mode 100644
+index b92b5d76..00000000
+Binary files a/India_Stocks/excel_files/Capacite Infraprojects Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Capital Trade Links Ltd.xls b/India_Stocks/excel_files/Capital Trade Links Ltd.xls
+deleted file mode 100644
+index cef07a4b..00000000
+Binary files a/India_Stocks/excel_files/Capital Trade Links Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Caplin Point Laboratories Ltd.xls b/India_Stocks/excel_files/Caplin Point Laboratories Ltd.xls
+deleted file mode 100644
+index 5a7d4d91..00000000
+Binary files a/India_Stocks/excel_files/Caplin Point Laboratories Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Care Ratings Ltd.xls b/India_Stocks/excel_files/Care Ratings Ltd.xls
+deleted file mode 100644
+index 56227d5b..00000000
+Binary files a/India_Stocks/excel_files/Care Ratings Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Castrol India Ltd.xls b/India_Stocks/excel_files/Castrol India Ltd.xls
+deleted file mode 100644
+index 030b4211..00000000
+Binary files a/India_Stocks/excel_files/Castrol India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ceat Ltd.xls b/India_Stocks/excel_files/Ceat Ltd.xls
+deleted file mode 100644
+index d68f58d0..00000000
+Binary files a/India_Stocks/excel_files/Ceat Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Centrum Capital Ltd.xls b/India_Stocks/excel_files/Centrum Capital Ltd.xls
+deleted file mode 100644
+index bb44c9ee..00000000
+Binary files a/India_Stocks/excel_files/Centrum Capital Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Century Extrusions Ltd.xls b/India_Stocks/excel_files/Century Extrusions Ltd.xls
+deleted file mode 100644
+index 369c15f3..00000000
+Binary files a/India_Stocks/excel_files/Century Extrusions Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Chaman Lal Setia Exports Ltd.xls b/India_Stocks/excel_files/Chaman Lal Setia Exports Ltd.xls
+deleted file mode 100644
+index 3219a727..00000000
+Binary files a/India_Stocks/excel_files/Chaman Lal Setia Exports Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Chambal Fertilisers & Chemicals Ltd.xls b/India_Stocks/excel_files/Chambal Fertilisers & Chemicals Ltd.xls
+deleted file mode 100644
+index 775b54e8..00000000
+Binary files a/India_Stocks/excel_files/Chambal Fertilisers & Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Chennai Petroleum Corporation Ltd.xls b/India_Stocks/excel_files/Chennai Petroleum Corporation Ltd.xls
+deleted file mode 100644
+index 05cdcd8d..00000000
+Binary files a/India_Stocks/excel_files/Chennai Petroleum Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cholamandalam Investment & Finance Company Ltd.xls b/India_Stocks/excel_files/Cholamandalam Investment & Finance Company Ltd.xls
+deleted file mode 100644
+index db2af5af..00000000
+Binary files a/India_Stocks/excel_files/Cholamandalam Investment & Finance Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/City Union Bank Ltd.xls b/India_Stocks/excel_files/City Union Bank Ltd.xls
+deleted file mode 100644
+index 722f6158..00000000
+Binary files a/India_Stocks/excel_files/City Union Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Coal India Ltd.xls b/India_Stocks/excel_files/Coal India Ltd.xls
+deleted file mode 100644
+index bd0fecd1..00000000
+Binary files a/India_Stocks/excel_files/Coal India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cochin Shipyard Ltd.xls b/India_Stocks/excel_files/Cochin Shipyard Ltd.xls
+deleted file mode 100644
+index 5a088c17..00000000
+Binary files a/India_Stocks/excel_files/Cochin Shipyard Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Compuage Infocom Ltd.xls b/India_Stocks/excel_files/Compuage Infocom Ltd.xls
+deleted file mode 100644
+index 603913f8..00000000
+Binary files a/India_Stocks/excel_files/Compuage Infocom Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Confidence Petroleum India Ltd.xls b/India_Stocks/excel_files/Confidence Petroleum India Ltd.xls
+deleted file mode 100644
+index 8249e166..00000000
+Binary files a/India_Stocks/excel_files/Confidence Petroleum India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Container Corporation Of India Ltd.xls b/India_Stocks/excel_files/Container Corporation Of India Ltd.xls
+deleted file mode 100644
+index a1fa32ea..00000000
+Binary files a/India_Stocks/excel_files/Container Corporation Of India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Coromandel International Ltd.xls b/India_Stocks/excel_files/Coromandel International Ltd.xls
+deleted file mode 100644
+index 2ed2725b..00000000
+Binary files a/India_Stocks/excel_files/Coromandel International Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cox & Kings (India) Ltd.xls b/India_Stocks/excel_files/Cox & Kings (India) Ltd.xls
+deleted file mode 100644
+index 86e29236..00000000
+Binary files a/India_Stocks/excel_files/Cox & Kings (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/CreditAccess Grameen Ltd.xls b/India_Stocks/excel_files/CreditAccess Grameen Ltd.xls
+deleted file mode 100644
+index 71898463..00000000
+Binary files a/India_Stocks/excel_files/CreditAccess Grameen Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Crompton Greaves Consumer Electricals Ltd.xls b/India_Stocks/excel_files/Crompton Greaves Consumer Electricals Ltd.xls
+deleted file mode 100644
+index ef3e6f3b..00000000
+Binary files a/India_Stocks/excel_files/Crompton Greaves Consumer Electricals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cummins India Ltd.xls b/India_Stocks/excel_files/Cummins India Ltd.xls
+deleted file mode 100644
+index 3c9b505f..00000000
+Binary files a/India_Stocks/excel_files/Cummins India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Cupid Ltd.xls b/India_Stocks/excel_files/Cupid Ltd.xls
+deleted file mode 100644
+index c71ba270..00000000
+Binary files a/India_Stocks/excel_files/Cupid Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/DB Corp Ltd.xls b/India_Stocks/excel_files/DB Corp Ltd.xls
+deleted file mode 100644
+index 59d16a9d..00000000
+Binary files a/India_Stocks/excel_files/DB Corp Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/DCB Bank Ltd.xls b/India_Stocks/excel_files/DCB Bank Ltd.xls
+deleted file mode 100644
+index 566dfa06..00000000
+Binary files a/India_Stocks/excel_files/DCB Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/DCM Shriram Ltd.xls b/India_Stocks/excel_files/DCM Shriram Ltd.xls
+deleted file mode 100644
+index 2c88f73b..00000000
+Binary files a/India_Stocks/excel_files/DCM Shriram Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dalmia Bharat Sugar & Industries Ltd.xls b/India_Stocks/excel_files/Dalmia Bharat Sugar & Industries Ltd.xls
+deleted file mode 100644
+index 67cf6fa9..00000000
+Binary files a/India_Stocks/excel_files/Dalmia Bharat Sugar & Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Datamatics Global Services Ltd.xls b/India_Stocks/excel_files/Datamatics Global Services Ltd.xls
+deleted file mode 100644
+index d423f29d..00000000
+Binary files a/India_Stocks/excel_files/Datamatics Global Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Deep Industries Ltd.xls b/India_Stocks/excel_files/Deep Industries Ltd.xls
+deleted file mode 100644
+index d5daac98..00000000
+Binary files a/India_Stocks/excel_files/Deep Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Deepak Fertilisers & Petrochemicals Corporation Ltd.xls b/India_Stocks/excel_files/Deepak Fertilisers & Petrochemicals Corporation Ltd.xls
+deleted file mode 100644
+index db90130f..00000000
+Binary files a/India_Stocks/excel_files/Deepak Fertilisers & Petrochemicals Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Delta Corp Ltd.xls b/India_Stocks/excel_files/Delta Corp Ltd.xls
+deleted file mode 100644
+index 13b1fa7a..00000000
+Binary files a/India_Stocks/excel_files/Delta Corp Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dewan Housing Finance Corporation Ltd.xls b/India_Stocks/excel_files/Dewan Housing Finance Corporation Ltd.xls
+deleted file mode 100644
+index 2e87b3d9..00000000
+Binary files a/India_Stocks/excel_files/Dewan Housing Finance Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dhampur Sugar Mills Ltd.xls b/India_Stocks/excel_files/Dhampur Sugar Mills Ltd.xls
+deleted file mode 100644
+index 7c0336ea..00000000
+Binary files a/India_Stocks/excel_files/Dhampur Sugar Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dilip Buildcon Ltd.xls b/India_Stocks/excel_files/Dilip Buildcon Ltd.xls
+deleted file mode 100644
+index 042147b4..00000000
+Binary files a/India_Stocks/excel_files/Dilip Buildcon Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dish TV India Ltd.xls b/India_Stocks/excel_files/Dish TV India Ltd.xls
+deleted file mode 100644
+index dcc88664..00000000
+Binary files a/India_Stocks/excel_files/Dish TV India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Donear Industries Ltd.xls b/India_Stocks/excel_files/Donear Industries Ltd.xls
+deleted file mode 100644
+index eb6a33dc..00000000
+Binary files a/India_Stocks/excel_files/Donear Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dr Reddys Laboratories Ltd.xls b/India_Stocks/excel_files/Dr Reddys Laboratories Ltd.xls
+deleted file mode 100644
+index 320cecfc..00000000
+Binary files a/India_Stocks/excel_files/Dr Reddys Laboratories Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ducon Infratechnologies Ltd.xls b/India_Stocks/excel_files/Ducon Infratechnologies Ltd.xls
+deleted file mode 100644
+index 2eb4e242..00000000
+Binary files a/India_Stocks/excel_files/Ducon Infratechnologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Dwarikesh Sugar Industries Ltd.xls b/India_Stocks/excel_files/Dwarikesh Sugar Industries Ltd.xls
+deleted file mode 100644
+index 7c962a3f..00000000
+Binary files a/India_Stocks/excel_files/Dwarikesh Sugar Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Edelweiss Financial Services Ltd.xls b/India_Stocks/excel_files/Edelweiss Financial Services Ltd.xls
+deleted file mode 100644
+index c3f27c64..00000000
+Binary files a/India_Stocks/excel_files/Edelweiss Financial Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Eicher Motors Ltd.xls b/India_Stocks/excel_files/Eicher Motors Ltd.xls
+deleted file mode 100644
+index 431412f5..00000000
+Binary files a/India_Stocks/excel_files/Eicher Motors Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Electrosteel Castings Ltd.xls b/India_Stocks/excel_files/Electrosteel Castings Ltd.xls
+deleted file mode 100644
+index 6c37206b..00000000
+Binary files a/India_Stocks/excel_files/Electrosteel Castings Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Emkay Global Financial Services Ltd.xls b/India_Stocks/excel_files/Emkay Global Financial Services Ltd.xls
+deleted file mode 100644
+index b8fb80e8..00000000
+Binary files a/India_Stocks/excel_files/Emkay Global Financial Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Eris Lifesciences Ltd.xls b/India_Stocks/excel_files/Eris Lifesciences Ltd.xls
+deleted file mode 100644
+index 159828da..00000000
+Binary files a/India_Stocks/excel_files/Eris Lifesciences Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Eros International Media Ltd.xls b/India_Stocks/excel_files/Eros International Media Ltd.xls
+deleted file mode 100644
+index afa4c035..00000000
+Binary files a/India_Stocks/excel_files/Eros International Media Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Escorts Ltd.xls b/India_Stocks/excel_files/Escorts Ltd.xls
+deleted file mode 100644
+index 9fc36fef..00000000
+Binary files a/India_Stocks/excel_files/Escorts Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Essel Propack Ltd.xls b/India_Stocks/excel_files/Essel Propack Ltd.xls
+deleted file mode 100644
+index 7a771833..00000000
+Binary files a/India_Stocks/excel_files/Essel Propack Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Everest Kanto Cylinder Ltd.xls b/India_Stocks/excel_files/Everest Kanto Cylinder Ltd.xls
+deleted file mode 100644
+index 6fa91b6c..00000000
+Binary files a/India_Stocks/excel_files/Everest Kanto Cylinder Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Excel Realty N Infra Ltd.xls b/India_Stocks/excel_files/Excel Realty N Infra Ltd.xls
+deleted file mode 100644
+index 78a3c44e..00000000
+Binary files a/India_Stocks/excel_files/Excel Realty N Infra Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Filatex India Ltd.xls b/India_Stocks/excel_files/Filatex India Ltd.xls
+deleted file mode 100644
+index 4c9433c5..00000000
+Binary files a/India_Stocks/excel_files/Filatex India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Filtra Consultants and Engineers Ltd.xls b/India_Stocks/excel_files/Filtra Consultants and Engineers Ltd.xls
+deleted file mode 100644
+index ee3cdc14..00000000
+Binary files a/India_Stocks/excel_files/Filtra Consultants and Engineers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Finolex Cables Ltd.xls b/India_Stocks/excel_files/Finolex Cables Ltd.xls
+deleted file mode 100644
+index d1e45753..00000000
+Binary files a/India_Stocks/excel_files/Finolex Cables Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Firstsource Solutions Ltd.xls b/India_Stocks/excel_files/Firstsource Solutions Ltd.xls
+deleted file mode 100644
+index d8116715..00000000
+Binary files a/India_Stocks/excel_files/Firstsource Solutions Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Force Motors Ltd.xls b/India_Stocks/excel_files/Force Motors Ltd.xls
+deleted file mode 100644
+index 66691360..00000000
+Binary files a/India_Stocks/excel_files/Force Motors Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Future Retail Ltd.xls b/India_Stocks/excel_files/Future Retail Ltd.xls
+deleted file mode 100644
+index f4fa471c..00000000
+Binary files a/India_Stocks/excel_files/Future Retail Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/GAIL (India) Ltd.xls b/India_Stocks/excel_files/GAIL (India) Ltd.xls
+deleted file mode 100644
+index 0662cbd6..00000000
+Binary files a/India_Stocks/excel_files/GAIL (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/GHCL Ltd.xls b/India_Stocks/excel_files/GHCL Ltd.xls
+deleted file mode 100644
+index da9c8a54..00000000
+Binary files a/India_Stocks/excel_files/GHCL Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/GIC Housing Finance Ltd.xls b/India_Stocks/excel_files/GIC Housing Finance Ltd.xls
+deleted file mode 100644
+index 85bbbb88..00000000
+Binary files a/India_Stocks/excel_files/GIC Housing Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/GNA Axles Ltd.xls b/India_Stocks/excel_files/GNA Axles Ltd.xls
+deleted file mode 100644
+index 00ffa65b..00000000
+Binary files a/India_Stocks/excel_files/GNA Axles Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/GSS Infotech Ltd.xls b/India_Stocks/excel_files/GSS Infotech Ltd.xls
+deleted file mode 100644
+index 225161c2..00000000
+Binary files a/India_Stocks/excel_files/GSS Infotech Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gabriel India Ltd.xls b/India_Stocks/excel_files/Gabriel India Ltd.xls
+deleted file mode 100644
+index 39b75a14..00000000
+Binary files a/India_Stocks/excel_files/Gabriel India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gallantt Ispat Ltd.xls b/India_Stocks/excel_files/Gallantt Ispat Ltd.xls
+deleted file mode 100644
+index ed2f3aaf..00000000
+Binary files a/India_Stocks/excel_files/Gallantt Ispat Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ganesh Benzoplast Ltd.xls b/India_Stocks/excel_files/Ganesh Benzoplast Ltd.xls
+deleted file mode 100644
+index ca9cbaf3..00000000
+Binary files a/India_Stocks/excel_files/Ganesh Benzoplast Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Garden Reach Shipbuilders & Engineers Ltd.xls b/India_Stocks/excel_files/Garden Reach Shipbuilders & Engineers Ltd.xls
+deleted file mode 100644
+index 6da4151a..00000000
+Binary files a/India_Stocks/excel_files/Garden Reach Shipbuilders & Engineers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gateway Distriparks Ltd.xls b/India_Stocks/excel_files/Gateway Distriparks Ltd.xls
+deleted file mode 100644
+index 7072a842..00000000
+Binary files a/India_Stocks/excel_files/Gateway Distriparks Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gautam Exim Ltd.xls b/India_Stocks/excel_files/Gautam Exim Ltd.xls
+deleted file mode 100644
+index f83e5e61..00000000
+Binary files a/India_Stocks/excel_files/Gautam Exim Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/General Insurance Corporation of India Ltd.xls b/India_Stocks/excel_files/General Insurance Corporation of India Ltd.xls
+deleted file mode 100644
+index 4d1b64b2..00000000
+Binary files a/India_Stocks/excel_files/General Insurance Corporation of India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Genus Power Infrastructures Ltd.xls b/India_Stocks/excel_files/Genus Power Infrastructures Ltd.xls
+deleted file mode 100644
+index 55c3b5ec..00000000
+Binary files a/India_Stocks/excel_files/Genus Power Infrastructures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Geojit Financial Services Ltd.xls b/India_Stocks/excel_files/Geojit Financial Services Ltd.xls
+deleted file mode 100644
+index 533b9b19..00000000
+Binary files a/India_Stocks/excel_files/Geojit Financial Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Glenmark Pharmaceuticals Ltd.xls b/India_Stocks/excel_files/Glenmark Pharmaceuticals Ltd.xls
+deleted file mode 100644
+index 2742223d..00000000
+Binary files a/India_Stocks/excel_files/Glenmark Pharmaceuticals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Godawari Power & Ispat Ltd.xls b/India_Stocks/excel_files/Godawari Power & Ispat Ltd.xls
+deleted file mode 100644
+index 4f8e2794..00000000
+Binary files a/India_Stocks/excel_files/Godawari Power & Ispat Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Godrej Consumer Products Ltd.xls b/India_Stocks/excel_files/Godrej Consumer Products Ltd.xls
+deleted file mode 100644
+index d08e010a..00000000
+Binary files a/India_Stocks/excel_files/Godrej Consumer Products Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gopala Polyplast Ltd.xls b/India_Stocks/excel_files/Gopala Polyplast Ltd.xls
+deleted file mode 100644
+index 4a780bff..00000000
+Binary files a/India_Stocks/excel_files/Gopala Polyplast Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Granules India Ltd.xls b/India_Stocks/excel_files/Granules India Ltd.xls
+deleted file mode 100644
+index 30011bab..00000000
+Binary files a/India_Stocks/excel_files/Granules India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Graphite India Ltd.xls b/India_Stocks/excel_files/Graphite India Ltd.xls
+deleted file mode 100644
+index ca7a665d..00000000
+Binary files a/India_Stocks/excel_files/Graphite India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Grasim Industries Ltd.xls b/India_Stocks/excel_files/Grasim Industries Ltd.xls
+deleted file mode 100644
+index 4fd67522..00000000
+Binary files a/India_Stocks/excel_files/Grasim Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Grauer & Weil (India) Ltd.xls b/India_Stocks/excel_files/Grauer & Weil (India) Ltd.xls
+deleted file mode 100644
+index cea7176d..00000000
+Binary files a/India_Stocks/excel_files/Grauer & Weil (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gravita India Ltd.xls b/India_Stocks/excel_files/Gravita India Ltd.xls
+deleted file mode 100644
+index 73d1e636..00000000
+Binary files a/India_Stocks/excel_files/Gravita India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Greaves Cotton Ltd.xls b/India_Stocks/excel_files/Greaves Cotton Ltd.xls
+deleted file mode 100644
+index 8eeaacc4..00000000
+Binary files a/India_Stocks/excel_files/Greaves Cotton Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Greenply Industries Ltd.xls b/India_Stocks/excel_files/Greenply Industries Ltd.xls
+deleted file mode 100644
+index 9b80979a..00000000
+Binary files a/India_Stocks/excel_files/Greenply Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gruh Finance Ltd.xls b/India_Stocks/excel_files/Gruh Finance Ltd.xls
+deleted file mode 100644
+index 57f287b3..00000000
+Binary files a/India_Stocks/excel_files/Gruh Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gufic Biosciences Ltd.xls b/India_Stocks/excel_files/Gufic Biosciences Ltd.xls
+deleted file mode 100644
+index 226d337a..00000000
+Binary files a/India_Stocks/excel_files/Gufic Biosciences Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Alkalies & Chemicals Ltd.xls b/India_Stocks/excel_files/Gujarat Alkalies & Chemicals Ltd.xls
+deleted file mode 100644
+index 1458e744..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Alkalies & Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Fluorochemicals Ltd.xls b/India_Stocks/excel_files/Gujarat Fluorochemicals Ltd.xls
+deleted file mode 100644
+index a43c5365..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Fluorochemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Gas Ltd.xls b/India_Stocks/excel_files/Gujarat Gas Ltd.xls
+deleted file mode 100644
+index 546c72ea..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Gas Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Industries Power Company Ltd.xls b/India_Stocks/excel_files/Gujarat Industries Power Company Ltd.xls
+deleted file mode 100644
+index 0eb5cdda..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Industries Power Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Mineral Development  Corporation Ltd.xls b/India_Stocks/excel_files/Gujarat Mineral Development  Corporation Ltd.xls
+deleted file mode 100644
+index b7959640..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Mineral Development  Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Narmada Valley Fertilizers & Chemicals Ltd.xls b/India_Stocks/excel_files/Gujarat Narmada Valley Fertilizers & Chemicals Ltd.xls
+deleted file mode 100644
+index a941d3a6..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Narmada Valley Fertilizers & Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat Sidhee Cement Ltd.xls b/India_Stocks/excel_files/Gujarat Sidhee Cement Ltd.xls
+deleted file mode 100644
+index ef0082de..00000000
+Binary files a/India_Stocks/excel_files/Gujarat Sidhee Cement Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat State Fertilizers & Chemicals Ltd.xls b/India_Stocks/excel_files/Gujarat State Fertilizers & Chemicals Ltd.xls
+deleted file mode 100644
+index f41df53f..00000000
+Binary files a/India_Stocks/excel_files/Gujarat State Fertilizers & Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Gujarat State Petronet Ltd.xls b/India_Stocks/excel_files/Gujarat State Petronet Ltd.xls
+deleted file mode 100644
+index 7fdc98db..00000000
+Binary files a/India_Stocks/excel_files/Gujarat State Petronet Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HCL Technologies Ltd.xls b/India_Stocks/excel_files/HCL Technologies Ltd.xls
+deleted file mode 100644
+index 2e40a86c..00000000
+Binary files a/India_Stocks/excel_files/HCL Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HDFC Asset Management Company Ltd.xls b/India_Stocks/excel_files/HDFC Asset Management Company Ltd.xls
+deleted file mode 100644
+index 595c6761..00000000
+Binary files a/India_Stocks/excel_files/HDFC Asset Management Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HDFC Bank Ltd.xls b/India_Stocks/excel_files/HDFC Bank Ltd.xls
+deleted file mode 100644
+index 1130d0e2..00000000
+Binary files a/India_Stocks/excel_files/HDFC Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HEG Ltd.xls b/India_Stocks/excel_files/HEG Ltd.xls
+deleted file mode 100644
+index 095a1f1d..00000000
+Binary files a/India_Stocks/excel_files/HEG Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HPL Electric & Power Ltd.xls b/India_Stocks/excel_files/HPL Electric & Power Ltd.xls
+deleted file mode 100644
+index c5378f76..00000000
+Binary files a/India_Stocks/excel_files/HPL Electric & Power Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HSIL Ltd.xls b/India_Stocks/excel_files/HSIL Ltd.xls
+deleted file mode 100644
+index 8ce6625a..00000000
+Binary files a/India_Stocks/excel_files/HSIL Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/HT Media Ltd.xls b/India_Stocks/excel_files/HT Media Ltd.xls
+deleted file mode 100644
+index 78f592f2..00000000
+Binary files a/India_Stocks/excel_files/HT Media Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Heidelberg Cement India Ltd.xls b/India_Stocks/excel_files/Heidelberg Cement India Ltd.xls
+deleted file mode 100644
+index bf09cdc6..00000000
+Binary files a/India_Stocks/excel_files/Heidelberg Cement India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hero MotoCorp Ltd.xls b/India_Stocks/excel_files/Hero MotoCorp Ltd.xls
+deleted file mode 100644
+index 0cb2e714..00000000
+Binary files a/India_Stocks/excel_files/Hero MotoCorp Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hexaware Technologies Ltd.xls b/India_Stocks/excel_files/Hexaware Technologies Ltd.xls
+deleted file mode 100644
+index 3ba77f79..00000000
+Binary files a/India_Stocks/excel_files/Hexaware Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hikal Ltd.xls b/India_Stocks/excel_files/Hikal Ltd.xls
+deleted file mode 100644
+index 8576aa10..00000000
+Binary files a/India_Stocks/excel_files/Hikal Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Himachal Futuristic Communications Ltd.xls b/India_Stocks/excel_files/Himachal Futuristic Communications Ltd.xls
+deleted file mode 100644
+index dad1886b..00000000
+Binary files a/India_Stocks/excel_files/Himachal Futuristic Communications Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Himadri Speciality Chemical Ltd.xls b/India_Stocks/excel_files/Himadri Speciality Chemical Ltd.xls
+deleted file mode 100644
+index fc8e2146..00000000
+Binary files a/India_Stocks/excel_files/Himadri Speciality Chemical Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Himatsingka Seide Ltd.xls b/India_Stocks/excel_files/Himatsingka Seide Ltd.xls
+deleted file mode 100644
+index b1e557da..00000000
+Binary files a/India_Stocks/excel_files/Himatsingka Seide Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hindalco Industries Ltd.xls b/India_Stocks/excel_files/Hindalco Industries Ltd.xls
+deleted file mode 100644
+index a8a873eb..00000000
+Binary files a/India_Stocks/excel_files/Hindalco Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hindustan Petroleum Corporation Ltd.xls b/India_Stocks/excel_files/Hindustan Petroleum Corporation Ltd.xls
+deleted file mode 100644
+index f292da69..00000000
+Binary files a/India_Stocks/excel_files/Hindustan Petroleum Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Hindustan Zinc Ltd.xls b/India_Stocks/excel_files/Hindustan Zinc Ltd.xls
+deleted file mode 100644
+index f077ca65..00000000
+Binary files a/India_Stocks/excel_files/Hindustan Zinc Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Housing Development & Infrastructure Ltd.xls b/India_Stocks/excel_files/Housing Development & Infrastructure Ltd.xls
+deleted file mode 100644
+index 84590f27..00000000
+Binary files a/India_Stocks/excel_files/Housing Development & Infrastructure Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Housing Development Finance Corporation Ltd.xls b/India_Stocks/excel_files/Housing Development Finance Corporation Ltd.xls
+deleted file mode 100644
+index 779f7012..00000000
+Binary files a/India_Stocks/excel_files/Housing Development Finance Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/ICICI Bank Ltd.xls b/India_Stocks/excel_files/ICICI Bank Ltd.xls
+deleted file mode 100644
+index 0f09a5c7..00000000
+Binary files a/India_Stocks/excel_files/ICICI Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/ICICI Securities Ltd.xls b/India_Stocks/excel_files/ICICI Securities Ltd.xls
+deleted file mode 100644
+index 9d47e61d..00000000
+Binary files a/India_Stocks/excel_files/ICICI Securities Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IDFC First Bank Ltd.xls b/India_Stocks/excel_files/IDFC First Bank Ltd.xls
+deleted file mode 100644
+index 47185e61..00000000
+Binary files a/India_Stocks/excel_files/IDFC First Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IDFC Ltd.xls b/India_Stocks/excel_files/IDFC Ltd.xls
+deleted file mode 100644
+index 6436a515..00000000
+Binary files a/India_Stocks/excel_files/IDFC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IIFL Holdings Ltd.xls b/India_Stocks/excel_files/IIFL Holdings Ltd.xls
+deleted file mode 100644
+index 85504d34..00000000
+Binary files a/India_Stocks/excel_files/IIFL Holdings Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IL&FS Engineering and Construction Company Ltd.xls b/India_Stocks/excel_files/IL&FS Engineering and Construction Company Ltd.xls
+deleted file mode 100644
+index 810b9f85..00000000
+Binary files a/India_Stocks/excel_files/IL&FS Engineering and Construction Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IL&FS Transportation Networks Ltd.xls b/India_Stocks/excel_files/IL&FS Transportation Networks Ltd.xls
+deleted file mode 100644
+index 08f00ecc..00000000
+Binary files a/India_Stocks/excel_files/IL&FS Transportation Networks Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IOL Chemicals & Pharmaceuticals Ltd.xls b/India_Stocks/excel_files/IOL Chemicals & Pharmaceuticals Ltd.xls
+deleted file mode 100644
+index ae50b290..00000000
+Binary files a/India_Stocks/excel_files/IOL Chemicals & Pharmaceuticals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IRB Infrastructure Developers Ltd.xls b/India_Stocks/excel_files/IRB Infrastructure Developers Ltd.xls
+deleted file mode 100644
+index edd27a4b..00000000
+Binary files a/India_Stocks/excel_files/IRB Infrastructure Developers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/ITC Ltd.xls b/India_Stocks/excel_files/ITC Ltd.xls
+deleted file mode 100644
+index 55ebe1fe..00000000
+Binary files a/India_Stocks/excel_files/ITC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/IZMO Ltd.xls b/India_Stocks/excel_files/IZMO Ltd.xls
+deleted file mode 100644
+index 3a5b8e9e..00000000
+Binary files a/India_Stocks/excel_files/IZMO Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/India Glycols Ltd.xls b/India_Stocks/excel_files/India Glycols Ltd.xls
+deleted file mode 100644
+index 04bdb1b2..00000000
+Binary files a/India_Stocks/excel_files/India Glycols Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indiabulls Housing Finance Ltd.xls b/India_Stocks/excel_files/Indiabulls Housing Finance Ltd.xls
+deleted file mode 100644
+index df42aaf9..00000000
+Binary files a/India_Stocks/excel_files/Indiabulls Housing Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indiabulls Real Estate Ltd.xls b/India_Stocks/excel_files/Indiabulls Real Estate Ltd.xls
+deleted file mode 100644
+index 49b231e6..00000000
+Binary files a/India_Stocks/excel_files/Indiabulls Real Estate Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indiabulls Ventures Ltd.xls b/India_Stocks/excel_files/Indiabulls Ventures Ltd.xls
+deleted file mode 100644
+index e6ecba03..00000000
+Binary files a/India_Stocks/excel_files/Indiabulls Ventures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indian Bank.xls b/India_Stocks/excel_files/Indian Bank.xls
+deleted file mode 100644
+index 70a11b60..00000000
+Binary files a/India_Stocks/excel_files/Indian Bank.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indian Metals & Ferro Alloys Ltd.xls b/India_Stocks/excel_files/Indian Metals & Ferro Alloys Ltd.xls
+deleted file mode 100644
+index cacaca1f..00000000
+Binary files a/India_Stocks/excel_files/Indian Metals & Ferro Alloys Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indian Oil Corporation Ltd.xls b/India_Stocks/excel_files/Indian Oil Corporation Ltd.xls
+deleted file mode 100644
+index 1ab01895..00000000
+Binary files a/India_Stocks/excel_files/Indian Oil Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Indo Count Industries Ltd.xls b/India_Stocks/excel_files/Indo Count Industries Ltd.xls
+deleted file mode 100644
+index 3fc6aec6..00000000
+Binary files a/India_Stocks/excel_files/Indo Count Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Infibeam Avenues Ltd.xls b/India_Stocks/excel_files/Infibeam Avenues Ltd.xls
+deleted file mode 100644
+index 6fecee1c..00000000
+Binary files a/India_Stocks/excel_files/Infibeam Avenues Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Info Edge (India) Ltd.xls b/India_Stocks/excel_files/Info Edge (India) Ltd.xls
+deleted file mode 100644
+index 7d3fad24..00000000
+Binary files a/India_Stocks/excel_files/Info Edge (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Infosys Ltd.xls b/India_Stocks/excel_files/Infosys Ltd.xls
+deleted file mode 100644
+index 9931d045..00000000
+Binary files a/India_Stocks/excel_files/Infosys Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/International Paper APPM Ltd.xls b/India_Stocks/excel_files/International Paper APPM Ltd.xls
+deleted file mode 100644
+index 88044af6..00000000
+Binary files a/India_Stocks/excel_files/International Paper APPM Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/J Kumar Infraproject Ltd.xls b/India_Stocks/excel_files/J Kumar Infraproject Ltd.xls
+deleted file mode 100644
+index 4d050b11..00000000
+Binary files a/India_Stocks/excel_files/J Kumar Infraproject Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JCT Ltd.xls b/India_Stocks/excel_files/JCT Ltd.xls
+deleted file mode 100644
+index e15fe973..00000000
+Binary files a/India_Stocks/excel_files/JCT Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JK Paper Ltd.xls b/India_Stocks/excel_files/JK Paper Ltd.xls
+deleted file mode 100644
+index 0e38caac..00000000
+Binary files a/India_Stocks/excel_files/JK Paper Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JK Tyre & Industries Ltd.xls b/India_Stocks/excel_files/JK Tyre & Industries Ltd.xls
+deleted file mode 100644
+index 74ea1ee1..00000000
+Binary files a/India_Stocks/excel_files/JK Tyre & Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JM Financial Ltd.xls b/India_Stocks/excel_files/JM Financial Ltd.xls
+deleted file mode 100644
+index a9aca68b..00000000
+Binary files a/India_Stocks/excel_files/JM Financial Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JMC Projects (India) Ltd.xls b/India_Stocks/excel_files/JMC Projects (India) Ltd.xls
+deleted file mode 100644
+index 46d1fdea..00000000
+Binary files a/India_Stocks/excel_files/JMC Projects (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JSW Energy Ltd.xls b/India_Stocks/excel_files/JSW Energy Ltd.xls
+deleted file mode 100644
+index cd49a185..00000000
+Binary files a/India_Stocks/excel_files/JSW Energy Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/JSW Steel Ltd.xls b/India_Stocks/excel_files/JSW Steel Ltd.xls
+deleted file mode 100644
+index 85acdd20..00000000
+Binary files a/India_Stocks/excel_files/JSW Steel Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jagran Prakashan Ltd.xls b/India_Stocks/excel_files/Jagran Prakashan Ltd.xls
+deleted file mode 100644
+index a13029d7..00000000
+Binary files a/India_Stocks/excel_files/Jagran Prakashan Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jain Irrigation Systems Ltd.xls b/India_Stocks/excel_files/Jain Irrigation Systems Ltd.xls
+deleted file mode 100644
+index 19a0f08c..00000000
+Binary files a/India_Stocks/excel_files/Jain Irrigation Systems Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jamna Auto Industries Ltd.xls b/India_Stocks/excel_files/Jamna Auto Industries Ltd.xls
+deleted file mode 100644
+index a2bc2dde..00000000
+Binary files a/India_Stocks/excel_files/Jamna Auto Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jay Bharat Maruti Ltd.xls b/India_Stocks/excel_files/Jay Bharat Maruti Ltd.xls
+deleted file mode 100644
+index 31ad0b4a..00000000
+Binary files a/India_Stocks/excel_files/Jay Bharat Maruti Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jay Shree Tea & Industries Ltd.xls b/India_Stocks/excel_files/Jay Shree Tea & Industries Ltd.xls
+deleted file mode 100644
+index 5ec8109f..00000000
+Binary files a/India_Stocks/excel_files/Jay Shree Tea & Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jindal Saw Ltd.xls b/India_Stocks/excel_files/Jindal Saw Ltd.xls
+deleted file mode 100644
+index b1f2d39f..00000000
+Binary files a/India_Stocks/excel_files/Jindal Saw Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jindal Stainless (Hisar) Ltd.xls b/India_Stocks/excel_files/Jindal Stainless (Hisar) Ltd.xls
+deleted file mode 100644
+index 4487a45b..00000000
+Binary files a/India_Stocks/excel_files/Jindal Stainless (Hisar) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jindal Stainless Ltd.xls b/India_Stocks/excel_files/Jindal Stainless Ltd.xls
+deleted file mode 100644
+index 89bdaafe..00000000
+Binary files a/India_Stocks/excel_files/Jindal Stainless Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jindal Worldwide Ltd.xls b/India_Stocks/excel_files/Jindal Worldwide Ltd.xls
+deleted file mode 100644
+index d2c2112f..00000000
+Binary files a/India_Stocks/excel_files/Jindal Worldwide Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jiya Eco-Products Ltd.xls b/India_Stocks/excel_files/Jiya Eco-Products Ltd.xls
+deleted file mode 100644
+index 1024030a..00000000
+Binary files a/India_Stocks/excel_files/Jiya Eco-Products Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jubilant FoodWorks Ltd.xls b/India_Stocks/excel_files/Jubilant FoodWorks Ltd.xls
+deleted file mode 100644
+index 54589f66..00000000
+Binary files a/India_Stocks/excel_files/Jubilant FoodWorks Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jubilant Life Sciences Ltd.xls b/India_Stocks/excel_files/Jubilant Life Sciences Ltd.xls
+deleted file mode 100644
+index b23c7180..00000000
+Binary files a/India_Stocks/excel_files/Jubilant Life Sciences Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Just Dial Ltd.xls b/India_Stocks/excel_files/Just Dial Ltd.xls
+deleted file mode 100644
+index 4d54a059..00000000
+Binary files a/India_Stocks/excel_files/Just Dial Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Jyothy Laboratories Ltd.xls b/India_Stocks/excel_files/Jyothy Laboratories Ltd.xls
+deleted file mode 100644
+index 0b3bc7e8..00000000
+Binary files a/India_Stocks/excel_files/Jyothy Laboratories Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KCP Sugar & Industries  Corporation Ltd.xls b/India_Stocks/excel_files/KCP Sugar & Industries  Corporation Ltd.xls
+deleted file mode 100644
+index 2ad3d313..00000000
+Binary files a/India_Stocks/excel_files/KCP Sugar & Industries  Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KEC International Ltd.xls b/India_Stocks/excel_files/KEC International Ltd.xls
+deleted file mode 100644
+index 5509cfb6..00000000
+Binary files a/India_Stocks/excel_files/KEC International Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KM Sugar Mills Ltd.xls b/India_Stocks/excel_files/KM Sugar Mills Ltd.xls
+deleted file mode 100644
+index 3d0b67ed..00000000
+Binary files a/India_Stocks/excel_files/KM Sugar Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KMC Speciality Hospitals (India) Ltd.xls b/India_Stocks/excel_files/KMC Speciality Hospitals (India) Ltd.xls
+deleted file mode 100644
+index 9f2da8f9..00000000
+Binary files a/India_Stocks/excel_files/KMC Speciality Hospitals (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KNR Construction Ltd.xls b/India_Stocks/excel_files/KNR Construction Ltd.xls
+deleted file mode 100644
+index 2ef2b56e..00000000
+Binary files a/India_Stocks/excel_files/KNR Construction Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KPI Global Infrastructure Ltd.xls b/India_Stocks/excel_files/KPI Global Infrastructure Ltd.xls
+deleted file mode 100644
+index 26898121..00000000
+Binary files a/India_Stocks/excel_files/KPI Global Infrastructure Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/KRBL Ltd.xls b/India_Stocks/excel_files/KRBL Ltd.xls
+deleted file mode 100644
+index f0f8ae44..00000000
+Binary files a/India_Stocks/excel_files/KRBL Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kaarya Facilities And Services Ltd.xls b/India_Stocks/excel_files/Kaarya Facilities And Services Ltd.xls
+deleted file mode 100644
+index 9b7c8d3d..00000000
+Binary files a/India_Stocks/excel_files/Kaarya Facilities And Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kajaria Ceramics Ltd.xls b/India_Stocks/excel_files/Kajaria Ceramics Ltd.xls
+deleted file mode 100644
+index 4228f5b2..00000000
+Binary files a/India_Stocks/excel_files/Kajaria Ceramics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kalpataru Power Transmission Ltd.xls b/India_Stocks/excel_files/Kalpataru Power Transmission Ltd.xls
+deleted file mode 100644
+index bf2756ed..00000000
+Binary files a/India_Stocks/excel_files/Kalpataru Power Transmission Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kansai Nerolac Paints Ltd.xls b/India_Stocks/excel_files/Kansai Nerolac Paints Ltd.xls
+deleted file mode 100644
+index cd43c1b4..00000000
+Binary files a/India_Stocks/excel_files/Kansai Nerolac Paints Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Karur Vysya Bank Ltd.xls b/India_Stocks/excel_files/Karur Vysya Bank Ltd.xls
+deleted file mode 100644
+index d12f371e..00000000
+Binary files a/India_Stocks/excel_files/Karur Vysya Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kaveri Seed Company Ltd.xls b/India_Stocks/excel_files/Kaveri Seed Company Ltd.xls
+deleted file mode 100644
+index cab0eb85..00000000
+Binary files a/India_Stocks/excel_files/Kaveri Seed Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kesar Petroproducts Ltd.xls b/India_Stocks/excel_files/Kesar Petroproducts Ltd.xls
+deleted file mode 100644
+index 2b0f5807..00000000
+Binary files a/India_Stocks/excel_files/Kesar Petroproducts Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kiri Industries Ltd.xls b/India_Stocks/excel_files/Kiri Industries Ltd.xls
+deleted file mode 100644
+index 4e91b556..00000000
+Binary files a/India_Stocks/excel_files/Kiri Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kirloskar Ferrous Industries Ltd.xls b/India_Stocks/excel_files/Kirloskar Ferrous Industries Ltd.xls
+deleted file mode 100644
+index 3c492dd1..00000000
+Binary files a/India_Stocks/excel_files/Kirloskar Ferrous Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kirloskar Pneumatic Company Ltd.xls b/India_Stocks/excel_files/Kirloskar Pneumatic Company Ltd.xls
+deleted file mode 100644
+index be7340e8..00000000
+Binary files a/India_Stocks/excel_files/Kirloskar Pneumatic Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kitex Garments Ltd.xls b/India_Stocks/excel_files/Kitex Garments Ltd.xls
+deleted file mode 100644
+index 6016c7bd..00000000
+Binary files a/India_Stocks/excel_files/Kitex Garments Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kopran Ltd.xls b/India_Stocks/excel_files/Kopran Ltd.xls
+deleted file mode 100644
+index 8ddb2879..00000000
+Binary files a/India_Stocks/excel_files/Kopran Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kotak Mahindra Bank Ltd.xls b/India_Stocks/excel_files/Kotak Mahindra Bank Ltd.xls
+deleted file mode 100644
+index f2633566..00000000
+Binary files a/India_Stocks/excel_files/Kotak Mahindra Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kridhan Infra Ltd.xls b/India_Stocks/excel_files/Kridhan Infra Ltd.xls
+deleted file mode 100644
+index 29ec8a54..00000000
+Binary files a/India_Stocks/excel_files/Kridhan Infra Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kushal Ltd.xls b/India_Stocks/excel_files/Kushal Ltd.xls
+deleted file mode 100644
+index 99187066..00000000
+Binary files a/India_Stocks/excel_files/Kushal Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Kwality Ltd.xls b/India_Stocks/excel_files/Kwality Ltd.xls
+deleted file mode 100644
+index 4a3c34b5..00000000
+Binary files a/India_Stocks/excel_files/Kwality Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/L&T Finance Holdings Ltd.xls b/India_Stocks/excel_files/L&T Finance Holdings Ltd.xls
+deleted file mode 100644
+index f59ec6d6..00000000
+Binary files a/India_Stocks/excel_files/L&T Finance Holdings Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/LEEL Electricals Ltd.xls b/India_Stocks/excel_files/LEEL Electricals Ltd.xls
+deleted file mode 100644
+index 30e00da9..00000000
+Binary files a/India_Stocks/excel_files/LEEL Electricals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/LIC Housing Finance Ltd.xls b/India_Stocks/excel_files/LIC Housing Finance Ltd.xls
+deleted file mode 100644
+index 01a3b28d..00000000
+Binary files a/India_Stocks/excel_files/LIC Housing Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/LT Foods Ltd.xls b/India_Stocks/excel_files/LT Foods Ltd.xls
+deleted file mode 100644
+index 06487e80..00000000
+Binary files a/India_Stocks/excel_files/LT Foods Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/La Opala RG Ltd.xls b/India_Stocks/excel_files/La Opala RG Ltd.xls
+deleted file mode 100644
+index 22220ae9..00000000
+Binary files a/India_Stocks/excel_files/La Opala RG Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Lambodhara Textiles Ltd.xls b/India_Stocks/excel_files/Lambodhara Textiles Ltd.xls
+deleted file mode 100644
+index 3bbc5058..00000000
+Binary files a/India_Stocks/excel_files/Lambodhara Textiles Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Larsen & Toubro Infotech Ltd.xls b/India_Stocks/excel_files/Larsen & Toubro Infotech Ltd.xls
+deleted file mode 100644
+index 658d78c6..00000000
+Binary files a/India_Stocks/excel_files/Larsen & Toubro Infotech Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Larsen & Toubro Ltd.xls b/India_Stocks/excel_files/Larsen & Toubro Ltd.xls
+deleted file mode 100644
+index f6479c80..00000000
+Binary files a/India_Stocks/excel_files/Larsen & Toubro Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Lux Industries Ltd.xls b/India_Stocks/excel_files/Lux Industries Ltd.xls
+deleted file mode 100644
+index 8235a59c..00000000
+Binary files a/India_Stocks/excel_files/Lux Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/MBL Infrastructures Ltd.xls b/India_Stocks/excel_files/MBL Infrastructures Ltd.xls
+deleted file mode 100644
+index 02533667..00000000
+Binary files a/India_Stocks/excel_files/MBL Infrastructures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/MEP Infrastructure Developers Ltd.xls b/India_Stocks/excel_files/MEP Infrastructure Developers Ltd.xls
+deleted file mode 100644
+index 7910ac33..00000000
+Binary files a/India_Stocks/excel_files/MEP Infrastructure Developers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/MMTC Ltd.xls b/India_Stocks/excel_files/MMTC Ltd.xls
+deleted file mode 100644
+index 08c18688..00000000
+Binary files a/India_Stocks/excel_files/MMTC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/MOIL Ltd.xls b/India_Stocks/excel_files/MOIL Ltd.xls
+deleted file mode 100644
+index a0453f60..00000000
+Binary files a/India_Stocks/excel_files/MOIL Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Magma Fincorp Ltd.xls b/India_Stocks/excel_files/Magma Fincorp Ltd.xls
+deleted file mode 100644
+index 80227a26..00000000
+Binary files a/India_Stocks/excel_files/Magma Fincorp Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mahanagar Gas Ltd.xls b/India_Stocks/excel_files/Mahanagar Gas Ltd.xls
+deleted file mode 100644
+index eda4fc96..00000000
+Binary files a/India_Stocks/excel_files/Mahanagar Gas Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mahindra & Mahindra Financial Services Ltd.xls b/India_Stocks/excel_files/Mahindra & Mahindra Financial Services Ltd.xls
+deleted file mode 100644
+index 016e165e..00000000
+Binary files a/India_Stocks/excel_files/Mahindra & Mahindra Financial Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mahindra & Mahindra Ltd.xls b/India_Stocks/excel_files/Mahindra & Mahindra Ltd.xls
+deleted file mode 100644
+index e24faf4e..00000000
+Binary files a/India_Stocks/excel_files/Mahindra & Mahindra Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mahindra CIE Automotive Ltd.xls b/India_Stocks/excel_files/Mahindra CIE Automotive Ltd.xls
+deleted file mode 100644
+index bae0ef88..00000000
+Binary files a/India_Stocks/excel_files/Mahindra CIE Automotive Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Maithan Alloys Ltd.xls b/India_Stocks/excel_files/Maithan Alloys Ltd.xls
+deleted file mode 100644
+index a7e223bc..00000000
+Binary files a/India_Stocks/excel_files/Maithan Alloys Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Majestic Research Services And Solutions Ltd.xls b/India_Stocks/excel_files/Majestic Research Services And Solutions Ltd.xls
+deleted file mode 100644
+index 5ad5a489..00000000
+Binary files a/India_Stocks/excel_files/Majestic Research Services And Solutions Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Man Industries (India) Ltd.xls b/India_Stocks/excel_files/Man Industries (India) Ltd.xls
+deleted file mode 100644
+index 58eb67ca..00000000
+Binary files a/India_Stocks/excel_files/Man Industries (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Man InfraConstruction Ltd.xls b/India_Stocks/excel_files/Man InfraConstruction Ltd.xls
+deleted file mode 100644
+index 1cb43d44..00000000
+Binary files a/India_Stocks/excel_files/Man InfraConstruction Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Manaksia Ltd.xls b/India_Stocks/excel_files/Manaksia Ltd.xls
+deleted file mode 100644
+index 8da7817c..00000000
+Binary files a/India_Stocks/excel_files/Manaksia Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Manali Petrochemicals Ltd.xls b/India_Stocks/excel_files/Manali Petrochemicals Ltd.xls
+deleted file mode 100644
+index 2766779c..00000000
+Binary files a/India_Stocks/excel_files/Manali Petrochemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Manappuram Finance Ltd.xls b/India_Stocks/excel_files/Manappuram Finance Ltd.xls
+deleted file mode 100644
+index 1c4d79fb..00000000
+Binary files a/India_Stocks/excel_files/Manappuram Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mangalore Chemicals & Fertilizers Ltd.xls b/India_Stocks/excel_files/Mangalore Chemicals & Fertilizers Ltd.xls
+deleted file mode 100644
+index 728e7fb7..00000000
+Binary files a/India_Stocks/excel_files/Mangalore Chemicals & Fertilizers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mangalore Refinery & Petrochemicals Ltd.xls b/India_Stocks/excel_files/Mangalore Refinery & Petrochemicals Ltd.xls
+deleted file mode 100644
+index d249f43e..00000000
+Binary files a/India_Stocks/excel_files/Mangalore Refinery & Petrochemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Manomay Tex India Ltd.xls b/India_Stocks/excel_files/Manomay Tex India Ltd.xls
+deleted file mode 100644
+index 0931f6a0..00000000
+Binary files a/India_Stocks/excel_files/Manomay Tex India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Manpasand Beverages Ltd.xls b/India_Stocks/excel_files/Manpasand Beverages Ltd.xls
+deleted file mode 100644
+index 211e6ad8..00000000
+Binary files a/India_Stocks/excel_files/Manpasand Beverages Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Marksans Pharma Ltd.xls b/India_Stocks/excel_files/Marksans Pharma Ltd.xls
+deleted file mode 100644
+index 497d87cf..00000000
+Binary files a/India_Stocks/excel_files/Marksans Pharma Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Maruti Suzuki India Ltd.xls b/India_Stocks/excel_files/Maruti Suzuki India Ltd.xls
+deleted file mode 100644
+index 2494aac1..00000000
+Binary files a/India_Stocks/excel_files/Maruti Suzuki India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mastek Ltd.xls b/India_Stocks/excel_files/Mastek Ltd.xls
+deleted file mode 100644
+index d8bf9328..00000000
+Binary files a/India_Stocks/excel_files/Mastek Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/MatrimonyCom Ltd.xls b/India_Stocks/excel_files/MatrimonyCom Ltd.xls
+deleted file mode 100644
+index 2647813d..00000000
+Binary files a/India_Stocks/excel_files/MatrimonyCom Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mawana Sugars Ltd.xls b/India_Stocks/excel_files/Mawana Sugars Ltd.xls
+deleted file mode 100644
+index 3222f191..00000000
+Binary files a/India_Stocks/excel_files/Mawana Sugars Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mayur Uniquoters Ltd.xls b/India_Stocks/excel_files/Mayur Uniquoters Ltd.xls
+deleted file mode 100644
+index 75a45092..00000000
+Binary files a/India_Stocks/excel_files/Mayur Uniquoters Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Medi-Caps Ltd.xls b/India_Stocks/excel_files/Medi-Caps Ltd.xls
+deleted file mode 100644
+index c0fc01e6..00000000
+Binary files a/India_Stocks/excel_files/Medi-Caps Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Meghmani Organics Ltd.xls b/India_Stocks/excel_files/Meghmani Organics Ltd.xls
+deleted file mode 100644
+index 752ef088..00000000
+Binary files a/India_Stocks/excel_files/Meghmani Organics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Minda Corporation Ltd.xls b/India_Stocks/excel_files/Minda Corporation Ltd.xls
+deleted file mode 100644
+index efba0776..00000000
+Binary files a/India_Stocks/excel_files/Minda Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Minda Industries Ltd.xls b/India_Stocks/excel_files/Minda Industries Ltd.xls
+deleted file mode 100644
+index 88a40c1d..00000000
+Binary files a/India_Stocks/excel_files/Minda Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mindtree Ltd.xls b/India_Stocks/excel_files/Mindtree Ltd.xls
+deleted file mode 100644
+index cb2d3597..00000000
+Binary files a/India_Stocks/excel_files/Mindtree Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mirza International Ltd.xls b/India_Stocks/excel_files/Mirza International Ltd.xls
+deleted file mode 100644
+index 675c3e44..00000000
+Binary files a/India_Stocks/excel_files/Mirza International Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mishra Dhatu Nigam Ltd.xls b/India_Stocks/excel_files/Mishra Dhatu Nigam Ltd.xls
+deleted file mode 100644
+index b25af0f6..00000000
+Binary files a/India_Stocks/excel_files/Mishra Dhatu Nigam Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Motherson Sumi Systems Ltd.xls b/India_Stocks/excel_files/Motherson Sumi Systems Ltd.xls
+deleted file mode 100644
+index ba8aac51..00000000
+Binary files a/India_Stocks/excel_files/Motherson Sumi Systems Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Motilal Oswal Financial Services Ltd.xls b/India_Stocks/excel_files/Motilal Oswal Financial Services Ltd.xls
+deleted file mode 100644
+index 7f236349..00000000
+Binary files a/India_Stocks/excel_files/Motilal Oswal Financial Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Mphasis Ltd.xls b/India_Stocks/excel_files/Mphasis Ltd.xls
+deleted file mode 100644
+index e0f32709..00000000
+Binary files a/India_Stocks/excel_files/Mphasis Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Munjal Auto Industries Ltd.xls b/India_Stocks/excel_files/Munjal Auto Industries Ltd.xls
+deleted file mode 100644
+index f03b024c..00000000
+Binary files a/India_Stocks/excel_files/Munjal Auto Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Murudeshwar Ceramics Ltd.xls b/India_Stocks/excel_files/Murudeshwar Ceramics Ltd.xls
+deleted file mode 100644
+index 0425da71..00000000
+Binary files a/India_Stocks/excel_files/Murudeshwar Ceramics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Music Broadcast Ltd.xls b/India_Stocks/excel_files/Music Broadcast Ltd.xls
+deleted file mode 100644
+index 6ecaec27..00000000
+Binary files a/India_Stocks/excel_files/Music Broadcast Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Muthoot Finance Ltd.xls b/India_Stocks/excel_files/Muthoot Finance Ltd.xls
+deleted file mode 100644
+index 0612998f..00000000
+Binary files a/India_Stocks/excel_files/Muthoot Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NCL Industries Ltd.xls b/India_Stocks/excel_files/NCL Industries Ltd.xls
+deleted file mode 100644
+index 86aa1d69..00000000
+Binary files a/India_Stocks/excel_files/NCL Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NHPC Ltd.xls b/India_Stocks/excel_files/NHPC Ltd.xls
+deleted file mode 100644
+index cb02f32a..00000000
+Binary files a/India_Stocks/excel_files/NHPC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NIIT Technologies Ltd.xls b/India_Stocks/excel_files/NIIT Technologies Ltd.xls
+deleted file mode 100644
+index 27a10114..00000000
+Binary files a/India_Stocks/excel_files/NIIT Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NLC India Ltd.xls b/India_Stocks/excel_files/NLC India Ltd.xls
+deleted file mode 100644
+index 7d43000f..00000000
+Binary files a/India_Stocks/excel_files/NLC India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NMDC Ltd.xls b/India_Stocks/excel_files/NMDC Ltd.xls
+deleted file mode 100644
+index 794a7193..00000000
+Binary files a/India_Stocks/excel_files/NMDC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NR Agarwal Industries Ltd.xls b/India_Stocks/excel_files/NR Agarwal Industries Ltd.xls
+deleted file mode 100644
+index 3cb6a4a4..00000000
+Binary files a/India_Stocks/excel_files/NR Agarwal Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NRB Bearings Ltd.xls b/India_Stocks/excel_files/NRB Bearings Ltd.xls
+deleted file mode 100644
+index a39ae738..00000000
+Binary files a/India_Stocks/excel_files/NRB Bearings Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/NTPC Ltd.xls b/India_Stocks/excel_files/NTPC Ltd.xls
+deleted file mode 100644
+index 606254b5..00000000
+Binary files a/India_Stocks/excel_files/NTPC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/National Aluminium Company Ltd.xls b/India_Stocks/excel_files/National Aluminium Company Ltd.xls
+deleted file mode 100644
+index a824edf4..00000000
+Binary files a/India_Stocks/excel_files/National Aluminium Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/National Fertilizers Ltd.xls b/India_Stocks/excel_files/National Fertilizers Ltd.xls
+deleted file mode 100644
+index fbc5c83f..00000000
+Binary files a/India_Stocks/excel_files/National Fertilizers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/National Oxygen Ltd.xls b/India_Stocks/excel_files/National Oxygen Ltd.xls
+deleted file mode 100644
+index e348b59c..00000000
+Binary files a/India_Stocks/excel_files/National Oxygen Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nava Bharat Ventures Ltd.xls b/India_Stocks/excel_files/Nava Bharat Ventures Ltd.xls
+deleted file mode 100644
+index a5dfdfd0..00000000
+Binary files a/India_Stocks/excel_files/Nava Bharat Ventures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Navin Fluorine International Ltd.xls b/India_Stocks/excel_files/Navin Fluorine International Ltd.xls
+deleted file mode 100644
+index 7233a913..00000000
+Binary files a/India_Stocks/excel_files/Navin Fluorine International Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Navkar Corporation Ltd.xls b/India_Stocks/excel_files/Navkar Corporation Ltd.xls
+deleted file mode 100644
+index f7a6234e..00000000
+Binary files a/India_Stocks/excel_files/Navkar Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Navneet Education Ltd.xls b/India_Stocks/excel_files/Navneet Education Ltd.xls
+deleted file mode 100644
+index 9d144cc8..00000000
+Binary files a/India_Stocks/excel_files/Navneet Education Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nectar Lifesciences Ltd.xls b/India_Stocks/excel_files/Nectar Lifesciences Ltd.xls
+deleted file mode 100644
+index a821e0f9..00000000
+Binary files a/India_Stocks/excel_files/Nectar Lifesciences Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nelcast Ltd.xls b/India_Stocks/excel_files/Nelcast Ltd.xls
+deleted file mode 100644
+index 4bf5e7a9..00000000
+Binary files a/India_Stocks/excel_files/Nelcast Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nila Infrastructures Ltd.xls b/India_Stocks/excel_files/Nila Infrastructures Ltd.xls
+deleted file mode 100644
+index a7537862..00000000
+Binary files a/India_Stocks/excel_files/Nila Infrastructures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nitco Ltd.xls b/India_Stocks/excel_files/Nitco Ltd.xls
+deleted file mode 100644
+index 55d24460..00000000
+Binary files a/India_Stocks/excel_files/Nitco Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Nocil Ltd.xls b/India_Stocks/excel_files/Nocil Ltd.xls
+deleted file mode 100644
+index d4103a5c..00000000
+Binary files a/India_Stocks/excel_files/Nocil Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/North Eastern Carrying Corporation Ltd.xls b/India_Stocks/excel_files/North Eastern Carrying Corporation Ltd.xls
+deleted file mode 100644
+index a517cad5..00000000
+Binary files a/India_Stocks/excel_files/North Eastern Carrying Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Oberoi Realty Ltd.xls b/India_Stocks/excel_files/Oberoi Realty Ltd.xls
+deleted file mode 100644
+index e5e89838..00000000
+Binary files a/India_Stocks/excel_files/Oberoi Realty Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Oil India Ltd.xls b/India_Stocks/excel_files/Oil India Ltd.xls
+deleted file mode 100644
+index 29f8c535..00000000
+Binary files a/India_Stocks/excel_files/Oil India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Om Metals Infraprojects Ltd.xls b/India_Stocks/excel_files/Om Metals Infraprojects Ltd.xls
+deleted file mode 100644
+index b4afefe0..00000000
+Binary files a/India_Stocks/excel_files/Om Metals Infraprojects Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Onmobile Global Ltd.xls b/India_Stocks/excel_files/Onmobile Global Ltd.xls
+deleted file mode 100644
+index acb57231..00000000
+Binary files a/India_Stocks/excel_files/Onmobile Global Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Opto Circuits (India) Ltd.xls b/India_Stocks/excel_files/Opto Circuits (India) Ltd.xls
+deleted file mode 100644
+index c73a3857..00000000
+Binary files a/India_Stocks/excel_files/Opto Circuits (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Oricon Enterprises Ltd.xls b/India_Stocks/excel_files/Oricon Enterprises Ltd.xls
+deleted file mode 100644
+index 68bf95f7..00000000
+Binary files a/India_Stocks/excel_files/Oricon Enterprises Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Orient Paper & Industries Ltd.xls b/India_Stocks/excel_files/Orient Paper & Industries Ltd.xls
+deleted file mode 100644
+index 3770bc64..00000000
+Binary files a/India_Stocks/excel_files/Orient Paper & Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PC Jeweller Ltd.xls b/India_Stocks/excel_files/PC Jeweller Ltd.xls
+deleted file mode 100644
+index 92d7d2e1..00000000
+Binary files a/India_Stocks/excel_files/PC Jeweller Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PI Industries Ltd.xls b/India_Stocks/excel_files/PI Industries Ltd.xls
+deleted file mode 100644
+index b2cb323d..00000000
+Binary files a/India_Stocks/excel_files/PI Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PNB Gilts Ltd.xls b/India_Stocks/excel_files/PNB Gilts Ltd.xls
+deleted file mode 100644
+index 9c44f56c..00000000
+Binary files a/India_Stocks/excel_files/PNB Gilts Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PNB Housing Finance Ltd.xls b/India_Stocks/excel_files/PNB Housing Finance Ltd.xls
+deleted file mode 100644
+index 3490827c..00000000
+Binary files a/India_Stocks/excel_files/PNB Housing Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PNC Infratech Ltd.xls b/India_Stocks/excel_files/PNC Infratech Ltd.xls
+deleted file mode 100644
+index 6f5793a1..00000000
+Binary files a/India_Stocks/excel_files/PNC Infratech Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/PTC India Ltd.xls b/India_Stocks/excel_files/PTC India Ltd.xls
+deleted file mode 100644
+index 1672eaa1..00000000
+Binary files a/India_Stocks/excel_files/PTC India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Page Industries Ltd.xls b/India_Stocks/excel_files/Page Industries Ltd.xls
+deleted file mode 100644
+index 7a30a60f..00000000
+Binary files a/India_Stocks/excel_files/Page Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Panama Petrochem Ltd.xls b/India_Stocks/excel_files/Panama Petrochem Ltd.xls
+deleted file mode 100644
+index 431b9d84..00000000
+Binary files a/India_Stocks/excel_files/Panama Petrochem Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Parag Milk Foods Ltd.xls b/India_Stocks/excel_files/Parag Milk Foods Ltd.xls
+deleted file mode 100644
+index 789fe913..00000000
+Binary files a/India_Stocks/excel_files/Parag Milk Foods Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Paramount Communications Ltd.xls b/India_Stocks/excel_files/Paramount Communications Ltd.xls
+deleted file mode 100644
+index 36031756..00000000
+Binary files a/India_Stocks/excel_files/Paramount Communications Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Patel Engineering Ltd.xls b/India_Stocks/excel_files/Patel Engineering Ltd.xls
+deleted file mode 100644
+index 81224b6f..00000000
+Binary files a/India_Stocks/excel_files/Patel Engineering Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Patel Integrated Logistics Ltd.xls b/India_Stocks/excel_files/Patel Integrated Logistics Ltd.xls
+deleted file mode 100644
+index 07b046ba..00000000
+Binary files a/India_Stocks/excel_files/Patel Integrated Logistics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Pennar Industries Ltd.xls b/India_Stocks/excel_files/Pennar Industries Ltd.xls
+deleted file mode 100644
+index 645143d3..00000000
+Binary files a/India_Stocks/excel_files/Pennar Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Petronet LNG Ltd.xls b/India_Stocks/excel_files/Petronet LNG Ltd.xls
+deleted file mode 100644
+index b4e4e2b5..00000000
+Binary files a/India_Stocks/excel_files/Petronet LNG Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Phillips Carbon Black Ltd.xls b/India_Stocks/excel_files/Phillips Carbon Black Ltd.xls
+deleted file mode 100644
+index 48b819f0..00000000
+Binary files a/India_Stocks/excel_files/Phillips Carbon Black Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Piramal Enterprises Ltd.xls b/India_Stocks/excel_files/Piramal Enterprises Ltd.xls
+deleted file mode 100644
+index bbfdc04c..00000000
+Binary files a/India_Stocks/excel_files/Piramal Enterprises Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Pitti Engineering Ltd.xls b/India_Stocks/excel_files/Pitti Engineering Ltd.xls
+deleted file mode 100644
+index d7cbee4f..00000000
+Binary files a/India_Stocks/excel_files/Pitti Engineering Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Polyplex Corporation Ltd.xls b/India_Stocks/excel_files/Polyplex Corporation Ltd.xls
+deleted file mode 100644
+index 5b930949..00000000
+Binary files a/India_Stocks/excel_files/Polyplex Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Power Finance Corporation Ltd.xls b/India_Stocks/excel_files/Power Finance Corporation Ltd.xls
+deleted file mode 100644
+index 45ec03a6..00000000
+Binary files a/India_Stocks/excel_files/Power Finance Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Power Grid Corporation Of India Ltd.xls b/India_Stocks/excel_files/Power Grid Corporation Of India Ltd.xls
+deleted file mode 100644
+index 9c0ca1cb..00000000
+Binary files a/India_Stocks/excel_files/Power Grid Corporation Of India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Prabhat Dairy Ltd.xls b/India_Stocks/excel_files/Prabhat Dairy Ltd.xls
+deleted file mode 100644
+index 0f71af1b..00000000
+Binary files a/India_Stocks/excel_files/Prabhat Dairy Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Prakash Constrowell Ltd.xls b/India_Stocks/excel_files/Prakash Constrowell Ltd.xls
+deleted file mode 100644
+index a94161ca..00000000
+Binary files a/India_Stocks/excel_files/Prakash Constrowell Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Prakash Industries Ltd.xls b/India_Stocks/excel_files/Prakash Industries Ltd.xls
+deleted file mode 100644
+index e678ba3f..00000000
+Binary files a/India_Stocks/excel_files/Prakash Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Precision Camshafts Ltd.xls b/India_Stocks/excel_files/Precision Camshafts Ltd.xls
+deleted file mode 100644
+index 8d706350..00000000
+Binary files a/India_Stocks/excel_files/Precision Camshafts Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Pressman Advertising Ltd.xls b/India_Stocks/excel_files/Pressman Advertising Ltd.xls
+deleted file mode 100644
+index 7e68084f..00000000
+Binary files a/India_Stocks/excel_files/Pressman Advertising Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Prestige Estate Projects Ltd.xls b/India_Stocks/excel_files/Prestige Estate Projects Ltd.xls
+deleted file mode 100644
+index ab02ad18..00000000
+Binary files a/India_Stocks/excel_files/Prestige Estate Projects Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Pro Fin Capital Services Ltd.xls b/India_Stocks/excel_files/Pro Fin Capital Services Ltd.xls
+deleted file mode 100644
+index 7c69fa65..00000000
+Binary files a/India_Stocks/excel_files/Pro Fin Capital Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Puravankara Ltd.xls b/India_Stocks/excel_files/Puravankara Ltd.xls
+deleted file mode 100644
+index eb46efd8..00000000
+Binary files a/India_Stocks/excel_files/Puravankara Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Quess Corp Ltd.xls b/India_Stocks/excel_files/Quess Corp Ltd.xls
+deleted file mode 100644
+index cac900f9..00000000
+Binary files a/India_Stocks/excel_files/Quess Corp Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/REC Ltd.xls b/India_Stocks/excel_files/REC Ltd.xls
+deleted file mode 100644
+index e4d809ea..00000000
+Binary files a/India_Stocks/excel_files/REC Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Radha Madhav Corporation Ltd.xls b/India_Stocks/excel_files/Radha Madhav Corporation Ltd.xls
+deleted file mode 100644
+index 385992f8..00000000
+Binary files a/India_Stocks/excel_files/Radha Madhav Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Radhika Jeweltech Ltd.xls b/India_Stocks/excel_files/Radhika Jeweltech Ltd.xls
+deleted file mode 100644
+index 0f0e1411..00000000
+Binary files a/India_Stocks/excel_files/Radhika Jeweltech Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rain Industries Ltd.xls b/India_Stocks/excel_files/Rain Industries Ltd.xls
+deleted file mode 100644
+index 958351ef..00000000
+Binary files a/India_Stocks/excel_files/Rain Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rajesh Exports Ltd.xls b/India_Stocks/excel_files/Rajesh Exports Ltd.xls
+deleted file mode 100644
+index 0fb117f9..00000000
+Binary files a/India_Stocks/excel_files/Rajesh Exports Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rallis India Ltd.xls b/India_Stocks/excel_files/Rallis India Ltd.xls
+deleted file mode 100644
+index d4f7df7b..00000000
+Binary files a/India_Stocks/excel_files/Rallis India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Redington (India) Ltd.xls b/India_Stocks/excel_files/Redington (India) Ltd.xls
+deleted file mode 100644
+index 95805c9d..00000000
+Binary files a/India_Stocks/excel_files/Redington (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Capital Ltd.xls b/India_Stocks/excel_files/Reliance Capital Ltd.xls
+deleted file mode 100644
+index 75009485..00000000
+Binary files a/India_Stocks/excel_files/Reliance Capital Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Home Finance Ltd.xls b/India_Stocks/excel_files/Reliance Home Finance Ltd.xls
+deleted file mode 100644
+index 8f0fd87f..00000000
+Binary files a/India_Stocks/excel_files/Reliance Home Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Industries Ltd.xls b/India_Stocks/excel_files/Reliance Industries Ltd.xls
+deleted file mode 100644
+index bdbab887..00000000
+Binary files a/India_Stocks/excel_files/Reliance Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Infrastructure Ltd.xls b/India_Stocks/excel_files/Reliance Infrastructure Ltd.xls
+deleted file mode 100644
+index 74285c2b..00000000
+Binary files a/India_Stocks/excel_files/Reliance Infrastructure Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Nippon Life Asset Management Ltd.xls b/India_Stocks/excel_files/Reliance Nippon Life Asset Management Ltd.xls
+deleted file mode 100644
+index 0ea17462..00000000
+Binary files a/India_Stocks/excel_files/Reliance Nippon Life Asset Management Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Reliance Power Ltd.xls b/India_Stocks/excel_files/Reliance Power Ltd.xls
+deleted file mode 100644
+index 764c85df..00000000
+Binary files a/India_Stocks/excel_files/Reliance Power Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Repco Home Finance Ltd.xls b/India_Stocks/excel_files/Repco Home Finance Ltd.xls
+deleted file mode 100644
+index e97c5341..00000000
+Binary files a/India_Stocks/excel_files/Repco Home Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rico Auto Industries Ltd.xls b/India_Stocks/excel_files/Rico Auto Industries Ltd.xls
+deleted file mode 100644
+index 29ae7174..00000000
+Binary files a/India_Stocks/excel_files/Rico Auto Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rites Ltd.xls b/India_Stocks/excel_files/Rites Ltd.xls
+deleted file mode 100644
+index 9c5deb92..00000000
+Binary files a/India_Stocks/excel_files/Rites Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ruchira Papers Ltd.xls b/India_Stocks/excel_files/Ruchira Papers Ltd.xls
+deleted file mode 100644
+index 2b827fcc..00000000
+Binary files a/India_Stocks/excel_files/Ruchira Papers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Rupa & Company Ltd.xls b/India_Stocks/excel_files/Rupa & Company Ltd.xls
+deleted file mode 100644
+index 283bbe3a..00000000
+Binary files a/India_Stocks/excel_files/Rupa & Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/SJVN Ltd.xls b/India_Stocks/excel_files/SJVN Ltd.xls
+deleted file mode 100644
+index 957b197b..00000000
+Binary files a/India_Stocks/excel_files/SJVN Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/SORIL Infra Resources Ltd.xls b/India_Stocks/excel_files/SORIL Infra Resources Ltd.xls
+deleted file mode 100644
+index c4d60443..00000000
+Binary files a/India_Stocks/excel_files/SORIL Infra Resources Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/SREI Infrastructure Finance Ltd.xls b/India_Stocks/excel_files/SREI Infrastructure Finance Ltd.xls
+deleted file mode 100644
+index 72e54738..00000000
+Binary files a/India_Stocks/excel_files/SREI Infrastructure Finance Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/SRF Ltd.xls b/India_Stocks/excel_files/SRF Ltd.xls
+deleted file mode 100644
+index a6e8288c..00000000
+Binary files a/India_Stocks/excel_files/SRF Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sakuma Exports Ltd.xls b/India_Stocks/excel_files/Sakuma Exports Ltd.xls
+deleted file mode 100644
+index 6cb24429..00000000
+Binary files a/India_Stocks/excel_files/Sakuma Exports Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sanwaria Consumer Ltd.xls b/India_Stocks/excel_files/Sanwaria Consumer Ltd.xls
+deleted file mode 100644
+index fc6b4714..00000000
+Binary files a/India_Stocks/excel_files/Sanwaria Consumer Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sarda Energy & Minerals Ltd.xls b/India_Stocks/excel_files/Sarda Energy & Minerals Ltd.xls
+deleted file mode 100644
+index 0cfcd8c9..00000000
+Binary files a/India_Stocks/excel_files/Sarda Energy & Minerals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Satin Creditcare Network Ltd.xls b/India_Stocks/excel_files/Satin Creditcare Network Ltd.xls
+deleted file mode 100644
+index e1bbea8d..00000000
+Binary files a/India_Stocks/excel_files/Satin Creditcare Network Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sequent Scientific Ltd.xls b/India_Stocks/excel_files/Sequent Scientific Ltd.xls
+deleted file mode 100644
+index 1437719f..00000000
+Binary files a/India_Stocks/excel_files/Sequent Scientific Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shakti Pumps (India) Ltd.xls b/India_Stocks/excel_files/Shakti Pumps (India) Ltd.xls
+deleted file mode 100644
+index 8184a083..00000000
+Binary files a/India_Stocks/excel_files/Shakti Pumps (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shankara Building Products Ltd.xls b/India_Stocks/excel_files/Shankara Building Products Ltd.xls
+deleted file mode 100644
+index 558e5740..00000000
+Binary files a/India_Stocks/excel_files/Shankara Building Products Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shipping Corporation Of India Ltd.xls b/India_Stocks/excel_files/Shipping Corporation Of India Ltd.xls
+deleted file mode 100644
+index 601922a7..00000000
+Binary files a/India_Stocks/excel_files/Shipping Corporation Of India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shree Pushkar Chemicals & Fertilisers Ltd.xls b/India_Stocks/excel_files/Shree Pushkar Chemicals & Fertilisers Ltd.xls
+deleted file mode 100644
+index 51d72c72..00000000
+Binary files a/India_Stocks/excel_files/Shree Pushkar Chemicals & Fertilisers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shreyans Industries Ltd.xls b/India_Stocks/excel_files/Shreyans Industries Ltd.xls
+deleted file mode 100644
+index 0247ac17..00000000
+Binary files a/India_Stocks/excel_files/Shreyans Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shriram Transport Finance Company Ltd.xls b/India_Stocks/excel_files/Shriram Transport Finance Company Ltd.xls
+deleted file mode 100644
+index dd2758d7..00000000
+Binary files a/India_Stocks/excel_files/Shriram Transport Finance Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Shyam Century Ferrous Ltd.xls b/India_Stocks/excel_files/Shyam Century Ferrous Ltd.xls
+deleted file mode 100644
+index 215c287f..00000000
+Binary files a/India_Stocks/excel_files/Shyam Century Ferrous Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Simplex Infrastructures Ltd.xls b/India_Stocks/excel_files/Simplex Infrastructures Ltd.xls
+deleted file mode 100644
+index b78bca9e..00000000
+Binary files a/India_Stocks/excel_files/Simplex Infrastructures Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Singer India Ltd.xls b/India_Stocks/excel_files/Singer India Ltd.xls
+deleted file mode 100644
+index 08e733d9..00000000
+Binary files a/India_Stocks/excel_files/Singer India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sintex Industries Ltd.xls b/India_Stocks/excel_files/Sintex Industries Ltd.xls
+deleted file mode 100644
+index 5f9773bd..00000000
+Binary files a/India_Stocks/excel_files/Sintex Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sintex Plastics Technology Ltd.xls b/India_Stocks/excel_files/Sintex Plastics Technology Ltd.xls
+deleted file mode 100644
+index ca235d2a..00000000
+Binary files a/India_Stocks/excel_files/Sintex Plastics Technology Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Skipper Ltd.xls b/India_Stocks/excel_files/Skipper Ltd.xls
+deleted file mode 100644
+index 90cf5fb0..00000000
+Binary files a/India_Stocks/excel_files/Skipper Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sobha Ltd.xls b/India_Stocks/excel_files/Sobha Ltd.xls
+deleted file mode 100644
+index c2ca6ec4..00000000
+Binary files a/India_Stocks/excel_files/Sobha Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sonata Software Ltd.xls b/India_Stocks/excel_files/Sonata Software Ltd.xls
+deleted file mode 100644
+index bdad755d..00000000
+Binary files a/India_Stocks/excel_files/Sonata Software Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Southern Petrochemical Industries  Corporation Ltd.xls b/India_Stocks/excel_files/Southern Petrochemical Industries  Corporation Ltd.xls
+deleted file mode 100644
+index 3d1e8da6..00000000
+Binary files a/India_Stocks/excel_files/Southern Petrochemical Industries  Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Spicejet Ltd.xls b/India_Stocks/excel_files/Spicejet Ltd.xls
+deleted file mode 100644
+index 75bdc5d6..00000000
+Binary files a/India_Stocks/excel_files/Spicejet Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sri Krishna Constructions (India) Ltd.xls b/India_Stocks/excel_files/Sri Krishna Constructions (India) Ltd.xls
+deleted file mode 100644
+index 04541503..00000000
+Binary files a/India_Stocks/excel_files/Sri Krishna Constructions (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Srikalahasthi Pipes Ltd.xls b/India_Stocks/excel_files/Srikalahasthi Pipes Ltd.xls
+deleted file mode 100644
+index 0b714064..00000000
+Binary files a/India_Stocks/excel_files/Srikalahasthi Pipes Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Star Cement Ltd.xls b/India_Stocks/excel_files/Star Cement Ltd.xls
+deleted file mode 100644
+index 76291a72..00000000
+Binary files a/India_Stocks/excel_files/Star Cement Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Star Paper Mills Ltd.xls b/India_Stocks/excel_files/Star Paper Mills Ltd.xls
+deleted file mode 100644
+index 87f874b3..00000000
+Binary files a/India_Stocks/excel_files/Star Paper Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sterlite Technologies Ltd.xls b/India_Stocks/excel_files/Sterlite Technologies Ltd.xls
+deleted file mode 100644
+index d5661149..00000000
+Binary files a/India_Stocks/excel_files/Sterlite Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Strides Pharma Science Ltd.xls b/India_Stocks/excel_files/Strides Pharma Science Ltd.xls
+deleted file mode 100644
+index cb2d12b3..00000000
+Binary files a/India_Stocks/excel_files/Strides Pharma Science Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Subex Ltd.xls b/India_Stocks/excel_files/Subex Ltd.xls
+deleted file mode 100644
+index 67d4d953..00000000
+Binary files a/India_Stocks/excel_files/Subex Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sun TV Network Ltd.xls b/India_Stocks/excel_files/Sun TV Network Ltd.xls
+deleted file mode 100644
+index 37cd3a4b..00000000
+Binary files a/India_Stocks/excel_files/Sun TV Network Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sunflag Iron & Steel Company Ltd.xls b/India_Stocks/excel_files/Sunflag Iron & Steel Company Ltd.xls
+deleted file mode 100644
+index e29ec68a..00000000
+Binary files a/India_Stocks/excel_files/Sunflag Iron & Steel Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Sunteck Realty Ltd.xls b/India_Stocks/excel_files/Sunteck Realty Ltd.xls
+deleted file mode 100644
+index ad002a7a..00000000
+Binary files a/India_Stocks/excel_files/Sunteck Realty Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Super Crop Safe Ltd.xls b/India_Stocks/excel_files/Super Crop Safe Ltd.xls
+deleted file mode 100644
+index 404ed314..00000000
+Binary files a/India_Stocks/excel_files/Super Crop Safe Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Surat Textile Mills Ltd.xls b/India_Stocks/excel_files/Surat Textile Mills Ltd.xls
+deleted file mode 100644
+index 986e2361..00000000
+Binary files a/India_Stocks/excel_files/Surat Textile Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Surya Roshni Ltd.xls b/India_Stocks/excel_files/Surya Roshni Ltd.xls
+deleted file mode 100644
+index f21d91d7..00000000
+Binary files a/India_Stocks/excel_files/Surya Roshni Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Suven Life Sciences Ltd.xls b/India_Stocks/excel_files/Suven Life Sciences Ltd.xls
+deleted file mode 100644
+index 94b7587a..00000000
+Binary files a/India_Stocks/excel_files/Suven Life Sciences Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Swan Energy Ltd.xls b/India_Stocks/excel_files/Swan Energy Ltd.xls
+deleted file mode 100644
+index df1eb7a8..00000000
+Binary files a/India_Stocks/excel_files/Swan Energy Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Syncom Formulations (India) Ltd.xls b/India_Stocks/excel_files/Syncom Formulations (India) Ltd.xls
+deleted file mode 100644
+index c19a50bf..00000000
+Binary files a/India_Stocks/excel_files/Syncom Formulations (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/TV Today Network Ltd.xls b/India_Stocks/excel_files/TV Today Network Ltd.xls
+deleted file mode 100644
+index f385fb40..00000000
+Binary files a/India_Stocks/excel_files/TV Today Network Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/TVS Electronics Ltd.xls b/India_Stocks/excel_files/TVS Electronics Ltd.xls
+deleted file mode 100644
+index 1594577b..00000000
+Binary files a/India_Stocks/excel_files/TVS Electronics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/TVS Motor Company Ltd.xls b/India_Stocks/excel_files/TVS Motor Company Ltd.xls
+deleted file mode 100644
+index c5850bb1..00000000
+Binary files a/India_Stocks/excel_files/TVS Motor Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Take Solutions Ltd.xls b/India_Stocks/excel_files/Take Solutions Ltd.xls
+deleted file mode 100644
+index cbf80f58..00000000
+Binary files a/India_Stocks/excel_files/Take Solutions Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Talwalkars Better Value Fitness Ltd.xls b/India_Stocks/excel_files/Talwalkars Better Value Fitness Ltd.xls
+deleted file mode 100644
+index 71b9c0e7..00000000
+Binary files a/India_Stocks/excel_files/Talwalkars Better Value Fitness Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tamil Nadu Newsprint & Papers Ltd.xls b/India_Stocks/excel_files/Tamil Nadu Newsprint & Papers Ltd.xls
+deleted file mode 100644
+index d2694c9d..00000000
+Binary files a/India_Stocks/excel_files/Tamil Nadu Newsprint & Papers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tamilnadu Petroproducts Ltd.xls b/India_Stocks/excel_files/Tamilnadu Petroproducts Ltd.xls
+deleted file mode 100644
+index 59df739f..00000000
+Binary files a/India_Stocks/excel_files/Tamilnadu Petroproducts Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Chemicals Ltd.xls b/India_Stocks/excel_files/Tata Chemicals Ltd.xls
+deleted file mode 100644
+index fb6efe9a..00000000
+Binary files a/India_Stocks/excel_files/Tata Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Consultancy Services Ltd.xls b/India_Stocks/excel_files/Tata Consultancy Services Ltd.xls
+deleted file mode 100644
+index 2eb82f57..00000000
+Binary files a/India_Stocks/excel_files/Tata Consultancy Services Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Metaliks Ltd.xls b/India_Stocks/excel_files/Tata Metaliks Ltd.xls
+deleted file mode 100644
+index 444bce28..00000000
+Binary files a/India_Stocks/excel_files/Tata Metaliks Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Power Company Ltd.xls b/India_Stocks/excel_files/Tata Power Company Ltd.xls
+deleted file mode 100644
+index 8a539857..00000000
+Binary files a/India_Stocks/excel_files/Tata Power Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Sponge Iron Ltd.xls b/India_Stocks/excel_files/Tata Sponge Iron Ltd.xls
+deleted file mode 100644
+index e566101c..00000000
+Binary files a/India_Stocks/excel_files/Tata Sponge Iron Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Steel Ltd.xls b/India_Stocks/excel_files/Tata Steel Ltd.xls
+deleted file mode 100644
+index 66146d3a..00000000
+Binary files a/India_Stocks/excel_files/Tata Steel Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tata Teleservices (Maharashtra) Ltd.xls b/India_Stocks/excel_files/Tata Teleservices (Maharashtra) Ltd.xls
+deleted file mode 100644
+index bc91a931..00000000
+Binary files a/India_Stocks/excel_files/Tata Teleservices (Maharashtra) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tech Mahindra Ltd.xls b/India_Stocks/excel_files/Tech Mahindra Ltd.xls
+deleted file mode 100644
+index d4d4e74d..00000000
+Binary files a/India_Stocks/excel_files/Tech Mahindra Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tejas Networks Ltd.xls b/India_Stocks/excel_files/Tejas Networks Ltd.xls
+deleted file mode 100644
+index 0c095fa7..00000000
+Binary files a/India_Stocks/excel_files/Tejas Networks Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The Byke Hospitality Ltd.xls b/India_Stocks/excel_files/The Byke Hospitality Ltd.xls
+deleted file mode 100644
+index b61afe35..00000000
+Binary files a/India_Stocks/excel_files/The Byke Hospitality Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The Indian Wood Products Company Ltd.xls b/India_Stocks/excel_files/The Indian Wood Products Company Ltd.xls
+deleted file mode 100644
+index 08a6bc6a..00000000
+Binary files a/India_Stocks/excel_files/The Indian Wood Products Company Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The Jammu & Kashmir Bank Ltd.xls b/India_Stocks/excel_files/The Jammu & Kashmir Bank Ltd.xls
+deleted file mode 100644
+index 31d30655..00000000
+Binary files a/India_Stocks/excel_files/The Jammu & Kashmir Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The Karnataka Bank Ltd.xls b/India_Stocks/excel_files/The Karnataka Bank Ltd.xls
+deleted file mode 100644
+index 90ac2851..00000000
+Binary files a/India_Stocks/excel_files/The Karnataka Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The New India Assurance Co Ltd.xls b/India_Stocks/excel_files/The New India Assurance Co Ltd.xls
+deleted file mode 100644
+index 5b1abbcf..00000000
+Binary files a/India_Stocks/excel_files/The New India Assurance Co Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/The South Indian Bank Ltd.xls b/India_Stocks/excel_files/The South Indian Bank Ltd.xls
+deleted file mode 100644
+index e3591124..00000000
+Binary files a/India_Stocks/excel_files/The South Indian Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Think Ink Studio Ltd.xls b/India_Stocks/excel_files/Think Ink Studio Ltd.xls
+deleted file mode 100644
+index 92ab82d4..00000000
+Binary files a/India_Stocks/excel_files/Think Ink Studio Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Thirumalai Chemicals Ltd.xls b/India_Stocks/excel_files/Thirumalai Chemicals Ltd.xls
+deleted file mode 100644
+index f7f78449..00000000
+Binary files a/India_Stocks/excel_files/Thirumalai Chemicals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Thomas Cook (India) Ltd.xls b/India_Stocks/excel_files/Thomas Cook (India) Ltd.xls
+deleted file mode 100644
+index 57bb532b..00000000
+Binary files a/India_Stocks/excel_files/Thomas Cook (India) Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Time Technoplast Ltd.xls b/India_Stocks/excel_files/Time Technoplast Ltd.xls
+deleted file mode 100644
+index cb1ac70d..00000000
+Binary files a/India_Stocks/excel_files/Time Technoplast Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Torrent Pharmaceuticals Ltd.xls b/India_Stocks/excel_files/Torrent Pharmaceuticals Ltd.xls
+deleted file mode 100644
+index 1b961f26..00000000
+Binary files a/India_Stocks/excel_files/Torrent Pharmaceuticals Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Torrent Power Ltd.xls b/India_Stocks/excel_files/Torrent Power Ltd.xls
+deleted file mode 100644
+index de342637..00000000
+Binary files a/India_Stocks/excel_files/Torrent Power Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tourism Finance Corporation Of India Ltd.xls b/India_Stocks/excel_files/Tourism Finance Corporation Of India Ltd.xls
+deleted file mode 100644
+index 3ae63c6e..00000000
+Binary files a/India_Stocks/excel_files/Tourism Finance Corporation Of India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Tribhovandas Bhimji Zaveri Ltd.xls b/India_Stocks/excel_files/Tribhovandas Bhimji Zaveri Ltd.xls
+deleted file mode 100644
+index bc7efce0..00000000
+Binary files a/India_Stocks/excel_files/Tribhovandas Bhimji Zaveri Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Trident Ltd.xls b/India_Stocks/excel_files/Trident Ltd.xls
+deleted file mode 100644
+index 3edea5c7..00000000
+Binary files a/India_Stocks/excel_files/Trident Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Trigyn Technologies Ltd.xls b/India_Stocks/excel_files/Trigyn Technologies Ltd.xls
+deleted file mode 100644
+index 041ddaf7..00000000
+Binary files a/India_Stocks/excel_files/Trigyn Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/UPL Ltd.xls b/India_Stocks/excel_files/UPL Ltd.xls
+deleted file mode 100644
+index 9639601e..00000000
+Binary files a/India_Stocks/excel_files/UPL Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Uflex Ltd.xls b/India_Stocks/excel_files/Uflex Ltd.xls
+deleted file mode 100644
+index 45ee3e70..00000000
+Binary files a/India_Stocks/excel_files/Uflex Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Ujaas Energy Ltd.xls b/India_Stocks/excel_files/Ujaas Energy Ltd.xls
+deleted file mode 100644
+index 97de0208..00000000
+Binary files a/India_Stocks/excel_files/Ujaas Energy Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Unichem Laboratories Ltd.xls b/India_Stocks/excel_files/Unichem Laboratories Ltd.xls
+deleted file mode 100644
+index 1d069086..00000000
+Binary files a/India_Stocks/excel_files/Unichem Laboratories Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Uniply Industries Ltd.xls b/India_Stocks/excel_files/Uniply Industries Ltd.xls
+deleted file mode 100644
+index bd316f3f..00000000
+Binary files a/India_Stocks/excel_files/Uniply Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/United Spirits Ltd.xls b/India_Stocks/excel_files/United Spirits Ltd.xls
+deleted file mode 100644
+index 56abfdcb..00000000
+Binary files a/India_Stocks/excel_files/United Spirits Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Universal Cables Ltd.xls b/India_Stocks/excel_files/Universal Cables Ltd.xls
+deleted file mode 100644
+index a8a308cb..00000000
+Binary files a/India_Stocks/excel_files/Universal Cables Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/V2 Retail Ltd.xls b/India_Stocks/excel_files/V2 Retail Ltd.xls
+deleted file mode 100644
+index 7f771196..00000000
+Binary files a/India_Stocks/excel_files/V2 Retail Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/VA Tech Wabag Ltd.xls b/India_Stocks/excel_files/VA Tech Wabag Ltd.xls
+deleted file mode 100644
+index 4c397f53..00000000
+Binary files a/India_Stocks/excel_files/VA Tech Wabag Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/VRL Logistics Ltd.xls b/India_Stocks/excel_files/VRL Logistics Ltd.xls
+deleted file mode 100644
+index eec1efd4..00000000
+Binary files a/India_Stocks/excel_files/VRL Logistics Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vadilal Industries Ltd.xls b/India_Stocks/excel_files/Vadilal Industries Ltd.xls
+deleted file mode 100644
+index 4942e858..00000000
+Binary files a/India_Stocks/excel_files/Vadilal Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vakrangee Ltd.xls b/India_Stocks/excel_files/Vakrangee Ltd.xls
+deleted file mode 100644
+index 2efe0968..00000000
+Binary files a/India_Stocks/excel_files/Vakrangee Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vaswani Industries Ltd.xls b/India_Stocks/excel_files/Vaswani Industries Ltd.xls
+deleted file mode 100644
+index d7f73992..00000000
+Binary files a/India_Stocks/excel_files/Vaswani Industries Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vedanta Ltd.xls b/India_Stocks/excel_files/Vedanta Ltd.xls
+deleted file mode 100644
+index 19a8b624..00000000
+Binary files a/India_Stocks/excel_files/Vedanta Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vidhi Specialty Food Ingredients Ltd.xls b/India_Stocks/excel_files/Vidhi Specialty Food Ingredients Ltd.xls
+deleted file mode 100644
+index cc2e2707..00000000
+Binary files a/India_Stocks/excel_files/Vidhi Specialty Food Ingredients Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vijaya Bank.xls b/India_Stocks/excel_files/Vijaya Bank.xls
+deleted file mode 100644
+index 621f6cbb..00000000
+Binary files a/India_Stocks/excel_files/Vijaya Bank.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vikas Proppant & Granite Ltd.xls b/India_Stocks/excel_files/Vikas Proppant & Granite Ltd.xls
+deleted file mode 100644
+index 814ebcac..00000000
+Binary files a/India_Stocks/excel_files/Vikas Proppant & Granite Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vikas WSP Ltd.xls b/India_Stocks/excel_files/Vikas WSP Ltd.xls
+deleted file mode 100644
+index 4e5ea13f..00000000
+Binary files a/India_Stocks/excel_files/Vikas WSP Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vimta Labs Ltd.xls b/India_Stocks/excel_files/Vimta Labs Ltd.xls
+deleted file mode 100644
+index 83fd0dd0..00000000
+Binary files a/India_Stocks/excel_files/Vimta Labs Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Vivimed Labs Ltd.xls b/India_Stocks/excel_files/Vivimed Labs Ltd.xls
+deleted file mode 100644
+index fb865e82..00000000
+Binary files a/India_Stocks/excel_files/Vivimed Labs Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Waterbase Ltd.xls b/India_Stocks/excel_files/Waterbase Ltd.xls
+deleted file mode 100644
+index cdc13c94..00000000
+Binary files a/India_Stocks/excel_files/Waterbase Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Welspun Enterprises Ltd.xls b/India_Stocks/excel_files/Welspun Enterprises Ltd.xls
+deleted file mode 100644
+index ce99a6c0..00000000
+Binary files a/India_Stocks/excel_files/Welspun Enterprises Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Welspun India Ltd.xls b/India_Stocks/excel_files/Welspun India Ltd.xls
+deleted file mode 100644
+index 56fd8791..00000000
+Binary files a/India_Stocks/excel_files/Welspun India Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/West Coast Paper Mills Ltd.xls b/India_Stocks/excel_files/West Coast Paper Mills Ltd.xls
+deleted file mode 100644
+index e23c832e..00000000
+Binary files a/India_Stocks/excel_files/West Coast Paper Mills Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Westlife Development Ltd.xls b/India_Stocks/excel_files/Westlife Development Ltd.xls
+deleted file mode 100644
+index a8b85997..00000000
+Binary files a/India_Stocks/excel_files/Westlife Development Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/White Organic Agro Ltd.xls b/India_Stocks/excel_files/White Organic Agro Ltd.xls
+deleted file mode 100644
+index aa69a0e2..00000000
+Binary files a/India_Stocks/excel_files/White Organic Agro Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Wipro Ltd.xls b/India_Stocks/excel_files/Wipro Ltd.xls
+deleted file mode 100644
+index e72f9360..00000000
+Binary files a/India_Stocks/excel_files/Wipro Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Wonderla Holidays Ltd.xls b/India_Stocks/excel_files/Wonderla Holidays Ltd.xls
+deleted file mode 100644
+index bd459578..00000000
+Binary files a/India_Stocks/excel_files/Wonderla Holidays Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Yash Papers Ltd.xls b/India_Stocks/excel_files/Yash Papers Ltd.xls
+deleted file mode 100644
+index c4d489a6..00000000
+Binary files a/India_Stocks/excel_files/Yash Papers Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Yes Bank Ltd.xls b/India_Stocks/excel_files/Yes Bank Ltd.xls
+deleted file mode 100644
+index 4493881d..00000000
+Binary files a/India_Stocks/excel_files/Yes Bank Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Zee Entertainment Enterprises Ltd.xls b/India_Stocks/excel_files/Zee Entertainment Enterprises Ltd.xls
+deleted file mode 100644
+index 200294a5..00000000
+Binary files a/India_Stocks/excel_files/Zee Entertainment Enterprises Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Zee Learn Ltd.xls b/India_Stocks/excel_files/Zee Learn Ltd.xls
+deleted file mode 100644
+index 16eb1af5..00000000
+Binary files a/India_Stocks/excel_files/Zee Learn Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Zee Media Corporation Ltd.xls b/India_Stocks/excel_files/Zee Media Corporation Ltd.xls
+deleted file mode 100644
+index fb0ef8c6..00000000
+Binary files a/India_Stocks/excel_files/Zee Media Corporation Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Zensar Technologies Ltd.xls b/India_Stocks/excel_files/Zensar Technologies Ltd.xls
+deleted file mode 100644
+index 8a45e8b1..00000000
+Binary files a/India_Stocks/excel_files/Zensar Technologies Ltd.xls and /dev/null differ
+diff --git a/India_Stocks/excel_files/Zuari Agro Chemicals Ltd.xls b/India_Stocks/excel_files/Zuari Agro Chemicals Ltd.xls
+deleted file mode 100644
+index d82e7962..00000000
+Binary files a/India_Stocks/excel_files/Zuari Agro Chemicals Ltd.xls and /dev/null differ
+diff --git a/README.md b/README.md
+index dcb59c6b..9de86142 100644
+--- a/README.md
++++ b/README.md
+@@ -127,6 +127,10 @@ db.US_Stocks.createIndex({'price_change.day': -1})
+ db.US_Stocks.createIndex({sno: -1})
+ db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
+ 
++MYSQL
++=====
++CREATE
++ 
+ PyMongo python package
+ ======================
+ Read all documents one by one
+diff --git a/US_Stocks/DCF_Calc/DCF_All_Stocks_8%_cold_all.xls b/US_Stocks/DCF_Calc/DCF_All_Stocks_8%_cold_all.xls
+deleted file mode 100644
+index cbe3d50e..00000000
+Binary files a/US_Stocks/DCF_Calc/DCF_All_Stocks_8%_cold_all.xls and /dev/null differ
+diff --git a/US_Stocks/radar_stocks.xls b/US_Stocks/radar_stocks.xls
+deleted file mode 100644
+index ae8dbdd6..00000000
+Binary files a/US_Stocks/radar_stocks.xls and /dev/null differ
+diff --git a/US_analysis.py b/US_analysis.py
+index 40b22022..0ddd3a96 100644
+--- a/US_analysis.py
++++ b/US_analysis.py
+@@ -25,7 +25,8 @@ def US_main():
+     #DB.update_sector_info()
+     #internet.price_surprises('US', 0.10, WEEK | DAY, 'COLD', 'SYNC_DB')
+     #DB.set_sno('US')
+-    hdf5.insert_all_dfs_from_hdf_to_sql('US')
++    #hdf5.insert_all_dfs_from_hdf_to_sql('US')
++    hdf5.insert_all_dfs_from_hdf_to_influxdb('US')
+     #internet.send_email("Hello World")
+     #internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', 'Test', 'Hello')
+     #get_radar_stocks()
+diff --git a/db_backup/Stocks/Indian_Stocks.bson b/db_backup/Stocks/Indian_Stocks.bson
+index 409760aa..197ecce8 100644
+Binary files a/db_backup/Stocks/Indian_Stocks.bson and b/db_backup/Stocks/Indian_Stocks.bson differ
+diff --git a/hdf5.py b/hdf5.py
+index bc6d19bc..273cf1ff 100644
+--- a/hdf5.py
++++ b/hdf5.py
+@@ -195,6 +195,26 @@ def insert_all_dfs_from_hdf_to_sql(country):
+             insert_df_from_hdf_to_sql(country, symbol, engine, table)
+         i = i + 1
+ 
++def insert_df_from_hdf_to_influxdb(symbol, df, client):
++    df['Date'] = df.index.strftime("%Y-%m-%d")
++    client.write_points(df, symbol, tag_columns=['Date'], protocol='line', batch_size=1000)
++
++def insert_all_dfs_from_hdf_to_influxdb(country):
++    symbols = get_symbols_from_hdf(country)
++
++    for i, symbol in enumerate(symbols):
++        print("%d: %r"%(i, symbol))
++        df = read_from_hdf(country, symbol)
++        try:
++            client = DB.open_influx_client(country)
++            insert_df_from_hdf_to_influxdb(symbol, df, client)
++        finally:
++            DB.close_influx_client(client)
++        i = i + 1
++        if i > 100:
++            break
++
++
+ #def write_to_hdf_store(country, df, symbol):
+ #    if country == 'India':
+ #        store = library = 'India_Stocks_Prices'
+diff --git a/scripts/Price_Change.sh b/scripts/Price_Change.sh
+index fc858276..a46d222d 100755
+--- a/scripts/Price_Change.sh
++++ b/scripts/Price_Change.sh
+@@ -2,14 +2,14 @@
+ 
+ HOME_DIR=/home/vpetla/work/stockanalysis
+ SCRIPT=$HOME_DIR/Update_Price_Change.py
+-
++LOG="/home/`whoami`/tmp/${1}_price_change.txt"
+ #export DISPLAY=:0.0
+-val=`ps ax | grep $SCRIPT | grep -v grep | wc -l`
++val=`ps ax | grep $SCRIPT | grep $1 | grep -v grep | wc -l`
+ if [ $val -eq 0 ]; then
+ 	echo "Starting $SCRIPT"
+-	echo > ~/tmp/price_change.txt
++	echo > $LOG
+    	#python3 -u $HOME_DIR/$SCRIPT 2>&1 > /dev/null
+-   	python3 -u $SCRIPT $1 2>&1 | tee -a ~/tmp/price_change.txt
++   	python3 -u $SCRIPT $1 2>&1 | tee -a $LOG
+    	#python3 $SCRIPT
+ 	#unset DISPLAY
+ fi
+diff --git a/scripts/code_autocheckin.sh b/scripts/code_autocheckin.sh
+index aef55a26..a8e85d43 100755
+--- a/scripts/code_autocheckin.sh
++++ b/scripts/code_autocheckin.sh
+@@ -4,6 +4,7 @@ HOME_DIR=/home/vpetla/work/stockanalysis
+ 
+ cd $HOME_DIR && git add *.py
+ cd $HOME_DIR && git add README.md file.txt nins.txt run_script_log.txt
++cd $HOME_DIR && pip3 list > pips.txt
+ cd $HOME_DIR && git add pips*
+ cd $HOME_DIR && git add scripts/*
+ cd $HOME_DIR/US_Stocks/DCF_Calc && git add radar_stocks.xls
+diff --git a/scripts/db_autocheckin.sh b/scripts/db_autocheckin.sh
+index fc0c1270..4f4143d0 100755
+--- a/scripts/db_autocheckin.sh
++++ b/scripts/db_autocheckin.sh
+@@ -5,9 +5,10 @@ HOME_DIR=/home/vpetla/work/stockanalysis
+ echo "Automatic DB Backup"
+ mongodump --db=Stocks --out=$HOME_DIR/db_backup
+ python3 $HOME_DIR/file_split.py
++cd $HOME_DIR && rm -f db_backup/Stocks/US_Stocks.bson
+ cd $HOME_DIR && git pull origin master
+ cd $HOME_DIR && git add db_backup/*
+-cd $HOME_DIR && git rm db_backup/Stocks/US_Stocks.bson
++cd $HOME_DIR && git rm -f db_backup/Stocks/US_Stocks.bson
+ cd $HOME_DIR && git commit -m "Automatic DB Backup"
+ 
+ cd $HOME_DIR && git push origin master
