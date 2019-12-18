@@ -450,16 +450,28 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         except Exception as e:
             collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
             entry.append(str("None"))
-        entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
-        entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
+        if 'fiftytwoweek_high' in bscs.keys():
+            entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
+        else:
+            entry.append("")
+        if 'fiftytwoweek_low' in bscs.keys():
+            entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
+        else:
+            entry.append("")
         entry.append(pcent(pchg['day']))
         entry.append(pcent(pchg['week']))
         entry.append(pcent(pchg['month']))
         entry.append(pcent(pchg['quarter']))
         entry.append(pcent(pchg['half_year']))
         entry.append(pcent(pchg['year']))
-        entry.append(pcent(pchg['with_52week_high']))
-        entry.append(pcent(pchg['with_52week_low']))
+        if 'with_52week_high' in bscs.keys():
+            entry.append(pcent(pchg['with_52week_high']))
+        else:
+            entry.append("")
+        if 'with_52week_low' in bscs.keys():
+            entry.append(pcent(pchg['with_52week_low']))
+        else:
+            entry.append("")
         
         entries.append(entry)
 
@@ -1813,6 +1825,25 @@ def populate_US_EPS(stk):
     close_browser(br)
     gc.collect()
     #t1.join()
+
+def get_page_with_check(url):
+    html_page = get_webpage(url)
+    #html_page  = get_html(html_file)
+    soup = parse_html.get_soup(html_page)
+    pattern = re.compile(r'Sorry, there is no additional data for this symbol.')
+    div = soup.find(text=pattern)
+    if div:
+        return None
+    pattern = re.compile(r'Oops, something\'s wrong.')
+    div = soup.find(text=pattern)
+    if div:
+        return None
+    pattern = re.compile(r'Fundamentals')
+    div = soup.find(text=pattern)
+    if div:
+        print("Going to overview page, breaking")
+        return None
+    return html_page
 
 def get_pages(path, symbol, statement_type, duration_type):
     i=1

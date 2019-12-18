@@ -33,4 +33,5 @@ if __name__ == "__main__":
     internet.send_email_price_changes(sys.argv[1])
 
     # Radar Stocks
-    #excel.get_radar_stocks('US')
+    if sys.argv[1] == 'US':
+        excel.get_radar_stocks('US')

@@ -9,7 +9,8 @@ import time
 import requests
 import math
 
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime as dt
+import datetime
 import numpy as np
 import pandas as pd
 import pandas_datareader as pdr
@@ -277,7 +278,7 @@ def update_US_stk_profile(html_text, collection):
     #symbol=re.search('\(([^)]+)',s).group(1)
     #print(symbol)
 
-    dt = datetime.now().date().strftime("%d-%m-%Y")
+    dt = dt.now().date().strftime("%d-%m-%Y")
     update_field(collection, symbol, "bscs.date", dt)
 
     #Market Cap
@@ -438,7 +439,7 @@ def update_US_stk_profile(html_text, collection):
     #        val = val.lstrip().rstrip()
     #        split_date = val.split(' ')[2]
     #        split_year = val.split(' ')[2].split('/')[2]
-    #        cur_year = int(str(datetime.now().year)[2:4])
+    #        cur_year = int(str(dt.now().year)[2:4])
     #        if int(split_year) < cur_year:
     #            split_year = str('20' + str(split_year))
     #        else:
@@ -492,7 +493,7 @@ def fork_db_process(country, sem, lock):
     if num_docs == 0:
         return
 
-    today=str(datetime.now().date())
+    today=str(dt.now().date())
     #Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
     #            {'$match' : {"bscs.price_date": {'$ne':today}}},
@@ -525,7 +526,7 @@ def fork_hdf5_process(country, sem):
     db = c['Stocks']
     collection = get_collection(country, db)
 
-    today=str(datetime.now().date())
+    today=str(dt.now().date())
     num_docs = collection.find({}).count()
     #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
     if num_docs == 0:
@@ -588,7 +589,7 @@ def fork_hdf5_process(country, sem):
 def update_stk_bscs_db(country, db, stk, sem, lock):
     global j
     try:
-        today=str(datetime.now().date())
+        today=str(dt.now().date())
         stock = internet.get_price_volume(stk, country)
         collection = get_collection(country, db)
         if stock:
@@ -612,14 +613,13 @@ def update_stk_bscs_db(country, db, stk, sem, lock):
     finally:
         sem.release()
 
-from datetime import datetime
 def update_all_price_volume_db(country):
     global j
     max_threads = multiprocessing.cpu_count() * 2
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
     db_lock = threading.Lock()
-    today=str(datetime.now().date())
+    today=str(dt.now().date())
     count=0
     i=0
 
@@ -815,13 +815,13 @@ def build_US_all_earnings_estimates():
         print("***************** Completed fetching earnings estimates *************")
         return
     #try:
-    today=datetime.now().date()
+    today=dt.now().date()
     for doc in docs:
         sno = doc['sno']
         if sno > 0:
         #if sno > 3000:
             stk = doc
-            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - datetime.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
+            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - dt.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
                 print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
                 internet.populate_US_earnings_estimates(stk)
             #break
@@ -894,10 +894,108 @@ def build_US_All_Stocks_List():
         s = parse_html.html_text(s, new_stocks)
         #s = parse_html.html_table(new_stocks)
         #print(s)
-        subject = 'New Stocks :' + str(datetime.now().date())
+        subject = 'New Stocks :' + str(dt.now().date())
         write_to_file(s, '/tmp/new_listings.html')
         internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
     return len(new_stocks)
+
+def update_US_stock_statement(col, stk, statement_type, duration_type):
+    print(statement_type,duration_type)
+
+    #path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(stk['bscs']['name'])
+    symbol = stk['bscs']['symbol']
+    if duration_type == 'annual':
+        fig = 'fig'
+    else:
+        fig = 'quart_fig'
+
+    if 'financial-statements' not in stk[fig].keys():
+        stk[fig]['financial-statements']={}
+
+    if statement_type not in stk[fig]['financial-statements'].keys():
+        field = fig+'.financial-statements.'+statement_type+'.'+'date'
+        col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
+        return
+
+    dates = list(stk[fig]['financial-statements'][statement_type].keys())
+    dates.reverse()
+    if 'date' in dates:
+        now = dt.now().date()
+        last_date = stk[fig]['financial-statements'][statement_type]['date']
+        last_date = dt.strptime(last_date, "%Y-%m-%d").date()
+        if (now - last_date) < timedelta(30):
+            print("Already updated on %r" %(str(last_date)))
+            return
+
+    # Currently page 1 is sufficient assuming the latest reports are covered in page 1.
+    # If this is a new stock, it will be handled by different execution path
+    i = 1
+    url = "https://www.barchart.com/stocks/quotes/%s/%s/%s?reportPage=%s" %(symbol, statement_type, duration_type, i)
+    #html_file = "%s/%s_%s_%s_%s.html" %(path, symbol, statement_type, duration_type, i)
+    html_page = internet.get_page_with_check(url)
+    if html_page is None:
+        PRINT_ERR("update_US_stock_information(): Failed to get %r %r for %r" %(statement_type, duration_type, symbol))
+        field = fig+'.financial-statements.'+statement_type+'.'+'date'
+        col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
+        return
+    soup = parse_html.get_soup(html_page)
+    stk = parse_html.populate_statement(soup, stk, statement_type, duration_type)
+
+    statements = stk[fig]['financial-statements'][statement_type]
+    dates = list(statements.keys())
+    dates.reverse()
+    for i, d in enumerate(dates):
+        if type(d) is datetime.date:
+            if statement_type == 'balance-sheet':
+                if 'Current Assets' in statements[d]['Assets'].keys():
+                    del statements[d]['Assets']['Current Assets']
+                if 'Non-Current Assets' in statements[d]['Assets'].keys():
+                    del statements[d]['Assets']['Non-Current Assets']
+                if 'Current Liabilities' in statements[d]['Assets'].keys():
+                    del statements[d]['Liabilities']['Current Liabilities']
+                if 'Non-Current Liabilities' in statements[d]['Assets'].keys():
+                    del statements[d]['Liabilities']['Non-Current Liabilities']
+
+            field = fig+'.financial-statements.'+statement_type+'.'+d.strftime('%m-%Y')
+            col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements[d]}})
+    field = fig+'.financial-statements.'+statement_type+'.'+'date'
+    col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
+
+    #remove_dir(path)
+
+def update_US_stock_information(col, stk):
+    #db = open_db('test')
+    #col = db.col
+    #income statements
+    #update_US_stock_statement(col, stk, "income-statement", "annual")
+    update_US_stock_statement(col, stk, "income-statement", "quarterly")
+    #cash flow statements
+    #update_US_stock_statement(col, stk, "cash-flow", "annual")
+    update_US_stock_statement(col, stk, "cash-flow", "quarterly")
+    #balance sheet statements
+    #update_US_stock_statement(col, stk, "balance-sheet", "annual")
+    update_US_stock_statement(col, stk, "balance-sheet", "quarterly")
+
+def update_US_all_stock_information():
+    db = open_db('Stocks')
+
+    #s=[]
+    #f = open("stocks.txt","r")
+    #for line in f:
+    #    line = line.replace("\n","")
+    #    s.append(line)
+    #if len(s) > 0:
+    #    del s[-1]
+    #syms = {"$nin" : s}
+    #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    print(stocks.count())
+
+    for i, stk in enumerate(stocks):
+        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+        update_US_stock_information(db.US_Stocks, stk)
+        #if i > 10:
+        #    break
 
 def build_US_stock_information(doc):
     db   = open_db('Stocks')
@@ -1129,8 +1227,8 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
         try:
             if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
                 #print("Recession Betas")
-                st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
-                en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
+                st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
+                en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
                 betas = get_beta(country, sym, st_date, en_date, df=None)
@@ -1139,8 +1237,8 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
         except KeyError:
                 #print("Recession Betas")
-                st_date = datetime.strptime(recessions[year]['start'], "%d %B %Y").date()
-                en_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
+                st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
+                en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
                 betas = get_beta(country, sym, st_date, en_date, df=None)
@@ -1170,7 +1268,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #sno = int(read_from_file("beta.txt"))
         #if sno > stk['sno']:
         #    continue
-        since_start = datetime.strptime(since, "%Y-%m-%d").date()
+        since_start = dt.strptime(since, "%Y-%m-%d").date()
         
         update_stock_recession_betas(country, collection, stk, sym, df=df)
         
@@ -1181,8 +1279,8 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #Since last recession
         betas = None
         year = sorted(recessions.keys())[-1]
-        st_date = datetime.strptime(recessions[year]['end'], "%d %B %Y").date()
-        en_date = datetime.now().date()
+        st_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
+        en_date = dt.now().date()
         #print("Since last recession")
         #print(st_date)
         #print(en_date)
@@ -1194,7 +1292,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #whole beta
         #print("whole beta")
         st_date = since_start
-        en_date = datetime.now().date()
+        en_date = dt.now().date()
         #print(st_date)
         #print(en_date)
         betas = get_beta(country, sym, st_date, en_date, df=df)
@@ -1204,7 +1302,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         
         #5 year beta
         #print("5 year beta")
-        en_date = datetime.now().date()
+        en_date = dt.now().date()
         betas = None
         st_date = en_date - timedelta(days=5*365)
         #print(st_date)
@@ -1217,7 +1315,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #1 year beta
         #print("1 year beta")
         st_date = since_start
-        en_date = datetime.now().date()
+        en_date = dt.now().date()
         betas = None
         st_date = en_date - timedelta(days=1*365)
         #print(st_date)
@@ -1230,7 +1328,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #6 months beta
         #print("6 months beta")
         st_date = since_start
-        en_date = datetime.now().date()
+        en_date = dt.now().date()
         betas = None
         st_date = en_date - timedelta(days=365/2)
         #print(st_date)

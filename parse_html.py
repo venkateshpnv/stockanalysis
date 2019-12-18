@@ -680,6 +680,23 @@ def populate_US_stocks_quarterly(root, files, stk):
 
     return stk
 
+# Get last date of financial statements
+def get_last_date(stk, fig, statement):
+    dates = list(stk[fig]['financial-statements'][statement].keys())
+
+    if 'date' in dates:
+        i = dates.index('date')
+        del dates[i]
+
+    dt_dates=[]
+    for d in dates:
+        d = dt.strptime(d, "%m-%Y").date()
+        dt_dates.append(d)
+    dt_dates = sorted(dt_dates)
+    if len(dt_dates) > 0:
+        return dt_dates[-1]
+    return dt.strptime("01-1950", "%m-%Y").date()
+
 def populate_statement(soup, stock, statement, tenure):
     dates = []
 
@@ -695,11 +712,12 @@ def populate_statement(soup, stock, statement, tenure):
 
     if fig not in stock:
         stock[fig]={}
-    if 'financial-statements' not in stock[fig]:
+    if 'financial-statements' not in stock[fig].keys():
         stock[fig]['financial-statements']={}
-    if statement not in stock[fig]['financial-statements']:
+    if statement not in stock[fig]['financial-statements'].keys():
         stock[fig]['financial-statements'][statement]={}
 
+    last_date = get_last_date(stock, fig, statement)
     count = len(trs)
     # Dates
     if trs[i].attrs['class'] and trs[i].attrs['class'][0] == 'bc-financial-report__row-dates':
@@ -707,11 +725,16 @@ def populate_statement(soup, stock, statement, tenure):
 
         for j in range(1, len(tds)):
             #dates.append(tds[j].get_text().lstrip().rstrip())
-            dates.append(datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date())
+            d = datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date()
+            if d > last_date:
+                dates.append(datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date())
+            else:
+                dates.append("")
         i = i + 1
         # Create statement entry for each date
         for j in range(len(dates)):
-            stock[fig]['financial-statements'][statement][dates[j]]={}
+            if dates[j] != "":
+                stock[fig]['financial-statements'][statement][dates[j]]={}
    
     if len(dates) == 0:
         PRINT_ERR("Couldn't get dates. Unable to proceed")
@@ -725,7 +748,7 @@ def populate_statement(soup, stock, statement, tenure):
             group_label = trs[i].get_text().lstrip().rstrip()
             # Create group label entry for each date
             for j in range(len(dates)):
-                if not group_label in stock[fig]['financial-statements'][statement][dates[j]]:
+                if dates[j] != "" and not group_label in stock[fig]['financial-statements'][statement][dates[j]]:
                     stock[fig]['financial-statements'][statement][dates[j]][group_label] = {}
             i = i + 1
         while i < count:
@@ -742,13 +765,16 @@ def populate_statement(soup, stock, statement, tenure):
 
             if statement == 'income-statement':
                 for j, k in zip(range(len(dates)), range(1, len(tds))):
-                    stock[fig]['financial-statements'][statement][dates[j]][sub_label] = str_to_float(tds[k].get_text())
+                    if dates[j] != "":
+                        stock[fig]['financial-statements'][statement][dates[j]][sub_label] = str_to_float(tds[k].get_text())
             else:
                 for j, k in zip(range(len(dates)), range(1, len(tds))):
-                    stock[fig]['financial-statements'][statement][dates[j]][group_label][sub_label]=str_to_float(tds[k].get_text())
-                    #stock['fig'][statement][dates[j]][group_label].insert(-1, sub_label = str_to_float(tds[k].get_text()))
+                    if dates[j] != "":
+                        stock[fig]['financial-statements'][statement][dates[j]][group_label][sub_label]=str_to_float(tds[k].get_text())
+                        #stock['fig'][statement][dates[j]][group_label].insert(-1, sub_label = str_to_float(tds[k].get_text()))
 
             i = i + 1
+    print(dates)
     return stock
 
 def populate_financial_statement(stock, root, files, sheet_type, tenure):
