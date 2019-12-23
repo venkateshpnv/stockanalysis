@@ -464,11 +464,11 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         entry.append(pcent(pchg['quarter']))
         entry.append(pcent(pchg['half_year']))
         entry.append(pcent(pchg['year']))
-        if 'with_52week_high' in bscs.keys():
+        if 'with_52week_high' in pchg.keys():
             entry.append(pcent(pchg['with_52week_high']))
         else:
             entry.append("")
-        if 'with_52week_low' in bscs.keys():
+        if 'with_52week_low' in pchg.keys():
             entry.append(pcent(pchg['with_52week_low']))
         else:
             entry.append("")
@@ -1500,6 +1500,12 @@ def convert_date(label):
 def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
+    now = dt.now().date()
+
+    if item not in stk['fig'].keys():
+        stk['fig'][item]={}
+    dates = list(stk['fig'][item].keys())
+    last_date = get_last_date(stk, dates, '%Y-%m-%d')
 
     time.sleep(2)
     scroll(br, Keys.ARROW_DOWN)
@@ -1509,11 +1515,14 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     start  = convert_date(str(labels[0].attrs['aria-label']))
     end    = convert_date(str(labels[-1].attrs['aria-label']))
 
-    st = start
     db = DB.open_db('Stocks')
-    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.since", str(start))
+    if start < last_date:
+        start = last_date + timedelta(7)
+        end   = now
+    else:
+        DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.since", str(start))
 
-    now = dt.now().date()
+    st = start
     while True:
         en = st + timedelta(days=365*10)
         if en >= now:
@@ -1620,9 +1629,10 @@ def get_all_entries(br, stk, item, field, pattern, convert):
             break
 
     pp = pprint.PrettyPrinter(indent=4)
-    sorted_entries = {}
+    sorted_entries = stk['fig'][item]
     for e in sorted(entries.keys()):
         sorted_entries[str(e)] = entries[e]
+    sorted_entries['date'] = str(now)
     #pp.pprint(sorted_entries)
     scroll(br, Keys.ARROW_UP)
     return sorted_entries
@@ -1744,12 +1754,28 @@ def write_hist_to_db(stk, eps_hist, dividend_hist, split_hist):
     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.SPLIT_History", split_hist)
 
 def populate_US_EPS(stk):
+    fig = 'fig'
+
+    if not 'EPS_History' in stk[fig].keys():
+        return
+
+    dates = list(stk[fig]['EPS_History'].keys())
+    dates.reverse()
+    if 'date' in dates:
+        now = dt.now().date()
+        last_date = stk[fig]['EPS_History']['date']
+        last_date = dt.strptime(last_date, "%Y-%m-%d").date()
+        if (dt.now().date() - last_date) < timedelta(30):
+            print("Already updated on %r" %(str(last_date)))
+            return
+
+
     eps_hist = {}
     split_hist = {}
     dividend_hist = {}
 
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
-    br = open_browser()
+    br = open_browser('headless')
 
     #t1 = threading.Thread(target=close_popups, args=(br,lock,))
     #t1.start()

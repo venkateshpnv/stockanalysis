@@ -392,5 +392,5 @@ recessions = {
                          }
              }
 
-India_indices = {"^BSESN": "BSE", "^NSEI":"NSE"}
-US_indices = { "^GSPC":"SP500", "^DJI": "DowJones", "^IXIC": "Nasdaq", "^RUT": "Russel2000"}  
+India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
+US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'}  

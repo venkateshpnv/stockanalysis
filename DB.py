@@ -627,16 +627,16 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
-    fork_hdf5_process(country, hdf5_sem)
+    #fork_hdf5_process(country, hdf5_sem)
     #fork_db_process(country, db_sem, db_lock)
-    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
-    #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-    #try:
-    #    hdf5_process.start()
-    #    db_process.start()
-    #finally:
-    #    hdf5_process.join()
-    #    db_process.join()
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
+    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    try:
+        hdf5_process.start()
+        db_process.start()
+    finally:
+        hdf5_process.join()
+        db_process.join()
     print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.
@@ -800,6 +800,25 @@ def build_US_all_EPS():
         except Exception as E:
             print(str(E))
             continue
+
+""" Updated EPS for all existing stocks in the database"""
+def update_US_all_EPS():
+    db = open_db('Stocks')
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    count = stocks.count()
+    print(count)
+    if count == 0:
+        return
+    for i, stock in enumerate(stocks):
+        if i > 50:
+            break
+        try:
+            print("%d: %s: %s"%(i,stock['bscs']['symbol'],stock['bscs']['name']))
+            internet.populate_US_EPS(stock)
+        except Exception as E:
+            print(str(E))
+            continue
+        
  
 def build_US_all_earnings_estimates():
 

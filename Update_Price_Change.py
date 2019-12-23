@@ -11,7 +11,7 @@ if __name__ == "__main__":
         print("$ %s country_name" %(sys.argv[0]))
         sys.exit(1)
 
-    # Get today's price from yahoo and update db and hdf5
+    ## Get today's price from yahoo and update db and hdf5
     try:
         DB.update_all_price_volume_db(sys.argv[1])
     except Exception as e:
@@ -35,3 +35,6 @@ if __name__ == "__main__":
     # Radar Stocks
     if sys.argv[1] == 'US':
         excel.get_radar_stocks('US')
+    
+    if sys.argv[1] == 'US':
+        DB.update_all_stock_betas('US')

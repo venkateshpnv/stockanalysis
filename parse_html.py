@@ -680,23 +680,6 @@ def populate_US_stocks_quarterly(root, files, stk):
 
     return stk
 
-# Get last date of financial statements
-def get_last_date(stk, fig, statement):
-    dates = list(stk[fig]['financial-statements'][statement].keys())
-
-    if 'date' in dates:
-        i = dates.index('date')
-        del dates[i]
-
-    dt_dates=[]
-    for d in dates:
-        d = dt.strptime(d, "%m-%Y").date()
-        dt_dates.append(d)
-    dt_dates = sorted(dt_dates)
-    if len(dt_dates) > 0:
-        return dt_dates[-1]
-    return dt.strptime("01-1950", "%m-%Y").date()
-
 def populate_statement(soup, stock, statement, tenure):
     dates = []
 
@@ -717,7 +700,8 @@ def populate_statement(soup, stock, statement, tenure):
     if statement not in stock[fig]['financial-statements'].keys():
         stock[fig]['financial-statements'][statement]={}
 
-    last_date = get_last_date(stock, fig, statement)
+    dates = list(stk[fig]['financial-statements'][statement].keys())
+    last_date = get_last_date(stock, dates, '%m-%Y')
     count = len(trs)
     # Dates
     if trs[i].attrs['class'] and trs[i].attrs['class'][0] == 'bc-financial-report__row-dates':

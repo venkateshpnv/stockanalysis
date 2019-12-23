@@ -116,7 +116,7 @@ def get_radar_stocks(country):
     if country != 'US':
         return
 
-    wb = xlrd.open_workbook('US_Stocks/DCF_Calc/radar_stocks.xls')
+    wb = xlrd.open_workbook('/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls')
     if wb.nsheets < 1:
         print("No sheets found")
         return

@@ -119,6 +119,21 @@ def lowest_3(a, b, c):
 
 import re
 
+# Get last date of financial statements
+def get_last_date(stk, dates, fmt):
+    if 'date' in dates:
+        i = dates.index('date')
+        del dates[i]
+
+    dt_dates=[]
+    for d in dates:
+        d = dt.strptime(d, fmt).date()
+        dt_dates.append(d)
+    dt_dates = sorted(dt_dates)
+    if len(dt_dates) > 0:
+        return dt_dates[-1]
+    return dt.strptime("01-1950", "%m-%Y").date()
+
 def years_to_days(y):
     today=dt.now().date()
     past=today-relativedelta(years=y)
