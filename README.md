@@ -127,6 +127,10 @@ db.US_Stocks.createIndex({'price_change.day': -1})
 db.US_Stocks.createIndex({sno: -1})
 db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
 
+MYSQL
+=====
+CREATE
+ 
 PyMongo python package
 ======================
 Read all documents one by one
