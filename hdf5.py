@@ -13,6 +13,8 @@ import DB
 import os
 from arctic import Arctic
 import threading
+from math import nan, isnan
+import numpy as np
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
@@ -441,7 +443,249 @@ def hdf_get_low_n_days(df, num_days):
 #    en_price = rdf.iat[-1, rdf.columns.get_loc('Adj Close')]
 #    st_price = read.iat[0, read.columns.get_loc('Adj Close')]
 #    change = en_price/st_price - 1
+
+def add_beta_columns(df, duration):
+    key = '{}_beta'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_alpha'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_r_squared'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_alpha_pure'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_volatility'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_std'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_coef_var'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_qcd'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_bear_market'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_bull_market'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_index_cagr'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_index_percent_chg'.format(duration) #done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_cagr'.format(duration) # done
+    if key not in list(df.keys()):
+        df[key]=nan
+    key = '{}_percent_chg'.format(duration) # done
+    if key not in list(df.keys()):
+        df[key]=nan
+    return df
+
+def get_df_for_duration(country, df, duration):
+    #start, end = df.close[0], df.close[-1]
+    #    return (end - start) / start
+    end   = df.index[-1]
+    start = end - duration
+    start = get_valid_date(country, start)
+    if start >= df.index[0]:
+        return df[start:end]
+    #rdf = df.last('6M') # last 6 months
+    return pd.DataFrame() 
+
+def hdf_calculate_betas(df, rdfb, rdf, index, duration):
+    try:
+        years = (rdf.index[-1]-rdf.index[0]).days/365.25
+    except Exception:
+        print("hdf_get_betas():",str(e))
+        return df
+    ## Take symbol's indexes as inputs
+    ## For example, the recession happened in 2008.
+    ## If the symbol started trading in 2011, the symbol's dataframe will not have
+    ## info in 2008 but the S&P 500 does. The S&P 500 then takes the entries of 2008
+    ## and uses it as the start where as the symbol started in 2011.
+    ## To avoid this ambiquity, take symbol's timestamps as the indices for the S&P500
+    ## (Pdb) df.index[0]
+    ## Timestamp('2011-01-26 00:00:00')
+    ## (Pdb) df.index[-1]
+    ## Timestamp('2019-11-15 00:00:00')
+    ## (Pdb)
+    #rdfb = dfb[df.index[0]:df.index[-1]]
+    
+    # Calculate CAGR
+    s_first = rdf[0]
+    if isinstance(s_first, complex):
+        print("first is complex number")
+    s_last = rdf[-1]
+    if isinstance(s_last, complex):
+        print("last is complex number")
+    
+    growth_percent = s_last/s_first - 1
+    key = '{}_percent_chg'.format(duration)
+    df.loc[index][key] = growth_percent
+    
+    try:
+        cagr = round((((s_last/s_first)**(1/years))-1), 4)
+    except Exception as e:
+        print(str(e))
+        print("Failed to calculate CAGR for : %r" %(sym))
+        print("First: %r, last: %r, years: %r" %(s_first, s_last, years))
+        cagr = None
+        #sys.exit()
+    key = '{}_cagr'.format(duration)
+    df.loc[index][key] = cagr
+    
+    first = rdfb[0]
+    last  = rdfb[-1]
+    
+    key = '{}_index_percent_chg'.format(duration)
+    df.loc[index][key] = last/first - 1
+    
+    key = '{}_index_cagr'.format(duration)
+    b_cagr = df.loc[index][key] = round((((last/first)**(1/years))-1), 4)
+    
+    #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
+    
+    # from daily data points, create a time-series of monthly data points
+    time_period=12. #months
+    rts = rdf.resample('M').last()
+    rbts = rdfb.resample('M').last()
+    dfsm = pd.DataFrame({'s_adjclose' : rts,
+                            'b_adjclose' : rbts},
+                            index=rts.index)
+    
+    # compute returns
+    dfsm[['s_returns','b_returns']] = dfsm[['s_adjclose','b_adjclose']]/\
+        dfsm[['s_adjclose','b_adjclose']].shift(1) -1
+    dfsm = dfsm.dropna()
+    covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
+    
+    # calculate measures now
+    key = '{}_beta'.format(duration)
+    beta = df.loc[index][key] = covmat[0,1]/covmat[1,1]
+    
+    alpha= np.mean(dfsm["s_returns"])-beta*np.mean(dfsm["b_returns"])
+    df.loc[index]['{}_alpha_pure'.format(duration)] = np.mean(dfsm["s_returns"])-np.mean(dfsm["b_returns"])
+    #print("alpha: %r" %(alpha))
+    
+    ypred = alpha + beta * dfsm["b_returns"]
+    SS_res = np.sum(np.power(ypred-dfsm["s_returns"],2))
+    SS_tot = covmat[0,0]*(len(dfsm)-1) # SS_tot is sample_variance*(n-1)
+    
+    key = '{}_r_squared'.format(duration)
+    df.loc[index][key] = 1. - SS_res/SS_tot
+    
+    # 5- year volatiity and 1-year momentum
+    volatility = np.sqrt(covmat[0,0])
+    
+    #momentum = np.prod(1+dfsm["s_returns"].tail(12).values) -1
+    
+    # annualize the numbers
+    prd = 12. # used monthly returns; 12 periods to annualize
+    #alpha = alpha*prd
+    key = '{}_alpha'.format(duration)
+    df.loc[index][key] = alpha*time_period
+    
+    #alpha_pure = alpha_pure*time_period
+    #alpha pure
+    key = '{}_alpha_pure '.format(duration)
+    df.loc[index][key] = round(cagr - b_cagr, 4)
+    
+    #volatility
+    key = '{}_volatility'.format(duration)
+    df.loc[index][key] = volatility*np.sqrt(time_period)
+    
+    #Standard Deviation
+    key = '{}_std'.format(duration)
+    df.loc[index][key]= rdf.pct_change().std()
+    
+    #Coefficient of Variation
+    key = '{}_coef_var'.format(duration)
+    df.loc[index][key]= rdf.std() / rdf.mean()
+    
+    #QCD
+    q1, q3 = rdf.quantile([0.25, 0.75])
+    key = '{}_qcd'.format(duration)
+    df.loc[index][key]= (q3 - q1) / (q3 + q1)
+    
+    #Is Bear Market? True/False
+    #Is Bull Market? True/False
+    start, end = rdf[0], rdf[-1]
+    key = '{}_bear_market'.format(duration)
+    if (((end - start) / start) <= -.2):
+        df.loc[index][key] = 1 # True
+        df.loc[index]['{}_bull_market'.format(duration)] = 0 #False
+    else:
+        df.loc[index][key] = 0 #False
+        df.loc[index]['{}_bull_market'.format(duration)] = 1 # True
+
+    return df
+
+def hdf_get_beta(country, sym, df=None, dfb=None):
+    betas = {}
+    if df is None:
+        try:
+            #from pandas_datareader.quandl import QuandlReader
+            #df = pdr.get_data_stooq(sym, retry_count=3)
+            #print(df)
+            df = get_dataframe(country, sym)
+        except KeyError:
+            print("Could not get data. Failed to calculate beta")
+            return None
+
+    if dfb is None:
+        try:
+            if country == 'US':
+                bindex = "SP500"
+            elif country == 'India':
+                bindex = "BSE" 
+            else:
+                PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
+                return betas
+            dfb = get_dataframe(country, bindex, df.index[0], df.index[-1])
+        except KeyError:
+            print("Could not get data. Failed to calculate beta")
+            return None
+
+    df = add_beta_columns(df, 'six_months')
+    df = add_beta_columns(df, 'one_year')
+    df = add_beta_columns(df, 'five_years')
+    df = add_beta_columns(df, 'whole')
+
+    #rdf = df['Adj Close'].last('6M') # last 6 months
+    for index,row in df[::-1].iterrows():
+        print("symbol: %r, index: %r"%(sym, index))
+        duration = 'six_months'
+        if isnan(df.loc[index]['{}_beta'.format(duration)]):
+            rdf = get_df_for_duration(country, df[:index]['Adj Close'], relativedelta(months=6))
+            df = hdf_calculate_betas(df, dfb[:index]['Adj Close'], rdf, index, duration)
+
+        duration = 'one_year'
+        if isnan(df.loc[index]['{}_beta'.format(duration)]):
+            rdf = get_df_for_duration(country, df[:index]['Adj Close'], relativedelta(years=1))
+            df = hdf_calculate_betas(df, dfb[:index]['Adj Close'], rdf, index, duration)
+
+        duration = 'five_years'
+        if isnan(df.loc[index]['{}_beta'.format(duration)]):
+            rdf = get_df_for_duration(country, df[:index]['Adj Close'], relativedelta(years=5))
+            df = hdf_calculate_betas(df, dfb[:index]['Adj Close'], rdf, index, duration)
+
+        duration = 'whole'
+        if isnan(df.loc[index]['{}_beta'.format(duration)]):
+            df = hdf_calculate_betas(df, dfb[:index]['Adj Close'], df['Adj Close'], index, duration)
+
+    return df
  
+#def hdf5_update_betas(symbol, df):
+#    pass
+
 def update_dataframe_price_volume(country, db, symbols, stk, sem):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
@@ -470,7 +714,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             df = remove_df_duplicates(df)
             #Update Betas
             #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
-            #    DB.update_stock_betas2(country, stk, df=df)
+            #    df = hdf_get_beta(country, symbol, df)
+            #    #DB.update_stock_betas2(country, stk, df=df)
             #if not df.empty:
             if True:
                 write_to_hdf(country, df, symbol)
@@ -505,9 +750,10 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 if not df.empty:
                     rdf = rdf.append(df)
                     rdf = remove_df_duplicates(rdf)
-                   #Update Betas
+                    #Update Betas
                     #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
-                    #    DB.update_stock_betas2(country, stk, df=rdf)
+                    #    rdf = hdf_get_beta(country, symbol, rdf)
+                    #    #DB.update_stock_betas2(country, stk, df=rdf)
                     write_to_hdf(country, rdf, symbol)
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
