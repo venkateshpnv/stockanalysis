@@ -542,14 +542,14 @@ def fork_hdf5_process(country, sem):
     stk = {}
     stk['bscs']={}
 
-    ###Indices
-    #for k in indices.keys():
-    #    stk['bscs']['symbol'] = k
-    #    stk['bscs']['name'] = indices[k]
-    #    sem.acquire()
-    #    print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
-    #    #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-    #    threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+    ##Indices
+    for k in indices.keys():
+        stk['bscs']['symbol'] = k
+        stk['bscs']['name'] = indices[k]
+        sem.acquire()
+        print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
 
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -572,10 +572,9 @@ def fork_hdf5_process(country, sem):
                 continue
         print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
-        hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        #threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
         i = i + 1
-        break
 
     # Wait till all threads are completed. You can use join() instead.
     # But need to track threads and update variables.
@@ -628,16 +627,16 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
-    fork_hdf5_process(country, hdf5_sem)
+    #fork_hdf5_process(country, hdf5_sem)
     #fork_db_process(country, db_sem, db_lock)
-    #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
-    #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
-    #try:
-    #    hdf5_process.start()
-    #    db_process.start()
-    #finally:
-    #    hdf5_process.join()
-    #    db_process.join()
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
+    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    try:
+        hdf5_process.start()
+        db_process.start()
+    finally:
+        hdf5_process.join()
+        db_process.join()
     print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.
