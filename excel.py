@@ -309,8 +309,27 @@ def add_basic_header(sheet, i):
     i+=1
     #Beta
     sheet.col(i).width = 7*367
-    sheet.write(0, i, "Beta", style_wrap)
-    conf.BETA=i
+    sheet.write(0, i, "6M Beta", style_wrap)
+    conf.SIX_BETA=i
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "1Yr Beta", style_wrap)
+    conf.YEAR_BETA=i
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "5Yr Beta", style_wrap)
+    conf.FIVE_BETA=i
+
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Whole Beta", style_wrap)
+    conf.W_BETA=i
 
 
     #i+=1
@@ -507,11 +526,11 @@ def add_betas_header(sheet, i):
     sheet.write(0, i, "2007 Index CAGR", style_wrap)
     conf.R2007_ICAGR=i
 
-    i+=1
-    # Whole Beta
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Whole Beta", style_wrap)
-    conf.W_BETA=i
+    #i+=1
+    ## Whole Beta
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Whole Beta", style_wrap)
+    #conf.W_BETA=i
 
     i+=1
     # Whole Alpha
@@ -842,7 +861,10 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
     ash.write(count, conf.VOL, stk['bscs']['volume'])
-    ash.write(count, conf.BETA, stk['bscs']['five_yr_beta'])
+    ash.write(count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
+    ash.write(count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
+    ash.write(count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
+    #ash.write(count, conf.BETA, stk['bscs']['five_yr_beta'])
 
     ash.write(count, conf.FV, stk['bscs']['face_value'])
 
@@ -1033,6 +1055,10 @@ def write_to_excel(country, com, ashs, stk, years):
             ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
             ash.write(conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
 
+    ash.write(conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
+    ash.write(conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
+    ash.write(conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
+ 
     ash.write(conf.COUNT, conf.FLT, stk['bscs']['float']/100)
     ash.write(conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
 
@@ -1091,7 +1117,7 @@ def write_to_excel(country, com, ashs, stk, years):
     i += 1
     sheet.write(i, 0, "Five Year Beta")
     sheet.write(i, 1, stk['bscs']['five_yr_beta'])
-    ash.write(conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'])
+    #ash.write(conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'])
 
     i = 10 #row 11
     sheet.write(i, 0, "Growth Rate(1-5 Years)")

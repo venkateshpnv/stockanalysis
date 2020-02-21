@@ -90,6 +90,9 @@ def calc_growth(split_factor, row, years):
 
 # Calcuate numbers
 def calculate_dcf(country, stk, years, data_type, criteria, beta):
+    if 'Years' not in stk['fig'].keys():
+        PRINT_ERR("Years not found in stk[fig] for %r. Skipping...." %(stk['bscs']['symbol']))
+        return False
     if len(stk['fig']['Years']) == 0:
         PRINT_ERR("No data for %s: %s, updating zero DCF Calc" %(stk['bscs']['symbol'], stk['bscs']['name']))
         return False
@@ -285,7 +288,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         #for doc in docs:
     no_dcf = 0
     count = 0
-    for doc in collection.find({}, no_cursor_timeout=True).sort([["sno",1]]):
+    for doc in collection.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:

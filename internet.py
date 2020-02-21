@@ -445,11 +445,12 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         else:
             entry.append("-")
         entry.append(str(bscs['price']))
-        try:
-            entry.append(str(round(bscs['fig']['betas']['six_months']['beta'], 2)))
-        except Exception as e:
-            collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
-            entry.append(str("None"))
+        #try:
+        entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        #entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        #except Exception as e:
+        #    collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
+        #    entry.append(str("None"))
         if 'fiftytwoweek_high' in bscs.keys():
             entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
         else:

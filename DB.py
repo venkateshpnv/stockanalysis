@@ -24,6 +24,7 @@ import hdf5
 
 import threading
 import multiprocessing
+import copy
 
 j = 0
 class dbObject:
@@ -515,7 +516,7 @@ def fork_db_process(country, sem, lock):
         print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         #update_stk_bscs_db(country, db, stk, sem, lock)
-        threading.Thread(target=update_stk_bscs_db, args=(country, db, stk, sem, lock,)).start()
+        threading.Thread(target=update_stk_bscs_db, args=(country, db, copy.deepcopy(stk), sem, lock,)).start()
         i = i + 1
         #break
     close_db_client(c)
@@ -549,7 +550,7 @@ def fork_hdf5_process(country, sem):
         sem.acquire()
         print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
         #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, copy.deepcopy(stk), sem,)).start()
 
     # Randomly get all records whose price is not updated till today
     #pipeline = [{'$sample': {'size':num_docs}},
@@ -573,7 +574,7 @@ def fork_hdf5_process(country, sem):
         print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, stk, sem,)).start()
+        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, copy.deepcopy(stk), sem,)).start()
         i = i + 1
 
     # Wait till all threads are completed. You can use join() instead.
@@ -1382,8 +1383,8 @@ def update_all_stock_betas(country):
         if ignore_stock(doc):
             continue
         sem.acquire()
-        update_stock_betas(country, collection, doc, sem)
-        #threading.Thread(target=update_stock_betas, args=(country, collection, doc, sem,)).start()
+        #update_stock_betas(country, collection, copy.deepcopy(doc), sem)
+        threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc), sem,)).start()
 
     time.sleep(10)
     close_db_client(c)
