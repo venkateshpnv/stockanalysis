@@ -360,10 +360,13 @@ def hdf_price_change(country, sym=None, df=None, days=None, weeks=None, months=N
     elif start:
         start = dt.strptime(start, '%Y-%m-%d')
     else:
-        print("no args, take from start")
+        #print("no args, take from start")
         #Price Change since beginning
         since = DB.get_since(country, sym)
-        start = dt.strptime(since, "%Y-%m-%d").date()
+        if since:
+            start = dt.strptime(since, "%Y-%m-%d").date()
+        else:
+            start = df.index[0].date()
  
     en_price = hdf_get_price(sym, df, end)
     st_price = hdf_get_price(sym, df, start)

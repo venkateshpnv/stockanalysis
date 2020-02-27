@@ -114,8 +114,8 @@ def update_since_dataframe(country, collection, stk):
 
 def get_since(country, symbol):
     stk = get_stock_from_db(country, symbol)
-    if stk and stk.count() > 0:
-        return stk[0]['bscs']['since']
+    if stk:
+        return stk['bscs']['since']
     return None
 
 def remove_duplicates(collection):

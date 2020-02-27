@@ -266,7 +266,7 @@ def update_price_change(country, collection, sym, sem):
             change = hdf5.hdf_price_change(country, sym, df, years=1)
             DB.update_field(collection, sym, "price_change.year", change)
             if country == 'US':
-                change = hdf5.hdf_price_change(country, sym, df, -1)
+                change = hdf5.hdf_price_change(country, sym, df)
                 DB.update_field(collection, sym, "price_change.whole", change)
 
             #get 52 week high
