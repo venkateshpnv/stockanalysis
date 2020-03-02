@@ -266,7 +266,7 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Since
-    sheet.col(i).width = 10*367
+    sheet.col(i).width = 7*367
     sheet.write(0, i, "Since", style_wrap)
     conf.SINCE=i
 
@@ -308,26 +308,26 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Beta
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "6M Beta", style_wrap)
     conf.SIX_BETA=i
 
     i+=1
     #Beta
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "1Yr Beta", style_wrap)
     conf.YEAR_BETA=i
 
     i+=1
     #Beta
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "5Yr Beta", style_wrap)
     conf.FIVE_BETA=i
 
 
     i+=1
     #Beta
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 5*367
     sheet.write(0, i, "Whole Beta", style_wrap)
     conf.W_BETA=i
 
@@ -649,26 +649,27 @@ def add_ratios_header(sheet, i):
     conf.DIV_PAY=i
     return i
 
-def add_dcf_header(sheets, years):
+def add_dcf_header(sheets, years, prices_only=False):
     for k in sheets.keys():
         sheet = sheets[k]
         i=0
         i = add_basic_header(sheet, i)
 
-        i+=1
-        i = add_calc_header(sheet, i)
+        if prices_only is False:
+            i+=1
+            i = add_calc_header(sheet, i)
 
-        i+=1
-        #Years of Data
-        sheet.col(i).width = 5*367
-        sheet.write(0, i, "Years of Data", style_wrap)
-        conf.YR_DAT=i
+            i+=1
+            #Years of Data
+            sheet.col(i).width = 5*367
+            sheet.write(0, i, "Years of Data", style_wrap)
+            conf.YR_DAT=i
 
-        #i+=1
-        ##Price Years of Data
-        #sheet.col(i).width = 5*367
-        #sheet.write(0, i, "Price Years of Data", style_wrap)
-        #conf.PRICE_YR_DAT=i
+            i+=1
+            #Price Years of Data
+            sheet.col(i).width = 5*367
+            sheet.write(0, i, "Price Years of Data", style_wrap)
+            conf.PRICE_YR_DAT=i
 
         i+=1
         i = add_price_change_header(sheet, i, 'ALL')
@@ -694,7 +695,6 @@ def add_dcf_header(sheets, years):
         sheet.col(i).width = 4*367
         sheet.write(0, i, "Float", style_wrap)
         conf.FLT=i
-        print("Float: %d" %(conf.FLT))
 
         i+=1
         # Float Percent
@@ -768,14 +768,14 @@ def add_price_surprise_header(sheet, sheet_type):
     i+=1
     i = add_price_change_header(sheet, i, sheet_type)
 
-    i+=1
-    i = add_calc_header(sheet, i)
+    #i+=1
+    #i = add_calc_header(sheet, i)
 
-    i+=1
-    #Years of Data
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Years of Data", style_wrap)
-    conf.YR_DAT=i
+    #i+=1
+    ##Years of Data
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Years of Data", style_wrap)
+    #conf.YR_DAT=i
 
     #i+=1
     ##Price Years of Data
@@ -809,7 +809,7 @@ def add_price_surprise_header(sheet, sheet_type):
     conf.FLT_PER=i
 
 
-def write_to_price_change_excel(count, ash, stk, sheet_type):
+def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     #DB.clear_dict(stk)
 
@@ -877,14 +877,15 @@ def write_to_price_change_excel(count, ash, stk, sheet_type):
     ash.write(count, conf.F_PE, stk['Ratios']['forward_PE'])
     ash.write(count, conf.TTM_PE, stk['Ratios']['ttm_PE'])
 
-    ash.write(count, conf.YR_DAT, stk['num']['dcf_years'])
-    #ash.write(count, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
-    ash.write(count, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
-    ash.write(count, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
-    ash.write(count, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
-    ash.write(count, conf.MOS_PR, stk['num']['dcf_price'], style_decimal)
-    ash.write(count, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent)
-    ash.write(count, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent)
+    if prices_only == False:
+        ash.write(count, conf.YR_DAT, stk['num']['dcf_years'])
+        #ash.write(count, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
+        ash.write(count, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
+        ash.write(count, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
+        ash.write(count, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
+        ash.write(count, conf.MOS_PR, stk['num']['dcf_price'], style_decimal)
+        ash.write(count, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent)
+        ash.write(count, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent)
     if len(stk['fig']['DtoE']) > 0:
         ash.write(count, conf.DTOTE, stk['fig']['DtoE'][-1])
     else:
@@ -935,7 +936,7 @@ def check_and_write(ash, count, col, entry, index, factor, style):
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
-def write_to_excel(country, com, ashs, stk, years):
+def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     #wb = xlwt.Workbook()
 
     try:
@@ -1039,17 +1040,18 @@ def write_to_excel(country, com, ashs, stk, years):
     #Betas
     if stk['fig']['betas']:
         if stk['fig']['betas']['recession']['2007']:
-            ash.write(conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
-            ash.write(conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
-            ash.write(conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
-            try:
-                ash.write(conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index Percent Change'], 2), style_percent)
-                ash.write(conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent Change'], 2), style_percent)
-                ash.write(conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['since_last_recession']['Percent Change'], 2), style_decimal)
-            except Exception:
-                pass
-            ash.write(conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal)
-            ash.write(conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal)
+            if '2007' in stk['fig']['betas']['recession'].keys():
+                try:
+                    ash.write(conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index Percent Change'], 2), style_percent)
+                    ash.write(conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent Change'], 2), style_percent)
+                    ash.write(conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['since_last_recession']['Percent_Change'], 2), style_decimal)
+                except Exception:
+                    pass
         if stk['fig']['betas']['whole']:
             ash.write(conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
             ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
@@ -1095,13 +1097,15 @@ def write_to_excel(country, com, ashs, stk, years):
     #    sheet.write(i, 1, stk['bscs']['face_value'])
     #    ash.write(conf.COUNT, conf.FV, stk['bscs']['face_value'])
 
-    i += 1 #row 8
-    sheet.write(i, 0, "P/E")
+    if prices_only is False:
+        i += 1 #row 8
+        sheet.write(i, 0, "P/E")
     try:
         pe  = round(stk['bscs']['price']/stk['fig']['ttm_eps'],2)
     except Exception as e:
         pe  = 0
-    sheet.write(i, 1, pe)
+    if prices_only is False:
+        sheet.write(i, 1, pe)
     ash.write(conf.COUNT, conf.PE, pe)
     try:
         ash.write(conf.COUNT, conf.F_PE, stk['Ratios']['forward_PE'])
@@ -1114,176 +1118,177 @@ def write_to_excel(country, com, ashs, stk, years):
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.ttm_PE", 0)
 
-    i += 1
-    sheet.write(i, 0, "Five Year Beta")
-    sheet.write(i, 1, stk['bscs']['five_yr_beta'])
+    if prices_only is False:
+        i += 1
+        sheet.write(i, 0, "Five Year Beta")
+        sheet.write(i, 1, stk['bscs']['five_yr_beta'])
     #ash.write(conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'])
 
-    i = 10 #row 11
-    sheet.write(i, 0, "Growth Rate(1-5 Years)")
-    if 'num' in stk.keys():
-        sheet.write(i, 1, stk['num']['growth_1to5'], style_percent)
+    if prices_only is False:
+        i = 10 #row 11
+        sheet.write(i, 0, "Growth Rate(1-5 Years)")
+        if 'num' in stk.keys():
+            sheet.write(i, 1, stk['num']['growth_1to5'], style_percent)
 
-    sheet.write(i, 4, "Book Value", style_bold)
-    sheet.write(i, 5, "Sales", style_bold)
-    sheet.write(i, 6, "Cash Flow", style_bold)
-    sheet.write(i, 7, "PAT", style_bold)
+        sheet.write(i, 4, "Book Value", style_bold)
+        sheet.write(i, 5, "Sales", style_bold)
+        sheet.write(i, 6, "Cash Flow", style_bold)
+        sheet.write(i, 7, "PAT", style_bold)
+
+        i += 1 #row 12
+        sheet.write(i, 0, "Growth Rate(6-8 Years)")
+        # TODO replace 0.7, 0.8 with variables.
+        sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
+
+        sheet.write(i, 3, "Years", style_bold)
+        #sheet.write(i, 4, len(stk['fig']['BOOK']))
+        #sheet.write(i, 5, len(stk['fig']['Sales']))
+        #sheet.write(i, 6, len(stk['fig']['CASH']))
+        #sheet.write(i, 7, len(stk['fig']['PAT']))
+        #ash.write(conf.COUNT, conf.YR_DAT, len(stk['fig']['Sales']))
+        sheet.write(i, 4, years)
+        sheet.write(i, 5, years)
+        sheet.write(i, 6, years)
+        sheet.write(i, 7, years)
+        ash.write(conf.COUNT, conf.YR_DAT, years)
+        ##ash.write(conf.COUNT, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
+
+        i += 1 #row 13
+        #sheet.write(i, 0, "Growth Rate(9-10 Years)")
+        #sheet.write(i, 1, Formula("B12 * 0.8"), style_percent)
+        #sheet.write(i, 3, "Growth Rate", style_bold)
+        #sheet.write(i, 4, stk['fig']['book_growth'], style_percent)
+        #sheet.write(i, 5, stk['fig']['sales_growth'], style_percent)
+        #sheet.write(i, 6, stk['fig']['cash_growth'], style_percent)
+        #sheet.write(i, 7, stk['fig']['profit_growth'], style_percent)
+
+        i += 1 #row 14
+        sheet.write(i, 0, "Terminal Growth Rate(10-15 Years)")
+        sheet.write(i, 1, Formula("B13 * 0.5"), style_percent)
+
+        i += 1 #row 15
+        sheet.write(i, 0, "Terminal Growth Rate(16-20 Years)")
+        sheet.write(i, 1, Formula("B14 * 0.8"), style_percent)
+
+        i += 1 #row 16
+        sheet.write(i, 0, "Discount Rate")
+        if 'num' in stk.keys():
+            sheet.write(i, 1, stk['num']['discount_rate'], style_percent)
+
+        i += 1 #row 17
+        sheet.write(i, 0, "Inflation")
+        if 'num' in stk.keys():
+            sheet.write(i, 1, stk['num']['inflation'], style_percent)
+
+        i += 1 #row 18
+        sheet.write(i, 0, "Margin of Safety")
+        if 'num' in stk.keys():
+            sheet.write(i, 1, stk['num']['margin_of_safety'], style_percent)
+
+        # Earning Calculation
+        i = 21 #row 22
+        sheet.write(i, 0, "Year")
+        now = datetime.datetime.now()
+        now = int(now.year) - 1 # Year 2018
+        sheet.write(i, 1, now)
+
+        i += 1 #row 23
+        #sheet.write(i, 0, "EPS")
+        #sheet.write(i, 1, stk['fig']['ttm_eps'])
+
+        i += 1 #row 24
+        sheet.write(i, 0, "Growth Value")
+        for j in range(1,11):
+            sheet.write(i, j, now+j, style_bold)
+
+        i += 1 #row 25
+        sheet.write(i, 1, Formula("$B$23 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 2, Formula("$B$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 3, Formula("$C$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 4, Formula("$D$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 5, Formula("$E$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 6, Formula("$F$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 7, Formula("$G$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 8, Formula("$H$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 9, Formula("$I$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 10, Formula("$J$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
 
 
-    i += 1 #row 12
-    sheet.write(i, 0, "Growth Rate(6-8 Years)")
-    # TODO replace 0.7, 0.8 with variables.
-    sheet.write(i, 1, Formula("B11 * 0.7"), style_percent)
+        i +=2  #row 28
+        sheet.write(i, 0, "Terminal Value")
+        for j in range(11,21):
+            sheet.write(i, j-10, now+j, style_bold)
 
-    sheet.write(i, 3, "Years", style_bold)
-    #sheet.write(i, 4, len(stk['fig']['BOOK']))
-    #sheet.write(i, 5, len(stk['fig']['Sales']))
-    #sheet.write(i, 6, len(stk['fig']['CASH']))
-    #sheet.write(i, 7, len(stk['fig']['PAT']))
-    #ash.write(conf.COUNT, conf.YR_DAT, len(stk['fig']['Sales']))
-    sheet.write(i, 4, years)
-    sheet.write(i, 5, years)
-    sheet.write(i, 6, years)
-    sheet.write(i, 7, years)
-    ash.write(conf.COUNT, conf.YR_DAT, years)
-    ##ash.write(conf.COUNT, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
+        i += 1 #row 29
+        sheet.write(i, 1, Formula("$K$25 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 2, Formula("$B$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 3, Formula("$C$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 4, Formula("$D$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 5, Formula("$E$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 6, Formula("$F$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 7, Formula("$G$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 8, Formula("$H$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 9, Formula("$I$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
+        sheet.write(i, 10, Formula("$J$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
 
-    i += 1 #row 13
-    #sheet.write(i, 0, "Growth Rate(9-10 Years)")
-    #sheet.write(i, 1, Formula("B12 * 0.8"), style_percent)
-    #sheet.write(i, 3, "Growth Rate", style_bold)
-    #sheet.write(i, 4, stk['fig']['book_growth'], style_percent)
-    #sheet.write(i, 5, stk['fig']['sales_growth'], style_percent)
-    #sheet.write(i, 6, stk['fig']['cash_growth'], style_percent)
-    #sheet.write(i, 7, stk['fig']['profit_growth'], style_percent)
+        i += 2 #row 32
+        sheet.write(i, 0, "EPS by Year")
 
-    i += 1 #row 14
-    sheet.write(i, 0, "Terminal Growth Rate(10-15 Years)")
-    sheet.write(i, 1, Formula("B13 * 0.5"), style_percent)
-
-    i += 1 #row 15
-    sheet.write(i, 0, "Terminal Growth Rate(16-20 Years)")
-    sheet.write(i, 1, Formula("B14 * 0.8"), style_percent)
-
-    i += 1 #row 16
-    sheet.write(i, 0, "Discount Rate")
-    if 'num' in stk.keys():
-        sheet.write(i, 1, stk['num']['discount_rate'], style_percent)
-
-    i += 1 #row 17
-    sheet.write(i, 0, "Inflation")
-    if 'num' in stk.keys():
-        sheet.write(i, 1, stk['num']['inflation'], style_percent)
-
-    i += 1 #row 18
-    sheet.write(i, 0, "Margin of Safety")
-    if 'num' in stk.keys():
-        sheet.write(i, 1, stk['num']['margin_of_safety'], style_percent)
-
-    # Earning Calculation
-    i = 21 #row 22
-    sheet.write(i, 0, "Year")
-    now = datetime.datetime.now()
-    now = int(now.year) - 1 # Year 2018
-    sheet.write(i, 1, now)
-
-    i += 1 #row 23
-    #sheet.write(i, 0, "EPS")
-    #sheet.write(i, 1, stk['fig']['ttm_eps'])
-
-    i += 1 #row 24
-    sheet.write(i, 0, "Growth Value")
-    for j in range(1,11):
-        sheet.write(i, j, now+j, style_bold)
-
-    i += 1 #row 25
-    sheet.write(i, 1, Formula("$B$23 * ((1+$B$11)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 2, Formula("$B$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 3, Formula("$C$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 4, Formula("$D$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 5, Formula("$E$25 * ((1+$B$11)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 6, Formula("$F$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 7, Formula("$G$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 8, Formula("$H$25 * ((1+$B$12)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 9, Formula("$I$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 10, Formula("$J$25 * ((1+$B$13)/(1+$B$16))"), style_decimal)
-
-
-    i +=2  #row 28
-    sheet.write(i, 0, "Terminal Value")
-    for j in range(11,21):
-        sheet.write(i, j-10, now+j, style_bold)
-
-    i += 1 #row 29
-    sheet.write(i, 1, Formula("$K$25 * ((1+$B$14)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 2, Formula("$B$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 3, Formula("$C$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 4, Formula("$D$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 5, Formula("$E$28 * ((1+$B$14)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 6, Formula("$F$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 7, Formula("$G$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 8, Formula("$H$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 9, Formula("$I$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
-    sheet.write(i, 10, Formula("$J$28 * ((1+$B$15)/(1+$B$16))"), style_decimal)
-
-    i += 2 #row 32
-    sheet.write(i, 0, "EPS by Year")
-
-    # Earnings by 2024
-    i += 1 #row 33
-    now += 1 #2024
-    yr = "%r" %(now + 5)
-    sheet.write(i, 0, yr)
-    sheet.write(i, 1, Formula("SUM($B$25:$F$25)"), style_decimal)
-
-    # Earnings by 2029
-    i += 1 #row 34
-    yr = "%r" % (now + 10)
-    sheet.write(i, 0, yr)
-    sheet.write(i, 1, Formula("SUM($B$25:$K$25)"), style_decimal)
-
-    if 'num' in stk.keys():
-        i += 1 #row 35
-        yr = "EPS by %r at %r percent inflation" % (now + 5, (stk['num']['inflation'])*100)
+        # Earnings by 2024
+        i += 1 #row 33
+        now += 1 #2024
+        yr = "%r" %(now + 5)
         sheet.write(i, 0, yr)
-        sheet.write(i, 1, Formula("$B$31 * ((1-$B$17)^5)"), style_decimal)
+        sheet.write(i, 1, Formula("SUM($B$25:$F$25)"), style_decimal)
 
-        i += 2 #row 36
-        sheet.write(i, 0, "Earnings after 20 years")
-        sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
-        ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
+        # Earnings by 2029
+        i += 1 #row 34
+        yr = "%r" % (now + 10)
+        sheet.write(i, 0, yr)
+        sheet.write(i, 1, Formula("SUM($B$25:$K$25)"), style_decimal)
 
-        i += 1 #row 37
-        sheet.write(i, 0, "Today's Value with Inflation")
-        sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal)
-        ash.write(conf.COUNT, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
-        ash.write(conf.COUNT, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
+        if 'num' in stk.keys():
+            i += 1 #row 35
+            yr = "EPS by %r at %r percent inflation" % (now + 5, (stk['num']['inflation'])*100)
+            sheet.write(i, 0, yr)
+            sheet.write(i, 1, Formula("$B$31 * ((1-$B$17)^5)"), style_decimal)
 
-        i += 1 #row 38
-        sheet.write(i, 0, "Price with Margin of Safety")
-        sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
-        ash.write(conf.COUNT, conf.MOS_PR, stk['num']['dcf_price'], style_decimal)
+            i += 2 #row 36
+            sheet.write(i, 0, "Earnings after 20 years")
+            sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
+            ash.write(conf.COUNT, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
 
-        i += 1  # row 39
-        sheet.write(i, 0, "Current Price", style_bold)
-        sheet.write(i, 1, stk['bscs']['price'], style_bold)
-        sheet.write(i, 2, "Profit", style_bold)
+            i += 1 #row 37
+            sheet.write(i, 0, "Today's Value with Inflation")
+            sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal)
+            ash.write(conf.COUNT, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
+            ash.write(conf.COUNT, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
 
-        i += 1 #row 40
-        sheet.write(i, 0, "Value of MoS Price after 20 years with inflation")
-        sheet.write(i, 1, Formula("$B$37*((1+$B$17)^20)"), style_decimal)
-        sheet.write(i, 2, Formula("$B$35-$B$38"), style_decimal)
+            i += 1 #row 38
+            sheet.write(i, 0, "Price with Margin of Safety")
+            sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
+            ash.write(conf.COUNT, conf.MOS_PR, stk['num']['dcf_price'], style_decimal)
 
-        i += 1 #row 4
-        sheet.write(i, 0, "Rate of return at Current Price")
-        sheet.write(i, 1, Formula("($B$35/$B$38)^0.05-1"), style_percent)
-        ash.write(conf.COUNT, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent)
-        #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
+            i += 1  # row 39
+            sheet.write(i, 0, "Current Price", style_bold)
+            sheet.write(i, 1, stk['bscs']['price'], style_bold)
+            sheet.write(i, 2, "Profit", style_bold)
 
-        i += 1 #row 41
-        sheet.write(i, 0, "Rate of return at MoS Price")
-        sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
-        ash.write(conf.COUNT, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent)
+            i += 1 #row 40
+            sheet.write(i, 0, "Value of MoS Price after 20 years with inflation")
+            sheet.write(i, 1, Formula("$B$37*((1+$B$17)^20)"), style_decimal)
+            sheet.write(i, 2, Formula("$B$35-$B$38"), style_decimal)
+
+            i += 1 #row 4
+            sheet.write(i, 0, "Rate of return at Current Price")
+            sheet.write(i, 1, Formula("($B$35/$B$38)^0.05-1"), style_percent)
+            ash.write(conf.COUNT, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent)
+            #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
+
+            i += 1 #row 41
+            sheet.write(i, 0, "Rate of return at MoS Price")
+            sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
+            ash.write(conf.COUNT, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent)
    
     #Ratios
     if 'DtoE' in stk['fig'].keys():
