@@ -4,7 +4,7 @@ HOME_DIR=/home/vpetla/work/stockanalysis
 SCRIPT=$HOME_DIR/Update_Price_Change.py
 
 #export DISPLAY=:0.0
-val=`ps ax | grep $SCRIPT | grep -v grep | wc -l`
+val=`ps ax | grep $SCRIPT | grep $1 | grep -v grep | wc -l`
 if [ $val -eq 0 ]; then
 	echo "Starting $SCRIPT"
 	echo > ~/tmp/price_change.txt
