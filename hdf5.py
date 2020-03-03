@@ -689,6 +689,43 @@ def hdf_get_beta(country, sym, df=None, dfb=None):
 #def hdf5_update_betas(symbol, df):
 #    pass
 
+def update_field_change(df, nans, field, duration, whole_change=False):
+    for i in nans:
+        loc = df.index.get_loc(i)
+        if loc == 0:
+            continue
+        end = df.loc[i]
+        if whole_change:
+            start_loc = 0
+        else:
+            start_loc = get_nearest_index(df, i - duration)
+        if start_loc == loc:
+            start_loc = loc - 1
+
+        st_price = df.iloc[start_loc]['Adj Close']
+        en_price = df.loc[i]['Adj Close']
+        change = en_price/st_price - 1
+        df.loc[i][field] = change
+    return df
+
+# Update df daily, weekly etc percent change
+def update_rate_change(df):
+    fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+    durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+
+    for f in fields:
+        if f not in list(df.keys()):
+            df[f] = nan
+
+    for i in range(len(durations)):
+        # Get all rows where the '%s Change' is empty
+        #nans=df.index[isnan(df[fields[i]])]
+        nans = df.index[df[fields[i]].isnull()]
+        df = update_field_change(df, nans, fields[i], durations[i])
+    df = update_field_change(df, nans, fields[-1], 0, whole_change=True)
+
+    return df
+
 def update_dataframe_price_volume(country, db, symbols, stk, sem):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
@@ -706,8 +743,10 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
         end=dt.now().date()# - timedelta(7)
         #Updating the price and volume for the first time
         if stk['bscs']['symbol'] in indices.keys():
+            index  = True
             symbol = indices[stk['bscs']['symbol']]
         else:
+            index  = False
             symbol = stk['bscs']['symbol']
         #symbol = '/' + stk['bscs']['symbol']
 
@@ -715,6 +754,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             df = remove_df_duplicates(df)
+            if index:
+                df = update_rate_change(df)
             #Update Betas
             #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
             #    df = hdf_get_beta(country, symbol, df)
@@ -753,6 +794,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 if not df.empty:
                     rdf = rdf.append(df)
                     rdf = remove_df_duplicates(rdf)
+                    if index:
+                        rdf = update_rate_change(rdf)
                     #Update Betas
                     #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
                     #    rdf = hdf_get_beta(country, symbol, rdf)
