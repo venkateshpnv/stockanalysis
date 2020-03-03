@@ -20,7 +20,6 @@ if __name__ == "__main__":
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
 
-    sys.exit(0)
     #### Calculate and store price change
     try:
         internet.update_all_stocks_price_change(sys.argv[1])
