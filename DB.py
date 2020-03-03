@@ -987,13 +987,13 @@ def update_US_stock_information(col, stk):
     #db = open_db('test')
     #col = db.col
     #income statements
-    #update_US_stock_statement(col, stk, "income-statement", "annual")
+    update_US_stock_statement(col, stk, "income-statement", "annual")
     update_US_stock_statement(col, stk, "income-statement", "quarterly")
     #cash flow statements
-    #update_US_stock_statement(col, stk, "cash-flow", "annual")
+    update_US_stock_statement(col, stk, "cash-flow", "annual")
     update_US_stock_statement(col, stk, "cash-flow", "quarterly")
     #balance sheet statements
-    #update_US_stock_statement(col, stk, "balance-sheet", "annual")
+    update_US_stock_statement(col, stk, "balance-sheet", "annual")
     update_US_stock_statement(col, stk, "balance-sheet", "quarterly")
 
 def update_US_all_stock_information():
