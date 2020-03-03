@@ -709,7 +709,7 @@ def update_field_change(df, nans, field, duration, whole_change=False):
     return df
 
 # Update df daily, weekly etc percent change
-def update_rate_change(df):
+def update_percent_change(df):
     fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
     durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
@@ -755,7 +755,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             df = remove_df_duplicates(df)
             if index:
-                df = update_rate_change(df)
+                df = update_percent_change(df)
             #Update Betas
             #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
             #    df = hdf_get_beta(country, symbol, df)
@@ -795,7 +795,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                     rdf = rdf.append(df)
                     rdf = remove_df_duplicates(rdf)
                     if index:
-                        rdf = update_rate_change(rdf)
+                        rdf = update_percent_change(rdf)
                     #Update Betas
                     #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
                     #    rdf = hdf_get_beta(country, symbol, rdf)
