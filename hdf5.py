@@ -285,7 +285,8 @@ def write_to_hdf(country, df, symbol):
                 del f[symbol]
         df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
     except Exception as e:
-        f.close()
+        #f.close()
+        pass
     finally:
         lock.release()
 
@@ -713,6 +714,7 @@ def update_percent_change(df):
     fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
     durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
+    write = False
     for f in fields:
         if f not in list(df.keys()):
             df[f] = nan
@@ -720,11 +722,42 @@ def update_percent_change(df):
     for i in range(len(durations)):
         # Get all rows where the '%s Change' is empty
         #nans=df.index[isnan(df[fields[i]])]
-        nans = df.index[df[fields[i]].isnull()]
-        df = update_field_change(df, nans, fields[i], durations[i])
-    df = update_field_change(df, nans, fields[-1], 0, whole_change=True)
+        #nans = df[1:].index[df[fields[i]].isnull()]
+        is_nan=df[fields[i]].isnull()
+        nans = (df[1:])[is_nan]
+        if not nans.empty:
+            df = update_field_change(df, nans.index, fields[i], durations[i])
+            write = True
 
-    return df
+    # Same logic but for "Whole Change" field
+    is_nan=df[fields[-1]].isnull()
+    nans = (df[1:])[is_nan].index
+    if len(nans) > 0:
+        df = update_field_change(df, nans, fields[-1], 0, whole_change=True)
+        write = True
+
+    return df, write
+
+# Update day change, week change, month change etc till 10 year and whole percent change in the price of the stock for every day and update it in the df
+def update_percent_change_all(country):
+    c = DB.open_db_client()
+    db = c['Stocks']
+    collection = DB.get_collection(country, db)
+    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+    i = 1
+    for stk in stocks:
+        symbol = stk['bscs']['symbol']
+        print("%d: %s: %s" %(i, symbol, stk['bscs']['name']))
+        df = read_from_hdf(country, symbol)
+        if df.empty:
+            print(" %s Empty" %(symbol))
+        else:
+            df, status = update_percent_change(df)
+            if status:
+                write_to_hdf(country, df, symbol)
+        i = i + 1
+    DB.close_db_client(c)
 
 def update_dataframe_price_volume(country, db, symbols, stk, sem):
     if stk is None:
