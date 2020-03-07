@@ -26,6 +26,10 @@ import threading
 import multiprocessing
 import copy
 
+from cassandra.cluster import Cluster
+from cassandra.query import SimpleStatement, BatchStatement
+from cassandra import ConsistencyLevel
+
 j = 0
 class dbObject:
     def __init__(self, **obj):
@@ -44,6 +48,23 @@ def clear_dict(d):
                 print("%r is None, setting to 0" %(k))
                 d[k]=0
     return d
+
+########################## Cassandra Calls #############################
+def open_cassandra_cluster(ip, p=None):
+    if p:
+        return Cluster(contact_points=ip,port=p)
+    else:
+        return Cluster(contact_points=ip)
+
+def close_cassandra_cluster(cluster):
+    cluster.shutdown()
+
+# ip parameter is the list of ips.
+# If there is only one ip, still send it as a list
+def get_cassandra_session(cluster):
+    return cluster.connect()
+
+#########################################################################
 
 client=None
 ########################### DB Related Calls ########3###################
