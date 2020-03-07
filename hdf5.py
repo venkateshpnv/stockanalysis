@@ -15,6 +15,7 @@ from arctic import Arctic
 import threading
 from math import nan, isnan
 import numpy as np
+import copy
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
@@ -283,6 +284,7 @@ def write_to_hdf(country, df, symbol):
             symbols=list(f.keys())
             if symbol in symbols:
                 del f[symbol]
+                time.sleep(1)
         df.to_hdf(path, key=symbol, mode='a', format='table', append=True, complevel=9, complib='zlib')
     except Exception as e:
         #f.close()
@@ -726,6 +728,7 @@ def update_percent_change(df):
         is_nan=df[fields[i]].isnull()
         nans = (df[1:])[is_nan]
         if not nans.empty:
+            print("Field %r" %(fields[i]))
             df = update_field_change(df, nans.index, fields[i], durations[i])
             write = True
 
@@ -733,6 +736,7 @@ def update_percent_change(df):
     is_nan=df[fields[-1]].isnull()
     nans = (df[1:])[is_nan].index
     if len(nans) > 0:
+        print("Field %r" %(fields[-1]))
         df = update_field_change(df, nans, fields[-1], 0, whole_change=True)
         write = True
 
@@ -740,24 +744,29 @@ def update_percent_change(df):
 
 # Update day change, week change, month change etc till 10 year and whole percent change in the price of the stock for every day and update it in the df
 def update_percent_change_all(country):
+    mysql_engine = DB.open_sql_connection('10.0.0.12', 'root', 'petla123', 3036, 'US_Stocks')
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
     stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
-    i = 1
-    for stk in stocks:
-        symbol = stk['bscs']['symbol']
-        print("%d: %s: %s" %(i, symbol, stk['bscs']['name']))
-        df = read_from_hdf(country, symbol)
-        if df.empty:
-            print(" %s Empty" %(symbol))
-        else:
-            df, status = update_percent_change(df)
-            if status:
-                write_to_hdf(country, df, symbol)
-        i = i + 1
-    DB.close_db_client(c)
+    try:
+        i = 1
+        for stk in stocks:
+            symbol = stk['bscs']['symbol']
+            print("%d: %s: %s" %(i, symbol, stk['bscs']['name']))
+            df = read_from_hdf(country, symbol)
+            if df.empty:
+                print(" %s Empty" %(symbol))
+            else:
+                df, status = update_percent_change(df)
+                if status:
+                    write_to_hdf(country, copy.deepcopy(df), symbol)
+                    DB.check_n_write_to_sql(mysql_engine, symbol, copy.deepcopy(df))
+            i = i + 1
+    finally:
+        DB.close_db_client(c)
+        DB.close_sql_connection(mysql_engine)
 
 def update_dataframe_price_volume(country, db, symbols, stk, sem):
     if stk is None:

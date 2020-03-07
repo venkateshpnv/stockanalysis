@@ -22,6 +22,8 @@ from datastructures import *
 import conf
 import hdf5
 
+import sqlalchemy
+
 import threading
 import multiprocessing
 import copy
@@ -29,6 +31,63 @@ import copy
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, BatchStatement
 from cassandra import ConsistencyLevel
+
+def open_sql_connection(ip, user, passwd, port=3036, db=None):
+    connection_string="mysql+pymysql://"+user+":"+passwd+"@"+ip+":"+str(port)
+    if db:
+        connection_string = connection_string + "/" + db
+    max_threads = multiprocessing.cpu_count() * 2
+    return sqlalchemy.create_engine("mysql+pymysql://root:petla123@10.0.0.12:3306/US_Stocks", pool_size=max_threads)
+    #return sqlalchemy.create_engine(connection_string, pool_size=max_threads)
+    #return sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/Stocks", pool_size=max_threads)
+
+def close_sql_connection(engine):
+    engine.dispose()
+
+def read_from_sql(query, engine):
+    df = pd.read_sql_query(query, engine)
+    if not df.empty:
+        df.index = pd.to_datetime(df['Date'])
+    return df
+
+def write_to_sql(engine, table, df):
+    df.to_sql(name=table,con=engine,index=False,if_exists='append')
+
+def check_n_write_to_sql(engine, symbol, df):
+    df['Date'] = df.index.strftime("%Y-%m-%d")
+    df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
+    symbol = symbol.replace('.','_')
+    symbol = 'STK'+symbol.replace('.','_')
+    query = 'show tables like %r;' %(symbol)
+    output= engine.execute(query)
+    if output.first() is None:
+        query = 'create table '+ symbol + ' like test2;'
+        engine.execute(query)
+        query = 'alter table ' + symbol +' add index(Date);'
+        engine.execute(query)
+    query = 'select * from '+ symbol
+    #query = 'select * from '+ table + ' where Symbol=%r' %(symbol)
+    rdf = pd.read_sql_query(query, engine)
+    if not rdf.empty:
+        rdf.index = rdf['Date'] #Is this required?
+        #Select all rows except that in SQL Database
+        df = df[~df.Date.isin(rdf.Date)]
+    if not df.empty:
+        df.to_sql(name=symbol, con=engine,index=False,if_exists='append')
+        #df.to_sql(name=table, con=engine,index=False,if_exists='append')
+ 
+def get_symbols_from_sql(country, engine):
+    symbols = []
+    if country == 'India':
+        table = 'India_Stocks'
+    else:
+        table = 'US_Stocks' 
+    query='select distinct Symbol from ' + table
+    rdf=pd.read_sql_query(query, engine)
+    if not rdf.empty:
+        symbols = list(rdf['Symbol'])
+    return symbols
+
 
 j = 0
 class dbObject:
