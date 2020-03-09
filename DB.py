@@ -56,6 +56,18 @@ def write_to_sql(engine, table, df):
 def check_n_write_to_sql(engine, symbol, df):
     df['Date'] = df.index.strftime("%Y-%m-%d")
     df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
+    #cols=df.columns.to_list()
+    #cols=cols[-1:]+cols[:-1]
+    #df=df[cols]
+    #query = 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %r AND TABLE_NAME = %r;' %('US_Stocks', 'test2')
+    #output= engine.execute(query)
+    #cols=output.fetchall()
+    #fields=[]
+    #for f in cols:
+    #   fields.append(f[0])
+    fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+    df = df[fields]
+
     symbol = symbol.replace('.','_')
     symbol = 'STK'+symbol.replace('.','_')
     query = 'show tables like %r;' %(symbol)
@@ -63,8 +75,8 @@ def check_n_write_to_sql(engine, symbol, df):
     if output.first() is None:
         query = 'create table '+ symbol + ' like test2;'
         engine.execute(query)
-        query = 'alter table ' + symbol +' add index(Date);'
-        engine.execute(query)
+        #query = 'alter table ' + symbol +' add index(Date);'
+        #engine.execute(query)
     query = 'select * from '+ symbol
     #query = 'select * from '+ table + ' where Symbol=%r' %(symbol)
     rdf = pd.read_sql_query(query, engine)
@@ -73,7 +85,7 @@ def check_n_write_to_sql(engine, symbol, df):
         #Select all rows except that in SQL Database
         df = df[~df.Date.isin(rdf.Date)]
     if not df.empty:
-        df.to_sql(name=symbol, con=engine,index=False,if_exists='append')
+        df.to_sql(name=symbol, con=engine,index=False,chunksize=1000,if_exists='append')
         #df.to_sql(name=table, con=engine,index=False,if_exists='append')
  
 def get_symbols_from_sql(country, engine):

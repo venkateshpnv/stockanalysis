@@ -707,7 +707,11 @@ def update_field_change(df, nans, field, duration, whole_change=False):
 
         st_price = df.iloc[start_loc]['Adj Close']
         en_price = df.loc[i]['Adj Close']
-        change = en_price/st_price - 1
+        if st_price == 0:
+            change = 0
+        else:
+            change = en_price/st_price - 1
+
         df.loc[i][field] = change
     return df
 
@@ -715,7 +719,7 @@ def update_field_change(df, nans, field, duration, whole_change=False):
 def update_percent_change(df):
     fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
     durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
-
+ 
     write = False
     for f in fields:
         if f not in list(df.keys()):
@@ -753,6 +757,9 @@ def update_percent_change_all(country):
     try:
         i = 1
         for stk in stocks:
+            if i < 574: #Skipped 574 STKCLF
+                i = i + 1
+                continue
             symbol = stk['bscs']['symbol']
             print("%d: %s: %s" %(i, symbol, stk['bscs']['name']))
             df = read_from_hdf(country, symbol)
@@ -761,7 +768,7 @@ def update_percent_change_all(country):
             else:
                 df, status = update_percent_change(df)
                 if status:
-                    write_to_hdf(country, copy.deepcopy(df), symbol)
+                    #write_to_hdf(country, copy.deepcopy(df), symbol)
                     DB.check_n_write_to_sql(mysql_engine, symbol, copy.deepcopy(df))
             i = i + 1
     finally:
