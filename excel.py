@@ -290,13 +290,13 @@ def add_basic_header(sheet, i):
 
     i+=1
     #52 Week Low
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 7*367
     sheet.write(0, i, "With 52Wk Lw", style_wrap)
     conf.W_F2WK_LW=i
 
     i+=1
     #52 Week Low
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 7*367
     sheet.write(0, i, "With 52Wk Hgh", style_wrap)
     conf.W_F2WK_HG=i
 
@@ -344,11 +344,11 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "Market Cap", style_wrap)
     conf.MCAP=i
 
-    i+=1
-    # conf.FII
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "FII", style_wrap)
-    conf.FII=i
+    #i+=1
+    ## conf.FII
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "FII", style_wrap)
+    #conf.FII=i
 
     i+=1
     # conf.DII
@@ -510,7 +510,7 @@ def add_betas_header(sheet, i):
 
     i+=1
     # 2007 Percent Change
-    sheet.col(i).width = 9*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Since Last Recession", style_wrap)
     conf.SINCE_LAST_PER_CHG=i
 
@@ -638,13 +638,13 @@ def add_ratios_header(sheet, i):
 
     i+=1
     # Dividend Yield
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Div Yield", style_wrap)
     conf.DIV=i
 
     i+=1
     # Dividend Payout Ratio
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Div Payout", style_wrap)
     conf.DIV_PAY=i
     return i
@@ -692,13 +692,13 @@ def add_dcf_header(sheets, years, prices_only=False):
 
         i+=1
         # Float
-        sheet.col(i).width = 4*367
+        sheet.col(i).width = 6*367
         sheet.write(0, i, "Float", style_wrap)
         conf.FLT=i
 
         i+=1
         # Float Percent
-        sheet.col(i).width = 4*367
+        sheet.col(i).width = 6*367
         sheet.write(0, i, "Float %", style_wrap)
         conf.FLT_PER=i
 
@@ -719,7 +719,7 @@ def add_price_change_header(sheet, i, sheet_type):
     sheet.write(0, i, "Week Price Change", style_wrap)
     conf.WEEK_PR_CHANGE=i
     i = i + 1
-    sheet.col(i).width = 8*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Day Price Change", style_wrap)
     conf.DAY_PR_CHANGE=i
     return i
@@ -839,7 +839,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     ash.write(count, conf.COMP, stk['bscs']['name'], style_text)
     ash.write(count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
-    ash.write(count, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
+    #ash.write(count, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
     ash.write(count, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
     ash.write(count, conf.DIV, stk['Dividend']['yld']/100, style_percent)
     ash.write(count, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
@@ -1028,8 +1028,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     sheet.write(i, 3, "Promoter Stake")
     sheet.write(i, 4, stk['bscs']['promoter_stake']/100, style_percent)
     ash.write(conf.COUNT, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
-    if 'fii_stake' in stk['bscs'].keys():
-        ash.write(conf.COUNT, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
+    #if 'fii_stake' in stk['bscs'].keys():
+    #    ash.write(conf.COUNT, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
     if 'dii_stake' in stk['bscs'].keys():
         ash.write(conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
     if 'yld' in stk['Dividend'].keys():
