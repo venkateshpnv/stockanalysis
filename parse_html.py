@@ -700,7 +700,7 @@ def populate_statement(soup, stock, statement, tenure):
     if statement not in stock[fig]['financial-statements'].keys():
         stock[fig]['financial-statements'][statement]={}
 
-    dates = list(stk[fig]['financial-statements'][statement].keys())
+    dates = list(stock[fig]['financial-statements'][statement].keys())
     last_date = get_last_date(stock, dates, '%m-%Y')
     count = len(trs)
     # Dates
