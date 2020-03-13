@@ -1051,29 +1051,36 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         return
     soup = parse_html.get_soup(html_page)
+    dates_before=list(stk[fig]['financial-statements'][statement_type].keys())
+    if 'date' in dates_before:
+        dates_before.remove('date')
     stk = parse_html.populate_statement(soup, stk, statement_type, duration_type)
+    dates_after=list(stk[fig]['financial-statements'][statement_type].keys())
+    if 'date' in dates_after:
+        dates_after.remove('date')
 
-    statements = stk[fig]['financial-statements'][statement_type]
-    dates = list(statements.keys())
-    dates.reverse()
-    for i, d in enumerate(dates):
-        if type(d) is datetime.date:
-            if statement_type == 'balance-sheet':
-                if 'Current Assets' in statements[d]['Assets'].keys():
-                    del statements[d]['Assets']['Current Assets']
-                if 'Non-Current Assets' in statements[d]['Assets'].keys():
-                    del statements[d]['Assets']['Non-Current Assets']
-                if 'Current Liabilities' in statements[d]['Assets'].keys():
-                    del statements[d]['Liabilities']['Current Liabilities']
-                if 'Non-Current Liabilities' in statements[d]['Assets'].keys():
-                    del statements[d]['Liabilities']['Non-Current Liabilities']
+    #dates = list(statements.keys())
+    #dates.reverse()
+    #for i, d in enumerate(dates):
+    #    #if type(d) is datetime.date:
+    #    if True:
+    #        if statement_type == 'balance-sheet':
+    #            if 'Current Assets' in statements[d]['Assets'].keys():
+    #                del statements[d]['Assets']['Current Assets']
+    #            if 'Non-Current Assets' in statements[d]['Assets'].keys():
+    #                del statements[d]['Assets']['Non-Current Assets']
+    #            if 'Current Liabilities' in statements[d]['Assets'].keys():
+    #                del statements[d]['Liabilities']['Current Liabilities']
+    #            if 'Non-Current Liabilities' in statements[d]['Assets'].keys():
+    #                del statements[d]['Liabilities']['Non-Current Liabilities']
 
-            field = fig+'.financial-statements.'+statement_type+'.'+d.strftime('%m-%Y')
-            col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements[d]}})
+    if len(dates_after) > len(dates_before):
+        statements = stk[fig]['financial-statements'][statement_type]
+        field = fig+'.financial-statements.'+statement_type#+'.'+d.strftime('%m-%Y')
+        col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements}})
+
     field = fig+'.financial-statements.'+statement_type+'.'+'date'
     col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
-
-    #remove_dir(path)
 
 def update_US_stock_information(col, stk):
     #db = open_db('test')
@@ -1204,6 +1211,7 @@ def update_sector_info():
                 db.US_Stocks.update({'bscs.symbol': obj[0]['symbol']}, {'$set': {"bscs.industry": obj[0]['Industry']}})
                 j += 1
     print("Total : %d" %(j))
+    close_db()
 
 def get_beta(country, sym, sdate, edate, df=None):
     betas = {}
@@ -1495,4 +1503,21 @@ def set_sno(country):
         update_field(col, doc['bscs']['symbol'], "sno", i)
         i += 1
 
+    close_db()
 
+def update_US_fundus_percent_change(db, stk):
+    pass
+
+# Calculate percentage change of the annual/quarter fundamental params
+# like sales, profits, cash flows, tangible/total book value etc
+def update_all_US_fundus_percent_change():
+    db = open_db('Stocks')
+
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    print(stocks.count())
+
+    for i, stk in enumerate(stocks):
+        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+        update_US_fundus_percent_change(db, stk)
+
+    close_db()

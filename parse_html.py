@@ -685,7 +685,7 @@ def populate_statement(soup, stock, statement, tenure):
 
     trs = soup.findAll("tr")
     if len(trs) < 1:
-        return
+        return stock
     i=0
     j=0
     if tenure == 'annual':
@@ -700,27 +700,30 @@ def populate_statement(soup, stock, statement, tenure):
     if statement not in stock[fig]['financial-statements'].keys():
         stock[fig]['financial-statements'][statement]={}
 
-    dates = list(stock[fig]['financial-statements'][statement].keys())
     last_date = get_last_date(stock, dates, '%m-%Y')
     count = len(trs)
+    new_dates=[]
     # Dates
     if trs[i].attrs['class'] and trs[i].attrs['class'][0] == 'bc-financial-report__row-dates':
         tds = trs[i].findAll('td')
 
         for j in range(1, len(tds)):
             #dates.append(tds[j].get_text().lstrip().rstrip())
-            d = datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date()
+            d_str = tds[j].get_text().lstrip().rstrip()
+            d = datetime.strptime(d_str, "%m-%Y").date()
             if d > last_date:
-                dates.append(datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date())
-            else:
-                dates.append("")
+                #dates.append(datetime.strptime(tds[j].get_text().lstrip().rstrip(), "%m-%Y").date())
+                new_dates.append(d_str)
+                stock[fig]['financial-statements'][statement][d_str]={}
+            #else:
+            #    dates.append("")
         i = i + 1
-        # Create statement entry for each date
-        for j in range(len(dates)):
-            if dates[j] != "":
-                stock[fig]['financial-statements'][statement][dates[j]]={}
+        ## Create statement entry for each date
+        #for j in range(len(dates)):
+        #    if dates[j] != "":
+        #        stock[fig]['financial-statements'][statement][dates[j]]={}
    
-    if len(dates) == 0:
+    if len(new_dates) == 0:
         PRINT_ERR("Couldn't get dates. Unable to proceed")
         sys.exit(1)
 
@@ -731,9 +734,9 @@ def populate_statement(soup, stock, statement, tenure):
         if statement != 'income-statement':
             group_label = trs[i].get_text().lstrip().rstrip()
             # Create group label entry for each date
-            for j in range(len(dates)):
-                if dates[j] != "" and not group_label in stock[fig]['financial-statements'][statement][dates[j]]:
-                    stock[fig]['financial-statements'][statement][dates[j]][group_label] = {}
+            for j in range(len(new_dates)):
+                if not group_label in stock[fig]['financial-statements'][statement][new_dates[j]]:
+                    stock[fig]['financial-statements'][statement][new_dates[j]][group_label] = {}
             i = i + 1
         while i < count:
             try:
@@ -748,17 +751,30 @@ def populate_statement(soup, stock, statement, tenure):
             sub_label = tds[0].get_text().lstrip().rstrip()
 
             if statement == 'income-statement':
-                for j, k in zip(range(len(dates)), range(1, len(tds))):
-                    if dates[j] != "":
-                        stock[fig]['financial-statements'][statement][dates[j]][sub_label] = str_to_float(tds[k].get_text())
+                for j, k in zip(range(len(new_dates)), range(1, len(tds))):
+                    stock[fig]['financial-statements'][statement][new_dates[j]][sub_label] = str_to_float(tds[k].get_text())
             else:
-                for j, k in zip(range(len(dates)), range(1, len(tds))):
-                    if dates[j] != "":
-                        stock[fig]['financial-statements'][statement][dates[j]][group_label][sub_label]=str_to_float(tds[k].get_text())
-                        #stock['fig'][statement][dates[j]][group_label].insert(-1, sub_label = str_to_float(tds[k].get_text()))
+                for j, k in zip(range(len(new_dates)), range(1, len(tds))):
+                    stock[fig]['financial-statements'][statement][new_dates[j]][group_label][sub_label]=str_to_float(tds[k].get_text())
+                    #stock['fig'][statement][dates[j]][group_label].insert(-1, sub_label = str_to_float(tds[k].get_text()))
 
             i = i + 1
-    print(dates)
+    s_dates = stock[fig]['financial-statements'][statement].keys() 
+    dates = []
+    for d in s_dates:
+        if d != 'date':
+            dates.append(datetime.strptime(d, "%m-%Y").date())
+    #dates = sorted(dates)
+    dates = sorted(dates,reverse=True)
+
+    sorted_entries = {}
+    # Sort entries based on date
+    for e in dates:
+        if e != 'date':
+            sorted_entries[e.strftime('%m-%Y')] = stock[fig]['financial-statements'][statement][e.strftime('%m-%Y')]
+
+    stock[fig]['financial-statements'][statement] = sorted_entries
+ 
     return stock
 
 def populate_financial_statement(stock, root, files, sheet_type, tenure):
