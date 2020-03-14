@@ -803,8 +803,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             df = remove_df_duplicates(df)
-            if index:
-                df = update_percent_change(df)
+            #if index:
+            #    df = update_percent_change(df)
             #Update Betas
             #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
             #    df = hdf_get_beta(country, symbol, df)
@@ -843,8 +843,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 if not df.empty:
                     rdf = rdf.append(df)
                     rdf = remove_df_duplicates(rdf)
-                    if index:
-                        rdf = update_percent_change(rdf)
+                    #if index:
+                    #    rdf = update_percent_change(rdf)
                     #Update Betas
                     #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
                     #    rdf = hdf_get_beta(country, symbol, rdf)
