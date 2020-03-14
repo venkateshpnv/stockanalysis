@@ -1,6 +1,7 @@
 from inspect import currentframe
 import os
 import pprint
+import shutil
 
 # Date
 import datetime
@@ -164,11 +165,15 @@ def print_stock_info(stk):
     PRINT("Others Stake: %r" % (stk['bscs']['others_stake']))
 
 def remove_dir(path):
-    filelist = [f for f in os.listdir(path)]
-    for f in filelist:
-        file_path = "%s/%s" %(path, f)
-        os.remove(file_path)
-    os.rmdir(path)
+    shutil.rmtree(path)
+    #filelist = [f for f in os.listdir(path)]
+    #for f in filelist:
+    #    file_path = "%s/%s" %(path, f)
+    #    os.remove(file_path)
+    #os.rmdir(path)
+
+def create_dir(path):
+    os.mkdir(path)
 
 def write_stock_to_file(val, filename, mode):
     filename = "/home/vpetla/work/stockanalysis/%s" %(filename)
