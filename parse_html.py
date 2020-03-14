@@ -15,6 +15,7 @@ from conf import *
 import json_code
 import DB
 from datetime import datetime
+import sys
 
 def html_head():
     s = ''
@@ -800,9 +801,17 @@ def populate_financial_statement(stock, root, files, sheet_type, tenure):
 
     sorted_entries = {}
     # Sort entries based on date
-    for e in sorted(stock[fig]['financial-statements'][sheet_type].keys()):
-        #sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
-        sorted_entries[e.strftime('%m-%Y')] = stock[fig]['financial-statements'][sheet_type][e]
+    try:
+        for e in sorted(stock[fig]['financial-statements'][sheet_type].keys()):
+            #sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
+            if isinstance(e, str):
+                sorted_entries[e] = stock[fig]['financial-statements'][sheet_type][e]
+            else:
+                sorted_entries[e.strftime('%m-%Y')] = stock[fig]['financial-statements'][sheet_type][e]
+    except Exception as E:
+        print("parse_html.py:808: %r" %(str(E)))
+        print("%r: %r" %(e, sorted(stock[fig]['financial-statements'][sheet_type].keys())))
+        sys.exit(1)
 
     stock[fig]['financial-statements'][sheet_type] = sorted_entries
     return stock
