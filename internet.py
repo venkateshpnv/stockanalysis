@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 #Web Driver
@@ -1873,6 +1874,7 @@ def get_page_with_check(url):
     return html_page
 
 def get_pages(path, symbol, statement_type, duration_type):
+    print(statement_type, duration_type)
     i=1
     while True:
         url = "https://www.barchart.com/stocks/quotes/%s/%s/%s?reportPage=%s" %(symbol, statement_type, duration_type, i)
@@ -1893,6 +1895,15 @@ def get_pages(path, symbol, statement_type, duration_type):
         if div:
             print("Going to overview page, breaking")
             break
+
+        if 'Financial data is not available' in html_page:
+            print("Reached till no data is available")
+            break
+ 
+        if '403 ERROR' in html_page:
+            PRINT_ERR("*********************** Access to Barchart blocked ******************")
+            PRINT_ERR("exiting")
+            sys.exit(1)
 
         write_to_file(html_page, html_file)
         i = i + 1
