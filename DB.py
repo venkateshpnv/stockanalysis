@@ -1,3 +1,4 @@
+import sys
 import os
 import sys
 # Excel operations
@@ -371,8 +372,8 @@ def update_US_stk_profile(html_text, collection):
     #symbol=re.search('\(([^)]+)',s).group(1)
     #print(symbol)
 
-    dt = dt.now().date().strftime("%d-%m-%Y")
-    update_field(collection, symbol, "bscs.date", dt)
+    today = dt.now().date().strftime("%d-%m-%Y")
+    update_field(collection, symbol, "bscs.date", today)
 
     #Market Cap
     pattern=re.compile(r'  Market Capitalization, \$K  ')
@@ -1050,6 +1051,12 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         field = fig+'.financial-statements.'+statement_type+'.'+'date'
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         return
+    
+    if '403 ERROR' in html_page:
+        PRINT_ERR("*********************** Access to Barchart blocked ******************")
+        PRINT_ERR("exiting")
+        sys.exit(1)
+
     soup = parse_html.get_soup(html_page)
     dates_before=list(stk[fig]['financial-statements'][statement_type].keys())
     if 'date' in dates_before:
@@ -1078,6 +1085,8 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         statements = stk[fig]['financial-statements'][statement_type]
         field = fig+'.financial-statements.'+statement_type#+'.'+d.strftime('%m-%Y')
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements}})
+        print("%s %s updated"%(fig, statement_type))
+        print("New entries: %r" %(list(set(dates_after)-set(dates_before))))
 
     field = fig+'.financial-statements.'+statement_type+'.'+'date'
     col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
@@ -1175,8 +1184,11 @@ def build_US_all_stock_information():
     #    del s[-1]
     #syms = {"$nin" : s}
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks_list = db.US_Stocks_List.find({'parsed':'NO'})
-    print(stocks_list.count())
+    stocks_list = db.US_Stocks_List.find({'parsed':'NO'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    print("Number of stocks not yet parsed: %r" %(stocks_list.count()))
+
+    remove_dir('/home/vpetla/work/stockanalysis/US_Stocks/html_pages')
+    create_dir('/home/vpetla/work/stockanalysis/US_Stocks/html_pages')
 
     for doc in stocks_list:
         sno = doc['sno']
