@@ -58,6 +58,13 @@ style_num.font.height = 10 * 20 #(10 pt)
 style_highlight = xlwt.XFStyle()
 style_highlight.pattern = pattern
 
+def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=16):
+    sheet = workbook.add_sheet(sheet_name)
+    sheet.set_panes_frozen(True) 
+    sheet.set_horz_split_pos(horz_pos) 
+    sheet.set_vert_split_pos(vert_pos) 
+    return sheet
+
 def get_usd_to_inr():
     page = internet.get_webpage("http://www.dollar2rupee.net")
     soup = parse_html.get_soup(page)
@@ -1038,7 +1045,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
         ash.write(conf.COUNT, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
    
     #Betas
-    if stk['fig']['betas']:
+    if 'betas' in stk['fig'].keys():
+    #if stk['fig']['betas']:
         if stk['fig']['betas']['recession']['2007']:
             if '2007' in stk['fig']['betas']['recession'].keys():
                 try:
@@ -1057,9 +1065,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
             ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
             ash.write(conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
 
-    ash.write(conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
-    ash.write(conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
-    ash.write(conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
+        ash.write(conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
+        ash.write(conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
+        ash.write(conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
  
     ash.write(conf.COUNT, conf.FLT, stk['bscs']['float']/100)
     ash.write(conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
@@ -1070,7 +1078,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     ash.write(conf.COUNT, conf.SYM, stk['bscs']['symbol'], style_text)
     ash.write(conf.COUNT, conf.SEC, stk['bscs']['sector'], style_text)
     ash.write(conf.COUNT, conf.IND, stk['bscs']['industry'], style_text)
-    ash.write(conf.COUNT, conf.SINCE, stk['bscs']['since'], style_text)
+    if 'since' in stk['bscs'].keys():
+        ash.write(conf.COUNT, conf.SINCE, stk['bscs']['since'], style_text)
 
     sheet.write(i, 3, "Public Stake")
     if 'pub_stake' in stk['bscs'].keys():
