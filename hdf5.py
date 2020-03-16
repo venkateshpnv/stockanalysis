@@ -269,6 +269,10 @@ def read_from_hdf(country, symbol):
     try:
         lock.acquire()
         path = get_hdf_store_path(country)
+        with h5py.File(path, 'a') as f:
+            symbols=list(f.keys())
+            if symbol not in symbols:
+                raise Exception('Not found')
         rdf  = pd.read_hdf(path, symbol)
     except Exception as e:
         print("read_from_hdf(): symbol: %r, error: %r" %(symbol, str(e)))
