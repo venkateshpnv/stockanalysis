@@ -90,6 +90,15 @@ def str_to_float_valid(x):
     except ValueError:
         return False
 
+def safe_substract(value1, value2):
+    if value1 is None and value2 is None:
+        return None
+    if value1 is None:
+        return -value2
+    if value2 is None:
+        return value1
+    return (value1-value2)
+
 def get_linenumber():
     cf = currentframe()
     return cf.f_back.f_lineno
