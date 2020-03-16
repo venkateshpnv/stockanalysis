@@ -7,7 +7,7 @@ import math
 import xlwt
 from datetime import datetime
 
-from excel import add_dcf_header
+from excel import add_dcf_header, add_wb_sheet
 import DB
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
@@ -245,11 +245,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         # All Stocks Excel File
         all_stk = xlwt.Workbook()
         ash = {}
-        ash['Above_100bn'] = all_stk.add_sheet("Above 100 Bn")
-        ash['10bn_100bn'] = all_stk.add_sheet("10Bn to 100 Bn")
-        ash['5bn_10bn'] = all_stk.add_sheet("5Bn to 10 Bn")
-        ash['1bn_5bn'] = all_stk.add_sheet("1Bn 5 Bn")
-        ash['Below_1bn'] = all_stk.add_sheet("Below 1Bn")
+        ash['Above_100bn'] = add_wb_sheet(all_stk, "Above 100 Bn")
+
+        ash['10bn_100bn'] = add_wb_sheet(all_stk, "10Bn to 100 Bn")
+        ash['5bn_10bn'] = add_wb_sheet(all_stk, "5Bn to 10 Bn")
+        ash['1bn_5bn'] = add_wb_sheet(all_stk, "1Bn 5 Bn")
+        ash['Below_1bn'] = add_wb_sheet(all_stk, "Below 1Bn")
         add_dcf_header(ash, years, prices_only)
     j = 0
     init_variables()
