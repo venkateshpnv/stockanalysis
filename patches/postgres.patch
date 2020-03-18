@@ -1,0 +1,36 @@
+diff --git a/DB.py b/DB.py
+index e25a702e..4981bdc4 100644
+--- a/DB.py
++++ b/DB.py
+@@ -24,6 +24,9 @@ import hdf5
+ import threading
+ import multiprocessing
+ 
++import pyscopg2
++from psycopg2 import Error
++
+ j = 0
+ class dbObject:
+     def __init__(self, **obj):
+@@ -64,6 +67,21 @@ def close_db():
+ def close_db_client(c):
+     c.close()
+ 
++#except (Exception, psycopg2.Error) as error :
++def open_postgres_con(db):
++    return psycopg2.connect(database=db, user="postgres", password="petla123",host="127.0.0.1",port="5432")
++
++def close_postgres_con(con):
++    con.close()
++
++#can create any number of cursors.
++# cursors are not thread safe.
++def get_postgres_cursor(con):
++    return con.cursor()
++
++def close_postgres_cursor(cur):
++    cur.close()
++
+ def ignore_stock(stk):
+     if 'trading' in stk['bscs'].keys():
+         if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
