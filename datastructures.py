@@ -1,3 +1,5 @@
+from dateutil.relativedelta import relativedelta
+
 class Basics:
     def __init__(self):
         self.name   = 'DEADCOW'
@@ -389,8 +391,28 @@ recessions = {
                 "2007" : { "start" : "12 October 2007",
                            "end" : "27 February 2009",
                            "duration" : 14
-                         }
+                         },
+                "2018" : { "start" : "30 November 2018",
+                           "end" : "21 December 2018",
+                           "duration" : 1
+                         },
+                "2020" : { "start" : "19 February 2020",
+                           "end" : "17 March 2020",
+                           "duration" : 1
+                         },
              }
 
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
-US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'}  
+US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
+
+
+price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close']
+
+price_change_fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+
+
+fin_year_fields = ['yoy', 'yo3y', 'yo5y', 'yo10y', 'yowy']
+fin_year_price_durations = [relativedelta(years=1), relativedelta(years=3), relativedelta(years=5), relativedelta(years=10)]
+fin_quarter_fields = ['qoq', 'qo2q', 'qo4q', 'qo6q', 'qo8q', 'qowq']
+fin_quarter_price_durations = [relativedelta(months=3), relativedelta(months=6), relativedelta(months=12), relativedelta(months=24)]
