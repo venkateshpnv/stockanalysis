@@ -264,7 +264,7 @@ def get_dataframe(country, sym, start=None, end=None):
         eindex = get_nearest_index(df, end)+1
     return df[sindex:eindex]
 
-def read_from_hdf(country, symbol):
+def read_from_hdf(country, symbol, start=None, end=None):
     rdf=pd.DataFrame() 
     try:
         lock.acquire()
@@ -278,7 +278,15 @@ def read_from_hdf(country, symbol):
         print("read_from_hdf(): symbol: %r, error: %r" %(symbol, str(e)))
     finally:
         lock.release()
-    return rdf
+    if start == None:
+        sindex = None
+    else:
+        sindex = get_nearest_index(rdf, start)
+    if end == None:
+        eindex = None
+    else:
+        eindex = get_nearest_index(rdf, end)+1
+    return rdf[sindex:eindex]
 
 def write_to_hdf(country, df, symbol):
     try:
@@ -344,7 +352,8 @@ def hdf_price_change(country, sym=None, df=None, days=None, weeks=None, months=N
         if not sym:
             print("No dataframe or symbol provided")
             return None
-        df = get_dataframe(country, sym)
+        #df = get_dataframe(country, sym)
+        df = read_from_hdf(country, sym)
     if end:
         end = dt.strptime(end, '%Y-%m-%d')
     else:
@@ -415,7 +424,8 @@ def hdf_get_price(sym, df, req_date):
     #return df.loc[date]['Adj Close']
 
 def get_latest_price(country, sym):
-    df = get_dataframe(country, sym)
+    df = read_from_hdf(country, sym)
+    #df = get_dataframe(country, sym)
     if not df.empty:
         return df['Adj Close'][-1]
     return None
@@ -645,7 +655,8 @@ def hdf_get_beta(country, sym, df=None, dfb=None):
             #from pandas_datareader.quandl import QuandlReader
             #df = pdr.get_data_stooq(sym, retry_count=3)
             #print(df)
-            df = get_dataframe(country, sym)
+            #df = get_dataframe(country, sym)
+            df = read_from_hdf(country, sym)
         except KeyError:
             print("Could not get data. Failed to calculate beta")
             return None
@@ -659,7 +670,8 @@ def hdf_get_beta(country, sym, df=None, dfb=None):
             else:
                 PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
                 return betas
-            dfb = get_dataframe(country, bindex, df.index[0], df.index[-1])
+            #dfb = get_dataframe(country, bindex, df.index[0], df.index[-1])
+            dfb = read_from_hdf(country, bindex, df.index[0], df.index[-1])
         except KeyError:
             print("Could not get data. Failed to calculate beta")
             return None
@@ -720,10 +732,7 @@ def update_field_change(df, nans, field, duration, whole_change=False):
     return df
 
 # Update df daily, weekly etc percent change
-def update_percent_change(df):
-    fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
-    durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
- 
+def update_percent_change(df, fields=price_change_fields, duration=price_change_durations):
     write = False
     for f in fields:
         if f not in list(df.keys()):
@@ -752,6 +761,8 @@ def update_percent_change(df):
 
 # Update day change, week change, month change etc till 10 year and whole percent change in the price of the stock for every day and update it in the df
 def update_percent_change_all(country):
+    fields = price_fields + price_change_fields
+
     mysql_engine = DB.open_sql_connection('10.0.0.12', 'root', 'petla123', 3036, 'US_Stocks')
     c = DB.open_db_client()
     db = c['Stocks']
@@ -773,7 +784,7 @@ def update_percent_change_all(country):
                 df, status = update_percent_change(df)
                 if status:
                     #write_to_hdf(country, copy.deepcopy(df), symbol)
-                    DB.check_n_write_to_sql(mysql_engine, symbol, copy.deepcopy(df))
+                    DB.check_n_write_to_sql(mysql_engine, symbol, copy.deepcopy(df), fields)
             i = i + 1
     finally:
         DB.close_db_client(c)
@@ -807,6 +818,8 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             df = remove_df_duplicates(df)
+            if df.empty:
+                DB.update_field(collection, symbol, "ignore", "YES")
             #if index:
             #    df = update_percent_change(df)
             #Update Betas
@@ -818,6 +831,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 write_to_hdf(country, df, symbol)
                 # Update the date on which the price is updated
                 DB.update_field(collection, symbol, "bscs.price_date", today)
+                #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
             # Read the existing data of the symbol
@@ -857,6 +871,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
                     DB.update_field(collection, symbol, "bscs.price_date", today)
+                    #DB.update_field(collection, symbol, "ignore", "NO")
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
     except Exception as E:
