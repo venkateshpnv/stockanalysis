@@ -9,8 +9,10 @@ import re
 import time
 import requests
 import math
+from math import nan, isnan
 
 from datetime import date, timedelta, datetime as dt
+from dateutil.relativedelta import relativedelta
 import datetime
 import numpy as np
 import pandas as pd
@@ -54,7 +56,7 @@ def read_from_sql(query, engine):
 def write_to_sql(engine, table, df):
     df.to_sql(name=table,con=engine,index=False,if_exists='append')
 
-def check_n_write_to_sql(engine, symbol, df):
+def check_n_write_to_sql(engine, symbol, df, fields):
     df['Date'] = df.index.strftime("%Y-%m-%d")
     df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
     #cols=df.columns.to_list()
@@ -66,7 +68,7 @@ def check_n_write_to_sql(engine, symbol, df):
     #fields=[]
     #for f in cols:
     #   fields.append(f[0])
-    fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+    #fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
     df = df[fields]
 
     symbol = symbol.replace('.','_')
@@ -160,9 +162,9 @@ def close_db_client(c):
     c.close()
 
 def ignore_stock(stk):
-    if 'trading' in stk['bscs'].keys():
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-            return True
+    #if 'trading' in stk['bscs'].keys():
+    #    if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+    #        return True
     if 'ignore' in stk.keys():
         if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
             return True
@@ -197,7 +199,8 @@ def get_stock_from_db(country, sym):
     return stk[0]
  
 def update_since_dataframe(country, collection, stk):
-    df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
+    #df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
+    df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
     if not df.empty:
         stk['bscs']['since'] = str(df.index[0].date())
         update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
@@ -600,12 +603,8 @@ def fork_db_process(country, sem, lock):
     stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     i=0
     for stk in stocks:
-        if 'trading' in stk['bscs'].keys():
-            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-                continue
-        if 'ignore' in stk.keys():
-            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-                continue
+        #if ignore_stock(stk):
+        #    continue
         print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         #update_stk_bscs_db(country, db, stk, sem, lock)
@@ -658,12 +657,8 @@ def fork_hdf5_process(country, sem):
  
     i=0
     for stk in stocks:
-        if 'trading' in stk['bscs'].keys():
-            if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-                continue
-        if 'ignore' in stk.keys():
-            if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-                continue
+        #if ignore_stock(stk):
+        #    continue
         print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
@@ -934,7 +929,7 @@ def build_US_all_earnings_estimates():
         if sno > 0:
         #if sno > 3000:
             stk = doc
-            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - dt.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > timedelta(90):
+            if 'Earning_Estimates' not in stk['quart_fig'].keys() or (today - dt.strptime(stk['quart_fig']['Earning_Estimates']['date'], '%Y-%m-%d').date()) > relativedelta(months=3):
                 print("%d: %s: %s"%(sno,stk['bscs']['symbol'],stk['bscs']['name']))
                 internet.populate_US_earnings_estimates(stk)
             #break
@@ -1036,7 +1031,7 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         now = dt.now().date()
         last_date = stk[fig]['financial-statements'][statement_type]['date']
         last_date = dt.strptime(last_date, "%Y-%m-%d").date()
-        if (now - last_date) < timedelta(30):
+        if (now - last_date) < relativedelta(months=1):
             print("Already updated on %r" %(str(last_date)))
             return
 
@@ -1232,10 +1227,16 @@ def get_beta(country, sym, sdate, edate, df=None):
             #from pandas_datareader.quandl import QuandlReader
             #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
             #print(df)
-            df = hdf5.get_dataframe(country, sym, sdate, edate)
-        except KeyError:
+            #df = hdf5.get_dataframe(country, sym, sdate, edate)
+            df = hdf5.read_from_hdf(country, sym, sdate, edate)
+        except Exception as e:
             print("Could not get data. Failed to calculate beta")
             return None
+    if df.empty:
+        return None
+
+    if pd.to_datetime(edate) < df.index[0]:
+        return None
 
     if country == 'US':
         bindex = "SP500"
@@ -1245,7 +1246,8 @@ def get_beta(country, sym, sdate, edate, df=None):
         PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
         return betas
 
-    dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
+    #dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
+    dfb = hdf5.read_from_hdf(country, bindex, df.index[0], df.index[-1])
     #dfb = hdf5.get_dataframe(country, bindex, sdate, edate)
    
     # Calculate CAGR
@@ -1265,14 +1267,17 @@ def get_beta(country, sym, sdate, edate, df=None):
 
     #print("sdate: %r, edate: %r, last: %r, first: %r"%(sdate, edate, last, first))
     growth_percent = s_last/s_first - 1
-    try:
-        cagr = round((((s_last/s_first)**(1/years))-1), 4)
-    except Exception as e:
-        print(str(e))
-        print("Failed to calculate CAGR for : %r" %(sym))
-        print("First: %r, last: %r, years: %r" %(s_first, s_last, years))
+    if years == 0:
         cagr = None
-        #sys.exit()
+    else:
+        try:
+            cagr = round((((s_last/s_first)**(1/years))-1), 4)
+        except Exception as e:
+            print(str(e))
+            print("Failed to calculate CAGR for : %r" %(sym))
+            print("First: %r, last: %r, years: %r" %(s_first, s_last, years))
+            cagr = None
+            #sys.exit()
 
     ## Take symbol's indexes as inputs
     ## For example, the recession happened in 2008.
@@ -1292,7 +1297,10 @@ def get_beta(country, sym, sdate, edate, df=None):
     last  = dfb['Adj Close'][-1]
 
     bgrowth_percent = last/first - 1
-    b_cagr = round((((last/first)**(1/years))-1), 4)
+    if years == 0:
+        b_cagr = None
+    else:
+        b_cagr = round((((last/first)**(1/years))-1), 4)
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # from daily data points, create a time-series of monthly data points
@@ -1307,7 +1315,10 @@ def get_beta(country, sym, sdate, edate, df=None):
     dfsm[['s_returns','b_returns']] = dfsm[['s_adjclose','b_adjclose']]/\
         dfsm[['s_adjclose','b_adjclose']].shift(1) -1
     dfsm = dfsm.dropna()
-    covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
+    try:
+        covmat = np.cov(dfsm["s_returns"],dfsm["b_returns"])
+    except Exception as E:
+        print("sym: %r covmat: %r, %r" %(sym, covmat, str(E)))
     
     # calculate measures now
     beta = covmat[0,1]/covmat[1,1]
@@ -1330,11 +1341,14 @@ def get_beta(country, sym, sdate, edate, df=None):
     #alpha = alpha*prd
     alpha = alpha*time_period
     #alpha_pure = alpha_pure*time_period
-    alpha_pure = round(cagr - b_cagr, 4)
+    if cagr:
+        alpha_pure = round(cagr - b_cagr, 4)
+    else:
+        alpha_pure = 0
     #print("alpha/year: %r" %(alpha))
     #print("alpha_pure/year: %r" %(alpha_pure))
     volatility = volatility*np.sqrt(time_period)
-
+ 
     betas.update({"Start_Price":float(s_first)})
     betas.update({"End_Price":float(s_last)})
     betas.update({"Start_Date":str(df.index[0].date())})
@@ -1348,7 +1362,30 @@ def get_beta(country, sym, sdate, edate, df=None):
     betas.update({"alpha_pure":alpha_pure})
     betas.update({"r_squared":r_squared})
     betas.update({"volatility":volatility})
+    betas.update({"avg_price":df['Adj Close'].mean()})
     #print(betas)
+
+    # Only for recession betas
+    if edate != dt.now().date():
+        try:
+            #from pandas_datareader.quandl import QuandlReader
+            #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
+            #print(df)
+            df = hdf5.read_from_hdf(country, sym, edate)
+            # Calculate CAGR
+            s_first = df['Adj Close'][0]
+            if isinstance(s_first, complex):
+                print("first is complex number")
+            s_last = df['Adj Close'][-1]
+            if isinstance(s_last, complex):
+                print("last is complex number")
+            #print(df['Adj Close'].head(5))
+            #print(df['Adj Close'].tail(5))
+            growth_percent = s_last/s_first - 1
+            betas.update({"since_then":growth_percent})
+        except Exception as e:
+            betas.update({"since_then":nan})
+ 
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
     
@@ -1357,7 +1394,8 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
 
     for year in years:
         try:
-            if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
+            #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
+            if True:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
                 en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
@@ -1404,14 +1442,11 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         
         update_stock_recession_betas(country, collection, stk, sym, df=df)
         
-        if not 'betas' in stk['fig'].keys():
-            stk['fig']['betas']={}
-        
         #print(stk['fig']['betas'].keys())
         #Since last recession
         betas = None
         year = sorted(recessions.keys())[-1]
-        st_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
+        st_date = dt.strptime(recessions['2007']['end'], "%d %B %Y").date()
         en_date = dt.now().date()
         #print("Since last recession")
         #print(st_date)
@@ -1432,11 +1467,23 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         field="fig.betas.whole"
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
         
+        #10 year beta
+        #print("10 year beta")
+        en_date = dt.now().date()
+        betas = None
+        st_date = en_date - relativedelta(years=10)
+        #print(st_date)
+        #print(en_date)
+        betas = get_beta(country, sym, st_date, en_date, df=df)
+        #print("Betas: %r" %(betas))
+        field="fig.betas.ten_year"
+        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+        
         #5 year beta
         #print("5 year beta")
         en_date = dt.now().date()
         betas = None
-        st_date = en_date - timedelta(days=5*365)
+        st_date = en_date - relativedelta(years=5)
         #print(st_date)
         #print(en_date)
         betas = get_beta(country, sym, st_date, en_date, df=df)
@@ -1449,7 +1496,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         st_date = since_start
         en_date = dt.now().date()
         betas = None
-        st_date = en_date - timedelta(days=1*365)
+        st_date = en_date - relativedelta(years=1)
         #print(st_date)
         #print(en_date)
         betas = get_beta(country, sym, st_date, en_date, df=df)
@@ -1462,7 +1509,7 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         st_date = since_start
         en_date = dt.now().date()
         betas = None
-        st_date = en_date - timedelta(days=365/2)
+        st_date = en_date - relativedelta(months=6)
         #print(st_date)
         #print(en_date)
         betas = get_beta(country, sym, st_date, en_date, df=df)
@@ -1492,8 +1539,8 @@ def update_all_stock_betas(country):
     sem = threading.BoundedSemaphore(max_threads)
 
     for doc in docs:
-        if ignore_stock(doc):
-            continue
+        #if ignore_stock(doc):
+        #    continue
         sem.acquire()
         #update_stock_betas(country, collection, copy.deepcopy(doc), sem)
         threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc), sem,)).start()
@@ -1517,19 +1564,183 @@ def set_sno(country):
 
     close_db()
 
-def update_US_fundus_percent_change(db, stk):
-    pass
+def remove_nested(stmt):
+    dates=list(stmt.keys())
+    
+    entry={}
+    for d in dates:
+        stmt_d = stmt[d]
+        fields = list(stmt_d.keys())
+        for f in fields:
+            entry.update(stmt_d.pop(f,{}))
+        stmt[d] = entry
+        entry = {}
+    return stmt
+
+def form_df(stmt, stmt_type):
+    try:
+        del stmt['date']
+    except:
+        pass
+    if stmt_type != 'income-statement':
+        stmt = remove_nested(copy.deepcopy(stmt))
+    df=pd.DataFrame.from_dict(stmt)
+    df=pd.DataFrame.transpose(df)
+    df.sort_index(ascending=True, inplace=True)
+    return df
+
+def build_df_from_stmt(stk, stmt, df, fields):
+    df_cols=list(df.columns)
+    
+    # It is not necessary that all columns should be present.
+    # Take whatever are available
+    available_cols=[]        
+    for f in fields:
+        if f in df_cols:
+            available_cols.append(f)
+    df = df[available_cols]
+    renamed_cols = {}
+    for c in available_cols:
+        renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
+    df.rename(columns=renamed_cols, inplace=True)
+    
+    # Add new columns to the dataframe
+    for i, c in enumerate(df.columns):
+        s = c + percents[i]
+        df[s]=None
+    
+    df, status = update_percent_change(df, fields=fin_fields, duration=fin_durations)
+    return df, status
+ 
+def update_US_fin_percent_change(db, mysql_engine, stk, fig):
+    if fig == 'fig':
+        fin_fields = fin_year_fields
+        fin_durations = fin_year_price_durations
+    else:
+        fin_fields = fin_quarter_fields
+        fin_durations = fin_quarter_price_durations
+
+    if 'fig' not in stk.keys():
+        print("No financial figures available. Exiting percent calculation")
+        return
+
+    if 'income-statement' in stk[fig]['financial-statements'].keys():
+        fields=['Sales', 'Operating Expenses', 'Gross Profit', 'Net Income $M']
+        df = form_df(stk[fig]['financial-statements']['income-statement'], 'income-statement')
+       #check_n_write_to_sql(mysql_engine, stk['bscs']['symbol'], df, list(df.columns))
+
+    if 'balance-sheet' in stk[fig]['financial-statements'].keys():
+        df = form_df(stk[fig]['financial-statements']['balance-sheet'], 'balance-sheet')
+        fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
+        df_cols=list(df.columns)
+        available_cols=[]
+        for f in fields:
+            if f in df_cols:
+                available_cols.append(f)
+        bdf = df[available_cols]
+        del df
+        renamed_cols = {}
+        for c in available_cols:
+            renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
+        bdf.rename(columns=renamed_cols, inplace=True)
+
+    if 'cash-flow' in stk[fig]['financial-statements'].keys():
+        df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
+        fields=['Operating Cash Flow', 'PPE Investments', 'Free Cash Flow', 'Capital Expenditure']
+        df_cols=list(df.columns)
+        available_cols=[]
+        for f in fields:
+            if f in df_cols:
+                available_cols.append(f)
+        cdf = df[available_cols]
+        del df
+        renamed_cols = {}
+        for c in available_cols:
+            renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
+        bdf.rename(columns=renamed_cols, inplace=True)
 
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
-def update_all_US_fundus_percent_change():
+def update_all_US_fin_percent_change():
     db = open_db('Stocks')
+    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@10.0.0.12:3306/US_Stocks_Fin", pool_size=1)
 
     stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        update_US_fundus_percent_change(db, stk)
+        update_US_fin_percent_change(db, mysql_engine, stk)
 
     close_db()
+    mysql_engine.dispose()
+
+def correct_error(stmt, stmt_type):
+    miss_count = 0
+    dates=list(stmt.keys())
+    
+    for d in dates:
+        if d == 'date':
+            continue
+        try:
+            if stmt_type == 'balance-sheet':
+                if 'TOTAL' in stmt[d]['Assets'].keys():
+                    stmt[d]['Assets']['Total Current Assets'] = \
+                                                            safe_substract( \
+                                                                stmt[d]['Assets']['Total Assets $M'], \
+                                                                stmt[d]['Assets']['TOTAL'])
+
+                    stmt[d]['Assets']['Total Non-Current Assets'] = stmt[d]['Assets']['TOTAL']
+                    del stmt[d]['Assets']['TOTAL']
+                else:
+                    print("%s: %s Assets[TOTAL] is missing" %(stmt_type,d))
+                    miss_count=1
+                if 'TOTAL' in stmt[d]['Liabilities'].keys():
+                    stmt[d]['Liabilities']['Total Current Liabilities'] = \
+                                                            safe_substract( \
+                                                                stmt[d]['Liabilities']['Total liabilities'], \
+                                                                stmt[d]['Liabilities']['TOTAL'])
+                    stmt[d]['Liabilities']['Total Non-Current Liabilities'] = stmt[d]['Liabilities']['TOTAL']
+                    del stmt[d]['Liabilities']['TOTAL']
+                else:
+                    print("%s: %r: Liabilities[TOTAL] is missing" %(stmt_type, d))
+                    miss_count=1
+        except Exception as E:
+            print("correct_error(): %r: %r" %(stmt_type, d))
+    #pretty_print(stmt)
+
+    return stmt, miss_count
+
+
+def update_US_fin_stmt_errors(collection, stk):
+    if 'fig' not in stk.keys() and 'financial-statements' not in stk['fig'].keys():
+        print("No financial figures available. Exiting percent calculation")
+        return
+
+    if 'balance-sheet' in stk['fig']['financial-statements'].keys():
+        stk['fig']['financial-statements']['balance-sheet'], miss_count = \
+            correct_error(stk['fig']['financial-statements']['balance-sheet'], 'balance-sheet')
+        update_field(collection, stk['bscs']['symbol'], 'fig.financial-statements.balance-sheet', \
+                                    stk['fig']['financial-statements']['balance-sheet'])
+    return miss_count
+
+# Update mongodb with Total Current Assets etc.
+# During the regular update, they were overwritten by succeeding fields
+# with same name.
+# The idea is to substract Total Assets - Total Non current assets
+# Likewise for other fields.
+def update_all_US_fin_stmts_errors():
+    db = open_db('Stocks')
+    count=0
+
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    print(stocks.count())
+
+    for i, stk in enumerate(stocks):
+        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+        miss_count = update_US_fin_stmt_errors(db.US_Stocks, copy.deepcopy(stk))
+        count=count+miss_count
+
+    print("Miss Count: %r" %(count))
+    close_db()
+
