@@ -1,0 +1,817 @@
+2019-12-01 19:20:10,320:INFO:app.py:3171::log test
+2019-12-01 19:20:10,331:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 19:20:10,332:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 19:20:10,334:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 19:20:10,335:INFO:app.py:3223::INITIALIZING...
+2019-12-01 19:20:10,335:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 19:20:42,217:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:20:42,217:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:20:42,218:INFO:tocUtil.py:176::createTocFile(../data/.toc.h5)
+2019-12-01 19:20:42,218:INFO:tocUtil.py:179::home dir: ../data/home
+2019-12-01 19:20:42,218:INFO:tocUtil.py:184::system toc
+2019-12-01 19:20:42,218:INFO:tocUtil.py:195::toc_dir:[../data]
+2019-12-01 19:20:42,219:INFO:tocUtil.py:196::data_dir:[../data]
+2019-12-01 19:20:42,219:INFO:tocUtil.py:197::home_dir:[../data/home]
+2019-12-01 19:20:42,219:INFO:tocUtil.py:198::check toc with path: ../data/.toc.h5
+2019-12-01 19:20:42,220:INFO:tocUtil.py:205::base domain: hdfgroup.org
+2019-12-01 19:20:42,223:INFO:tocUtil.py:216::toc walk: ../data
+2019-12-01 19:20:42,224:INFO:tocUtil.py:219::../data/../data/home
+2019-12-01 19:20:42,224:INFO:tocUtil.py:229::grppath: /
+2019-12-01 19:20:42,224:INFO:tocUtil.py:238::grppath: /
+2019-12-01 19:20:42,224:INFO:tocUtil.py:239::base_domain: hdfgroup.org
+2019-12-01 19:20:42,225:INFO:tocUtil.py:240::domainpath: .hdfgroup.org
+2019-12-01 19:20:42,225:INFO:tocUtil.py:242::walk, file: readme.txt
+2019-12-01 19:20:42,226:INFO:tocUtil.py:248::walk, filepath: ../data/readme.txt
+2019-12-01 19:20:42,226:INFO:tocUtil.py:260::skip non-hdf5 extension
+2019-12-01 19:20:42,226:INFO:tocUtil.py:242::walk, file: .toc.h5
+2019-12-01 19:20:42,227:INFO:tocUtil.py:244::skip hidden
+2019-12-01 19:20:42,227:INFO:tocUtil.py:242::walk, file: public
+2019-12-01 19:20:42,227:INFO:tocUtil.py:248::walk, filepath: ../data/public
+2019-12-01 19:20:42,228:INFO:tocUtil.py:260::skip non-hdf5 extension
+2019-12-01 19:20:42,228:INFO:tocUtil.py:216::toc walk: ../data/public
+2019-12-01 19:20:42,228:INFO:tocUtil.py:219::../data/../data/home
+2019-12-01 19:20:42,229:INFO:tocUtil.py:229::grppath: /public
+2019-12-01 19:20:42,229:INFO:tocUtil.py:238::grppath: /public
+2019-12-01 19:20:42,229:INFO:tocUtil.py:239::base_domain: hdfgroup.org
+2019-12-01 19:20:42,230:INFO:tocUtil.py:240::domainpath: public.hdfgroup.org
+2019-12-01 19:20:42,230:INFO:tocUtil.py:242::walk, file: tall.h5
+2019-12-01 19:20:42,230:INFO:tocUtil.py:248::walk, filepath: ../data/public/tall.h5
+2019-12-01 19:20:42,231:INFO:tocUtil.py:268::filename (noext): tall
+2019-12-01 19:20:42,232:INFO:tocUtil.py:276::tocfile - create_group: /public
+2019-12-01 19:20:42,232:INFO:tocUtil.py:280::filedomain: tall.public.hdfgroup.org
+2019-12-01 19:20:42,233:INFO:tocUtil.py:284::tocFile - ExternalLink: public.hdfgroup.org
+2019-12-01 19:20:42,234:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:20:42,234:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:20:42,235:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:20:42,235:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: 127.0.0.1}
+2019-12-01 19:20:42,235:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:20:42,236:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:20:42,237:INFO:hdf5db.py:548::initializing file
+2019-12-01 19:20:42,253:INFO:hdf5db.py:570::visit: public name: Group
+2019-12-01 19:20:42,254:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:20:42,255:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:20:42,724:INFO:h5watchdog.py:27::H5EventHandler -- Created file: ../data/.toc.h5
+2019-12-01 19:20:42,725:INFO:h5watchdog.py:45::H5EventHandler -- Modified directory: ../data
+2019-12-01 19:20:42,725:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:20:42,736:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:20:42,742:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:20:42,758:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:20:43,333:INFO:app.py:3098::process_queue, got: ../data/.toc.h5
+2019-12-01 19:20:43,334:INFO:app.py:3063::updateToc(../data/.toc.h5)
+2019-12-01 19:20:43,335:INFO:app.py:3072::ignore toc file creation
+2019-12-01 19:20:48,087:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:20:48,087:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:20:48,088:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:20:48,088:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:20:48,088:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:20:48,088:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: 127.0.0.1}
+2019-12-01 19:20:48,089:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:20:48,089:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:20:48,090:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:20:48,091:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:20:48,590:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:20:48,593:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:21:02,208:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:21:02,210:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:21:02,212:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:21:02,212:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:21:02,212:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:21:02,212:INFO:app.py:194::REQ GET http://localhost:5000/groups {remote_ip: 127.0.0.1}
+2019-12-01 19:21:02,212:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:21:02,213:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:21:02,213:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:21:02,214:INFO:hdf5db.py:3164::db.getCollection(groups)
+2019-12-01 19:21:02,214:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:21:02,716:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:21:07,040:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:21:07,040:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:21:07,041:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:21:07,041:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:21:07,041:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:21:07,041:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:21:07,041:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:21:07,041:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:21:07,042:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:21:07,043:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:21:07,043:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:21:07,546:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:25:34,278:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:25:34,279:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:25:34,281:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:25:34,281:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:25:34,282:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:25:34,282:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:25:34,282:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:25:34,283:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:25:34,284:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:25:34,284:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:25:34,285:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:25:34,788:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:36:29,132:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:29,333:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:29,334:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:30,115:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:30,331:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:30,331:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:30,940:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:31,337:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:31,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:31,800:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:31,832:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:31,832:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:32,298:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:32,336:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:32,337:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:33,196:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,337:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:33,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:33,736:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,776:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,803:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,836:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:33,836:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:33,837:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:33,837:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:33,837:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:33,837:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:33,845:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,878:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,908:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,942:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:33,973:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,007:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,039:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,082:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,113:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,142:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,173:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,207:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,239:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,269:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,305:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,344:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,344:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,345:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,345:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,345:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,345:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,346:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,346:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,346:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,346:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,347:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,347:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,347:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,347:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,347:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,348:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,348:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,348:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,348:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,349:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,349:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,349:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,349:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,349:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,350:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,350:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,350:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,350:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,351:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,351:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,351:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,355:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,355:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,377:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,398:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,440:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,470:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,499:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,535:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,566:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,597:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,627:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:36:34,829:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,830:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,831:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,831:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,831:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,831:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,832:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,832:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,832:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,832:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,833:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,833:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,833:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,833:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,834:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,834:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:36:34,834:INFO:app.py:2975::Stopping http server
+2019-12-01 19:36:34,834:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:27,776:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:27,830:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:27,830:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,328:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,332:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,333:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,362:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,413:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,431:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,463:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,502:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,535:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,565:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,595:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,635:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,660:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,692:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,727:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,768:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,802:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,829:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,830:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,830:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,831:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,831:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,831:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,832:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,832:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,833:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,833:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,834:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,834:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,834:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,835:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,835:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,836:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,836:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,837:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,837:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,837:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,837:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,838:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,839:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,840:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,840:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,840:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,840:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,841:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,841:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,841:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:28,841:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:28,862:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,894:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,926:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,973:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:28,993:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,028:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,066:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,094:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,131:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,160:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,195:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,235:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,266:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,298:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,330:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,330:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,331:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,332:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,332:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,333:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,333:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,333:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,334:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,334:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,335:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,335:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,335:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,336:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,336:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,337:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,337:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,338:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,338:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,340:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,340:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,342:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,342:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,343:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,343:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,343:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,347:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,347:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,370:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,411:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,438:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,471:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,503:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,544:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,581:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,612:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,645:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,671:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,703:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,737:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,772:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,804:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,840:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,841:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,841:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,842:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,842:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,842:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,843:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,843:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,844:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,863:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,863:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,863:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,864:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,864:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,865:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,865:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,866:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,866:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,867:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,867:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,868:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,868:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,868:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,868:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,869:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,869:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,870:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,870:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,874:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:29,875:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:29,878:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,907:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,943:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:29,970:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,004:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,037:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,105:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,107:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,143:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,177:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,206:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,237:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,268:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,303:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,331:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,331:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,332:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,333:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,333:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,334:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,334:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,335:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,335:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,335:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,336:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,336:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,337:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,337:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,338:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,339:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,341:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,341:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,342:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,342:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,343:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,343:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,343:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,344:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,349:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,380:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,405:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,441:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,479:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,521:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,547:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,579:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,612:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,648:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,689:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,721:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,752:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,782:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,814:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,844:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,845:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,846:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,846:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,846:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,846:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,848:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,848:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,849:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,850:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,850:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,850:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,851:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,851:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,852:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,852:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,852:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,852:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,853:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,853:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,853:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,853:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,854:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,854:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,854:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,854:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,854:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,854:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,855:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,855:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,857:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,860:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:30,860:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:30,881:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,924:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,943:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:30,986:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:31,018:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:31,048:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:31,081:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 19:37:31,337:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,341:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,341:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,344:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,346:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,347:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,348:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,348:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,350:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,351:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:37:31,352:INFO:app.py:2975::Stopping http server
+2019-12-01 19:37:31,353:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 19:39:38,949:INFO:app.py:3171::log test
+2019-12-01 19:39:38,964:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 19:39:38,964:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 19:39:38,965:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 19:39:38,966:INFO:app.py:3223::INITIALIZING...
+2019-12-01 19:39:38,966:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 19:39:42,245:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:39:42,246:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:39:42,249:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:39:42,249:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:39:42,249:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:39:42,250:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:39:42,250:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:39:42,269:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:39:42,270:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:39:42,271:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:39:42,271:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:39:42,770:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:39:42,779:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:39:47,072:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:39:47,072:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:39:47,073:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:39:47,073:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:39:47,073:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:39:47,074:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:39:47,074:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:39:47,078:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:39:47,079:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:39:47,079:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:39:47,080:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:39:47,578:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:39:47,583:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:39:49,224:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:39:49,227:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:39:49,228:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:39:49,229:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:39:49,229:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:39:49,229:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:39:49,230:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:39:49,231:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:39:49,232:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:39:49,232:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:39:49,233:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:39:49,732:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:39:49,735:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:54:37,190:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 19:54:37,191:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 19:54:37,196:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 19:54:37,196:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 19:54:37,196:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 19:54:37,196:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: 127.0.0.1}
+2019-12-01 19:54:37,196:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 19:54:37,197:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 19:54:37,198:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 19:54:37,198:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 19:54:37,199:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 19:54:37,699:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 19:54:37,702:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 20:00:09,294:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 20:00:09,295:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 20:00:09,299:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 20:00:09,299:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 20:00:09,299:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 20:00:09,299:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: ::1}
+2019-12-01 20:00:09,299:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 20:00:09,300:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 20:00:09,301:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 20:00:09,301:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 20:00:09,804:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 20:00:58,325:INFO:app.py:3171::log test
+2019-12-01 20:00:58,340:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 20:00:58,340:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 20:00:58,341:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 20:00:58,342:INFO:app.py:3223::INITIALIZING...
+2019-12-01 20:00:58,343:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 20:01:00,774:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:00,838:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:00,838:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,366:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,405:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,435:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,471:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,508:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,545:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,589:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,620:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,651:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,681:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,715:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,756:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,799:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,817:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,843:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,843:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,847:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,847:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,848:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,848:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,848:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,848:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,849:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,849:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,849:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,849:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,849:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,850:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,850:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,850:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,850:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,850:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,850:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,851:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,851:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,851:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,851:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,851:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,851:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,852:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,852:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,852:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,852:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,889:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,911:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,911:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,912:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:01,912:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:01,931:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,963:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:01,998:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,028:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,062:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,101:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,132:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,166:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,199:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,243:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,279:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,303:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,337:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,337:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,338:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,339:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,340:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,340:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,341:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,341:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,342:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,342:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,343:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,343:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,344:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,344:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,344:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,345:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,345:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,345:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,345:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,346:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,346:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,348:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,348:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,379:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,417:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,454:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,498:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,523:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,556:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,605:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,638:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,662:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,711:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,747:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,768:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,807:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,837:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,837:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,837:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,838:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,838:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,838:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,838:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,839:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,839:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,839:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,839:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,839:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,840:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,840:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,840:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,840:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,840:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,841:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,841:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,841:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,841:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,842:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,843:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,843:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,843:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,843:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,843:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,844:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:02,844:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:02,870:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,904:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,948:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:02,979:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,011:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,052:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,088:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,120:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,156:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,186:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,233:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,253:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,294:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,325:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:01:03,336:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,336:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,338:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,338:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,338:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,338:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,339:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,339:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,339:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,340:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,340:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,340:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,340:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,340:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,340:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,340:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,341:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,341:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,341:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,342:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,342:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,343:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,343:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,344:INFO:app.py:2975::Stopping http server
+2019-12-01 20:01:03,344:INFO:app.py:2978::Will shutdown in 2 seconds ...
+2019-12-01 20:01:03,366:WARNING:app.py:2968::Caught signal: 2
+2019-12-01 20:02:42,457:INFO:app.py:3171::log test
+2019-12-01 20:02:42,480:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 20:02:42,480:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 20:02:42,481:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 20:02:42,483:INFO:app.py:3223::INITIALIZING...
+2019-12-01 20:02:42,483:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 20:02:56,588:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 20:02:56,611:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 20:02:56,612:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 20:02:56,612:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 20:02:56,613:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 20:02:56,613:INFO:app.py:194::REQ GET http://localhost:5000/datasets {remote_ip: ::1}
+2019-12-01 20:02:56,613:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 20:02:56,615:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 20:02:56,615:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 20:02:56,616:INFO:hdf5db.py:3164::db.getCollection(datasets)
+2019-12-01 20:02:56,616:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 20:02:57,121:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 20:08:46,239:INFO:app.py:3171::log test
+2019-12-01 20:08:46,254:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 20:08:46,254:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 20:08:46,255:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 20:08:46,256:INFO:app.py:3223::INITIALIZING...
+2019-12-01 20:08:46,256:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 20:09:19,954:INFO:app.py:3171::log test
+2019-12-01 20:09:19,966:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 20:09:19,967:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 20:09:19,968:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 20:09:19,969:INFO:app.py:3223::INITIALIZING...
+2019-12-01 20:09:19,969:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 21:08:39,189:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:08:39,190:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:08:39,195:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:08:39,195:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:08:39,195:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:08:39,195:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: ::1}
+2019-12-01 21:08:39,196:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 21:08:39,202:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 21:08:39,207:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 21:08:39,208:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 21:08:39,705:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:08:39,711:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:08:46,995:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:08:46,995:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:08:46,996:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:08:46,996:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:08:46,996:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:08:46,996:INFO:app.py:194::REQ GET http://localhost:5000/groups {remote_ip: ::1}
+2019-12-01 21:08:46,996:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 21:08:46,997:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 21:08:46,997:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 21:08:46,998:INFO:hdf5db.py:3164::db.getCollection(groups)
+2019-12-01 21:08:46,998:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 21:08:47,500:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:08:51,431:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:08:51,431:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:08:51,431:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:08:51,431:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:08:51,432:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:08:51,432:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: ::1}
+2019-12-01 21:08:51,432:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 21:08:51,432:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 21:08:51,433:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 21:08:51,433:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 21:08:51,934:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:08:51,935:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:08:57,904:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:08:57,904:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:08:57,904:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:08:57,904:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:08:57,905:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:08:57,905:INFO:app.py:194::REQ GET http://localhost:5000/datatypes {remote_ip: ::1}
+2019-12-01 21:08:58,408:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:09:58,762:INFO:app.py:3171::log test
+2019-12-01 21:09:58,781:INFO:passwordUtil.py:56::getAuthClient
+2019-12-01 21:09:58,781:INFO:passwordUtil.py:58::password_uri:../util/admin/passwd.h5
+2019-12-01 21:09:58,782:INFO:authFile.py:36::AuthFile class init(../util/admin/passwd.h5)
+2019-12-01 21:09:58,783:INFO:app.py:3223::INITIALIZING...
+2019-12-01 21:09:58,783:INFO:app.py:3224::Starting event loop on port: 5000
+2019-12-01 21:10:12,495:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:10:12,498:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:10:12,501:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:10:12,501:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:10:12,502:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:10:12,502:INFO:app.py:194::REQ GET http://localhost:5000/datatypes {remote_ip: ::1}
+2019-12-01 21:10:13,011:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:10:17,790:INFO:app.py:284::getFilePath: localhost:5000 checkExists: True
+2019-12-01 21:10:17,790:INFO:app.py:286::tocFilePath: ../data/.toc.h5
+2019-12-01 21:10:17,791:INFO:app.py:321::verifyFile: ../data/.toc.h5
+2019-12-01 21:10:17,791:INFO:fileUtil.py:266::verifyFile('../data/.toc.h5', False)
+2019-12-01 21:10:17,791:INFO:app.py:188::baseHandler, href: http://localhost:5000
+2019-12-01 21:10:17,791:INFO:app.py:194::REQ GET http://localhost:5000/ {remote_ip: ::1}
+2019-12-01 21:10:17,791:INFO:hdf5db.py:163::init -- filePath: ../data/.toc.h5 mode: r+
+2019-12-01 21:10:17,792:INFO:hdf5db.py:194::Hdf5db __enter
+2019-12-01 21:10:17,793:INFO:hdf5db.py:713::getUUIDByPath: [/]
+2019-12-01 21:10:17,793:INFO:hdf5db.py:198::Hdf5db __exit
+2019-12-01 21:10:18,293:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:10:18,297:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:29:54,527:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/readme.txt
+2019-12-01 21:29:54,532:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/.toc.h5
+2019-12-01 21:29:54,532:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/public/tall.h5
+2019-12-01 21:29:54,532:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/public/US_hdf_store.h5
+2019-12-01 21:29:54,532:INFO:h5watchdog.py:45::H5EventHandler -- Modified file: ../data/public/India_hdf_store.h5
+2019-12-01 21:29:54,533:INFO:h5watchdog.py:45::H5EventHandler -- Modified directory: ../data/public
+2019-12-01 21:29:54,533:INFO:h5watchdog.py:45::H5EventHandler -- Modified directory: ../data/
