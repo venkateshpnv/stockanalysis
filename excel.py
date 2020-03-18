@@ -868,10 +868,11 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     ash.write(count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
     ash.write(count, conf.VOL, stk['bscs']['volume'])
-    ash.write(count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
-    ash.write(count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
-    ash.write(count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
-    #ash.write(count, conf.BETA, stk['bscs']['five_yr_beta'])
+    if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
+        ash.write(count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
+        ash.write(count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
+        ash.write(count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
+        #ash.write(count, conf.BETA, stk['bscs']['five_yr_beta'])
 
     ash.write(count, conf.FV, stk['bscs']['face_value'])
 
@@ -959,16 +960,21 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     if country == 'US':
         Bn = 1000
         Tn = 1000*Bn
-        if stk['bscs']['mcap'] > 100 * Bn:
-            ash = ashs['Above_100bn']
-        elif stk['bscs']['mcap'] > 10 * Bn:
-            ash = ashs['10bn_100bn']
-        elif stk['bscs']['mcap'] > 5 * Bn:
-            ash = ashs['5bn_10bn']
-        elif stk['bscs']['mcap'] > 1 * Bn:
-            ash = ashs['1bn_5bn']
-        else:
-            ash = ashs['Below_1bn']
+        try:
+            if stk['bscs']['mcap'] > 100 * Bn:
+                ash = ashs['Above_100bn']
+            elif stk['bscs']['mcap'] > 10 * Bn:
+                ash = ashs['10bn_100bn']
+            elif stk['bscs']['mcap'] > 5 * Bn:
+                ash = ashs['5bn_10bn']
+            elif stk['bscs']['mcap'] > 1 * Bn:
+                ash = ashs['1bn_5bn']
+            else:
+                ash = ashs['Below_1bn']
+        except Exception as e:
+            print("Mcap exception: %r" %(stk['bscs']['symbol']))
+            return None
+
     #elif country == 'India':
     #    Bn = 100 # crores
     #    Tn = 100 * Bn
@@ -1045,7 +1051,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
         ash.write(conf.COUNT, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
    
     #Betas
-    if 'betas' in stk['fig'].keys():
+    if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
     #if stk['fig']['betas']:
         if stk['fig']['betas']['recession']['2007']:
             if '2007' in stk['fig']['betas']['recession'].keys():
@@ -1065,9 +1071,12 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
             ash.write(conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
             ash.write(conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
 
-        ash.write(conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
-        ash.write(conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
-        ash.write(conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
+        if stk['fig']['betas']['six_months']:
+            ash.write(conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
+        if stk['fig']['betas']['one_year']:
+            ash.write(conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
+        if stk['fig']['betas']['five_year']:
+            ash.write(conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
  
     ash.write(conf.COUNT, conf.FLT, stk['bscs']['float']/100)
     ash.write(conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
@@ -1329,6 +1338,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     if 'cash_growth' in stk['fig'].keys():
         ash.write(conf.COUNT, conf.TEN_CSH, stk['fig']['cash_growth'], style_percent)
     #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
+    return sheet
 
 #    excel = "excel_files/%s.xls" %(stk['bscs']['name'])
 
