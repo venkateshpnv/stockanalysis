@@ -305,36 +305,42 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
             #obj = bunchify(doc)
             
+            if stock['bscs']['symbol'] == 'TPL':
+                print("TPL")
             if not stock:
                 PRINT_ERR("Stock not present")
                 no_dcf += 1
                 continue
-            if DB.ignore_stock(stock):
-                no_dcf += 1
-                continue
-            if 'ETF' in str(stock['bscs']['name']):
-                no_dcf += 1
-                db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
-                continue
-            if 'Fund' in str(stock['bscs']['name']):
-                no_dcf += 1
-                db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
-                continue
-            if 'Trust' in str(stock['bscs']['name']):
-                no_dcf += 1
-                db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
-                continue
-            if 'Income Portfolio' in str(stock['bscs']['name']):
-                no_dcf += 1
-                db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
-                continue
+            #if DB.ignore_stock(stock):
+            #    no_dcf += 1
+            #    continue
+            #if 'ETF' in str(stock['bscs']['name']):
+            #    print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            #    no_dcf += 1
+            #    db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
+            #    continue
+            #if 'Fund' in str(stock['bscs']['name']):
+            #    print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            #    no_dcf += 1
+            #    db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
+            #    continue
+            #if 'Trust' in str(stock['bscs']['name']):
+            #    print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            #    no_dcf += 1
+            #    db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
+            #    continue
+            #if 'Income Portfolio' in str(stock['bscs']['name']):
+            #    print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            #    no_dcf += 1
+            #    db.US_Stocks.update({'bscs.symbol': stock['bscs']['symbol']}, {'$set': {"ignore": "Yes"}})
+            #    continue
             #if stock.bscs.volume < 50000:
             #    del stock
             #    continue
-            if 'price' not in stock['bscs'].keys() or stock['bscs']['price'] < 1:
-                no_dcf += 1
-                del stock
-                continue
+            #if 'price' not in stock['bscs'].keys() or stock['bscs']['price'] < 1:
+            #    no_dcf += 1
+            #    del stock
+            #    continue
             # Atleast a billion
             #if stock.bscs.mcap < 1000: #millions
             # Atleast 10 billion
@@ -343,7 +349,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #if stock.bscs.mcap < 1000 or stock.bscs.mcap > 10000: #millions
             #    del stock
             #    continue
-
+ 
             #Company Excel File
             if prices_only == False and data_type != 'NO_CALC':
                 stock['num']['inflation'] = inflation
@@ -361,10 +367,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
-                write_to_excel(country, com, ash, stock, years, prices_only)
-                excel = "%s/excel_files/%s.xls" % (path, stock['bscs']['name'])
-                PRINT("Writing to %s" % (excel))
-                com.save(excel)
+                if write_to_excel(country, com, ash, stock, years, prices_only) != None:
+                    excel = "%s/excel_files/%s.xls" % (path, stock['bscs']['name'])
+                    PRINT("Writing to %s" % (excel))
+                    com.save(excel)
                 del com
             if db_state == 'SYNC_DB':
                 DB.update_dcf_numbers(collection, stock)
