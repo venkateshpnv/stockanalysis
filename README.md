@@ -164,3 +164,4 @@ SSH to VM
 
 .\VBoxManage.exe showvminfo "ubuntu VM"
 
+rclone mount petlafingdrive: ~/gdrive
