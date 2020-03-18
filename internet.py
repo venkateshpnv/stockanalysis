@@ -292,8 +292,21 @@ def update_price_change(country, collection, sym, sem):
                 change = (price/low_price) - 1
 
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
-
-            DB.update_field(collection, sym, "price_change.date", str(dt.now()))
+        else:
+            change=None
+            DB.update_field(collection, sym, "price_change.day", change)
+            DB.update_field(collection, sym, "price_change.week", change)
+            DB.update_field(collection, sym, "price_change.month", change)
+            DB.update_field(collection, sym, "price_change.quarter", change)
+            DB.update_field(collection, sym, "price_change.half_year", change)
+            DB.update_field(collection, sym, "price_change.year", change)
+            DB.update_field(collection, sym, "price_change.whole", change)
+            DB.update_field(collection, sym, "bscs.fiftytwoweek_high", change)
+            DB.update_field(collection, sym, "bscs.fiftytwoweek_low", change)
+            DB.update_field(collection, sym, "price_change.with_52week_high", change)
+            DB.update_field(collection, sym, "price_change.with_52week_low", change)
+ 
+        DB.update_field(collection, sym, "price_change.date", str(dt.now()))
     finally:
         sem.release()
 
@@ -315,9 +328,8 @@ def fork_hdf5_process(country, sem):
     today=str(dt.now().date())
     i=0
     for stk in stocks:
-        if DB.ignore_stock(stk):
-            continue
-
+        #if DB.ignore_stock(stk):
+        #    continue
         print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         sem.acquire()
         #update_price_change(country, collection, stk['bscs']['symbol'], sem)
@@ -426,8 +438,8 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
     #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
     for stk in stocks:
-        if DB.ignore_stock(stk):
-            continue
+        #if DB.ignore_stock(stk):
+        #    continue
 
         bscs  = stk['bscs']
         pchg = stk['price_change']
@@ -447,7 +459,8 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
             entry.append("-")
         entry.append(str(bscs['price']))
         #try:
-        entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        if stk['fig']['betas']['six_months'] != None:
+            entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         #entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         #except Exception as e:
         #    collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
@@ -676,14 +689,6 @@ def get_price_volume(stk, country):
     
     ##data.get_quote_yahoo(stocklist).to_csv('test.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
 
-    # Skip the stop if mark ignored
-    if 'ignore' in stk.keys():
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-            return None
-    if 'trading' in stk['bscs']:
-        if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-            return None
-
     symbol = stk['bscs']['symbol'].replace('.','-')
 
     try:
@@ -699,6 +704,9 @@ def get_price_volume(stk, country):
         return None
     except pdr._utils.RemoteDataError:
         PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
+        return None
+    except IndexError:
+        PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
         return None
     try:
         # Add moving average etc. Refer /tmp/test.csv for details
