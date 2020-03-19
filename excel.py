@@ -82,7 +82,10 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
     price = hdf5.get_latest_price(country, sym)
     if not index:
         stk =  DB.get_stock_from_db(country, sym)
-        entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        if stk['fig']['betas']['six_months']:
+            entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        else:
+            entry.append("-")
         del stk
     entry.append(str(round(price,2)))
 
