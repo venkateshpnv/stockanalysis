@@ -461,6 +461,8 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         #try:
         if stk['fig']['betas']['six_months'] != None:
             entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
+        else:
+            entry.append("-")
         #entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         #except Exception as e:
         #    collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
