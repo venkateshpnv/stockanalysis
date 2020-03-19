@@ -1379,12 +1379,24 @@ def get_beta(country, sym, sdate, edate, df=None):
             s_last = df['Adj Close'][-1]
             if isinstance(s_last, complex):
                 print("last is complex number")
-            #print(df['Adj Close'].head(5))
-            #print(df['Adj Close'].tail(5))
             growth_percent = s_last/s_first - 1
             betas.update({"since_then":growth_percent})
         except Exception as e:
             betas.update({"since_then":nan})
+        try:
+            sdate = edate
+            edate = dt.strptime(recessions[recessions.keys()[-1]]['start'], "%d %B %Y").date()
+            df = hdf5.read_from_hdf(country, sym, sdate, edate)
+            # Calculate CAGR
+            s_first = df['Adj Close'][0]
+            if isinstance(s_first, complex):
+                print("first is complex number")
+            s_last = df['Adj Close'][-1]
+            if isinstance(s_last, complex):
+                print("last is complex number")
+            betas.update({"since_then":growth_percent})
+        except Exception as e:
+            betas.update({"since_then_till_last_recession":nan})
  
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
@@ -1493,7 +1505,6 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         
         #1 year beta
         #print("1 year beta")
-        st_date = since_start
         en_date = dt.now().date()
         betas = None
         st_date = en_date - relativedelta(years=1)
@@ -1506,7 +1517,6 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         
         #6 months beta
         #print("6 months beta")
-        st_date = since_start
         en_date = dt.now().date()
         betas = None
         st_date = en_date - relativedelta(months=6)
