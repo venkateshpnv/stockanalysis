@@ -12,13 +12,13 @@ if __name__ == "__main__":
         sys.exit(1)
 
     ## Get today's price from yahoo and update db and hdf5
-    try:
-        DB.update_all_price_volume_db(sys.argv[1])
-    except Exception as e:
-        s = parse_html.html_head()
-        error = [str(e)]
-        s = parse_html.html_text(s, error)
-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
+    #try:
+    #    DB.update_all_price_volume_db(sys.argv[1])
+    #except Exception as e:
+    #    s = parse_html.html_head()
+    #    error = [str(e)]
+    #    s = parse_html.html_text(s, error)
+    #    internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
 
     #### Calculate and store price change
     try:
@@ -29,13 +29,13 @@ if __name__ == "__main__":
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
    
-    ## send email
-    internet.send_email_price_changes(sys.argv[1])
+    ### send email
+    #internet.send_email_price_changes(sys.argv[1])
 
-    # Radar Stocks
-    if sys.argv[1] == 'US':
-        excel.get_radar_stocks('US')
+    ## Radar Stocks
+    #if sys.argv[1] == 'US':
+    #    excel.get_radar_stocks('US')
 
-    if sys.argv[1] == 'US':
-        DB.update_all_stock_betas(sys.argv[1])
+    #if sys.argv[1] == 'US':
+    #    DB.update_all_stock_betas(sys.argv[1])
 

@@ -26,6 +26,21 @@ import conf
 import hdf5
 
 import sqlalchemy
+from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String
+from sqlalchemy.orm import sessionmaker
+#from sqlalchemy import *
+#metadata=MetaData()
+#table = Table('table_name', metadata, autoload=True, autoload_with=sql_engine)
+#new_col = Column('new_col', Integer)
+#table.append_column(new_col)
+#Working code
+#query = DDL('ALTER TABLE sample_table ADD column new_col Integer')
+#sql = DDL('update sample_table set id=20, marks=30 where name=\'myname2\''
+#sql_engine.execute(query)
+
+#Session = sessionmaker(bind=test_engine)
+#session= Session()
+
 
 import threading
 import multiprocessing
@@ -35,30 +50,130 @@ from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, BatchStatement
 from cassandra import ConsistencyLevel
 
+thread_factor=4
+
 def open_sql_connection(ip, user, passwd, port=3036, db=None):
     connection_string="mysql+pymysql://"+user+":"+passwd+"@"+ip+":"+str(port)
+    mysql_engine = None
     if db:
         connection_string = connection_string + "/" + db
-    max_threads = multiprocessing.cpu_count() * 2
-    return sqlalchemy.create_engine("mysql+pymysql://root:petla123@10.0.0.12:3306/US_Stocks", pool_size=max_threads)
+    max_threads = multiprocessing.cpu_count() * thread_factor
+    try:
+        mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks", pool_size=max_threads)
     #return sqlalchemy.create_engine(connection_string, pool_size=max_threads)
     #return sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/Stocks", pool_size=max_threads)
+    except Exception as E:
+        print("%r" %(str(E)))
+        sys.exit(1)
+    return mysql_engine
 
-def close_sql_connection(engine):
-    engine.dispose()
+def close_sql_connection(mysql_engine):
+    mysql_engine.dispose()
 
-def read_from_sql(query, engine):
-    df = pd.read_sql_query(query, engine)
+# This function is to fix the issue with the YahooFinance.
+# Sometimes, it returns wrong volume information for the present date.
+# Especially for the indices.
+def check_volume_of_last_record(mysql_engine, table_name):
+    query = 'select Volume from {} order by Date desc limit 1'.format(table_name)
+    df = pd.read_sql_query(query, mysql_engine)
+    if not df.empty and df.iloc[0]['Volume'] == 0:
+            PRINT_ERR("Volume is zero for %s. Deleting last row" %(table_name))
+            query = 'delete from {} order by Date desc limit 1'.format(table_name)
+            mysql_engine.execute(query)
+
+def read_from_sql(query, mysql_engine):
+    df = pd.read_sql_query(query, mysql_engine)
     if not df.empty:
         df.index = pd.to_datetime(df['Date'])
     return df
 
-def write_to_sql(engine, table, df):
-    df.to_sql(name=table,con=engine,index=False,if_exists='append')
+def write_to_sql(mysql_engine, table, df):
+    try:
+        df.to_sql(name=table,con=mysql_engine,index=False,if_exists='append')
+    except Exception as E:
+        print("DB.py: write_to_sql(), table: %r, exception: %r" %(table, str(E)))
 
-def check_n_write_to_sql(engine, symbol, df, fields):
-    df['Date'] = df.index.strftime("%Y-%m-%d")
-    df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
+def mysql_exists_table(mysql_engine, table_name):
+    query = 'show tables like %r;' %(table_name)
+    output= mysql_engine.execute(query)
+    #If table does not exist
+    if output.first() is None:
+        return False
+    return True
+
+def mysql_check_n_create_table(mysql_engine, table_name):
+    if not mysql_exists_table(mysql_engine, table_name):
+        query = 'create table '+ table_name + ' like test2;'
+        mysql_engine.execute(query)
+        #query = 'alter table ' + table +' add index(Date);'
+        #mysql_engine.execute(query)
+
+def mysql_get_columns(table):
+    c = [i[0] for i in table.columns.items()]
+    return c
+
+def mysql_add_column(mysql_engine, table_name, col_name, col_dtype):
+    query = 'alter table %s add column %s %s' %(table_name, col, col_dtype)
+    mysql_engine.execute(query)
+
+def mysql_add_columns(mysql_engine, table_name, missing_cols):
+    unknown_fields = 0
+    for c in missing_cols:
+        if c in price_fields:
+            c_dtype = price_fields_datatypes[price_fields.index(c)]
+            mysql_add_column(mysql_engine, table_name, c, c_dtype)
+        elif c in price_change_fields:
+            c_dtype = price_change_fields_datatypes[price_change_fields.index(c)]
+            mysql_add_column(mysql_engine, table_name, c, c_dtype)
+        elif c in fin_year_fields:
+            c_dtype = fin_year_fields_datatypes[fin_year_fields.index(c)]
+            mysql_add_column(mysql_engine, table_name, c, c_dtype)
+        elif c in fin_quarter_fields:
+            c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
+            mysql_add_column(mysql_engine, table_name, c, c_dtype)
+        else:
+            unknown_fields = unknown_fields + 1
+    return unknown_fields
+
+def mysql_update_table(mysql_engine, table_name, df, check=False):
+    if df.empty:
+        return
+    if 'Date.1' in list(df.columns):
+        df['Date']=df['Date.1']
+        del df['Date.1']
+
+    try:
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+        if check:
+            mysql_check_n_create_table(mysql_engine, table_name)
+            table_cols = mysql_get_columns(table)
+            df_cols = list(df.columns)
+            missing_cols = list(set(df_cols)-set(table_cols))
+            if len(missing_cols) > 0:
+                miss = mysql_add_columns(mysql_engine, table_name, missing_cols)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",missing_cols)
+                    sys.exit(1)
+
+        conn  = mysql_engine.connect()
+        for index, d in df.iterrows():
+            items = {}
+            key = str(pd.to_datetime(index).date())
+            for k in d.keys().to_list(): #Skip date, date.1
+                if k != 'Date':
+                    items[k]=d[k]
+                # TODO: Handle on conflict
+            stmt=table.update().where(table.c.Date==key).values(items)
+            conn.execute(stmt)
+    finally:
+        del metadata
+        conn.close()
+
+def check_n_write_to_sql(engine, table, df, fields=None):
+    #df['Date'] = df.index.strftime("%Y-%m-%d")
+    #df.index = df['Date'] #Is this required? Anyway index will be truncated by sql
     #cols=df.columns.to_list()
     #cols=cols[-1:]+cols[:-1]
     #df=df[cols]
@@ -69,39 +184,85 @@ def check_n_write_to_sql(engine, symbol, df, fields):
     #for f in cols:
     #   fields.append(f[0])
     #fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
-    df = df[fields]
+    #df = df[fields]
 
-    symbol = symbol.replace('.','_')
-    symbol = 'STK'+symbol.replace('.','_')
-    query = 'show tables like %r;' %(symbol)
+    query = 'show tables like %r;' %(table)
     output= engine.execute(query)
+    #If table does not exist
     if output.first() is None:
-        query = 'create table '+ symbol + ' like test2;'
+        query = 'create table '+ table + ' like test2;'
         engine.execute(query)
-        #query = 'alter table ' + symbol +' add index(Date);'
+        #query = 'alter table ' + table +' add index(Date);'
         #engine.execute(query)
-    query = 'select * from '+ symbol
-    #query = 'select * from '+ table + ' where Symbol=%r' %(symbol)
+
+    # Temporarily stopping this acitivity. Assume test2 has all cols
+    ## Add missing columns
+    #metadata = MetaData()
+    #table_info=Table(table, metadata, autoload=True, autoload_with=engine)
+    #table_cols = table_info.columns.keys()
+    #df_cols = list(df.columns)
+    #miss_cols = list(set(df_cols) - set(cols))
+    #for c in miss_cols:
+    #    if c in price_fields:
+    #        c_dtype = price_fields_datatypes.index(c)
+    #        query = 'alter table %s add column %s %s' %(table, c, c_dtype)
+
+
+    query = 'select * from '+ table
+    #query = 'select * from '+ table + ' where Symbol=%r' %(table)
     rdf = pd.read_sql_query(query, engine)
     if not rdf.empty:
         rdf.index = rdf['Date'] #Is this required?
         #Select all rows except that in SQL Database
         df = df[~df.Date.isin(rdf.Date)]
     if not df.empty:
-        df.to_sql(name=symbol, con=engine,index=False,chunksize=1000,if_exists='append')
+        df.to_sql(name=table, con=engine,index=False,chunksize=1000,if_exists='append')
         #df.to_sql(name=table, con=engine,index=False,if_exists='append')
- 
+
+def get_symbol_table_name(symbol):
+    if symbol in India_indices.keys():
+        symbol = India_indices[symbol]
+    elif symbol in US_indices.keys():
+        symbol = US_indices[symbol]
+    return 'STK'+symbol.replace('.','_')
+
+def get_symbols_from_mongo(collection):
+    symbols=collection.distinct("bscs.symbol")
+    return sorted(symbols)
+
+def rename_table(engine, t):
+    new_t = 'STK'+t
+    query = "rename table {} to {}".format(t, new_t)
+    engine.execute(query)
+
 def get_symbols_from_sql(country, engine):
-    symbols = []
+    inspector = sqlalchemy.inspect(engine)
+
     if country == 'India':
-        table = 'India_Stocks'
+        database = 'India_Stocks'
     else:
-        table = 'US_Stocks' 
-    query='select distinct Symbol from ' + table
-    rdf=pd.read_sql_query(query, engine)
-    if not rdf.empty:
-        symbols = list(rdf['Symbol'])
-    return symbols
+        database = 'US_Stocks'
+
+    tables = inspector.get_table_names(schema='US_Stocks')
+    tables = sorted(tables)
+    try:
+        del tables[tables.index('test2')]
+    except Exception as E:
+        pass
+
+    for t in tables:
+        if not t.startswith('STK'):
+            print(t)
+            rename_table(engine, t)
+
+    symbols = [t.split('STK')[-1].replace('_', '.')  for t in tables]
+    return sorted(symbols)
+
+    #query='select distinct Symbol from ' + table
+    #rdf=pd.read_sql_query(query, engine)
+    #if not rdf.empty:
+    #    symbols = list(rdf['Symbol'])
+    #return symbols
 
 
 j = 0
@@ -618,59 +779,65 @@ def fork_hdf5_process(country, sem):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
 
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
     #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
     if num_docs == 0:
+        close_db_client(c)
+        close_sql_connection(sql_engine)
         return
 
     #symbols = hdf5.get_symbols_hdf_store(country)
-    symbols = hdf5.get_symbols_from_hdf(country)
+    #symbols = hdf5.get_symbols_from_hdf(country)
+    symbols = get_symbols_from_sql(country, sql_engine)
+    #symbols = get_symbols_from_mongo(collection)
     
     if country == 'India':
         indices = India_indices
     else:
         indices = US_indices 
-    stk = {}
-    stk['bscs']={}
 
-    ##Indices
-    for k in indices.keys():
-        stk['bscs']['symbol'] = k
-        stk['bscs']['name'] = indices[k]
-        sem.acquire()
-        print("hdf5: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, copy.deepcopy(stk), sem,)).start()
+    try:
+        ##Indices
+        for k in indices.keys():
+            stk = {}
+            stk['bscs']={}
+            stk['bscs']['symbol'] = k
+            stk['bscs']['name'] = indices[k]
+            sem.acquire()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
+            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()
 
-    # Randomly get all records whose price is not updated till today
-    #pipeline = [{'$sample': {'size':num_docs}},
-    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
-    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
-    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-    #            ]
+        # Randomly get all records whose price is not updated till today
+        #pipeline = [{'$sample': {'size':num_docs}},
+        #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+        #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+        #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+        #            ]
 
-    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
-    i=0
-    for stk in stocks:
-        #if ignore_stock(stk):
-        #    continue
-        print("%d: hdf5: %s: %s"%(i, stk['bscs']['symbol'],stk['bscs']['name']))
-        sem.acquire()
-        #hdf5.update_dataframe_price_volume(country, db, symbols, stk, sem)
-        threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, symbols, copy.deepcopy(stk), sem,)).start()
-        i = i + 1
+        i=0
+        for stk in stocks:
+            #if ignore_stock(stk):
+            #    continue
+            sem.acquire()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
+            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()
+            i = i + 1
 
-    # Wait till all threads are completed. You can use join() instead.
-    # But need to track threads and update variables.
-    # Simplest way is to wait for tentative time taken for the end threads to complete
-    # Randomly estimated it to be 10 sec and it perfectly works.
-    time.sleep(10)
-    close_db_client(c)
+    finally:
+        # Wait till all threads are completed. You can use join() instead.
+        # But need to track threads and update variables.
+        # Simplest way is to wait for tentative time taken for the end threads to complete
+        # Randomly estimated it to be 10 sec and it perfectly works.
+        time.sleep(10)
+        close_db_client(c)
+        close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
 
 
@@ -704,7 +871,7 @@ def update_stk_bscs_db(country, db, stk, sem, lock):
 
 def update_all_price_volume_db(country):
     global j
-    max_threads = multiprocessing.cpu_count() * 2
+    max_threads = multiprocessing.cpu_count() * thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
     db_lock = threading.Lock()
@@ -1247,7 +1414,7 @@ def get_beta(country, sym, sdate, edate, df=None):
         return betas
 
     #dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
-    dfb = hdf5.read_from_hdf(country, bindex, df.index[0], df.index[-1])
+    dfb = hdf5.read_from_hdf(country, bindex, pd.Timestamp(df.index[0]).date(), pd.Timestamp(df.index[-1]).date())
     #dfb = hdf5.get_dataframe(country, bindex, sdate, edate)
    
     # Calculate CAGR
@@ -1304,9 +1471,15 @@ def get_beta(country, sym, sdate, edate, df=None):
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # from daily data points, create a time-series of monthly data points
-    time_period=12. #months
-    rts = df.resample('M').last()
-    rbts = dfb.resample('M').last()
+    if edate-sdate < timedelta(days=31):
+        duration='d'
+        time_period = 31/(edate-sdate).days * 12
+    else:
+        duration = 'M'
+        time_period=12. #months
+
+    rts = df.resample(duration).last()
+    rbts = dfb.resample(duration).last()
     dfsm = pd.DataFrame({'s_adjclose' : rts['Adj Close'],
                             'b_adjclose' : rbts['Adj Close']},
                             index=rts.index)
@@ -1320,8 +1493,13 @@ def get_beta(country, sym, sdate, edate, df=None):
     except Exception as E:
         print("sym: %r covmat: %r, %r" %(sym, covmat, str(E)))
     
+    index_change = dfb['Adj Close'].pct_change()
+    beta = df['Adj Close'].pct_change().cov(index_change) / index_change.var()
+    
     # calculate measures now
     beta = covmat[0,1]/covmat[1,1]
+
+
     alpha= np.mean(dfsm["s_returns"])-beta*np.mean(dfsm["b_returns"])
     #alpha_pure= np.mean(dfsm["s_returns"])-np.mean(dfsm["b_returns"])
     #print("alpha: %r" %(alpha))
@@ -1385,7 +1563,7 @@ def get_beta(country, sym, sdate, edate, df=None):
             betas.update({"since_then":nan})
         try:
             sdate = edate
-            edate = dt.strptime(recessions[recessions.keys()[-1]]['start'], "%d %B %Y").date()
+            edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
             df = hdf5.read_from_hdf(country, sym, sdate, edate)
             # Calculate CAGR
             s_first = df['Adj Close'][0]
@@ -1394,7 +1572,8 @@ def get_beta(country, sym, sdate, edate, df=None):
             s_last = df['Adj Close'][-1]
             if isinstance(s_last, complex):
                 print("last is complex number")
-            betas.update({"since_then":growth_percent})
+            growth_percent = s_last/s_first - 1
+            betas.update({"since_then_till_last_recession":growth_percent})
         except Exception as e:
             betas.update({"since_then_till_last_recession":nan})
  
@@ -1410,7 +1589,10 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
             if True:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
-                en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
+                if 'end' in recessions[year].keys():
+                    en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
+                else:
+                    en_date = dt.now().date()
                 #print(st_date)
                 #print(en_date)
                 betas = get_beta(country, sym, st_date, en_date, df=None)
@@ -1552,8 +1734,8 @@ def update_all_stock_betas(country):
         #if ignore_stock(doc):
         #    continue
         sem.acquire()
-        #update_stock_betas(country, collection, copy.deepcopy(doc), sem)
-        threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc), sem,)).start()
+        update_stock_betas(country, collection, copy.deepcopy(doc), sem)
+        #threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc), sem,)).start()
 
     time.sleep(10)
     close_db_client(c)

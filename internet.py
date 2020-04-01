@@ -21,8 +21,14 @@ import threading
 
 import gc
 
+import pymysql
+
 # Parsing HTML
 import requests 
+
+import copy
+
+from math import isnan, nan
 
 #Yahoo Financials
 from yahoofinancials import YahooFinancials as yf
@@ -245,53 +251,168 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
 
     DB.update_field(collection, sym, "price_change.date", str(dt.now()))
 
-def update_price_change(country, collection, sym, sem):
+def get_change(df, field):
+    if not isnan(df.iloc[0][field]):
+        return df.iloc[0][field]
+    else:
+        return df.iloc[1][field]
+
+# Fix mess caused by update_price_change() caused by the query
+# query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date'
+def nullify_price_change_error_stk(country, collection, sym, sql_engine):
+    table_name = DB.get_symbol_table_name(sym)
+    if DB.mysql_exists_table(sql_engine, table_name):
+        query = 'select `Date`, `Adj Close` from %s where `Day Change` = `Whole Change`' %(table_name)
+        df = DB.read_from_sql(query, sql_engine)
+        if not df.empty:
+            for index, d in df.iterrows():
+                end_date = str(pd.to_datetime(index).date())
+                query = 'select Date, `Adj Close`, `Day Change` from {} where Date = \'{}\''.format(table_name, end_date)
+                cur_df = DB.read_from_sql(query, sql_engine)
+                query = 'select Date, `Adj Close` from {} where `Date` < \'{}\' order by Date desc limit 1'.format(table_name, end_date)
+                prev_df = DB.read_from_sql(query, sql_engine)
+                price_change = round(cur_df['Adj Close'][-1]/prev_df['Adj Close'][-1] - 1, len(str(cur_df['Day Change'][-1]).split('.')[1]))
+                if abs(abs(price_change) - abs(cur_df['Day Change'][-1])) > 0.05: # Atleast 5% difference
+                    # Nullify from here to end of the table
+                    #query = 'select * from {} where `Date` BETWEEN \'{}\' and  NOW()'.format(table_name, end_date)
+                    query = 'select `Date`, {} from {} where `Date` BETWEEN \'{}\' and  NOW()'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name, end_date)
+                    df2 = DB.read_from_sql(query, sql_engine)
+                    for field in price_change_fields:
+                        df2[field] = None
+                    print("Updating change: %r" %(cur_df))
+                    DB.mysql_update_table(sql_engine, table_name, df2, check=True)
+                    break
+
+ 
+def nullify_price_change_errors():
+    country = 'US'
+    c = DB.open_db_client()
+    db = c['Stocks']
+    collection = DB.get_collection(country, db)
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
+
+    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    symbols = DB.get_symbols_from_sql(country, sql_engine)
+
+    try:
+        for i, symbol in enumerate(symbols):
+            print("%d: %r" %(i, symbol))
+            nullify_price_change_error_stk(country, collection, symbol, sql_engine)
+    finally:
+        DB.close_sql_connection(sql_engine)
+        DB.close_db_client(c)
+ 
+def update_price_change(country, collection, sym, sem, sql_engine):
    #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
-    df=pd.DataFrame() 
+    table_name = DB.get_symbol_table_name(sym)
+
     try:
-        df = hdf5.read_from_hdf(country, sym)
-        #df = hdf5.read_from_hdf_store(country, sym)
-        
-        if df is not None and not df.empty:
-            change = hdf5.hdf_price_change(country, sym, df, 1)
-            DB.update_field(collection, sym, "price_change.day", change)
-            change = hdf5.hdf_price_change(country, sym, df, weeks=1)
-            DB.update_field(collection, sym, "price_change.week", change)
-            change = hdf5.hdf_price_change(country, sym, df, months=1)
-            DB.update_field(collection, sym, "price_change.month", change)
-            change = hdf5.hdf_price_change(country, sym, df, months=3)
-            DB.update_field(collection, sym, "price_change.quarter", change)
-            change = hdf5.hdf_price_change(country, sym, df, months=6)
-            DB.update_field(collection, sym, "price_change.half_year", change)
-            change = hdf5.hdf_price_change(country, sym, df, years=1)
-            DB.update_field(collection, sym, "price_change.year", change)
-            if country == 'US':
-                change = hdf5.hdf_price_change(country, sym, df)
-                DB.update_field(collection, sym, "price_change.whole", change)
+        if DB.mysql_exists_table(sql_engine, table_name):
+            #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
+            #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
+            query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+            df = DB.read_from_sql(query, sql_engine)
+            if not df.empty and len(df.index) > 2:
+                #if new_df.index[1]-new_df.index[0] > timedelta(365):
+                #    new_df = new_df.iloc[1:]
+                # Calculate day, week, month etc price percentage change
+                new_df, status = hdf5.update_percent_change(copy.deepcopy(df))
+                # The table is uptodate. No need to write to table.
+                # If status is True, new computations are made.
+                # Write to table.
+                #if status:
+                if not new_df.empty:
+                    new_df_null = df[df.isnull().any(axis=1)]
+                    indices = list(new_df_null.index)
+                    if len(indices) > 1:
+                        if new_df_null.index[1]-new_df_null.index[0] > timedelta(30):
+                            new_df_null = new_df_null.iloc[1:]
+                            indices = list(new_df_null.index)
 
-            #get 52 week high
-            high_price = hdf5.hdf_get_high_n_days(df, 365)
-            DB.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
-            #get 52 week low
-            low_price = hdf5.hdf_get_low_n_days(df, 365)
-            DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
+                        new_df = new_df.loc[pd.to_datetime(indices[0]).date():pd.to_datetime(indices[-1]).date()]
+                        #i = 0
+                        #for index, d in new_df.iterrows():
+                        #    if not isnan(d['Day Change']):
+                        #        break
+                        #    i = i + 1
+                        #new_df = new_df.iloc[i:]
+                        fields = ['Date'] + price_change_fields
+                        new_df = new_df[fields]
+                        print("mysql: %s"%(sym))
+                        DB.mysql_update_table(sql_engine, table_name, new_df, check=True)
+                        
+                        #write_to_hdf(country, copy.deepcopy(df), symbol)
+                        #DB.write_to_sql(sql_engine, table_name, df)
 
-            price = hdf5.hdf_get_price(sym, df, dt.now().date())
-            
-            if high_price == 0:
-                change = 0
-            else:
-                change = (price/high_price) - 1
+                        #query = 'select {} '.format(', '.join(['`{}`'.format(c) for c in price_change_fields]))
+                        #query = query + table_name + ' order by Date desc limit 2;'
+                        query = 'select `Date`, {} from {} order by Date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+                        df = DB.read_from_sql(query, sql_engine)
 
-            DB.update_field(collection, sym, "price_change.with_52week_high", change)
-            
-            if low_price == 0:
-                change = 0
-            else:
-                change = (price/low_price) - 1
+                        change = get_change(df, 'Day Change')
+                        DB.update_field(collection, sym, "price_change.day", change)
 
-            DB.update_field(collection, sym, "price_change.with_52week_low", change)
+                        change = get_change(df, 'Week Change')
+                        DB.update_field(collection, sym, "price_change.week", change)
+
+                        change = get_change(df, 'Month Change')
+                        DB.update_field(collection, sym, "price_change.month", change)
+
+                        change = get_change(df, 'Quarter Change')
+                        DB.update_field(collection, sym, "price_change.quarter", change)
+
+                        change = get_change(df, 'Half Year Change')
+                        DB.update_field(collection, sym, "price_change.half_year", change)
+
+                        change = get_change(df, 'Year Change')
+                        DB.update_field(collection, sym, "price_change.year", change)
+
+                        change = get_change(df, 'Five Year Change')
+                        DB.update_field(collection, sym, "price_change.five_year", change)
+
+                        change = get_change(df, 'Ten Year Change')
+                        DB.update_field(collection, sym, "price_change.ten_year", change)
+
+                        change = get_change(df, 'Whole Change')
+                        DB.update_field(collection, sym, "price_change.whole", change)
+
+                        end_date = str(dt.now().date())
+                        #get 52 week high
+                        #select max(`Adj Close`) from STKSP500 where Date between date_sub('2020-03-20', INTERVAL 1 YEAR) and '2020-03-20';
+                        query ='select max(`Adj Close`) from {} where Date between date_sub(\'{}\', INTERVAL 1 YEAR) and \'{}\''.format(table_name, end_date, end_date)
+                        result=sql_engine.execute(query)
+                        high_price = result.first()[0]
+                        #high_price = hdf5.hdf_get_high_n_days(df, 365)
+                        DB.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
+                        #get 52 week low
+                        query ='select min(`Adj Close`) from {} where Date between date_sub(\'{}\', INTERVAL 1 YEAR) and \'{}\''.format(table_name, end_date, end_date)
+                        #query ='select min(`Adj Close`) from ' + table_name + ' where Date between Date between date_sub(%s, INTERVAL 1 YEAR);'%(end_date, end_date)
+                        result=sql_engine.execute(query)
+                        low_price = result.first()[0]
+                        #low_price = hdf5.hdf_get_low_n_days(df, 365)
+                        DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
+
+                        # Get today's price
+                        query ='select `Adj Close` from {} where Date = (select max(Date) from {})'.format(table_name, table_name)
+                        #query='select `Adj Close` from '+ table_name +' where Date = (select max(Date) from '+STKSP500+')'
+                        result=sql_engine.execute(query)
+                        price = result.first()[0]
+                        #price = hdf5.hdf_get_price(sym, df, dt.now().date())
+                        
+                        if high_price == 0:
+                            change = 0
+                        else:
+                            change = (price/high_price) - 1
+
+                        DB.update_field(collection, sym, "price_change.with_52week_high", change)
+                        
+                        if low_price == 0:
+                            change = 0
+                        else:
+                            change = (price/low_price) - 1
+
+                        DB.update_field(collection, sym, "price_change.with_52week_low", change)
         else:
             change=None
             DB.update_field(collection, sym, "price_change.day", change)
@@ -306,43 +427,110 @@ def update_price_change(country, collection, sym, sem):
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
  
-        DB.update_field(collection, sym, "price_change.date", str(dt.now()))
+            DB.update_field(collection, sym, "price_change.date", str(dt.now()))
     finally:
         sem.release()
 
 def fork_hdf5_process(country, sem):
+    #c = DB.open_db_client()
+    #db = c['Stocks']
+    #collection = DB.get_collection(country, db)
+    #num_docs = collection.find({}).count()
+    ## Randomly get all records whose price is not updated till today
+    ##pipeline = [{'$sample': {'size':num_docs}},
+    ##            {'$match' : {"price_change.date": {'$ne':today}}},
+    ##            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+    ##            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+    ##            ]
+
+    ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+    #today=str(dt.now().date())
+    #i=0
+    #for stk in stocks:
+    #    #if DB.ignore_stock(stk):
+    #    #    continue
+    #    print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+    #    sem.acquire()
+    #    update_price_change(country, collection, stk['bscs']['symbol'], sem)
+    #    #threading.Thread(target=update_price_change, args=(country, collection, stk['bscs']['symbol'], sem,)).start()
+    #    #break
+    #    i = i + 1
+    #    #if i > 10:
+    #    #    break
+
+    ## Wait randomly till all threads are completed
+    #time.sleep(10)
+    #DB.close_db_client(c)
+    #print("Total stocks: %r" %(i))
+
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
-    num_docs = collection.find({}).count()
-    # Randomly get all records whose price is not updated till today
-    #pipeline = [{'$sample': {'size':num_docs}},
-    #            {'$match' : {"price_change.date": {'$ne':today}}},
-    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
-    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-    #            ]
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
 
-    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
- 
     today=str(dt.now().date())
-    i=0
-    for stk in stocks:
-        #if DB.ignore_stock(stk):
-        #    continue
-        print("price_change: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-        sem.acquire()
-        #update_price_change(country, collection, stk['bscs']['symbol'], sem)
-        threading.Thread(target=update_price_change, args=(country, collection, stk['bscs']['symbol'], sem,)).start()
-        #break
-        i = i + 1
-        #if i > 10:
-        #    break
+    num_docs = collection.find({}).count()
+    #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
+    if num_docs == 0:
+        close_db_client(c)
+        close_sql_connection(sql_engine)
+        return
 
-    # Wait randomly till all threads are completed
-    time.sleep(10)
-    DB.close_db_client(c)
-    print("Total stocks: %r" %(i))
+    #symbols = hdf5.get_symbols_hdf_store(country)
+    #symbols = hdf5.get_symbols_from_hdf(country)
+    symbols = DB.get_symbols_from_sql(country, sql_engine)
+    #symbols = get_symbols_from_mongo(collection)
+    
+    if country == 'India':
+        indices = India_indices
+    else:
+        indices = US_indices 
+    stk = {}
+    stk['bscs']={}
+
+    try:
+        ##Indices
+        for k in indices.keys():
+            stk['bscs']['symbol'] = k
+            stk['bscs']['name'] = indices[k]
+            sem.acquire()
+            update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
+            #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+
+        ## Randomly get all records whose price is not updated till today
+        ##pipeline = [{'$sample': {'size':num_docs}},
+        ##            {'$match' : {"bscs.price_date": {'$ne':today}}},
+        ##            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+        ##            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+        ##            ]
+
+        ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+        ##stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+ 
+        i=0
+        for stk in stocks:
+            #if ignore_stock(stk):
+            #    continue
+            sem.acquire()
+            update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
+            #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+            i = i + 1
+            #if i > 10:
+            #    break;
+
+    finally:
+        # Wait till all threads are completed. You can use join() instead.
+        # But need to track threads and update variables.
+        # Simplest way is to wait for tentative time taken for the end threads to complete
+        # Randomly estimated it to be 10 sec and it perfectly works.
+        time.sleep(10)
+        DB.close_sql_connection(sql_engine)
+        DB.close_db_client(c)
+    print("MYSQL Stocks tried :%r"%(i))
+
 
 def fork_betas_process(country, sem):
     c = DB.open_db_client()
@@ -383,7 +571,7 @@ def fork_betas_process(country, sem):
 # Update the DB with yearly, quarterly and monthly percentage price change
 def update_all_stocks_price_change(country):
     i = 0
-    max_threads = multiprocessing.cpu_count() * 2
+    max_threads = multiprocessing.cpu_count() * DB.thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  

@@ -17,6 +17,8 @@ from math import nan, isnan
 import numpy as np
 import copy
 
+import time
+
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
 US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store2.h5'
@@ -287,6 +289,21 @@ def read_from_hdf(country, symbol, start=None, end=None):
     else:
         eindex = get_nearest_index(rdf, end)+1
     return rdf[sindex:eindex]
+
+def delete_from_hdf(country, symbol):
+    try:
+        path = get_hdf_store_path(country)
+        lock.acquire()
+        with h5py.File(path, 'a') as f:
+            symbols=list(f.keys())
+            if symbol in symbols:
+                del f[symbol]
+                time.sleep(1)
+    except Exception as e:
+        #f.close()
+        pass
+    finally:
+        lock.release()
 
 def write_to_hdf(country, df, symbol):
     try:
@@ -728,11 +745,12 @@ def update_field_change(df, nans, field, duration, whole_change=False):
         else:
             change = en_price/st_price - 1
 
-        df.loc[i][field] = change
+        df.loc[i, field] = change
+        #df.loc[i][field] = change
     return df
 
 # Update df daily, weekly etc percent change
-def update_percent_change(df, fields=price_change_fields, duration=price_change_durations):
+def update_percent_change(df, fields=price_change_fields, durations=price_change_durations):
     write = False
     for f in fields:
         if f not in list(df.keys()):
@@ -743,18 +761,27 @@ def update_percent_change(df, fields=price_change_fields, duration=price_change_
         #nans=df.index[isnan(df[fields[i]])]
         #nans = df[1:].index[df[fields[i]].isnull()]
         is_nan=df[fields[i]].isnull()
-        nans = (df[1:])[is_nan]
-        if not nans.empty:
-            print("Field %r" %(fields[i]))
+        # Is this required?
+        #if df.index[1]-df.index[0] > timedelta(365):
+        #    nans = (df[1:][fields[i]])[is_nan]
+        #else:
+        #    nans = df[fields[i]][is_nan]
+        nans = df[fields[i]][is_nan]
+        if not nans.empty and len(nans.index) > 1:
             df = update_field_change(df, nans.index, fields[i], durations[i])
             write = True
 
     # Same logic but for "Whole Change" field
     is_nan=df[fields[-1]].isnull()
-    nans = (df[1:])[is_nan].index
+    #if df.index[1]-df.index[0] > timedelta(365):
+    #    nans = (df[1:][fields[-1]])[is_nan]
+    #else:
+    #    nans = df[fields[-1]][is_nan]
+    nans = df[fields[-1]][is_nan]
+    if not nans.empty:
+        nans = nans[1:]
     if len(nans) > 0:
-        print("Field %r" %(fields[-1]))
-        df = update_field_change(df, nans, fields[-1], 0, whole_change=True)
+        df = update_field_change(df, nans.index, fields[-1], 0, whole_change=True)
         write = True
 
     return df, write
@@ -763,7 +790,7 @@ def update_percent_change(df, fields=price_change_fields, duration=price_change_
 def update_percent_change_all(country):
     fields = price_fields + price_change_fields
 
-    mysql_engine = DB.open_sql_connection('10.0.0.12', 'root', 'petla123', 3036, 'US_Stocks')
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', 3036, 'US_Stocks')
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
@@ -772,7 +799,7 @@ def update_percent_change_all(country):
     try:
         i = 1
         for stk in stocks:
-            if i < 574: #Skipped 574 STKCLF
+            if i < 0: #Skipped 574 STKCLF
                 i = i + 1
                 continue
             symbol = stk['bscs']['symbol']
@@ -790,7 +817,7 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
-def update_dataframe_price_volume(country, db, symbols, stk, sem):
+def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, sem):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
@@ -799,7 +826,7 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
         indices = India_indices
     else:
         indices = US_indices 
- 
+
     df=pd.DataFrame() 
     collection = DB.get_collection(country, db)
     try:
@@ -814,10 +841,23 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             symbol = stk['bscs']['symbol']
         #symbol = '/' + stk['bscs']['symbol']
 
+        table = DB.get_symbol_table_name(symbol)
+
         if symbol not in symbols:
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+            print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
-            df = remove_df_duplicates(df)
+            #df = remove_df_duplicates(df)
+            if not df.empty:
+                #df['Symbol'] = symbol
+                df['Date'] = df.index.strftime("%Y-%m-%d")
+                df.index = df['Date'] #Is it required?
+                #DB.write_to_sql(sql_engine, symbol, df)
+                print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
+                DB.check_n_write_to_sql(sql_engine, symbol, copy.deepcopy(df), list(df.columns))
+                # Update the date on which the price is updated
+                DB.update_field(collection, symbol, "bscs.price_date", today)
+ 
             if df.empty:
                 DB.update_field(collection, symbol, "ignore", "YES")
             #if index:
@@ -828,21 +868,37 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
             #    #DB.update_stock_betas2(country, stk, df=df)
             #if not df.empty:
             if True:
-                write_to_hdf(country, df, symbol)
+                ##write_to_hdf(country, df, symbol)
                 # Update the date on which the price is updated
                 DB.update_field(collection, symbol, "bscs.price_date", today)
                 #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
+            if index:
+                # Yahoo Finance sometimes returns wrong volume data for the latest date.
+                # Check and delete record.
+                # Will be populated again the below code.
+                # Happens only when small set of data is requested.
+                DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
+            else:
+                last_updated_date = dt.strptime(stk['bscs']['price_date'].split(' ')[0], "%Y-%m-%d").date()
+                if last_updated_date >= end:
+                    return
+
+            query='select Date from ' + table + ' order by Date DESC limit 1'
+            #rdf = read_from_hdf(country, symbol)
+            rdf = DB.read_from_sql(query, sql_engine)
+ 
             # Read the existing data of the symbol
-            rdf = read_from_hdf(country, symbol)
+            #rdf = read_from_hdf(country, symbol)
             #rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
             if rdf.empty:
                 PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             else:
                 #get timestamp of the last entry
-                start = rdf.index[-1].date()
+                #start = rdf.index[-1].date()
+                start = dt.strptime(rdf['Date'][0], "%Y-%m-%d").date()
             #get data from next date till today
             #print("one: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
             if start < end:
@@ -853,28 +909,54 @@ def update_dataframe_price_volume(country, db, symbols, stk, sem):
                 # Min of week is a safer timespan.
                 # Though you get a week data, insert only the entries that are missing.
                 # Taken care below.
-                if end-start < timedelta(7):
-                    start = end - timedelta(7)
+                if end-start < timedelta(10):
+                    start = end - timedelta(10)
 
+                #print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
+                #s=time.time()
                 df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+                #e=time.time()
+                #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 if not df.empty:
-                    rdf = rdf.append(df)
-                    rdf = remove_df_duplicates(rdf)
-                    #if index:
-                    #    rdf = update_percent_change(rdf)
-                    #Update Betas
-                    #if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
-                    #    rdf = hdf_get_beta(country, symbol, rdf)
-                    #    #DB.update_stock_betas2(country, stk, df=rdf)
-                    write_to_hdf(country, rdf, symbol)
+                    xdf=copy.deepcopy(df)
+                    #rdf = rdf.append(df)
+                    #rdf = remove_df_duplicates(rdf)
+                    #df['Symbol'] = symbol
+                    df['Date'] = df.index.strftime("%Y-%m-%d")
+                    df.index = df['Date'] #Is it required?
+                    #df = df[~df.Date.isin(rdf.Date)]
+                    # Get the data starting from the next day of the last entry in MySQL database
+                    #df=df.loc[rdf['Date'][0]:].drop(rdf['Date'][0])
+                    df = df[df.index.get_loc(rdf['Date'][0])+1:]
+                    if not df.empty:
+                        #print("Writing to sql prices for %r" %(symbol))
+                        #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
+                        #s=time.time()
+                        print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
+                        DB.write_to_sql(sql_engine, table, df)
+                        #e=time.time()
+                        print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
+                        #print("Wrote to sql prices for %r" %(symbol))
+                        # Update the date on which the price is updated
+                        DB.update_field(collection, symbol, "bscs.price_date", today)
+ 
+                    ##if index:
+                    ##    rdf = update_percent_change(rdf)
+                    ##Update Betas
+                    ##if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+                    ##    rdf = hdf_get_beta(country, symbol, rdf)
+                    ##    #DB.update_stock_betas2(country, stk, df=rdf)
+                    #write_to_hdf(country, rdf, symbol)
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
-                    DB.update_field(collection, symbol, "bscs.price_date", today)
+                    #DB.update_field(collection, symbol, "bscs.price_date", today)
                     #DB.update_field(collection, symbol, "ignore", "NO")
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
     except Exception as E:
-        print("hdf5: update_dataframe_price_volume:",str(E))
+        print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+        print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+        print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
     finally:
         sem.release()
