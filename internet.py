@@ -337,6 +337,9 @@ def update_price_change(country, collection, sym, sem, sql_engine):
                         #        break
                         #    i = i + 1
                         #new_df = new_df.iloc[i:]
+                        # Drop rows with all NaN values
+                        new_df = new_df[price_change_fields].dropna(axis=0,how='all')
+                        new_df['Date'] = new_df.index
                         fields = ['Date'] + price_change_fields
                         new_df = new_df[fields]
                         print("mysql: %s"%(sym))
@@ -511,13 +514,13 @@ def fork_hdf5_process(country, sem):
         stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
         i=0
-        for stk in stocks:
+        for i, stk in enumerate(stocks):
             #if ignore_stock(stk):
             #    continue
             sem.acquire()
+            print("%r" %(i))
             update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            i = i + 1
             #if i > 10:
             #    break;
 
