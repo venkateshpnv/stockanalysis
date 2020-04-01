@@ -6,7 +6,7 @@ SCRIPT=US_new_listings.py
 #export DISPLAY=:0.0
 val=`ps ax | grep $SCRIPT | grep -v grep | wc -l`
 if [ $val -eq 0 ]; then
-   	echo > /tmp/US_newlistings.txt
+   	echo > ~/tmp/US_newlistings.txt
 	echo "Starting $SCRIPT"
    	#python3 -u $HOME_DIR/$SCRIPT 2>&1 > /dev/null
    	python3 -u $HOME_DIR/$SCRIPT 2>&1 | tee -a /tmp/US_newlistings.txt
