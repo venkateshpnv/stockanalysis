@@ -745,7 +745,7 @@ def update_field_change(df, nans, field, duration, whole_change=False):
         else:
             change = en_price/st_price - 1
 
-        df.loc[i, field] = change
+        df.loc[i, field] = float(change)
         #df.loc[i][field] = change
     return df
 
@@ -845,7 +845,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
         if symbol not in symbols:
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
-            print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
+            print("New symbol: getting data for %r from yahoo" %(stk['bscs']['symbol']))
             df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
             #df = remove_df_duplicates(df)
             if not df.empty:
@@ -936,7 +936,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
                         DB.write_to_sql(sql_engine, table, df)
                         #e=time.time()
-                        print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
+                        #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                         #print("Wrote to sql prices for %r" %(symbol))
                         # Update the date on which the price is updated
                         DB.update_field(collection, symbol, "bscs.price_date", today)

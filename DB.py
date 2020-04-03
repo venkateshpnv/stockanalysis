@@ -103,6 +103,7 @@ def mysql_exists_table(mysql_engine, table_name):
 
 def mysql_check_n_create_table(mysql_engine, table_name):
     if not mysql_exists_table(mysql_engine, table_name):
+        print("Creating table: %r" %(table_name))
         query = 'create table '+ table_name + ' like test2;'
         mysql_engine.execute(query)
         #query = 'alter table ' + table +' add index(Date);'
@@ -232,6 +233,12 @@ def get_symbols_from_mongo(collection):
 
 def rename_table(engine, t):
     new_t = 'STK'+t
+    query = 'show tables like %r;' %(new_t)
+    output= engine.execute(query)
+    #If table does not exist
+    if output.first() is not None:
+        query = "drop table {}".format(new_t)
+        engine.execute(query)
     query = "rename table {} to {}".format(t, new_t)
     engine.execute(query)
 
@@ -252,7 +259,7 @@ def get_symbols_from_sql(country, engine):
 
     for t in tables:
         if not t.startswith('STK'):
-            print(t)
+            print("Renaming table: %r" %(t))
             rename_table(engine, t)
 
     symbols = [t.split('STK')[-1].replace('_', '.')  for t in tables]
@@ -305,13 +312,13 @@ client=None
 ########################### DB Related Calls ########3###################
 def open_db(db_name):
     global client
-    client = pymongo.MongoClient("mongodb://localhost:27017/", maxPoolSize=1)
+    client = pymongo.MongoClient("mongodb://localhost:27017/", multiprocessing.cpu_count() * thread_factor)
     #print("Opening: %r" %(client))
     db = client[db_name]
     return db
 
 def open_db_client():
-    c = pymongo.MongoClient("mongodb://localhost:27017/", maxPoolSize=1)
+    c = pymongo.MongoClient("mongodb://localhost:27017/", multiprocessing.cpu_count() * thread_factor)
     return c 
 
 def close_db():
