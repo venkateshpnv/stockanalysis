@@ -198,5 +198,9 @@ def read_from_file(filename):
     f.close()
     return val
 
+def percent_change(st_price, en_price):
+    if st_price == 0:
+        return 0
+    return float(en_price/st_price - 1)
 
 

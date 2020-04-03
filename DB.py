@@ -81,6 +81,13 @@ def check_volume_of_last_record(mysql_engine, table_name):
             query = 'delete from {} order by Date desc limit 1'.format(table_name)
             mysql_engine.execute(query)
 
+def mysql_get_price(sql_engine, table_name, req_date):
+    query = 'select `Adj Close` from {} where Date = (select min(Date) from {} where Date  >= \'{}\')'.format(table_name, table_name, req_date)
+    df = pd.read_sql_query(query, sql_engine)
+    if not df.empty:
+        return df['Adj Close'][0]
+    return 0
+
 def read_from_sql(query, mysql_engine):
     df = pd.read_sql_query(query, mysql_engine)
     if not df.empty:
@@ -136,12 +143,14 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols):
             unknown_fields = unknown_fields + 1
     return unknown_fields
 
-def mysql_update_table(mysql_engine, table_name, df, check=False):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False):
     if df.empty:
         return
     if 'Date.1' in list(df.columns):
         df['Date']=df['Date.1']
         del df['Date.1']
+    else:
+        df['Date'] = df.index
 
     try:
         metadata = MetaData()
@@ -163,10 +172,13 @@ def mysql_update_table(mysql_engine, table_name, df, check=False):
             items = {}
             key = str(pd.to_datetime(index).date())
             for k in d.keys().to_list(): #Skip date, date.1
-                if k != 'Date':
-                    items[k]=d[k]
+                #if k != 'Date':
+                items[k]=d[k]
                 # TODO: Handle on conflict
-            stmt=table.update().where(table.c.Date==key).values(items)
+            if insert:
+                stmt=table.insert().values(items)
+            else:
+                stmt=table.update().where(table.c.Date==key).values(items)
             conn.execute(stmt)
     finally:
         del metadata
@@ -832,6 +844,13 @@ def fork_hdf5_process(country, sem):
         for stk in stocks:
             #if ignore_stock(stk):
             #    continue
+            if stk['bscs']['symbol'] not in symbols:
+                print("Skipping: %r" %(stk['bscs']['symbol']))
+                continue
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 1:
+                print("Skipping: %r" %(stk['bscs']['symbol']))
+                continue
+            #print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
             threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()

@@ -915,6 +915,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 #print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
                 #s=time.time()
                 df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+                # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
+                #df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
                 #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
@@ -928,18 +930,26 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     #df = df[~df.Date.isin(rdf.Date)]
                     # Get the data starting from the next day of the last entry in MySQL database
                     #df=df.loc[rdf['Date'][0]:].drop(rdf['Date'][0])
-                    df = df[df.index.get_loc(rdf['Date'][0])+1:]
+                    if not df.empty:
+                        try:
+                            if rdf['Date'][0] in list(df.index):
+                                index = df.index.get_loc(rdf['Date'][0])
+                                df = df[index+1:]
+                        except Exception as E:
+                            print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+                            print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+                            print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
+                            print("hdf5: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
                     if not df.empty:
                         #print("Writing to sql prices for %r" %(symbol))
                         #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
                         #s=time.time()
-                        print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
-                        DB.write_to_sql(sql_engine, table, df)
+                        print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
+                        #DB.write_to_sql(sql_engine, table, df)
+                        DB.mysql_update_table(sql_engine, table, df, insert=True)
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                         #print("Wrote to sql prices for %r" %(symbol))
-                        # Update the date on which the price is updated
-                        DB.update_field(collection, symbol, "bscs.price_date", today)
  
                     ##if index:
                     ##    rdf = update_percent_change(rdf)
@@ -954,9 +964,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     #DB.update_field(collection, symbol, "ignore", "NO")
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
-    except Exception as E:
-        print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
-        print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
-        print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
     finally:
+        # Update the date on which the price is updated
+        DB.update_field(collection, symbol, "bscs.price_date", today)
         sem.release()
