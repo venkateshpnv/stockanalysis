@@ -76,10 +76,11 @@ def get_usd_to_inr():
 
 def get_symbol_prices(sym, name, country, index, shortlist_price):
     entry = []
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
     if not index:
         entry.append(sym)
     entry.append(name)
-    price = hdf5.get_latest_price(country, sym)
+    price = DB.mysql_get_latest_price(sql_engine, country, sym)
     if not index:
         stk =  DB.get_stock_from_db(country, sym)
         if stk['fig']['betas']['six_months']:
@@ -94,31 +95,27 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
         since_shortlist = price / shortlist_price - 1  
         entry.append(str(round(since_shortlist*100, 2))+'%')
 
-    change = None
     try:
-        change,diff = hdf5.hdf_price_change(country, sym, days=1, index=1)
-        if index:
-            entry.append(str(round(diff,2)))
-        entry.append(str(round(change*100, 2))+'%')
-        change = hdf5.hdf_price_change(country, sym, weeks=1)
-        entry.append(str(round(change*100, 2))+'%')
-        change = hdf5.hdf_price_change(country, sym, months=1)
-        entry.append(str(round(change*100, 2))+'%')
-        change = hdf5.hdf_price_change(country, sym, months=3)
-        entry.append(str(round(change*100, 2))+'%')
-        change = hdf5.hdf_price_change(country, sym, months=6)
-        entry.append(str(round(change*100, 2))+'%')
-        change = hdf5.hdf_price_change(country, sym, years=1)
-        entry.append(str(round(change*100, 2))+'%')
-        if index:
-            change = hdf5.hdf_price_change(country, sym, years=5)
-            entry.append(str(round(change*100, 2))+'%')
-            change = hdf5.hdf_price_change(country, sym, years=10)
-            if change:
-                entry.append(str(round(change*100, 2))+'%')
+        query = 'select * from {} order by Date desc limit 2'.format(DB.get_symbol_table_name(sym))
+        df = DB.read_from_sql(query, sql_engine)
+        if not df.empty:
+            if index:
+                entry.append(str(round((df['Adj Close'][0] - df['Adj Close'][1]),2)))
+            df = df.iloc[0]
+            entry.append(str(round(df['Day Change']*100, 2))+'%')
+            entry.append(str(round(df['Week Change']*100, 2))+'%')
+            entry.append(str(round(df['Month Change']*100, 2))+'%')
+            entry.append(str(round(df['Quarter Change']*100, 2))+'%')
+            entry.append(str(round(df['Half Year Change']*100, 2))+'%')
+            entry.append(str(round(df['Year Change']*100, 2))+'%')
+            if index:
+                entry.append(str(round(df['Five Year Change']*100, 2))+'%')
+                entry.append(str(round(df['Ten Year Change']*100, 2))+'%')
     except Exception as e:
         print(change)
         sys.exit()
+
+    DB.close_sql_connection(sql_engine)
     #print(entry)
     return entry
  
@@ -183,27 +180,6 @@ def get_radar_stocks(country):
             shortlist_price = float(sheet.cell_value(i, 3))
 
             entries.append(get_symbol_prices(sym, name, 'US', None, shortlist_price))
-            #cur_price = internet.get_LTP('US', sym)
-            #since_shortlist = cur_price / shortlist_price - 1  
-            #day_change = internet.price_change('US', sym, name, 2, 'HOT')
-            #week_change = internet.price_change('US', sym, name, 7, 'HOT')
-            #month_change = internet.price_change('US', sym, name, 30, 'HOT')
-            #quarter_change = internet.price_change('US', sym, name, 90, 'HOT')
-            #halfyear_change = internet.price_change('US', sym, name, 180, 'HOT')
-            #year_change = internet.price_change('US', sym, name, 365, 'HOT')
-            #price = internet.get_LTP('US', sym)
-            #entry.append(sym)
-            #entry.append(name)
-            #entry.append(str(price))
-            #entry.append(str(shortlist_price))
-            #entry.append(str(round(since_shortlist*100, 2))+'%')
-            #entry.append(str(round(day_change*100, 2))+'%')
-            #entry.append(str(round(week_change*100, 2))+'%')
-            #entry.append(str(round(month_change*100, 2))+'%')
-            #entry.append(str(round(quarter_change*100, 2))+'%')
-            #entry.append(str(round(halfyear_change*100, 2))+'%')
-            #entry.append(str(round(year_change*100, 2))+'%')
-            #entries.append(entry)
             ##print(entries)
         s = parse_html.html_text(s, entries)
         s = parse_html.html_set_line(s)
