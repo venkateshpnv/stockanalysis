@@ -420,8 +420,9 @@ def update_price_change(country, collection, sym, sem, sql_engine):
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
  
     finally:
-        DB.update_field(collection, sym, "price_change.date", str(dt.now()))
-        sem.release()
+        DB.update_field(collection, sym, "price_change.date", dt.now())
+        if sem:
+            sem.release()
 
 def fork_hdf5_process(country, sem):
     ## Randomly get all records whose price is not updated till today
@@ -445,8 +446,6 @@ def fork_hdf5_process(country, sem):
         close_sql_connection(sql_engine)
         return
 
-    #symbols = hdf5.get_symbols_hdf_store(country)
-    #symbols = hdf5.get_symbols_from_hdf(country)
     symbols = DB.get_symbols_from_sql(country, sql_engine)
     #symbols = get_symbols_from_mongo(collection)
     
@@ -489,7 +488,7 @@ def fork_hdf5_process(country, sem):
             #    continue
             if stk['bscs']['symbol'] not in symbols:
                 continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 1:
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
                 continue
  
             sem.acquire()

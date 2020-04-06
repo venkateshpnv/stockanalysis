@@ -88,6 +88,15 @@ def mysql_get_price(sql_engine, table_name, req_date):
         return df['Adj Close'][0]
     return 0
 
+def mysql_get_latest_price(sql_engine, country, sym):
+    table_name = get_symbol_table_name(sym)
+    query = 'select Date, `Adj Close` from {} order by Date desc limit 1'.format(table_name)
+    df = read_from_sql(query, sql_engine)
+    if not df.empty:
+        return df['Adj Close'][-1]
+    return None
+
+
 def read_from_sql(query, mysql_engine):
     df = pd.read_sql_query(query, mysql_engine)
     if not df.empty:
@@ -759,6 +768,7 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": to_int(stk['bscs']['volume'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": to_float(stk['bscs']['mcap'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": to_int(stk['bscs']['outstanding_shares'])}})
+    update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.now())
 
 j=0
 
@@ -785,7 +795,10 @@ def fork_db_process(country, sem, lock):
     for stk in stocks:
         #if ignore_stock(stk):
         #    continue
-        print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        #print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+        if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
+            continue
+ 
         sem.acquire()
         #update_stk_bscs_db(country, db, stk, sem, lock)
         threading.Thread(target=update_stk_bscs_db, args=(country, db, copy.deepcopy(stk), sem, lock,)).start()
@@ -850,7 +863,7 @@ def fork_hdf5_process(country, sem):
             if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 1:
                 print("Skipping: %r" %(stk['bscs']['symbol']))
                 continue
-            #print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
+            print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
             threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()
@@ -870,28 +883,24 @@ def fork_hdf5_process(country, sem):
 # Update price, mcap, volume etc
 def update_stk_bscs_db(country, db, stk, sem, lock):
     global j
+    failcount=1
     try:
         today=str(dt.now().date())
-        stock = internet.get_price_volume(stk, country)
+        stock = internet.get_price_volume(copy.deepcopy(stk), country)
         collection = get_collection(country, db)
         if stock:
-            lock.acquire()
             # Update price and volume to db
             #print("%r: %r" %(stock['bscs']['symbol'], stock['bscs']['volume']))
             update_db_price_volume(collection, stock)
-            lock.release()
             j = j+1
         else:
-            failcount=1
-            if 'price_failcount' in stk['bscs'].keys():
+            if 'bscs' in stk.keys() and 'price_failcount' in stk['bscs'].keys():
                 failcount = failcount + stk['bscs']['price_failcount']
-            # Ignore the stock for future purposes if failed to get data
+            # Ignore the stk for future purposes if failed to get data
             # for more than 10 times.
-            lock.acquire()
-            if failcount > 10:
-                update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
-            update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
-            lock.release()
+                if failcount > 10:
+                    update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
+                    update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
     finally:
         sem.release()
 
@@ -1748,12 +1757,11 @@ def update_all_stock_betas(country):
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     docs = collection.find({}, no_cursor_timeout=True).sort([["sno",1]])
-    #docs = collection.find({'bscs.mcap' : {'$gt' :  100000, '$lt' : 1000000}}, no_cursor_timeout=True).sort([['sno',1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
 
-    max_threads = multiprocessing.cpu_count() * 2
+    max_threads = multiprocessing.cpu_count() * thread_factor
     sem = threading.BoundedSemaphore(max_threads)
 
     for doc in docs:

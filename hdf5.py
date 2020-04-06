@@ -19,6 +19,8 @@ import copy
 
 import time
 
+import internet
+
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
 US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store2.h5'
@@ -882,8 +884,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
             else:
                 last_updated_date = dt.strptime(stk['bscs']['price_date'].split(' ')[0], "%Y-%m-%d").date()
-                if last_updated_date >= end:
-                    return
+                #if last_updated_date >= end:
+                #    return
 
             query='select Date from ' + table + ' order by Date DESC limit 1'
             #rdf = read_from_hdf(country, symbol)
@@ -947,6 +949,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
+                        threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                         #print("Wrote to sql prices for %r" %(symbol))
