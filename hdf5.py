@@ -872,18 +872,20 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             if True:
                 ##write_to_hdf(country, df, symbol)
                 # Update the date on which the price is updated
-                DB.update_field(collection, symbol, "bscs.price_date", today)
+                DB.update_field(collection, symbol, "bscs.price_date",today)
                 #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
-            if index:
+            #if index:
+            if True:
                 # Yahoo Finance sometimes returns wrong volume data for the latest date.
                 # Check and delete record.
                 # Will be populated again the below code.
                 # Happens only when small set of data is requested.
                 DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
             else:
-                last_updated_date = dt.strptime(stk['bscs']['price_date'].split(' ')[0], "%Y-%m-%d").date()
+                pass
+                #last_updated_date = dt.strptime(stk['bscs']['price_date'].split(' ')[0], "%Y-%m-%d").date()
                 #if last_updated_date >= end:
                 #    return
 
@@ -963,11 +965,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     #write_to_hdf(country, rdf, symbol)
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
-                    #DB.update_field(collection, symbol, "bscs.price_date", today)
                     #DB.update_field(collection, symbol, "ignore", "NO")
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
     finally:
         # Update the date on which the price is updated
-        DB.update_field(collection, symbol, "bscs.price_date", today)
         sem.release()

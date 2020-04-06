@@ -82,7 +82,7 @@ def check_volume_of_last_record(mysql_engine, table_name):
             mysql_engine.execute(query)
 
 def mysql_get_price(sql_engine, table_name, req_date):
-    query = 'select `Adj Close` from {} where Date = (select min(Date) from {} where Date  >= \'{}\')'.format(table_name, table_name, req_date)
+    query = 'select `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
     df = pd.read_sql_query(query, sql_engine)
     if not df.empty:
         return df['Adj Close'][0]
@@ -800,6 +800,7 @@ def fork_db_process(country, sem, lock):
             continue
  
         sem.acquire()
+        print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
         #update_stk_bscs_db(country, db, stk, sem, lock)
         threading.Thread(target=update_stk_bscs_db, args=(country, db, copy.deepcopy(stk), sem, lock,)).start()
         i = i + 1
