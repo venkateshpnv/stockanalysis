@@ -104,9 +104,9 @@ def mysql_get_price(sql_engine, table_name, req_date, from_date):
         return df1['Adj Close'][0]
 
     # required should never be from date
-    if from_date == date1:
+    if from_date == str(date1):
         return df2['Adj Close'][0]
-    if from_date == date2:
+    if from_date == str(date2):
         return df1['Adj Close'][0]
 
     if abs(cur-date1) < abs(cur-date2):
