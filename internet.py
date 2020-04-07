@@ -486,14 +486,15 @@ def fork_hdf5_process(country, sem):
             #last_updated_date = dt.strptime(stk['price_change']['date'].split(' ')[0], "%Y-%m-%d").date()
             #if last_updated_date >= today:
             #    continue
-            if stk['bscs']['symbol'] not in symbols:
-                continue
+            #if stk['bscs']['symbol'] not in symbols:
+            #    continue
             if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
                 continue
  
             sem.acquire()
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
-            threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+            t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
+            t.start()
             #if i > 10:
             #    break;
 
@@ -503,6 +504,7 @@ def fork_hdf5_process(country, sem):
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
         time.sleep(10)
+        t.join()
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
     print("MYSQL Stocks tried :%r"%(i))

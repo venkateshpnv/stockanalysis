@@ -26,7 +26,7 @@ import conf
 import hdf5
 
 import sqlalchemy
-from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String
+from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column
 from sqlalchemy.orm import sessionmaker
 #from sqlalchemy import *
 #metadata=MetaData()
@@ -101,6 +101,44 @@ def read_from_sql(query, mysql_engine):
     df = pd.read_sql_query(query, mysql_engine)
     if not df.empty:
         df.index = pd.to_datetime(df['Date'])
+    return df
+
+def read_from_sql2(mysql_engine, table_name, columns=None, order='asc', limit=-1):
+    metadata = MetaData()
+    table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+    conn = mysql_engine.connect()
+    table_cols = table.c.keys()
+
+    # stmt=select([column('Adj Close'), column('Date')]).select_from(table).order_by(table.columns.Date.desc()).limit(1)
+    if not columns:
+        columns = table_cols
+    else:
+        for c in columns:
+            if c not in table_cols:
+                print("%s not in %s. Ignoring it" %(c, table_name))
+                del columns[columns.index(c)]
+    select_cols = []
+    for c in columns:
+        select_cols.append(column(c))
+
+    stmt = select(select_cols).select_from(table)
+
+    #stmt = select([table])
+    if order == 'desc': # default ascending
+        stmt = stmt.order_by(table.columns.Date.desc())
+    if limit > 0:
+        stmt = stmt.limit(limit)
+
+    #stmt = select([table]).where(table.columns.column_name == columns)
+    records = conn.execute(stmt).fetchall()
+    df=pd.DataFrame(records, columns=columns)
+    df.index=df['Date']
+
+    del conn
+    del metadata
+    del table
+    del stmt
+    #print(df)
     return df
 
 def write_to_sql(mysql_engine, table, df):
@@ -861,13 +899,14 @@ def fork_hdf5_process(country, sem):
             if stk['bscs']['symbol'] not in symbols:
                 print("Skipping: %r" %(stk['bscs']['symbol']))
                 continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 1:
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
                 print("Skipping: %r" %(stk['bscs']['symbol']))
                 continue
             print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
-            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()
+            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,))
+            t.start()
             i = i + 1
 
     finally:
@@ -876,6 +915,7 @@ def fork_hdf5_process(country, sem):
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
         time.sleep(10)
+        t.join()
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))

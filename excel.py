@@ -112,7 +112,7 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
                 entry.append(str(round(df['Five Year Change']*100, 2))+'%')
                 entry.append(str(round(df['Ten Year Change']*100, 2))+'%')
     except Exception as e:
-        print(change)
+        print("excel.py: get_symbol_prices(): %r" %(str(e)))
         sys.exit()
 
     DB.close_sql_connection(sql_engine)

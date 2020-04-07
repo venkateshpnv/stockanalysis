@@ -892,7 +892,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             query='select Date from ' + table + ' order by Date DESC limit 1'
             #rdf = read_from_hdf(country, symbol)
             rdf = DB.read_from_sql(query, sql_engine)
- 
+            #rdf = DB.read_from_sql2(sql_engine, table, ['Date'], order='desc', limit=1)
+
             # Read the existing data of the symbol
             #rdf = read_from_hdf(country, symbol)
             #rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
