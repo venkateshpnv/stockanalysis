@@ -82,11 +82,27 @@ def check_volume_of_last_record(mysql_engine, table_name):
             mysql_engine.execute(query)
 
 def mysql_get_price(sql_engine, table_name, req_date):
-    query = 'select `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
-    df = pd.read_sql_query(query, sql_engine)
-    if not df.empty:
-        return df['Adj Close'][0]
-    return 0
+    query = 'select `Date`, `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
+    df1 = pd.read_sql_query(query, sql_engine)
+
+    query = 'select `Date`, `Adj Close` from {} where Date = (select min(Date) from {} where Date  >= \'{}\')'.format(table_name, table_name, req_date)
+    df2 = pd.read_sql_query(query, sql_engine)
+
+    if df1.empty and df2. empty:
+        return 0
+    if df1.empty:
+        return df2['Adj Close'][0]
+    if df2.empty:
+        return df1['Adj Close'][0]
+    
+    cur = dt.strptime(req_date, "%Y-%m-%d").date()
+    date1 = pd.to_datetime(df1['Date'][0]).date()
+    date2 = pd.to_datetime(df2['Date'][0]).date()
+    
+    if abs(cur-date1) < abs(cur-date2):
+        return df1['Adj Close'][0]
+
+    return df2['Adj Close'][0]
 
 def mysql_get_latest_price(sql_engine, country, sym):
     table_name = get_symbol_table_name(sym)
@@ -893,12 +909,13 @@ def fork_hdf5_process(country, sem):
         stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
         i=0
+        t=None
         for stk in stocks:
             #if ignore_stock(stk):
             #    continue
-            if stk['bscs']['symbol'] not in symbols:
-                print("Skipping: %r" %(stk['bscs']['symbol']))
-                continue
+            #if stk['bscs']['symbol'] not in symbols:
+            #    print("Skipping: %r" %(stk['bscs']['symbol']))
+            #    continue
             if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
                 print("Skipping: %r" %(stk['bscs']['symbol']))
                 continue
@@ -915,7 +932,8 @@ def fork_hdf5_process(country, sem):
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
         time.sleep(10)
-        t.join()
+        if t:
+            t.join()
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
