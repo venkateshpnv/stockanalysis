@@ -81,7 +81,7 @@ def check_volume_of_last_record(mysql_engine, table_name):
             query = 'delete from {} order by Date desc limit 1'.format(table_name)
             mysql_engine.execute(query)
 
-def mysql_get_price(sql_engine, table_name, req_date):
+def mysql_get_price(sql_engine, table_name, req_date, from_date):
     query = 'select `Date`, `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
     df1 = pd.read_sql_query(query, sql_engine)
 
@@ -98,7 +98,17 @@ def mysql_get_price(sql_engine, table_name, req_date):
     cur = dt.strptime(req_date, "%Y-%m-%d").date()
     date1 = pd.to_datetime(df1['Date'][0]).date()
     date2 = pd.to_datetime(df2['Date'][0]).date()
-    
+  
+    # Both are same, return either
+    if date1 == date2:
+        return df1['Adj Close'][0]
+
+    # required should never be from date
+    if from_date == date1:
+        return df2['Adj Close'][0]
+    if from_date == date2:
+        return df1['Adj Close'][0]
+
     if abs(cur-date1) < abs(cur-date2):
         return df1['Adj Close'][0]
 

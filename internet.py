@@ -328,7 +328,7 @@ def update_price_change(country, collection, sym, sem, sql_engine):
                 wdf.loc[cur_date_str]['Date'] = cur_date_str
                 #Percent Changes for Day, Week, Month etc
                 for i in range(len(price_change_durations)):
-                    start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]))
+                    start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
                     change = percent_change(start_price, cur_price)
                     wdf.loc[cur_date_str][price_change_fields[i]] = change
 
