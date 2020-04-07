@@ -59,7 +59,7 @@ def open_sql_connection(ip, user, passwd, port=3036, db=None):
         connection_string = connection_string + "/" + db
     max_threads = multiprocessing.cpu_count() * thread_factor
     try:
-        mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks", pool_size=max_threads)
+        mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks", pool_size=max_threads*4)
     #return sqlalchemy.create_engine(connection_string, pool_size=max_threads)
     #return sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/Stocks", pool_size=max_threads)
     except Exception as E:
