@@ -252,7 +252,7 @@ def price_suprise(country, collection, stock, sym, name, change_percent, xl, cri
     DB.update_field(collection, sym, "price_change.date", str(dt.now()))
 
 def get_change(df, field):
-    if not isnan(df.iloc[0][field]):
+    if df.iloc[0][field] and not isnan(df.iloc[0][field]):
         return df.iloc[0][field]
     else:
         return df.iloc[1][field]
@@ -503,8 +503,9 @@ def fork_hdf5_process(country, sem):
         # But need to track threads and update variables.
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
-        time.sleep(10)
-        t.join()
+        time.sleep(30)
+        #if t:
+        #    t.join()
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
     print("MYSQL Stocks tried :%r"%(i))
