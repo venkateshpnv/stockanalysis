@@ -201,6 +201,10 @@ def read_from_file(filename):
 def percent_change(st_price, en_price):
     if st_price == 0:
         return 0
+    if st_price < 0:
+        st_price = abs(st_price)
+        en_price = en_price + st_price
+
     return float(en_price/st_price - 1)
 
 
