@@ -941,9 +941,9 @@ def fork_hdf5_process(country, sem):
         # But need to track threads and update variables.
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
-        time.sleep(10)
-        if t:
-            t.join()
+        time.sleep(30)
+        #if t:
+        #    t.join()
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
@@ -1906,7 +1906,216 @@ def build_df_from_stmt(stk, stmt, df, fields):
     
     df, status = update_percent_change(df, fields=fin_fields, duration=fin_durations)
     return df, status
- 
+
+def fin_change(df, fig):
+    #st_price = read.iat[0, read.columns.get_loc('close')]
+    #en_price = read.iat[-1, read.columns.get_loc('close')]
+
+    df.index= pd.to_datetime(df.index)
+    if fig == 'fig':
+        fields    = fin_year_fields
+        datatypes = fin_year_fields_datatypes
+        durations = fin_year_price_durations
+        ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m")
+    else:
+        fields    = fin_quarter_fields
+        datatypes = fin_quarter_fields_datatypes
+        durations = fin_quarter_price_durations
+        ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
+
+    # Create new fields
+    cols = list(df.columns)
+    for c in cols:
+        for i in range(len(durations)):
+            key = '{}_{}'.format(c,fields[i])
+            key = key.replace(' ', '_')
+            if key not in list(df.keys()):
+                df[key]=nan
+            duration = durations[i]
+            for index, d in df.iloc[1:].iterrows():
+                cur_val = d[c]
+                cur_date = pd.to_datetime(index).date()
+                #cur_loc = hdf5.get_nearest_index(df, cur_date)
+                cur_loc = df.index.get_loc(index)
+
+                start_date = cur_date - duration
+                start_loc = hdf5.get_nearest_index(df, start_date)
+                if start_loc == cur_loc:
+                    change = 0
+                else:
+                    start_val = df.iloc[start_loc][c]
+                    if not isnan(start_val) and not isnan(cur_val):
+                        # Get the first non nan value and non-zero from the set of records
+                        if start_val == 0:
+                            start_loc = df[c].ne(0).idxmax()
+                            start_loc = df.index.get_loc(start_loc)
+                            start_val = df[c].iloc[start_loc]
+
+                        # Sometimes, the first non-zero value loc is greater than cur_loc.
+                        # In that case, the percent change should be nan.
+                        if start_loc < cur_loc:
+                            change = percent_change(start_val, cur_val)
+                        else:
+                            change = nan
+                    else:
+                        change = nan
+                df[key][index] = change
+
+        key = '{}_{}'.format(c,fields[-1])
+        key = key.replace(' ', '_')
+        if key not in list(df.keys()):
+            df[key]=nan
+
+        # Get the first non nan value and non-zero from the set of records
+        #start_val = df.loc[df[c].first_valid_index()][c]
+        start_loc = df[c].ne(0).idxmax()
+        start_loc = df.index.get_loc(start_loc)
+        start_val = df[c].iloc[start_loc]
+        for index, d in df.iloc[1:].iterrows():
+            # whole change
+            cur_loc = df.index.get_loc(index)
+            # Sometimes, the first non-zero value loc is greater than cur_loc.
+            # In that case, the percent change should be nan.
+            if start_loc < cur_loc:
+                change = percent_change(start_val, d[c])
+            else:
+                change = nan
+            df[key][index] = change
+
+    df.index = ret_index
+    return df
+#                wdf.loc[cur_date_str]=nan
+#                wdf.loc[cur_date_str]['date'] = cur_date_str
+#                #percent changes for day, week, month etc
+#                for i in range(len(price_change_durations)):
+#                    start_price = db.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
+#                    change = percent_change(start_price, cur_price)
+#                    wdf.loc[cur_date_str][price_change_fields[i]] = change
+#
+#
+# 
+#
+#    miss = mysql_add_columns(mysql_engine, table_name, missing_cols)
+#    table_name = db.get_symbol_table_name(sym)
+#
+#    wdf = pd.dataframe(columns=['date']+price_change_fields) 
+#
+#    try:
+#        if db.mysql_exists_table(sql_engine, table_name):
+#            #query = 'select `date`, `adj close` from %s order by date' %(table_name)
+#            query = 'select `date`, `adj close` from %s where `day change` is null order by date' %(table_name)
+#            #query = 'select `date`, `adj close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+#            df = db.read_from_sql(query, sql_engine)
+#            if df.empty:
+#                return
+#
+#            ipo_price = df['adj close'][0]
+#
+#            for index, d in df.iloc[1:].iterrows():
+#                cur_price = d['adj close']
+#                cur_date = pd.to_datetime(index).date()
+#                cur_date_str = str(cur_date)
+#                wdf.loc[cur_date_str]=nan
+#                wdf.loc[cur_date_str]['date'] = cur_date_str
+#                #percent changes for day, week, month etc
+#                for i in range(len(price_change_durations)):
+#                    start_price = db.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
+#                    change = percent_change(start_price, cur_price)
+#                    wdf.loc[cur_date_str][price_change_fields[i]] = change
+#
+#                # whole change
+#                change = percent_change(ipo_price, cur_price)
+#                wdf.loc[cur_date_str][price_change_fields[-1]] = change
+#                #wdf.drop(wdf.index, inplace=true)
+#
+#            print("mysql: percent_change: %s"%(sym))
+#            db.mysql_update_table(sql_engine, table_name, wdf)
+#
+#            query = 'select `date`, {} from {} order by date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+#            df = db.read_from_sql(query, sql_engine)
+#
+#            change = get_change(df, 'day change')
+#            db.update_field(collection, sym, "price_change.day", change)
+#
+#            change = get_change(df, 'week change')
+#            db.update_field(collection, sym, "price_change.week", change)
+#
+#            change = get_change(df, 'month change')
+#            db.update_field(collection, sym, "price_change.month", change)
+#
+#            change = get_change(df, 'quarter change')
+#            db.update_field(collection, sym, "price_change.quarter", change)
+#
+#            change = get_change(df, 'half year change')
+#            db.update_field(collection, sym, "price_change.half_year", change)
+#
+#            change = get_change(df, 'year change')
+#            db.update_field(collection, sym, "price_change.year", change)
+#
+#            change = get_change(df, 'five year change')
+#            db.update_field(collection, sym, "price_change.five_year", change)
+#
+#            change = get_change(df, 'ten year change')
+#            db.update_field(collection, sym, "price_change.ten_year", change)
+#
+#            change = get_change(df, 'whole change')
+#            db.update_field(collection, sym, "price_change.whole", change)
+#
+#            end_date = str(dt.now().date())
+#            #get 52 week high
+#            #select max(`adj close`) from stksp500 where date between date_sub('2020-03-20', interval 1 year) and '2020-03-20';
+#            query ='select max(`adj close`) from {} where date between date_sub(\'{}\', interval 1 year) and \'{}\''.format(table_name, end_date, end_date)
+#            result=sql_engine.execute(query)
+#            high_price = result.first()[0]
+#            #high_price = hdf5.hdf_get_high_n_days(df, 365)
+#            db.update_field(collection, sym, "bscs.fiftytwoweek_high", high_price)
+#            #get 52 week low
+#            query ='select min(`adj close`) from {} where date between date_sub(\'{}\', interval 1 year) and \'{}\''.format(table_name, end_date, end_date)
+#            #query ='select min(`adj close`) from ' + table_name + ' where date between date between date_sub(%s, interval 1 year);'%(end_date, end_date)
+#            result=sql_engine.execute(query)
+#            low_price = result.first()[0]
+#            #low_price = hdf5.hdf_get_low_n_days(df, 365)
+#            db.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
+#
+#            # get today's price
+#            query = 'select `adj close` from {} order by date desc limit 1'.format(table_name)
+#            result=sql_engine.execute(query)
+#            price = result.first()[0]
+#            #price = hdf5.hdf_get_price(sym, df, dt.now().date())
+#            
+#            if high_price == 0:
+#                change = 0
+#            else:
+#                change = (price/high_price) - 1
+#
+#            db.update_field(collection, sym, "price_change.with_52week_high", change)
+#            
+#            if low_price == 0:
+#                change = 0
+#            else:
+#                change = (price/low_price) - 1
+#
+#            db.update_field(collection, sym, "price_change.with_52week_low", change)
+#        else:
+#            change=none
+#            db.update_field(collection, sym, "price_change.day", change)
+#            db.update_field(collection, sym, "price_change.week", change)
+#            db.update_field(collection, sym, "price_change.month", change)
+#            db.update_field(collection, sym, "price_change.quarter", change)
+#            db.update_field(collection, sym, "price_change.half_year", change)
+#            db.update_field(collection, sym, "price_change.year", change)
+#            db.update_field(collection, sym, "price_change.whole", change)
+#            db.update_field(collection, sym, "bscs.fiftytwoweek_high", change)
+#            db.update_field(collection, sym, "bscs.fiftytwoweek_low", change)
+#            db.update_field(collection, sym, "price_change.with_52week_high", change)
+#            db.update_field(collection, sym, "price_change.with_52week_low", change)
+# 
+#    finally:
+#        db.update_field(collection, sym, "price_change.date", dt.now())
+#        if sem:
+#            sem.release()
+#
+
 def update_US_fin_percent_change(db, mysql_engine, stk, fig):
     if fig == 'fig':
         fin_fields = fin_year_fields
@@ -1915,44 +2124,60 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
         fin_fields = fin_quarter_fields
         fin_durations = fin_quarter_price_durations
 
-    if 'fig' not in stk.keys():
+    if fig not in stk.keys():
+        print("No financial figures available. Exiting percent calculation")
+        return
+    if 'financial-statements' not in stk[fig].keys():
         print("No financial figures available. Exiting percent calculation")
         return
 
     if 'income-statement' in stk[fig]['financial-statements'].keys():
-        fields=['Sales', 'Operating Expenses', 'Gross Profit', 'Net Income $M']
+        #fields=['Sales', 'Operating Expenses', 'Gross Profit', 'Net Income $M']
         df = form_df(stk[fig]['financial-statements']['income-statement'], 'income-statement')
+        #df_cols=list(df.columns)
+        # Get available columns in the mongodb. Not all fields might be available
+        #available_cols=[]
+        #for f in fields:
+        #    if f in df_cols:
+        #        available_cols.append(f)
+        df = fin_change(df, fig)
+    
        #check_n_write_to_sql(mysql_engine, stk['bscs']['symbol'], df, list(df.columns))
 
     if 'balance-sheet' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['balance-sheet'], 'balance-sheet')
-        fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
-        df_cols=list(df.columns)
-        available_cols=[]
-        for f in fields:
-            if f in df_cols:
-                available_cols.append(f)
-        bdf = df[available_cols]
-        del df
-        renamed_cols = {}
-        for c in available_cols:
-            renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
-        bdf.rename(columns=renamed_cols, inplace=True)
+        df = fin_change(df, fig)
+        #fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
+        #df_cols=list(df.columns)
+
+        ## Get available columns in the mongodb. Not all fields might be available
+        #available_cols=[]
+        #for f in fields:
+        #    if f in df_cols:
+        #        available_cols.append(f)
+        #bdf = copy.deepcopy(df[available_cols])
+        #del df
+
+        #renamed_cols = {}
+        #for c in available_cols:
+        #    renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
+        #bdf.rename(columns=renamed_cols, inplace=True)
 
     if 'cash-flow' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
-        fields=['Operating Cash Flow', 'PPE Investments', 'Free Cash Flow', 'Capital Expenditure']
-        df_cols=list(df.columns)
-        available_cols=[]
-        for f in fields:
-            if f in df_cols:
-                available_cols.append(f)
-        cdf = df[available_cols]
-        del df
-        renamed_cols = {}
-        for c in available_cols:
-            renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
-        bdf.rename(columns=renamed_cols, inplace=True)
+        df = fin_change(df, fig)
+        #fields=['Operating Cash Flow', 'PPE Investments', 'Free Cash Flow', 'Capital Expenditure']
+        #df_cols=list(df.columns)
+        #available_cols=[]
+        #for f in fields:
+        #    if f in df_cols:
+        #        available_cols.append(f)
+        #cdf = df[available_cols]
+        #del df
+        #renamed_cols = {}
+        #for c in available_cols:
+        #    renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
+        #bdf.rename(columns=renamed_cols, inplace=True)
 
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
@@ -1960,12 +2185,13 @@ def update_all_US_fin_percent_change():
     db = open_db('Stocks')
     mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@10.0.0.12:3306/US_Stocks_Fin", pool_size=1)
 
-    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({'bscs.symbol':'AAPL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        update_US_fin_percent_change(db, mysql_engine, stk)
+        update_US_fin_percent_change(db, mysql_engine, stk, 'fig')
+        update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
 
     close_db()
     mysql_engine.dispose()
