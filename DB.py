@@ -1910,6 +1910,7 @@ def build_df_from_stmt(stk, stmt, df, fields):
     return df, status
 
 def fin_percent_change_row(key, index, c, d, df, duration=None):
+    nan_flag = False
     cur_val = d[c]
     cur_date = pd.to_datetime(index).date()
     #cur_loc = hdf5.get_nearest_index(df, cur_date)
@@ -1928,6 +1929,7 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
         # Get the first non nan value and non-zero from the set of records
         start_val = df.iloc[start_loc][c]
         if isnan(start_val):
+            nan_flag = True
             start_index = df.iloc[start_loc:cur_loc+1][c].first_valid_index()
             if start_index:
                 start_loc = df.index.get_loc(start_index)
@@ -1963,7 +1965,13 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
             # It couldn't find such element till the current location.
             # In that case, the change will be same as cur_val.
             if start_loc == cur_loc:
-                change = cur_val
+                change = 0
+                ## If there are no start values and the column starts
+                ## with cur_val then the percentage change is zero.
+                #if nan_flag:
+                #    change = 0
+                #else:
+                #    change = cur_val
             # Sometimes, the first non-zero value loc is greater than cur_loc.
             # In that case, the percent change should be nan.
             elif start_loc < cur_loc:
