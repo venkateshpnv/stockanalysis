@@ -198,13 +198,42 @@ def read_from_file(filename):
     f.close()
     return val
 
+#def percent_change(st_price, en_price):
+#    if st_price == 0:
+#        return 0
+#    if st_price < 0:
+#        st_price = abs(st_price)
+#        en_price = en_price + st_price
+#
+#    return float(en_price/st_price - 1)
 def percent_change(st_price, en_price):
-    if st_price == 0:
-        return 0
-    if st_price < 0:
-        st_price = abs(st_price)
-        en_price = en_price + st_price
+	flag = -1
+	percentChange = 0.0
 
-    return float(en_price/st_price - 1)
-
-
+	if st_price == 0:
+		percentChange = en_price
+	
+	if st_price > 0 and en_price > 0:
+		# st_price:7 en_price:10	
+		if en_price >= st_price:
+			percentChange = float(abs(en_price - st_price)/st_price)
+		# st_price : 10 en_price: 7
+		#elif en_price < st_price:
+		else:
+			percentChange = float((abs(en_price - st_price)/st_price)*flag)
+	elif st_price < 0 and en_price < 0:
+		# st_price: -7 en_price: -3
+		if en_price >= st_price:
+			percentChange = float(abs(en_price - st_price)/abs(st_price))
+		# st_price: -3 en_price: -7
+		#elif en_price < st_price:
+		else:
+			percentChange = float(abs(en_price - st_price)/abs(st_price)*flag)
+         # st_price: 7 en_price: -3
+	elif st_price > 0 and en_price < 0:
+		percentChange = float(abs(en_price - st_price)/st_price*flag)
+		# st_price: -3 en_price: 7
+	elif st_price < 0 and en_price > 0:
+			percentChange = float(abs(en_price - st_price)/abs(st_price))
+	
+	return percentChange
