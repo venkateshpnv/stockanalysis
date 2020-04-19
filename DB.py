@@ -1881,6 +1881,8 @@ def form_df(stmt, stmt_type):
         stmt = remove_nested(copy.deepcopy(stmt))
     df=pd.DataFrame.from_dict(stmt)
     df=pd.DataFrame.transpose(df)
+    df.index=pd.to_datetime(df.index)
+    #df=df.sort_index()
     df.sort_index(ascending=True, inplace=True)
     return df
 
@@ -1907,11 +1909,77 @@ def build_df_from_stmt(stk, stmt, df, fields):
     df, status = update_percent_change(df, fields=fin_fields, duration=fin_durations)
     return df, status
 
+def fin_percent_change_row(key, index, c, d, df, duration=None):
+    cur_val = d[c]
+    cur_date = pd.to_datetime(index).date()
+    #cur_loc = hdf5.get_nearest_index(df, cur_date)
+    cur_loc = df.index.get_loc(index)
+   
+    if duration is None: # Whole percentage case
+        start_loc = 0
+        start_date = pd.to_datetime(df.index[0]).date()
+    else:
+        start_date = cur_date - duration
+        start_loc = hdf5.get_nearest_index(df, start_date)
+
+    if start_loc == cur_loc:
+        change = 0
+    else:
+        # Get the first non nan value and non-zero from the set of records
+        start_val = df.iloc[start_loc][c]
+        if isnan(start_val):
+            start_index = df.iloc[start_loc:cur_loc+1][c].first_valid_index()
+            if start_index:
+                start_loc = df.index.get_loc(start_index)
+                #start_date = pd.to_datetime(start_index).date()
+                if start_loc is not None:
+                    start_val = df.iloc[start_loc][c]
+                else:
+                    start_val = nan
+            else:
+                start_val = nan
+        # Assuming a value of zero or nan means wrong value.
+        # Skip and ignore such values and take the most latest value
+        if start_val == 0:
+            #start_loc = df.iloc[start_loc:cur_loc+1][c].ne(0).idxmax()
+            nonzerodf = df.iloc[start_loc:cur_loc+1][c].ne(0)
+            start_loc = None
+            for i in nonzerodf.index:
+                if nonzerodf[i] == True: # dont use 'is True'
+                    start_loc = df.index.get_loc(i)
+                    break
+            #start_loc = df.index.get_loc(start_loc)
+            if start_loc is not None:
+                start_val = df[c].iloc[start_loc]
+            else:
+                # It means all column values are zero from start_loc to cur_loc
+                start_val = 0
+                start_loc = cur_loc
+        if not isnan(start_val) and not isnan(cur_val):
+            # If both are same her instead of in line 1946. It 
+            # means that there are zero and nan elements in the 
+            # actual start location which has caused the code to pick
+            # the first nonzero and non-nan elements.
+            # It couldn't find such element till the current location.
+            # In that case, the change will be same as cur_val.
+            if start_loc == cur_loc:
+                change = cur_val
+            # Sometimes, the first non-zero value loc is greater than cur_loc.
+            # In that case, the percent change should be nan.
+            elif start_loc < cur_loc:
+                change = percent_change(start_val, cur_val)
+            else:
+                change = nan
+        else:
+            change = nan
+    df[key][index] = change
+    return df
+
 def fin_change(df, fig):
     #st_price = read.iat[0, read.columns.get_loc('close')]
     #en_price = read.iat[-1, read.columns.get_loc('close')]
 
-    df.index= pd.to_datetime(df.index)
+    #df.index= pd.to_datetime(df.index)
     if fig == 'fig':
         fields    = fin_year_fields
         datatypes = fin_year_fields_datatypes
@@ -1928,59 +1996,96 @@ def fin_change(df, fig):
     for c in cols:
         for i in range(len(durations)):
             key = '{}_{}'.format(c,fields[i])
-            key = key.replace(' ', '_')
+            key = key.replace('- ','').replace(' ', '_')
+            print(key)
             if key not in list(df.keys()):
                 df[key]=nan
             duration = durations[i]
             for index, d in df.iloc[1:].iterrows():
-                cur_val = d[c]
-                cur_date = pd.to_datetime(index).date()
-                #cur_loc = hdf5.get_nearest_index(df, cur_date)
-                cur_loc = df.index.get_loc(index)
+                df = fin_percent_change_row(key, index, c, d, df, duration)
+                #cur_val = d[c]
+                #cur_date = pd.to_datetime(index).date()
+                ##cur_loc = hdf5.get_nearest_index(df, cur_date)
+                #cur_loc = df.index.get_loc(index)
 
-                start_date = cur_date - duration
-                start_loc = hdf5.get_nearest_index(df, start_date)
-                if start_loc == cur_loc:
-                    change = 0
-                else:
-                    start_val = df.iloc[start_loc][c]
-                    if not isnan(start_val) and not isnan(cur_val):
-                        # Get the first non nan value and non-zero from the set of records
-                        if start_val == 0:
-                            start_loc = df[c].ne(0).idxmax()
-                            start_loc = df.index.get_loc(start_loc)
-                            start_val = df[c].iloc[start_loc]
+                #start_date = cur_date - duration
+                #start_loc = hdf5.get_nearest_index(df, start_date)
+                #if start_loc == cur_loc:
+                #    change = 0
+                #else:
+                #    # Get the first non nan value and non-zero from the set of records
+                #    start_val = df.iloc[start_loc][c]
+                #    if isnan(start_val):
+                #        start_index = df.iloc[start_loc:cur_loc+1][c].first_valid_index()
+                #        if start_index:
+                #            start_loc = df.index.get_loc(start_index)
+                #            #start_date = pd.to_datetime(start_index).date()
+                #            if start_loc is not None:
+                #                start_val = df.iloc[start_loc][c]
+                #            else:
+                #                start_val = nan
+                #        else:
+                #            start_val = nan
+                #    # Assuming a value of zero or nan means wrong value.
+                #    # Skip and ignore such values and take the most latest value
+                #    if start_val == 0:
+                #        #start_loc = df.iloc[start_loc:cur_loc+1][c].ne(0).idxmax()
+                #        nonzerodf = df.iloc[start_loc:cur_loc+1][c].ne(0)
+                #        start_loc = None
+                #        for i in nonzerodf.index:
+                #            if nonzerodf[i] == True: # dont use 'is True'
+                #                start_loc = df.index.get_loc(i)
+                #                break
+                #        #start_loc = df.index.get_loc(start_loc)
+                #        if start_loc is not None:
+                #            start_val = df[c].iloc[start_loc]
+                #        else:
+                #            # It means all column values are zero from start_loc to cur_loc
+                #            start_val = 0
+                #            start_loc = cur_loc
+                #    if not isnan(start_val) and not isnan(cur_val):
+                #        # If both are same her instead of in line 1946. It 
+                #        # means that there are zero and nan elements in the 
+                #        # actual start location which has caused the code to pick
+                #        # the first nonzero and non-nan elements.
+                #        # It couldn't find such element till the current location.
+                #        # In that case, the change will be same as cur_val.
+                #        if start_loc == cur_loc:
+                #            change = cur_val
+                #        # Sometimes, the first non-zero value loc is greater than cur_loc.
+                #        # In that case, the percent change should be nan.
+                #        elif start_loc < cur_loc:
+                #            change = percent_change(start_val, cur_val)
+                #        else:
+                #            change = nan
+                #    else:
+                #        change = nan
+                #df[key][index] = change
 
-                        # Sometimes, the first non-zero value loc is greater than cur_loc.
-                        # In that case, the percent change should be nan.
-                        if start_loc < cur_loc:
-                            change = percent_change(start_val, cur_val)
-                        else:
-                            change = nan
-                    else:
-                        change = nan
-                df[key][index] = change
-
+        # Whole Change Case
         key = '{}_{}'.format(c,fields[-1])
         key = key.replace(' ', '_')
         if key not in list(df.keys()):
             df[key]=nan
-
-        # Get the first non nan value and non-zero from the set of records
-        #start_val = df.loc[df[c].first_valid_index()][c]
-        start_loc = df[c].ne(0).idxmax()
-        start_loc = df.index.get_loc(start_loc)
-        start_val = df[c].iloc[start_loc]
+        print(key)
         for index, d in df.iloc[1:].iterrows():
-            # whole change
-            cur_loc = df.index.get_loc(index)
-            # Sometimes, the first non-zero value loc is greater than cur_loc.
-            # In that case, the percent change should be nan.
-            if start_loc < cur_loc:
-                change = percent_change(start_val, d[c])
-            else:
-                change = nan
-            df[key][index] = change
+            df = fin_percent_change_row(key, index, c, d, df)
+
+        ## Get the first non nan value and non-zero from the set of records
+        ##start_val = df.loc[df[c].first_valid_index()][c]
+        #start_loc = df[c].ne(0).idxmax()
+        #start_loc = df.index.get_loc(start_loc)
+        #start_val = df[c].iloc[start_loc]
+        #for index, d in df.iloc[1:].iterrows():
+        #    # whole change
+        #    cur_loc = df.index.get_loc(index)
+        #    # Sometimes, the first non-zero value loc is greater than cur_loc.
+        #    # In that case, the percent change should be nan.
+        #    if start_loc < cur_loc:
+        #        change = percent_change(start_val, d[c])
+        #    else:
+        #        change = nan
+        #    df[key][index] = change
 
     df.index = ret_index
     return df
