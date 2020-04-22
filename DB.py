@@ -1493,15 +1493,20 @@ def update_sector_info():
 
 def get_beta(country, sym, sdate, edate, df=None):
     betas = {}
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
     if df is None:
         try:
-            #from pandas_datareader.quandl import QuandlReader
-            #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
-            #print(df)
-            #df = hdf5.get_dataframe(country, sym, sdate, edate)
-            df = hdf5.read_from_hdf(country, sym, sdate, edate)
+            query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+            df = read_from_sql(query, sql_engine)
+
+            ##from pandas_datareader.quandl import QuandlReader
+            ##df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
+            ##print(df)
+            ##df = hdf5.get_dataframe(country, sym, sdate, edate)
+            #df = hdf5.read_from_hdf(country, sym, sdate, edate)
         except Exception as e:
-            print("Could not get data. Failed to calculate beta")
+            print("Could not get data for %s. Failed to calculate beta" %(sym))
+            close_sql_connection(sql_engine)
             return None
     if df.empty:
         return None
@@ -1517,9 +1522,17 @@ def get_beta(country, sym, sdate, edate, df=None):
         PRINT_ERROR("Unknown country. Unable to calculate beta for %s" %(sym))
         return betas
 
-    #dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
-    dfb = hdf5.read_from_hdf(country, bindex, pd.Timestamp(df.index[0]).date(), pd.Timestamp(df.index[-1]).date())
-    #dfb = hdf5.get_dataframe(country, bindex, sdate, edate)
+    try:
+        query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(bindex), df.index[0].strftime("%Y-%m-%d"), df.index[-1].strftime("%Y-%m-%d"))
+        dfb = read_from_sql(query, sql_engine)
+
+        ##dfb = hdf5.get_dataframe(country, bindex, df.index[0], df.index[-1])
+        #dfb = hdf5.read_from_hdf(country, bindex, pd.Timestamp(df.index[0]).date(), pd.Timestamp(df.index[-1]).date())
+        ##dfb = hdf5.get_dataframe(country, bindex, sdate, edate)
+    except Exception as e:
+        print("Could not get data for %s. Failed to calculate beta" %(bindex))
+        close_sql_connection(sql_engine)
+        return None
    
     # Calculate CAGR
     s_first = df['Adj Close'][0]
@@ -1650,10 +1663,12 @@ def get_beta(country, sym, sdate, edate, df=None):
     # Only for recession betas
     if edate != dt.now().date():
         try:
-            #from pandas_datareader.quandl import QuandlReader
-            #df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
-            #print(df)
-            df = hdf5.read_from_hdf(country, sym, edate)
+            query = 'select Date, `Adj Close` from {} where Date between \'{}\' and NOW()'.format(get_symbol_table_name(sym), df.index[-1].strftime("%Y-%m-%d"))
+            df = read_from_sql(query, sql_engine)
+            ##from pandas_datareader.quandl import QuandlReader
+            ##df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
+            ##print(df)
+            #df = hdf5.read_from_hdf(country, sym, edate)
             # Calculate CAGR
             s_first = df['Adj Close'][0]
             if isinstance(s_first, complex):
@@ -1668,7 +1683,9 @@ def get_beta(country, sym, sdate, edate, df=None):
         try:
             sdate = edate
             edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
-            df = hdf5.read_from_hdf(country, sym, sdate, edate)
+            query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+            df = read_from_sql(query, sql_engine)
+            #df = hdf5.read_from_hdf(country, sym, sdate, edate)
             # Calculate CAGR
             s_first = df['Adj Close'][0]
             if isinstance(s_first, complex):
@@ -1681,28 +1698,32 @@ def get_beta(country, sym, sdate, edate, df=None):
         except Exception as e:
             betas.update({"since_then_till_last_recession":nan})
  
+    close_sql_connection(sql_engine)
     return betas
     #print (stock, beta, alpha, r_squared, volatility, momentum)
     
 def update_stock_recession_betas(country, collection, doc, sym, df=None):
     years = recessions.keys()
-
+    since = doc['bscs']['since']
+    since_start = dt.strptime(since, "%Y-%m-%d").date()
+ 
     for year in years:
         try:
             #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
             if True:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
-                if 'end' in recessions[year].keys():
-                    en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
-                else:
-                    en_date = dt.now().date()
-                #print(st_date)
-                #print(en_date)
-                betas = get_beta(country, sym, st_date, en_date, df=None)
-                #print("Beta: %r" %(betas))
-                field="fig.betas.recession.%s" %(year)
-                collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+                if st_date >= since_start:
+                    if 'end' in recessions[year].keys():
+                        en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
+                    else:
+                        en_date = dt.now().date()
+                    #print(st_date)
+                    #print(en_date)
+                    betas = get_beta(country, sym, st_date, en_date, df=None)
+                    #print("Beta: %r" %(betas))
+                    field="fig.betas.recession.%s" %(year)
+                    collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
         except KeyError:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
@@ -1744,7 +1765,14 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #Since last recession
         betas = None
         year = sorted(recessions.keys())[-1]
-        st_date = dt.strptime(recessions['2007']['end'], "%d %B %Y").date()
+        #st_date = dt.strptime(recessions['2007']['end'], "%d %B %Y").date()
+        # If last recession has successfully ended, calculate betas from the end date of the
+        # recession. If not, that means the economy is still in recession. In that case,
+        # calculate from start date of the recession.
+        if 'end' in recessions[list(recessions.keys())[-1]].keys():
+            st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['end'], "%d %B %Y").date()
+        else:
+            st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
         en_date = dt.now().date()
         #print("Since last recession")
         #print(st_date)
@@ -1831,14 +1859,14 @@ def update_all_stock_betas(country):
     print("Total Stocks: %r" %(docs.count()))
 
     max_threads = multiprocessing.cpu_count() * thread_factor
-    sem = threading.BoundedSemaphore(max_threads)
+    #sem = threading.BoundedSemaphore(max_threads)
 
     for doc in docs:
         #if ignore_stock(doc):
         #    continue
-        sem.acquire()
-        update_stock_betas(country, collection, copy.deepcopy(doc), sem)
-        #threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc), sem,)).start()
+        #sem.acquire()
+        #update_stock_betas(country, collection, copy.deepcopy(doc))
+        threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc),)).start()
 
     time.sleep(10)
     close_db_client(c)
@@ -2011,64 +2039,6 @@ def fin_change(df, fig):
             duration = durations[i]
             for index, d in df.iloc[1:].iterrows():
                 df = fin_percent_change_row(key, index, c, d, df, duration)
-                #cur_val = d[c]
-                #cur_date = pd.to_datetime(index).date()
-                ##cur_loc = hdf5.get_nearest_index(df, cur_date)
-                #cur_loc = df.index.get_loc(index)
-
-                #start_date = cur_date - duration
-                #start_loc = hdf5.get_nearest_index(df, start_date)
-                #if start_loc == cur_loc:
-                #    change = 0
-                #else:
-                #    # Get the first non nan value and non-zero from the set of records
-                #    start_val = df.iloc[start_loc][c]
-                #    if isnan(start_val):
-                #        start_index = df.iloc[start_loc:cur_loc+1][c].first_valid_index()
-                #        if start_index:
-                #            start_loc = df.index.get_loc(start_index)
-                #            #start_date = pd.to_datetime(start_index).date()
-                #            if start_loc is not None:
-                #                start_val = df.iloc[start_loc][c]
-                #            else:
-                #                start_val = nan
-                #        else:
-                #            start_val = nan
-                #    # Assuming a value of zero or nan means wrong value.
-                #    # Skip and ignore such values and take the most latest value
-                #    if start_val == 0:
-                #        #start_loc = df.iloc[start_loc:cur_loc+1][c].ne(0).idxmax()
-                #        nonzerodf = df.iloc[start_loc:cur_loc+1][c].ne(0)
-                #        start_loc = None
-                #        for i in nonzerodf.index:
-                #            if nonzerodf[i] == True: # dont use 'is True'
-                #                start_loc = df.index.get_loc(i)
-                #                break
-                #        #start_loc = df.index.get_loc(start_loc)
-                #        if start_loc is not None:
-                #            start_val = df[c].iloc[start_loc]
-                #        else:
-                #            # It means all column values are zero from start_loc to cur_loc
-                #            start_val = 0
-                #            start_loc = cur_loc
-                #    if not isnan(start_val) and not isnan(cur_val):
-                #        # If both are same her instead of in line 1946. It 
-                #        # means that there are zero and nan elements in the 
-                #        # actual start location which has caused the code to pick
-                #        # the first nonzero and non-nan elements.
-                #        # It couldn't find such element till the current location.
-                #        # In that case, the change will be same as cur_val.
-                #        if start_loc == cur_loc:
-                #            change = cur_val
-                #        # Sometimes, the first non-zero value loc is greater than cur_loc.
-                #        # In that case, the percent change should be nan.
-                #        elif start_loc < cur_loc:
-                #            change = percent_change(start_val, cur_val)
-                #        else:
-                #            change = nan
-                #    else:
-                #        change = nan
-                #df[key][index] = change
 
         # Whole Change Case
         key = '{}_{}'.format(c,fields[-1])
@@ -2078,22 +2048,6 @@ def fin_change(df, fig):
         print(key)
         for index, d in df.iloc[1:].iterrows():
             df = fin_percent_change_row(key, index, c, d, df)
-
-        ## Get the first non nan value and non-zero from the set of records
-        ##start_val = df.loc[df[c].first_valid_index()][c]
-        #start_loc = df[c].ne(0).idxmax()
-        #start_loc = df.index.get_loc(start_loc)
-        #start_val = df[c].iloc[start_loc]
-        #for index, d in df.iloc[1:].iterrows():
-        #    # whole change
-        #    cur_loc = df.index.get_loc(index)
-        #    # Sometimes, the first non-zero value loc is greater than cur_loc.
-        #    # In that case, the percent change should be nan.
-        #    if start_loc < cur_loc:
-        #        change = percent_change(start_val, d[c])
-        #    else:
-        #        change = nan
-        #    df[key][index] = change
 
     df.index = ret_index
     return df
@@ -2259,6 +2213,12 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
 
     if 'balance-sheet' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['balance-sheet'], 'balance-sheet')
+        # Delete empty Columns
+        del df['Current Assets']
+        del df['Current Liabilities']
+        del df['Non-Current Assets']
+        del df['Non-Current Liabilities']
+
         df = fin_change(df, fig)
         #fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
         #df_cols=list(df.columns)
