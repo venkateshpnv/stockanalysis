@@ -690,6 +690,10 @@ def add_dcf_header(sheets, years, prices_only=False):
 
 def add_price_change_header(sheet, i, sheet_type):
     sheet.col(i).width = 6*367
+    sheet.write(0, i, "Since 2020 Recession", style_wrap)
+    conf.R2020=i
+    i = i + 1
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Yr Price Change", style_wrap)
     conf.YR_PR_CHANGE=i
     i = i + 1
@@ -1032,6 +1036,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     #Betas
     if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
     #if stk['fig']['betas']:
+        if '2020' in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession']['2020'] != None:
+            if 'Percent_Change' in stk['fig']['betas']['recession']['2020'].keys():
+                ash.write(conf.COUNT, conf.R2020, stk['fig']['betas']['recession']['2020']['Percent_Change'], style_percent)
         if stk['fig']['betas']['recession']['2007']:
             if '2007' in stk['fig']['betas']['recession'].keys():
                 try:
