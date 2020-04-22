@@ -83,6 +83,8 @@ Delete one record
 Delete a field
 > db.US_Stocks.update({"bscs.symbol":"WM"}, {$unset: {field_name:1}}, false, true)
 
+Mongod start
+  /usr/bin/mongod --unixSocketPrefix=/run/mongodb --config /etc/mongodb.conf
 Take Backup
   mongodump --db=Stocks --out=./dump
 Restore Backup
