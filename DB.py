@@ -1865,8 +1865,8 @@ def update_all_stock_betas(country):
         #if ignore_stock(doc):
         #    continue
         #sem.acquire()
-        #update_stock_betas(country, collection, copy.deepcopy(doc))
-        threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc),)).start()
+        update_stock_betas(country, collection, copy.deepcopy(doc))
+        #threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc),sem, )).start()
 
     time.sleep(10)
     close_db_client(c)
