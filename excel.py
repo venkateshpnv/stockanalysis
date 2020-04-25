@@ -465,6 +465,7 @@ def add_figs_growth_header(sheet, i, years):
     return i
 
 def add_betas_header(sheet, i):
+
     # Recession 2007 Beta
     sheet.col(i).width = 4*367
     sheet.write(0, i, "2007 Beta", style_wrap)
@@ -481,24 +482,6 @@ def add_betas_header(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "2007 Pure Alpha", style_wrap)
     conf.R2007_PURE_ALPHA=i
-
-    i+=1
-    # 2007 Index Percent Change
-    sheet.col(i).width = 7*367
-    sheet.write(0, i, "2007 Index Percent Change", style_wrap)
-    conf.R2007_IPER_CHG=i
-
-    i+=1
-    # 2007 Percent Change
-    sheet.col(i).width = 7*367
-    sheet.write(0, i, "2007 Percent Change", style_wrap)
-    conf.R2007_PER_CHG=i
-
-    i+=1
-    # 2007 Percent Change
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Since Last Recession", style_wrap)
-    conf.SINCE_LAST_PER_CHG=i
 
     i+=1
     # 2007 CAGR
@@ -692,6 +675,25 @@ def add_price_change_header(sheet, i, sheet_type):
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Since 2020 Recession", style_wrap)
     conf.R2020=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "2007 Percent Change", style_wrap)
+    conf.R2007_PER_CHG=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Since Then Till Last Recession", style_wrap)
+    conf.SINCE_LAST_PER_CHG=i
+
+    i = i + 1
+    # 2007 Index Percent Change
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "2007 Index Percent Change", style_wrap)
+    conf.R2007_IPER_CHG=i
+
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Yr Price Change", style_wrap)
@@ -1045,11 +1047,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
                     ash.write(conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
                     ash.write(conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
                     ash.write(conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
-                    ash.write(conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index Percent Change'], 2), style_percent)
-                    ash.write(conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent Change'], 2), style_percent)
+                    ash.write(conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index_Percent_Change'], 2), style_percent)
+                    ash.write(conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent_Change'], 2), style_percent)
                     ash.write(conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal)
                     ash.write(conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal)
-                    ash.write(conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['since_last_recession']['Percent_Change'], 2), style_decimal)
+                    ash.write(conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['recession']['2007']['since_then_till_last_recession'], 2), style_decimal)
                 except Exception:
                     pass
         if stk['fig']['betas']['whole']:
