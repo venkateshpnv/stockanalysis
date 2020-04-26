@@ -181,7 +181,7 @@ def mysql_exists_table(mysql_engine, table_name):
         return False
     return True
 
-def mysql_check_n_create_table(mysql_engine, table_name):
+def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False):
     if not mysql_exists_table(mysql_engine, table_name):
         print("Creating table: %r" %(table_name))
         query = 'create table '+ table_name + ' like test2;'
@@ -193,30 +193,41 @@ def mysql_get_columns(table):
     c = [i[0] for i in table.columns.items()]
     return c
 
-def mysql_add_column(mysql_engine, table_name, col_name, col_dtype):
-    query = 'alter table %s add column %s %s' %(table_name, col, col_dtype)
+def mysql_add_column(mysql_engine, table_name, col_name, col_dtype, remove_spaces=True):
+    if remove_spaces:
+        col_name = col_name.replace('- ','').replace(' ', '_')
+    query = 'alter table %s add column `%s` %s' %(table_name, col_name, col_dtype)
     mysql_engine.execute(query)
 
-def mysql_add_columns(mysql_engine, table_name, missing_cols):
+def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price'):
     unknown_fields = 0
-    for c in missing_cols:
-        if c in price_fields:
-            c_dtype = price_fields_datatypes[price_fields.index(c)]
+    if cols_type == 'price':
+        for c in sorted(missing_cols):
+            if c in price_fields:
+                c_dtype = price_fields_datatypes[price_fields.index(c)]
+                mysql_add_column(mysql_engine, table_name, c, c_dtype)
+            elif c in price_change_fields:
+                c_dtype = price_change_fields_datatypes[price_change_fields.index(c)]
+                mysql_add_column(mysql_engine, table_name, c, c_dtype)
+            elif c in fin_year_fields:
+                c_dtype = fin_year_fields_datatypes[fin_year_fields.index(c)]
+                mysql_add_column(mysql_engine, table_name, c, c_dtype)
+            elif c in fin_quarter_fields:
+                c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
+                mysql_add_column(mysql_engine, table_name, c, c_dtype)
+            else:
+                unknown_fields = unknown_fields + 1
+    else:
+        for c in sorted(missing_cols):
+            if c == 'Symbol' or c == 'Date':
+                c_dtype = 'varchar(12)'
+            else:
+                c_dtype = 'float'
+            print(c)
             mysql_add_column(mysql_engine, table_name, c, c_dtype)
-        elif c in price_change_fields:
-            c_dtype = price_change_fields_datatypes[price_change_fields.index(c)]
-            mysql_add_column(mysql_engine, table_name, c, c_dtype)
-        elif c in fin_year_fields:
-            c_dtype = fin_year_fields_datatypes[fin_year_fields.index(c)]
-            mysql_add_column(mysql_engine, table_name, c, c_dtype)
-        elif c in fin_quarter_fields:
-            c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
-            mysql_add_column(mysql_engine, table_name, c, c_dtype)
-        else:
-            unknown_fields = unknown_fields + 1
     return unknown_fields
 
-def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price'):
     if df.empty:
         return
     if 'Date.1' in list(df.columns):
@@ -227,35 +238,49 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False):
 
     try:
         metadata = MetaData()
-        table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
         if check:
-            mysql_check_n_create_table(mysql_engine, table_name)
-            table_cols = mysql_get_columns(table)
-            df_cols = list(df.columns)
+            mysql_check_n_create_table(mysql_engine, table_name, unknown_table)
+            table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+            raw_table_cols = mysql_get_columns(table)
+            table_cols = []
+            for c in raw_table_cols:
+                table_cols.append(c.replace('- ','').replace(' ', '_'))
+            raw_df_cols = list(df.columns)
+            df_cols = []
+            for c in raw_df_cols:
+                df_cols.append(c.replace('- ','').replace(' ', '_'))
+
             missing_cols = list(set(df_cols)-set(table_cols))
             if len(missing_cols) > 0:
-                miss = mysql_add_columns(mysql_engine, table_name, missing_cols)
+                print("Adding missing columns")
+                miss = mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type)
                 if miss > 0:
                     PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
                     PRINT_ERR("Columns: ",missing_cols)
                     sys.exit(1)
+        else:
+            table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
 
-        conn  = mysql_engine.connect()
-        for index, d in df.iterrows():
-            items = {}
-            key = str(pd.to_datetime(index).date())
-            for k in d.keys().to_list(): #Skip date, date.1
-                #if k != 'Date':
-                items[k]=d[k]
-                # TODO: Handle on conflict
-            if insert:
-                stmt=table.insert().values(items)
-            else:
-                stmt=table.update().where(table.c.Date==key).values(items)
-            conn.execute(stmt)
+        df.to_sql(name=table_name,con=mysql_engine,index=False,if_exists='append')
+        #conn  = mysql_engine.connect()
+        #for index, d in df.iterrows():
+        #    items = {}
+        #    key = str(pd.to_datetime(index).date())
+        #    for k in d.keys().to_list(): #Skip date, date.1
+        #        #if k != 'Date':
+        #        if d[k] != None:
+        #            items[k]=d[k]
+        #        # TODO: Handle on conflict
+        #    if insert:
+        #        stmt=table.insert().values(items)
+        #    else:
+        #        stmt=table.update().where(table.c.Date==key).values(items)
+        #    conn.execute(stmt)
+        print('Done')
     finally:
         del metadata
-        conn.close()
+        del table
+        #conn.close()
 
 def check_n_write_to_sql(engine, table, df, fields=None):
     #df['Date'] = df.index.strftime("%Y-%m-%d")
@@ -2187,9 +2212,15 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
     if fig == 'fig':
         fin_fields = fin_year_fields
         fin_durations = fin_year_price_durations
+        income_table = 'income_table'
+        balance_table = 'balance_table'
+        cash_table = 'cash_table'
     else:
         fin_fields = fin_quarter_fields
         fin_durations = fin_quarter_price_durations
+        income_table = 'income_quart_table'
+        balance_table = 'balance_quart_table'
+        cash_table = 'cash_quart_table'
 
     if fig not in stk.keys():
         print("No financial figures available. Exiting percent calculation")
@@ -2208,18 +2239,45 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
         #    if f in df_cols:
         #        available_cols.append(f)
         df = fin_change(df, fig)
-    
+        df['Date'] = df.index
+        df['Symbol'] = stk['bscs']['symbol']
+        cols = list(df.columns)
+        cols = cols[-2:]+cols[:-2]
+        df = df[cols]
+        new_cols = {}
+        for c in cols:
+            new_cols[c] = c.replace('- ','').replace(' ', '_')
+        df.rename(columns=new_cols, inplace=True)
+        df = df.where(pd.notnull(df), None) 
+        mysql_update_table(mysql_engine, income_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+        
        #check_n_write_to_sql(mysql_engine, stk['bscs']['symbol'], df, list(df.columns))
 
     if 'balance-sheet' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['balance-sheet'], 'balance-sheet')
         # Delete empty Columns
-        del df['Current Assets']
-        del df['Current Liabilities']
-        del df['Non-Current Assets']
-        del df['Non-Current Liabilities']
+        if 'Current Assets' in list(df.columns):
+            del df['Current Assets']
+        if 'Current Liabilities' in list(df.columns):
+            del df['Current Liabilities']
+        if 'Non-Current Assets' in list(df.columns):
+            del df['Non-Current Assets']
+        if 'Non-Current Liabilities' in list(df.columns):
+            del df['Non-Current Liabilities']
 
         df = fin_change(df, fig)
+        df['Date'] = df.index
+        df['Symbol'] = stk['bscs']['symbol']
+        cols = list(df.columns)
+        cols = cols[-2:]+cols[:-2]
+        df = df[cols]
+        new_cols = {}
+        for c in cols:
+            new_cols[c] = c.replace('- ','').replace(' ', '_')
+        df.rename(columns=new_cols, inplace=True)
+        df = df.where(pd.notnull(df), None) 
+        mysql_update_table(mysql_engine, balance_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+ 
         #fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
         #df_cols=list(df.columns)
 
@@ -2239,6 +2297,18 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
     if 'cash-flow' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
         df = fin_change(df, fig)
+        df['Date'] = df.index
+        df['Symbol'] = stk['bscs']['symbol']
+        cols = list(df.columns)
+        cols = cols[-2:]+cols[:-2]
+        df = df[cols]
+        new_cols = {}
+        for c in cols:
+            new_cols[c] = c.replace('- ','').replace(' ', '_')
+        df.rename(columns=new_cols, inplace=True)
+        df = df.where(pd.notnull(df), None) 
+        mysql_update_table(mysql_engine, cash_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+ 
         #fields=['Operating Cash Flow', 'PPE Investments', 'Free Cash Flow', 'Capital Expenditure']
         #df_cols=list(df.columns)
         #available_cols=[]
@@ -2256,15 +2326,15 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
 # like sales, profits, cash flows, tangible/total book value etc
 def update_all_US_fin_percent_change():
     db = open_db('Stocks')
-    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@10.0.0.12:3306/US_Stocks_Fin", pool_size=1)
+    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Fin", pool_size=1)
 
-    stocks = db.US_Stocks.find({'bscs.symbol':'AAPL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
         update_US_fin_percent_change(db, mysql_engine, stk, 'fig')
-        update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
+        #update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
 
     close_db()
     mysql_engine.dispose()
