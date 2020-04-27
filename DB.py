@@ -1969,6 +1969,9 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
     #cur_loc = hdf5.get_nearest_index(df, cur_date)
     cur_loc = df.index.get_loc(index)
    
+    if cur_val is None:
+        cur_val = nan
+
     if duration is None: # Whole percentage case
         start_loc = 0
         start_date = pd.to_datetime(df.index[0]).date()
@@ -1981,6 +1984,10 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
     else:
         # Get the first non nan value and non-zero from the set of records
         start_val = df.iloc[start_loc][c]
+
+        if start_val is None:
+            start_val = nan
+
         if isnan(start_val):
             nan_flag = True
             start_index = df.iloc[start_loc:cur_loc+1][c].first_valid_index()
@@ -2010,6 +2017,9 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
                 # It means all column values are zero from start_loc to cur_loc
                 start_val = 0
                 start_loc = cur_loc
+
+        if start_val is None:
+            start_val = nan
         if not isnan(start_val) and not isnan(cur_val):
             # If both are same her instead of in line 1946. It 
             # means that there are zero and nan elements in the 
@@ -2033,7 +2043,9 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
                 change = nan
         else:
             change = nan
-    df[key][index] = change
+    # vpetla
+    df.loc[index, key] = change
+    #df[key][index] = change
     return df
 
 def fin_change(df, fig):
@@ -2278,22 +2290,6 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
         df = df.where(pd.notnull(df), None) 
         mysql_update_table(mysql_engine, balance_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
  
-        #fields=['Total Current Assets', 'Total Non-Current Assets', 'Total Assets $M', 'Intangibles', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Long Term Debt $M', 'Common Shares']
-        #df_cols=list(df.columns)
-
-        ## Get available columns in the mongodb. Not all fields might be available
-        #available_cols=[]
-        #for f in fields:
-        #    if f in df_cols:
-        #        available_cols.append(f)
-        #bdf = copy.deepcopy(df[available_cols])
-        #del df
-
-        #renamed_cols = {}
-        #for c in available_cols:
-        #    renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
-        #bdf.rename(columns=renamed_cols, inplace=True)
-
     if 'cash-flow' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
         df = fin_change(df, fig)
@@ -2309,19 +2305,6 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
         df = df.where(pd.notnull(df), None) 
         mysql_update_table(mysql_engine, cash_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
  
-        #fields=['Operating Cash Flow', 'PPE Investments', 'Free Cash Flow', 'Capital Expenditure']
-        #df_cols=list(df.columns)
-        #available_cols=[]
-        #for f in fields:
-        #    if f in df_cols:
-        #        available_cols.append(f)
-        #cdf = df[available_cols]
-        #del df
-        #renamed_cols = {}
-        #for c in available_cols:
-        #    renamed_cols[c] = c.replace(' ','_') # Replace spaces with '_' for storing convinience in mysql
-        #bdf.rename(columns=renamed_cols, inplace=True)
-
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
 def update_all_US_fin_percent_change():
