@@ -227,7 +227,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price')
             mysql_add_column(mysql_engine, table_name, c, c_dtype)
     return unknown_fields
 
-def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price'):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False):
     if df.empty:
         return
     if 'Date.1' in list(df.columns):
@@ -245,6 +245,7 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
             table_cols = []
             for c in raw_table_cols:
                 table_cols.append(c.replace('- ','').replace(' ', '_'))
+
             raw_df_cols = list(df.columns)
             df_cols = []
             for c in raw_df_cols:
@@ -261,21 +262,23 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
         else:
             table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
 
-        df.to_sql(name=table_name,con=mysql_engine,index=False,if_exists='append')
-        #conn  = mysql_engine.connect()
-        #for index, d in df.iterrows():
-        #    items = {}
-        #    key = str(pd.to_datetime(index).date())
-        #    for k in d.keys().to_list(): #Skip date, date.1
-        #        #if k != 'Date':
-        #        if d[k] != None:
-        #            items[k]=d[k]
-        #        # TODO: Handle on conflict
-        #    if insert:
-        #        stmt=table.insert().values(items)
-        #    else:
-        #        stmt=table.update().where(table.c.Date==key).values(items)
-        #    conn.execute(stmt)
+        if temp:
+            df.to_sql(name=table_name,con=mysql_engine,index=False,if_exists='append')
+        else:
+            conn  = mysql_engine.connect()
+            for index, d in df.iterrows():
+                items = {}
+                key = str(pd.to_datetime(index).date())
+                for k in d.keys().to_list(): #Skip date, date.1
+                    #if k != 'Date':
+                    if d[k] != None:
+                        items[k]=d[k]
+                    # TODO: Handle on conflict
+                if insert:
+                    stmt=table.insert().values(items)
+                else:
+                    stmt=table.update().where(table.c.Date==key).values(items)
+                conn.execute(stmt)
         print('Done')
     finally:
         del metadata
@@ -2261,7 +2264,7 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
             new_cols[c] = c.replace('- ','').replace(' ', '_')
         df.rename(columns=new_cols, inplace=True)
         df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, income_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+        mysql_update_table(mysql_engine, income_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
         
        #check_n_write_to_sql(mysql_engine, stk['bscs']['symbol'], df, list(df.columns))
 
@@ -2288,7 +2291,7 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
             new_cols[c] = c.replace('- ','').replace(' ', '_')
         df.rename(columns=new_cols, inplace=True)
         df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, balance_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+        mysql_update_table(mysql_engine, balance_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
  
     if 'cash-flow' in stk[fig]['financial-statements'].keys():
         df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
@@ -2303,7 +2306,7 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
             new_cols[c] = c.replace('- ','').replace(' ', '_')
         df.rename(columns=new_cols, inplace=True)
         df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, cash_table, df, check=True, insert=True, unknown_table=True, cols_type='fin')
+        mysql_update_table(mysql_engine, cash_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
  
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
@@ -2315,9 +2318,11 @@ def update_all_US_fin_percent_change():
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
-        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        update_US_fin_percent_change(db, mysql_engine, stk, 'fig')
-        #update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
+        if i > 3319:
+        #if True:
+            print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            #update_US_fin_percent_change(db, mysql_engine, stk, 'fig')
+            update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
 
     close_db()
     mysql_engine.dispose()
