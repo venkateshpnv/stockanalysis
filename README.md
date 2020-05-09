@@ -88,6 +88,7 @@ Mongod start
 Take Backup
   mongodump --db=Stocks --out=./dump
 Restore Backup
+  mongorestore -d Stocks  ~/work/gdrive/mongodb_backup/Stocks
   mongorestore --dir /tmp/mongo/
 
 Duplicate Database
