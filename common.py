@@ -129,6 +129,17 @@ def lowest_3(a, b, c):
 
 import re
 
+def change_vpn():
+    cmd="hotspotshield locations | cut -f 1 -d ' ' | shuf -n 1"
+    s=subprocess.check_output(cmd, shell=True)
+    loc = str(s)[2:].split("\\")[0]
+    print("Changing to location %s" %(loc))
+    cmd='hotspotshield connect %s' %(loc)
+    subprocess.check_output('hotspotshield disconnect', shell=True)
+    time.sleep(1)
+    subprocess.check_output(cmd, shell=True)
+    time.sleep(1)
+
 # Get last date of financial statements
 def get_last_date(stk, dates, fmt):
     if 'date' in dates:
