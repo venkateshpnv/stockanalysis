@@ -133,7 +133,45 @@ db.US_Stocks.createIndex({ "$**": "text" },{ name: "TextIndex" })
 MYSQL
 =====
 CREATE
- 
+
+select Date, FORMAT(Free_Cash_Flow,2) as Free_Cash_Flow, FORMAT(Common_Stock_Issued,2) as Common_Stock, FORMAT(Debt_Issued,2) as Debt_Issued, FORMAT(Debt_Repayment,2) as Debt_Paid from cash_table
+where Symbol='MFA';
+
+mysql> select Date, FORMAT(Sales,2) as Sales, FORMAT(Operating_Expenses,2) as Operating_Expenses, FORMAT(Total_expenses,2) as Total_expenses, FORMAT(Gross_Profit,2) as Gross_Profit, FORMAT(`Net_Income_$M
+`,2) as Net_Income, FORMAT(Ebitda,2) as Ebitda, FORMAT(`Interest_expense_(net_of_interest_income)`,2) as Interest_Expense from income_table where Symbol='MFA'; 
+
+select FORMAT(`Total_Assets_$M`,2) as Tot_Assets, FORMAT(Total_Liabilities,2) as Tot_Liabilities, FORMAT(Total_Current_Assets,2) as Tot_Cur_Assets, FORMAT(Total_Current_Liabilities,2) as Tot_Cur_Liablilities, FORMAT(`Long_Term_Debt_$M`,2) as LongTerm_Debt, FORMAT(`Short_Term_Debt`,2) as ShortTerm_Debt, FORMAT(`PPE_Gross`,2) as PPE, FORMAT(`Intangibles`,2) as Intangibles, FORMAT(`Cash_&_Cash_Equivalents`,2) as Cash, FORMAT(`Common_Shares`,2) as Common_Shares, FORMAT(`Shares_Outstanding,_K`,2) as Tot_Shares from balance_table where Symbol='MFA';
+
+
+ysql> DELIMITER $$
+mysql> CREATE PROCEDURE cash_quart(IN sym CHAR(12)) BEGIN   select Date, FORMAT(Free_Cash_Flow,2) as Free_Cash_Flow, FORMAT(Common_Stock_Issued,2) as Common_Stock, FORMAT(Debt_Issued,2) as Debt_Issued, FORMAT(Debt_Repayment,2) as Debt_Paid from cash_quart_table where Symbol=sym;
+    -> END $$
+mysql> DELIMITER ;
+
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE income(IN sym CHAR(12)) BEGIN   select Date, FORMAT(Sales,2) as Sales, FORMAT(Operating_Expenses,2) as Operating_Expenses, FORMAT(Total_expenses,2) as Total_expenses, FORMAT(Gross_Profit,2) as Gross_Profit, FORMAT(`Net_Income_$M`,2) as Net_Income, FORMAT(Ebitda,2) as Ebitda, FORMAT(`Interest_expense_(net_of_interest_income)`,2) as Interest_Expense from income_table where Symbol=sym; END$$
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> DELIMITER ;
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE balance(IN sym CHAR(12))
+    -> BEGIN
+    ->   select FORMAT(`Total_Assets_$M`,2) as Tot_Assets, FORMAT(Total_Liabilities,2) as Tot_Liabilities, FORMAT(Total_Current_Assets,2) as Tot_Cur_Assets, FORMAT(Total_Current_Liabilities,2) as Tot_Cur_Liablilities, FORMAT(`Long_Term_Debt_$M`,2) as LongTerm_Debt, FORMAT(`Short_Term_Debt`,2) as ShortTerm_Debt, FORMAT(`PPE_Gross`,2) as PPE, FORMAT(`Intangibles`,2) as Intangibles, FORMAT(`Cash_&_Cash_Equivalents`,2) as Cash, FORMAT(`Common_Shares`,2) as Common_Shares, FORMAT(`Shares_Outstanding,_K`,2) as Tot_Shares from balance_table where Symbol=sym;
+    -> END $$
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> DELIMITER ;
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE balance_quart(IN sym CHAR(12)) BEGIN   select FORMAT(`Total_Assets_$M`,2) as Tot_Assets, FORMAT(Total_Liabilities,2) as Tot_Liabilities, FORMAT(`Long_Term_Debt_$M`,2) as LongTerm_Debt, FORMAT(`Short_Term_Debt`,2) as ShortTerm_Debt, FORMAT(`PPE_Gross`,2) as PPE, FORMAT(`Intangibles`,2) as Intangibles, FORMAT(`Cash_&_Cash_Equivalents`,2) as Cash, FORMAT(`Common_Shares`,2) as Common_Shares, FORMAT(`Shares_Outstanding,_K`,2) as Tot_Shares from balance_quart_table where Symbol=sym; END$$
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> DELIMITER ;
+mysql> call balance_quart('MFA');
+
+
 PyMongo python package
 ======================
 Read all documents one by one
@@ -168,3 +206,7 @@ SSH to VM
 .\VBoxManage.exe showvminfo "ubuntu VM"
 
 rclone mount petlafingdrive: ~/gdrive
+
+
+curl -s --compressed 'ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt' > nasdaq.txt
+https://datahub.io/core/nyse-other-listings
