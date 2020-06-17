@@ -18,6 +18,8 @@ from email.mime.text import MIMEText
 
 import multiprocessing
 import threading
+import urllib3
+import OpenSSL
 
 import gc
 
@@ -301,11 +303,12 @@ def nullify_price_change_errors():
     finally:
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
- 
+
 def update_price_change(country, collection, sym, sem, sql_engine):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
     table_name = DB.get_symbol_table_name(sym)
+    change = 0
 
     wdf = pd.DataFrame(columns=['Date']+price_change_fields) 
 
@@ -847,7 +850,7 @@ def price_surprises(country, change_percent, criteria, db_type, excel_type):
         xl.save(excel_file)
 
 
-def get_price_volume(stk, country):
+def get_price_volume(stk, country, vpn_event=None):
     #data = pdr.get_data_yahoo(symbols=stk['bscs']['symbol'], start=dt(2019,4,15), end=dt(2019,4,18))
     #stk['bscs']['price']  = round(float(data.iat[-1, data.columns.get_loc('Adj Close')]), 2)
     #vol = data[['Volume']]
@@ -860,52 +863,106 @@ def get_price_volume(stk, country):
 
     symbol = stk['bscs']['symbol'].replace('.','-')
 
-    try:
-        if country == 'India':
-            d = data.get_quote_yahoo(symbol+'.BO')
-        elif country == 'US':
-            d = data.get_quote_yahoo(symbol)
-        else:
-            PRINT_ERR("Unknown Country Name")
-            return None
-    except KeyError:
-        PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
-        return None
-    except pdr._utils.RemoteDataError:
-        PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
-        return None
-    except IndexError:
-        PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
-        return None
-    try:
-        # Add moving average etc. Refer /tmp/test.csv for details
-        if 'regularMarketVolume' in d.keys():
-            stk['bscs']['volume'] = (d['regularMarketVolume'][0])
-        elif 'averageDailyVolume3Month' in d.keys():
-            stk['bscs']['volume'] = (d['averageDailyVolume3Month'][0])
-        else:
-            stk['bscs']['volume'] = 0
-        if 'marketCap' in d.keys():
+    retries = 0
+    conn_retries = 0
+    while True:
+        try:
+            if vpn_event and vpn_event.is_set() is False:
+                print("**** %s: Waiting..  VPN is changing" %(symbol))
+                vpn_event.wait()
+                print("**** %s: Waking up" %(symbol))
+
             if country == 'India':
-                stk['bscs']['mcap']   = float(d['marketCap'][0])/10000000 # in crores
+                d = data.get_quote_yahoo(symbol+'.BO')
+            elif country == 'US':
+                d = data.get_quote_yahoo(symbol)
             else:
-                stk['bscs']['mcap']   = float(d['marketCap'][0])/1000000 # in millions
-        else:
-            stk['bscs']['mcap'] = 0
+                PRINT_ERR("Unknown Country Name")
+                return None
+        except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
+            PRINT_ERR("internet: %s:  Error, retrying" %(symbol))
+            if vpn_event:
+                if retries  > 5:
+                    PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
+                    DB.update_price_failcount(stk, country)
+                    return None
+                if vpn_event.is_set() is False:
+                    print("**** %s: 2DF: Waiting..  VPN is changing" %(symbol))
+                    vpn_event.wait()
+                    print("**** %s: 2DF: Waking up" %(symbol))
+                    continue
+                else: 
+                    time.sleep(5)
+                    vpn_event.clear()
+                    print("**** %s: VPN Changing: Sent Wait Event" %(symbol))
+                    change_vpn()
+                    vpn_event.set()
+                    print("**** %s: VPN Changed: Sending Wakeup Event" %(symbol))
+                    retries = retries + 1
+                    continue
+            else:
+                if retries  > 5:
+                    PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
+                    DB.update_price_failcount(stk, country)
+                    return None
+                retries = retries + 1
+                time.sleep(2)
+                continue
+        #except (urllib3.exceptions.NewConnectionError, OpenSSL.SSL.SysCallError) as E:
+        except Exception as E:
+            if conn_retries > 5:
+                PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
+                return None
+            PRINT_ERR("%s: Connection Error, retrying" %(symbol))
+            time.sleep(1)
+            conn_retries = conn_retries + 1
+            continue
+ 
+        #except pdr._utils.RemoteDataError:
+        #    PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
+        #    if retries  > 5:
+        #        return None
+        #    change_vpn()
+        #    retries = retries + 1
+        #    continue
+        #except IndexError:
+        #    PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
+        #    if retries  > 5:
+        #        return None
+        #    change_vpn()
+        #    retries = retries + 1
+        #    continue
+        try:
+            # Add moving average etc. Refer /tmp/test.csv for details
+            if 'regularMarketVolume' in d.keys():
+                stk['bscs']['volume'] = (d['regularMarketVolume'][0])
+            elif 'averageDailyVolume3Month' in d.keys():
+                stk['bscs']['volume'] = (d['averageDailyVolume3Month'][0])
+            else:
+                stk['bscs']['volume'] = 0
+            if 'marketCap' in d.keys():
+                if country == 'India':
+                    stk['bscs']['mcap']   = float(d['marketCap'][0])/10000000 # in crores
+                else:
+                    stk['bscs']['mcap']   = float(d['marketCap'][0])/1000000 # in millions
+            else:
+                stk['bscs']['mcap'] = 0
 
-        stk['bscs']['price']  = (d.price.to_list()[0])
-        if 'sharesOutstanding' in d.keys():
-            stk['bscs']['outstanding_shares'] = d['sharesOutstanding'][0]
-        else:
-            stk['bscs']['outstanding_shares'] = 0
+            stk['bscs']['price']  = (d.price.to_list()[0])
+            if 'sharesOutstanding' in d.keys():
+                stk['bscs']['outstanding_shares'] = d['sharesOutstanding'][0]
+            else:
+                stk['bscs']['outstanding_shares'] = 0
 
-    except AttributeError as e:
-        if 'outstanding_shares' not in stk['bscs'].keys():
-            stk['bscs']['outstanding_shares'] = 0
-        if 'volume' not in stk['bscs'].keys():
-            stk['bscs']['volume'] = 0
-        PRINT_ERR(str(e))
-        PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
+        except AttributeError as e:
+            if 'outstanding_shares' not in stk['bscs'].keys():
+                stk['bscs']['outstanding_shares'] = 0
+            if 'volume' not in stk['bscs'].keys():
+                stk['bscs']['volume'] = 0
+            PRINT_ERR(str(e))
+            PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
+        break
+    print("internet: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
     return stk
 
 def get_price_growth(country, stk, years, data_type):
@@ -2053,6 +2110,7 @@ def get_page_with_check(url):
 def get_pages(path, symbol, statement_type, duration_type):
     print(statement_type, duration_type)
     i=1
+    trials = 0
     while True:
         url = "https://www.barchart.com/stocks/quotes/%s/%s/%s?reportPage=%s" %(symbol, statement_type, duration_type, i)
         html_file = "%s/%s_%s_%s_%s.html" %(path, symbol, statement_type, duration_type, i)
@@ -2078,9 +2136,16 @@ def get_pages(path, symbol, statement_type, duration_type):
             break
  
         if '403 ERROR' in html_page:
-            PRINT_ERR("*********************** Access to Barchart blocked ******************")
-            PRINT_ERR("exiting")
-            sys.exit(1)
+            PRINT_ERR("*********************** Access to Barchart blocked ******************, changing VPN")
+            time.sleep(5)
+            change_vpn()
+            trials = trials + 1
+            if trials > 5:
+                PRINT_ERR("Changing VPN didn't work")
+                PRINT_ERR("exiting")
+                sys.exit(1)
+            else:
+                continue
 
         write_to_file(html_page, html_file)
         i = i + 1

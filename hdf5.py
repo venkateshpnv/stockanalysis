@@ -29,15 +29,62 @@ India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_
 lock = threading.Lock()
 US_Cal = get_calendar('USFederalHolidayCalendar')
 
-def get_stock_data(country, symbol, start, end):
-    try:
-        if country == 'India' and symbol not in India_indices.keys():
-            symbol = symbol + '.BO'
-        df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=5)
-        df = df.astype('float64')
-    except Exception as E:
-        PRINT_ERR(str(E))
-        return pd.DataFrame()
+def get_stock_data(country, stk, start, end, vpn_event=None):
+    retries = 0
+    conn_retries = 0
+    df = pd.DataFrame()
+    symbol = stk['bscs']['symbol'].replace('.','-')
+    while True:
+        try:
+            if vpn_event and vpn_event.is_set() is False:
+                print("**** %s: DF: Waiting..  VPN is changing" %(symbol))
+                vpn_event.wait()
+                print("**** %s: DF: Waking up" %(symbol))
+
+            if country == 'India' and symbol not in India_indices.keys():
+                symbol = symbol + '.BO'
+            df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=5)
+            df = df.astype('float64')
+        except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
+            if vpn_event:
+                if retries  > 5:
+                    PRINT_ERR("Unable to get DF for %s"%(symbol))
+                    DB.update_price_failcount(stk, country, df=True)
+                    break
+                if vpn_event.is_set() is False:
+                    print("**** %s: DF: Waiting..  VPN is changing" %(symbol))
+                    vpn_event.wait()
+                    print("**** %s: DF: Waking up" %(symbol))
+                    continue
+                else:
+                    time.sleep(5)
+                    vpn_event.clear()
+                    print("**** %s: VPN Changing: Sent Wait Event" %(symbol))
+                    change_vpn()
+                    vpn_event.set()
+                    print("**** %s: VPN Changed: Sending Wakeup Event" %(symbol))
+                    retries = retries + 1
+                    continue
+            else:
+                if retries  > 5:
+                    PRINT_ERR("Unable to get DF for %s"%(symbol))
+                    DB.update_price_failcount(stk, country, df=True)
+                    break
+                retries = retries + 1
+                time.sleep(2)
+                print("**** %s: DF: Retrying to get stock data" %(symbol))
+                continue
+ 
+        #except (urllib3.exceptions.NewConnectionError, OpenSSL.SSL.SysCallError) as E:
+        except Exception as E:
+            if conn_retries > 5:
+                PRINT_ERR("Unable to get DF for %s"%(symbol))
+                break
+            PRINT_ERR("%s: Connection Error, retrying" %(symbol))
+            time.sleep(1)
+            conn_retries = conn_retries + 1
+            continue
+        break
     return df
 
 def get_hdf_store_path(country):
@@ -819,7 +866,7 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
-def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, sem):
+def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, sem, vpn_event=None):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
@@ -848,7 +895,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
         if symbol not in symbols:
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             print("New symbol: getting data for %r from yahoo" %(stk['bscs']['symbol']))
-            df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+            df = get_stock_data(country, stk, start, end, vpn_event)
             #df = remove_df_duplicates(df)
             if not df.empty:
                 #df['Symbol'] = symbol
@@ -919,7 +966,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
                 #print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
                 #s=time.time()
-                df = get_stock_data(country, stk['bscs']['symbol'].replace('.','-'), start, end)
+                df = get_stock_data(country, stk, start, end, vpn_event)
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
                 #df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
@@ -952,7 +999,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
-                        threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
+                        #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                         #print("Wrote to sql prices for %r" %(symbol))

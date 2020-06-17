@@ -2,9 +2,10 @@ from inspect import currentframe
 import os
 import pprint
 import shutil
+import subprocess
+import time
 
 # Date
-import datetime
 from datetime import datetime as dt, timedelta
 from dateutil.relativedelta import relativedelta
 from datetime import date
@@ -130,15 +131,38 @@ def lowest_3(a, b, c):
 import re
 
 def change_vpn():
-    cmd="hotspotshield locations | cut -f 1 -d ' ' | shuf -n 1"
-    s=subprocess.check_output(cmd, shell=True)
-    loc = str(s)[2:].split("\\")[0]
-    print("Changing to location %s" %(loc))
-    cmd='hotspotshield connect %s' %(loc)
-    subprocess.check_output('hotspotshield disconnect', shell=True)
-    time.sleep(1)
-    subprocess.check_output(cmd, shell=True)
-    time.sleep(1)
+    retries = 0
+    while True:
+        try:
+            while True:
+                cmd="hotspotshield locations | cut -f 1 -d ' ' | shuf -n 1"
+                s=subprocess.check_output(cmd, shell=True)
+                loc = str(s)[2:].split("\\")[0]
+                if loc.find('-') == -1:
+                    break
+
+            print("%s: Changing to location %s" %(dt.today(), loc))
+            ret = subprocess.check_output('hotspotshield disconnect', shell=True)
+            time.sleep(2)
+            cmd = 'hotspotshield connect %s' %(loc)
+            ret = subprocess.check_output(cmd, shell=True)
+            #ret=b''
+            if ret.decode("utf-8") != '':
+                if retries > 5:
+                    break
+                print('Failed changing vpn... retrying')
+                retries = retries + 1
+                time.sleep(15)
+                continue
+            #time.sleep(1)
+        except subprocess.CalledProcessError:
+            if retries > 5:
+                break
+            retries = retries + 1
+            time.sleep(15)
+            continue
+        time.sleep(5)
+        break
 
 # Get last date of financial statements
 def get_last_date(stk, dates, fmt):
@@ -248,3 +272,22 @@ def percent_change(st_price, en_price):
 			percentChange = float(abs(en_price - st_price)/abs(st_price))
 	
 	return percentChange
+
+def get_latest_figure(stk, statement_type, figure):
+    if 'fig' in stk.keys():
+        if 'financial-statements' in stk['fig'].keys():
+            if statement_type in stk['fig']['financial-statements'].keys():
+                years = list(stk['fig']['financial-statements'][statement_type].keys())
+                dates = []
+                for d in years:
+                    if d != 'date':
+                        dates.append(dt.strptime(d, "%m-%Y").date())
+                dates = sorted(dates,reverse=True)
+                if len(dates) > 0:
+                    latest_date = dates[0].strftime('%m-%Y')
+                    if latest_date in stk['fig']['financial-statements'][statement_type].keys():
+                        if figure in stk['fig']['financial-statements'][statement_type][latest_date].keys():
+
+                            return stk['fig']['financial-statements']['income-statement'][latest_date][figure]/1000
+
+    return None
