@@ -412,10 +412,13 @@ price_change_fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Cha
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
 price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
+beta_change_fields = ['Month_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
+beta_change_durations = [relativedelta(months=1), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+
 fin_year_fields = ['yoy', 'yo3y', 'yo5y', 'yo10y', 'yowy']
 fin_year_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_year_price_durations = [relativedelta(years=1), relativedelta(years=3), relativedelta(years=5), relativedelta(years=10)]
 
-fin_quarter_fields = ['qoq', 'qo2q', 'qo4q', 'qo6q', 'qo8q', 'qowq']
+fin_quarter_fields = ['qoq', 'qo2q', 'qo4q', 'qo6q', 'qowq']
 fin_quarter_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_quarter_price_durations = [relativedelta(months=3), relativedelta(months=6), relativedelta(months=12), relativedelta(months=24)]
