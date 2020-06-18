@@ -52,16 +52,19 @@ from cassandra import ConsistencyLevel
 
 thread_factor=4
 
-def open_sql_connection(ip, user, passwd, port=3036, db=None):
-    connection_string="mysql+pymysql://"+user+":"+passwd+"@"+ip+":"+str(port)
-    mysql_engine = None
-    if db:
-        connection_string = connection_string + "/" + db
+def open_sql_connection(ip, user, passwd, port=3306, db=None):
     max_threads = multiprocessing.cpu_count() * thread_factor
     try:
-        mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks", pool_size=max_threads*4)
-    #return sqlalchemy.create_engine(connection_string, pool_size=max_threads)
-    #return sqlalchemy.create_engine("mysql+pymysql://vpetla:petla123@localhost:3306/Stocks", pool_size=max_threads)
+        mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}'.format(user, passwd, ip, port), pool_size=max_threads*4)
+        if db:
+            existing_databases = mysql_engine.execute("SHOW DATABASES;")
+            existing_databases = [d[0] for d in existing_databases]
+            if db not in existing_databases:
+                mysql_engine.execute("CREATE DATABASE {0}".format(db))
+            #mysql_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db))
+            mysql_engine.dispose()
+            mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}/{4}'.format(user, passwd, ip, port, db), pool_size=max_threads*4)
+
     except Exception as E:
         print("%r" %(str(E)))
         sys.exit(1)
@@ -184,10 +187,15 @@ def mysql_exists_table(mysql_engine, table_name):
 def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False):
     if not mysql_exists_table(mysql_engine, table_name):
         print("Creating table: %r" %(table_name))
-        query = 'create table '+ table_name + ' like test2;'
-        mysql_engine.execute(query)
-        #query = 'alter table ' + table +' add index(Date);'
+        #query = 'create table '+ table_name + ' like test2;'
         #mysql_engine.execute(query)
+        ##query = 'alter table ' + table +' add index(Date);'
+        ##mysql_engine.execute(query)
+        if unknown_table:
+            query = 'create table '+ table_name + ' (`Symbol` varchar(12) NOT NULL, `Date` varchar2(12) NOT NULL, PRIMARY KEY(`Symbol`, `Date`)'
+        else:
+            query = 'create table '+ table_name + ' (`Date` varchar(12) NOT NULL, PRIMARY KEY(`Date`)'
+        mysql_engine.execute(query)
 
 def mysql_get_columns(table):
     c = [i[0] for i in table.columns.items()]
@@ -479,9 +487,11 @@ def get_stock_from_db(country, sym):
     close_db_client(c)
     return stk[0]
  
-def update_since_dataframe(country, collection, stk):
+def update_since_dataframe(mysql_engine, table_name, collection, stk):
     #df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
-    df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
+    #df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
+    query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
+    df = read_from_sql(query, mysql_engine)
     if not df.empty:
         stk['bscs']['since'] = str(df.index[0].date())
         update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
@@ -864,7 +874,7 @@ def update_db_price_volume(collection, stk):
 
 j=0
 
-def fork_db_process(country, sem, lock):
+def fork_db_process(country, sem, lock, vpn_event=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
@@ -872,35 +882,52 @@ def fork_db_process(country, sem, lock):
     if num_docs == 0:
         return
 
-    today=str(dt.now().date())
-    #Randomly get all records whose price is not updated till today
-    #pipeline = [{'$sample': {'size':num_docs}},
-    #            {'$match' : {"bscs.price_date": {'$ne':today}}},
-    #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
-    #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
-    #            ]
+    try:
+        today=str(dt.now().date())
+        #Randomly get all records whose price is not updated till today
+        #pipeline = [{'$sample': {'size':num_docs}},
+        #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+        #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
+        #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
+        #            ]
  
-    #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-    #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    i=0
-    for stk in stocks:
-        #if ignore_stock(stk):
+        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        i=0
+        for stk in stocks:
+            #if ignore_stock(stk):
+            #    continue
+            #print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
+                continue
+
+            if vpn_event:
+                while vpn_event.is_set() is False:
+                    continue
+
+            sem.acquire()
+            print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+            #update_stk_bscs_db(country, db, stk, sem, lock, vpn_event)
+            threading.Thread(target=update_stk_bscs_db, args=(country, db, copy.deepcopy(stk), sem, lock,vpn_event)).start()
+            i = i + 1
+            #break
+    finally:
+        # Wait till all threads are completed. You can use join() instead.
+        # But need to track threads and update variables.
+        # Simplest way is to wait for tentative time taken for the end threads to complete
+        # Randomly estimated it to be 10 sec and it perfectly works.
+        #while threading.active_count() > 0:
+        #    print("Waiting for all threads  %r to join" %(threading.active_count()))
+        #    time.sleep(5)
         #    continue
-        #print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-        if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
-            continue
- 
-        sem.acquire()
-        print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-        #update_stk_bscs_db(country, db, stk, sem, lock)
-        threading.Thread(target=update_stk_bscs_db, args=(country, db, copy.deepcopy(stk), sem, lock,)).start()
-        i = i + 1
-        #break
-    close_db_client(c)
+        #if t:
+        #    t.join()
+        time.sleep(60)
+        close_db_client(c)
     print("DB Process Stocks tried :%r"%(i))
 
-def fork_hdf5_process(country, sem):
+def fork_hdf5_process(country, sem, vpn_event=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
@@ -932,8 +959,8 @@ def fork_hdf5_process(country, sem):
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
             sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
-            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,)).start()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
+            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event)).start()
 
         # Randomly get all records whose price is not updated till today
         #pipeline = [{'$sample': {'size':num_docs}},
@@ -959,8 +986,8 @@ def fork_hdf5_process(country, sem):
                 continue
             print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem)
-            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem,))
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
+            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
             t.start()
             i = i + 1
 
@@ -969,21 +996,46 @@ def fork_hdf5_process(country, sem):
         # But need to track threads and update variables.
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
-        time.sleep(30)
+        time.sleep(60)
         #if t:
         #    t.join()
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
 
+def update_price_failcount(stk, country, df=False):
+    failcount = 1
+    c = open_db_client()
+    db = c['Stocks']
+    collection = get_collection(country, db)
+    if df:
+        price_failcount='mysql_price_failcount'
+        field = 'bscs.mysql_price_failcount'
+    else:
+        price_failcount='price_failcount'
+        field = 'bscs.price_failcount'
 
+    if 'bscs' in stk.keys() and price_failcount in stk['bscs'].keys():
+        failcount = failcount + stk['bscs'][price_failcount]
+   
+    print("%s: Updating %s for field %s" %(stk['bscs']['symbol'], failcount, field))
+    update_field(collection, stk['bscs']['symbol'], field, failcount)
+    
+    # Ignore the stk for future purposes if failed to get data
+    # for more than 10 times.
+    if failcount > 10:
+        if stk['bscs']['trading'] == 'Yes' or stk['bscs']['trading'] == 'YES':
+            update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
+            update_field(collection, stk['bscs']['symbol'], "bscs.trading_stop_date", str(dt.now().date()))
+ 
 # Update price, mcap, volume etc
-def update_stk_bscs_db(country, db, stk, sem, lock):
+def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
     global j
     failcount=1
     try:
         today=str(dt.now().date())
-        stock = internet.get_price_volume(copy.deepcopy(stk), country)
+        stock = internet.get_price_volume(copy.deepcopy(stk), country, None)
+        #stock = internet.get_price_volume(copy.deepcopy(stk), country, vpn_event)
         collection = get_collection(country, db)
         if stock:
             # Update price and volume to db
@@ -1006,6 +1058,9 @@ def update_all_price_volume_db(country):
     max_threads = multiprocessing.cpu_count() * thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
+    #vpn_event = threading.Event()
+    #vpn_event.set()
+    vpn_event=None
     db_lock = threading.Lock()
     today=str(dt.now().date())
     count=0
@@ -1015,10 +1070,10 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
-    #fork_hdf5_process(country, hdf5_sem)
-    #fork_db_process(country, db_sem, db_lock)
-    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,))
-    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock,))
+    #fork_hdf5_process(country, hdf5_sem, vpn_event)
+    #fork_db_process(country, db_sem, db_lock, vpn_event)
+    hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,vpn_event))
+    db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock, vpn_event))
     try:
         hdf5_process.start()
         db_process.start()
@@ -1287,7 +1342,44 @@ def get_US_Stock_list():
     f.write(wb.content)
     f.close()
 
+def update_symbol_name_changes():
+    #First get total number of web pages with symbol changes
+    br = open_browser('headless')
+    url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
+    br.get(url)
+    page = br.page_source
+    soup = get_soup(page)
+    last_page = soup.find(id='two_column_main_content_lb_LastPage')
+    last_page = last_page.attrs.get('href')
+    pages = re.split(r'page=', last_page)
+    if len(pages) > 1:
+        last_page = pages[-1]
+    else:
+        last_page = 1
+    close_browser(br)
+
+    # Retrieve and form a dataframe of all symbol changes.
+    df = pd.DataFrame()
+    for i in range(last_page):
+        url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
+        rdf = pd.read_html(url)
+        df.append(rdf[0])
+
+    cols = list(df.columns)
+    new_cols = {}
+    for c in cols:
+        new_cols[c] = c.replace(' ', '_')
+    df.rename(columns=new_cols, inplace=True)
+ 
+    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Changes", pool_size=1)
+    if mysql_exists_table(mysql_engine, 'Symbol_Changes'):
+        query = 'select * from {}'.format('Symbol_Changes')
+        ddf = read_from_sql(query, mysql_engine)
+        del ddf['updated']
+    df = df[~df.index.isin(df.index)]
+ 
 def build_US_All_Stocks_List():
+    update_symbol_name_changes()
     get_US_Stock_list()
     new_stocks = [] 
     head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
@@ -1307,83 +1399,91 @@ def build_US_All_Stocks_List():
     return len(new_stocks)
 
 def update_US_stock_statement(col, stk, statement_type, duration_type):
-    print(statement_type,duration_type)
+    trials = 0
+    while True:
+        print(statement_type,duration_type)
 
-    #path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(stk['bscs']['name'])
-    symbol = stk['bscs']['symbol']
-    if duration_type == 'annual':
-        fig = 'fig'
-    else:
-        fig = 'quart_fig'
+        #path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(stk['bscs']['name'])
+        symbol = stk['bscs']['symbol']
+        if duration_type == 'annual':
+            fig = 'fig'
+        else:
+            fig = 'quart_fig'
 
-    if 'financial-statements' not in stk[fig].keys():
-        stk[fig]['financial-statements']={}
+        if 'financial-statements' not in stk[fig].keys():
+            stk[fig]['financial-statements']={}
 
-    if statement_type not in stk[fig]['financial-statements'].keys():
-        field = fig+'.financial-statements.'+statement_type+'.'+'date'
-        col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
-        return
-
-    dates = list(stk[fig]['financial-statements'][statement_type].keys())
-    dates.reverse()
-    if 'date' in dates:
-        now = dt.now().date()
-        last_date = stk[fig]['financial-statements'][statement_type]['date']
-        last_date = dt.strptime(last_date, "%Y-%m-%d").date()
-        if (now - last_date) < relativedelta(months=1):
-            print("Already updated on %r" %(str(last_date)))
+        if statement_type not in stk[fig]['financial-statements'].keys():
+            field = fig+'.financial-statements.'+statement_type+'.'+'date'
+            col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
             return
 
-    # Currently page 1 is sufficient assuming the latest reports are covered in page 1.
-    # If this is a new stock, it will be handled by different execution path
-    i = 1
-    url = "https://www.barchart.com/stocks/quotes/%s/%s/%s?reportPage=%s" %(symbol, statement_type, duration_type, i)
-    #html_file = "%s/%s_%s_%s_%s.html" %(path, symbol, statement_type, duration_type, i)
-    html_page = internet.get_page_with_check(url)
-    if html_page is None:
-        PRINT_ERR("update_US_stock_information(): Failed to get %r %r for %r" %(statement_type, duration_type, symbol))
+        dates = list(stk[fig]['financial-statements'][statement_type].keys())
+        dates.reverse()
+        if 'date' in dates:
+            now = dt.now().date()
+            last_date = stk[fig]['financial-statements'][statement_type]['date']
+            last_date = dt.strptime(last_date, "%Y-%m-%d").date()
+            if (now - last_date) < timedelta(30):
+                print("Already updated on %r" %(str(last_date)))
+                return
+
+        # Currently page 1 is sufficient assuming the latest reports are covered in page 1.
+        # If this is a new stock, it will be handled by different execution path
+        i = 1
+        url = "https://www.barchart.com/stocks/quotes/%s/%s/%s?reportPage=%s" %(symbol, statement_type, duration_type, i)
+        #html_file = "%s/%s_%s_%s_%s.html" %(path, symbol, statement_type, duration_type, i)
+        html_page = internet.get_page_with_check(url)
+        if html_page is None:
+            PRINT_ERR("update_US_stock_information(): Failed to get %r %r for %r" %(statement_type, duration_type, symbol))
+            field = fig+'.financial-statements.'+statement_type+'.'+'date'
+            col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
+            return
+        
+        if '403 ERROR' in html_page:
+            PRINT_ERR("*********************** Access to Barchart blocked ******************")
+            change_vpn()
+            trials = trials + 1
+            if trials > 5:
+                PRINT_ERR("exiting")
+                sys.exit(1)
+            else:
+                continue
+
+        soup = parse_html.get_soup(html_page)
+        dates_before=list(stk[fig]['financial-statements'][statement_type].keys())
+        if 'date' in dates_before:
+            dates_before.remove('date')
+        stk = parse_html.populate_statement(soup, stk, statement_type, duration_type)
+        dates_after=list(stk[fig]['financial-statements'][statement_type].keys())
+        if 'date' in dates_after:
+            dates_after.remove('date')
+
+        #dates = list(statements.keys())
+        #dates.reverse()
+        #for i, d in enumerate(dates):
+        #    #if type(d) is datetime.date:
+        #    if True:
+        #        if statement_type == 'balance-sheet':
+        #            if 'Current Assets' in statements[d]['Assets'].keys():
+        #                del statements[d]['Assets']['Current Assets']
+        #            if 'Non-Current Assets' in statements[d]['Assets'].keys():
+        #                del statements[d]['Assets']['Non-Current Assets']
+        #            if 'Current Liabilities' in statements[d]['Assets'].keys():
+        #                del statements[d]['Liabilities']['Current Liabilities']
+        #            if 'Non-Current Liabilities' in statements[d]['Assets'].keys():
+        #                del statements[d]['Liabilities']['Non-Current Liabilities']
+
+        if len(dates_after) > len(dates_before):
+            statements = stk[fig]['financial-statements'][statement_type]
+            field = fig+'.financial-statements.'+statement_type#+'.'+d.strftime('%m-%Y')
+            col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements}})
+            print("%s %s updated"%(fig, statement_type))
+            print("New entries: %r" %(list(set(dates_after)-set(dates_before))))
+
         field = fig+'.financial-statements.'+statement_type+'.'+'date'
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
-        return
-    
-    if '403 ERROR' in html_page:
-        PRINT_ERR("*********************** Access to Barchart blocked ******************")
-        PRINT_ERR("exiting")
-        sys.exit(1)
-
-    soup = parse_html.get_soup(html_page)
-    dates_before=list(stk[fig]['financial-statements'][statement_type].keys())
-    if 'date' in dates_before:
-        dates_before.remove('date')
-    stk = parse_html.populate_statement(soup, stk, statement_type, duration_type)
-    dates_after=list(stk[fig]['financial-statements'][statement_type].keys())
-    if 'date' in dates_after:
-        dates_after.remove('date')
-
-    #dates = list(statements.keys())
-    #dates.reverse()
-    #for i, d in enumerate(dates):
-    #    #if type(d) is datetime.date:
-    #    if True:
-    #        if statement_type == 'balance-sheet':
-    #            if 'Current Assets' in statements[d]['Assets'].keys():
-    #                del statements[d]['Assets']['Current Assets']
-    #            if 'Non-Current Assets' in statements[d]['Assets'].keys():
-    #                del statements[d]['Assets']['Non-Current Assets']
-    #            if 'Current Liabilities' in statements[d]['Assets'].keys():
-    #                del statements[d]['Liabilities']['Current Liabilities']
-    #            if 'Non-Current Liabilities' in statements[d]['Assets'].keys():
-    #                del statements[d]['Liabilities']['Non-Current Liabilities']
-
-    if len(dates_after) > len(dates_before):
-        statements = stk[fig]['financial-statements'][statement_type]
-        field = fig+'.financial-statements.'+statement_type#+'.'+d.strftime('%m-%Y')
-        col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:statements}})
-        print("%s %s updated"%(fig, statement_type))
-        print("New entries: %r" %(list(set(dates_after)-set(dates_before))))
-
-    field = fig+'.financial-statements.'+statement_type+'.'+'date'
-    col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
+        break
 
 def update_US_stock_information(col, stk):
     #db = open_db('test')
@@ -1768,17 +1868,35 @@ def update_stock_betas2(country, stk, df=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
     try:
-        update_stock_betas(country, collection, stk, sem=None, df=df)
+        update_stock_betas(country, collection, sql_engine, stk, sem=None, df=df)
     finally:
         close_db_client(c)
+        close_sql_connection(sql_engine)
 
-def update_stock_betas(country, collection, stk, sem=None, df=None):
+def add_beta_columns(sql_engine, table_name, cols):
+    for b in beta_change_fields:
+        if b not in cols:
+            DB.mysql_add_column(sql_engine, table_name, b, 'float', remove_spaces=False)
+
+def update_stock_betas(country, collection, sql_engine, stk, sem=None, df=None):
+    wdf = pd.DataFrame(columns=['Date']+beta_change_fields) 
     try:
         sym = stk['bscs']['symbol']
+        table_name = DB.get_symbol_table_name(sym)
+        
+        mysql_check_n_create_table(sql_engine, table_name)
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload=True, autoload_with=sql_engine)
+        cols = DB.mysql_get_columns(table)
+        add_beta_columns(sql_engine, table_name, cols)
+        del metadata
+        del table
+
         print("beta: %r: %r" %(stk['sno'], sym))
         if 'since' not in stk['bscs'].keys():
-            stk  = update_since_dataframe(country, collection, stk)
+            stk  = update_since_dataframe(sql_engine, table_name, collection, stk)
 
         since = stk['bscs']['since']
         #print("since: %r" %(since))
@@ -1809,7 +1927,37 @@ def update_stock_betas(country, collection, stk, sem=None, df=None):
         #print("Betas: %r" %(betas))
         field="fig.betas.since_last_recession"
         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-        
+
+        # Get all entries whose betas are not yet calculated
+        query = 'select `Date`, `Adj Close` from %s where `Month_Beta` is NULL order by Date' %(table_name)
+        dfs = DB.read_from_sql(query, sql_engine)
+        if sdf.empty:
+            return
+
+        for index, d in df.iloc[1:].iterrows():
+            st_date = pd.to_datetime(index).date()
+            cur_date_str = str(cur_date)
+            wdf.loc[cur_date_str]=nan
+            wdf.loc[cur_date_str]['Date'] = cur_date_str
+            #Percent Changes for Day, Week, Month etc
+            for i in range(len(beta_change_fields)):
+                betas = None
+                end_date = st_date - beta_change_durations[i]
+                betas = get_beta(country, sym, st_date, en_date)
+                wdf.loc[cur_date_str][beta_change_fields[i]] = betas['beta']
+
+                start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
+                change = percent_change(start_price, cur_price)
+
+            # Whole Change
+            change = percent_change(ipo_price, cur_price)
+            wdf.loc[cur_date_str][price_change_fields[-1]] = change
+            #wdf.drop(wdf.index, inplace=True)
+
+        print("mysql: percent_change: %s"%(sym))
+        DB.mysql_update_table(sql_engine, table_name, wdf)
+
+       
         #whole beta
         #print("whole beta")
         st_date = since_start
@@ -1877,11 +2025,12 @@ def update_all_stock_betas(country):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
-    docs = collection.find({}, no_cursor_timeout=True).sort([["sno",1]])
+    docs = collection.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
@@ -1893,11 +2042,12 @@ def update_all_stock_betas(country):
         #if ignore_stock(doc):
         #    continue
         #sem.acquire()
-        update_stock_betas(country, collection, copy.deepcopy(doc))
-        #threading.Thread(target=update_stock_betas, args=(country, collection, copy.deepcopy(doc),sem, )).start()
+        update_stock_betas(country, collection, sql_engine, copy.deepcopy(doc))
+        #threading.Thread(target=update_stock_betas, args=(country, collection, sql_engine, copy.deepcopy(doc),sem, )).start()
 
     time.sleep(10)
     close_db_client(c)
+    close_sql_connection(sql_engine)
  
 def set_sno(country):
     db = open_db('Stocks')
@@ -1983,7 +2133,10 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
         start_loc = hdf5.get_nearest_index(df, start_date)
 
     if start_loc == cur_loc:
-        change = 0
+        if isnan(cur_val):
+            change = nan
+        else:
+            change = 0
     else:
         # Get the first non nan value and non-zero from the set of records
         start_val = df.iloc[start_loc][c]
@@ -2051,7 +2204,7 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
     #df[key][index] = change
     return df
 
-def fin_change(df, fig):
+def fin_change(df, fig, items=None):
     #st_price = read.iat[0, read.columns.get_loc('close')]
     #en_price = read.iat[-1, read.columns.get_loc('close')]
 
@@ -2061,33 +2214,71 @@ def fin_change(df, fig):
         datatypes = fin_year_fields_datatypes
         durations = fin_year_price_durations
         ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m")
+        reg_exp   = r'yo\S+'
     else:
         fields    = fin_quarter_fields
         datatypes = fin_quarter_fields_datatypes
         durations = fin_quarter_price_durations
         ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
+        reg_exp   = r'qo\S+'
+
+    if items is None:
+        items = df.iloc[1:].index
 
     # Create new fields
     cols = list(df.columns)
+    # Populate the list of columns the percentage changes are already computed.
+    # This list can be used to avoid recalculation of the same columns.
+    computed_list = []
     for c in cols:
+        if c in computed_list:
+            continue
         for i in range(len(durations)):
+            match = re.search(reg_exp, c)
+            if match is not None:
+                c = c[0:match.span()[0]-1]
+            if c == 'Date':
+                continue
+            if c == 'Symbol':
+                continue
             key = '{}_{}'.format(c,fields[i])
-            key = key.replace('- ','').replace(' ', '_')
-            print(key)
+            key = key.replace('- ','').replace(' ', '_').replace('-','')
+
+            if key in computed_list:
+                # The execution path may not reach till this point.
+                # It should be skipped by if c in computed_list: continue
+                continue
+            computed_list.append(key)
+            print("Key: %r" %(key))
             if key not in list(df.keys()):
                 df[key]=nan
             duration = durations[i]
-            for index, d in df.iloc[1:].iterrows():
-                df = fin_percent_change_row(key, index, c, d, df, duration)
+            #for index, d in df.iloc[1:].iterrows():
+            #    df = fin_percent_change_row(key, index, c, d, df, duration)
+            for index in items:
+                df = fin_percent_change_row(key, index, c, df.loc[index], df, duration)
 
         # Whole Change Case
+        match = re.search(reg_exp, c)
+        if match is not None:
+            c = c[0:match.span()[0]-1]
+        if c == 'Date':
+            continue
+        if c == 'Symbol':
+            continue
+ 
         key = '{}_{}'.format(c,fields[-1])
-        key = key.replace(' ', '_')
+        key = key.replace('- ','').replace(' ', '_').replace('-','')
+        if key in computed_list:
+            continue
+        computed_list.append(key)
+        print("Key: %r" %(key))
         if key not in list(df.keys()):
             df[key]=nan
-        print(key)
-        for index, d in df.iloc[1:].iterrows():
-            df = fin_percent_change_row(key, index, c, d, df)
+        #for index, d in df.iloc[1:].iterrows():
+        #    df = fin_percent_change_row(key, index, c, d, df)
+        for index in items:
+            df = fin_percent_change_row(key, index, c, df.loc[index], df)
 
     df.index = ret_index
     return df
@@ -2223,16 +2414,62 @@ def fin_change(df, fig):
 #            sem.release()
 #
 
-def update_US_fin_percent_change(db, mysql_engine, stk, fig):
+def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
+    df = pd.DataFrame()
+    df = form_df(stk[fig]['financial-statements'][stmt_type], stmt_type)
+   
+    # Delete empty columns in balance-sheet
+    if stmt_type == 'balance-sheet':
+        if 'Current Assets' in list(df.columns):
+            del df['Current Assets']
+        if 'Current Liabilities' in list(df.columns):
+            del df['Current Liabilities']
+        if 'Non-Current Assets' in list(df.columns):
+            del df['Non-Current Assets']
+        if 'Non-Current Liabilities' in list(df.columns):
+            del df['Non-Current Liabilities']
+
+    df['Symbol'] = stk['bscs']['symbol']
+    df['Date'] = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
+    cols = list(df.columns)
+    cols = cols[-2:]+cols[:-2]
+    df = df[cols]
+    new_cols = {}
+    for c in cols:
+        new_cols[c] = c.replace('- ','').replace(' ', '_').replace('-','')
+    df.rename(columns=new_cols, inplace=True)
+    items = df.index
+   
+    #if mysql_exists_table(mysql_engine, table):
+    #    query = 'select * from '+table+' where Symbol = \'{}\''.format(stk['bscs']['symbol'])
+    #    edf = read_from_sql(query, mysql_engine)
+    #    # Exclude already existing entries in the database.
+    #    # Calculate percentage change for the new entries only.
+    #    df  = df[~df.index.isin(edf.index)]
+    #    # Calculate percentage change only for the below items
+    #    items = df.index
+    #    # Up-to-date. Return
+    #    if len(items) == 0:
+    #        return
+    #    df = edf.append(df, sort=True)
+    
+    df = fin_change(df, fig, items=items)
+    # Replace NaN with None
+    df = df.where(pd.notnull(df), None)
+    items = pd.DatetimeIndex.strftime(items, "%Y-%m-%d")
+    #print(df.loc[items])
+
+    #Only once due to wrong entries
+    mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
+
+    mysql_update_table(mysql_engine, table, df.loc[items], check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
+ 
+def update_US_fin_percent_change(mysql_engine, stk, fig):
     if fig == 'fig':
-        fin_fields = fin_year_fields
-        fin_durations = fin_year_price_durations
         income_table = 'income_table'
         balance_table = 'balance_table'
         cash_table = 'cash_table'
     else:
-        fin_fields = fin_quarter_fields
-        fin_durations = fin_quarter_price_durations
         income_table = 'income_quart_table'
         balance_table = 'balance_quart_table'
         cash_table = 'cash_quart_table'
@@ -2245,84 +2482,29 @@ def update_US_fin_percent_change(db, mysql_engine, stk, fig):
         return
 
     if 'income-statement' in stk[fig]['financial-statements'].keys():
-        #fields=['Sales', 'Operating Expenses', 'Gross Profit', 'Net Income $M']
-        df = form_df(stk[fig]['financial-statements']['income-statement'], 'income-statement')
-        #df_cols=list(df.columns)
-        # Get available columns in the mongodb. Not all fields might be available
-        #available_cols=[]
-        #for f in fields:
-        #    if f in df_cols:
-        #        available_cols.append(f)
-        df = fin_change(df, fig)
-        df['Date'] = df.index
-        df['Symbol'] = stk['bscs']['symbol']
-        cols = list(df.columns)
-        cols = cols[-2:]+cols[:-2]
-        df = df[cols]
-        new_cols = {}
-        for c in cols:
-            new_cols[c] = c.replace('- ','').replace(' ', '_')
-        df.rename(columns=new_cols, inplace=True)
-        df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, income_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
-        
-       #check_n_write_to_sql(mysql_engine, stk['bscs']['symbol'], df, list(df.columns))
-
-    if 'balance-sheet' in stk[fig]['financial-statements'].keys():
-        df = form_df(stk[fig]['financial-statements']['balance-sheet'], 'balance-sheet')
-        # Delete empty Columns
-        if 'Current Assets' in list(df.columns):
-            del df['Current Assets']
-        if 'Current Liabilities' in list(df.columns):
-            del df['Current Liabilities']
-        if 'Non-Current Assets' in list(df.columns):
-            del df['Non-Current Assets']
-        if 'Non-Current Liabilities' in list(df.columns):
-            del df['Non-Current Liabilities']
-
-        df = fin_change(df, fig)
-        df['Date'] = df.index
-        df['Symbol'] = stk['bscs']['symbol']
-        cols = list(df.columns)
-        cols = cols[-2:]+cols[:-2]
-        df = df[cols]
-        new_cols = {}
-        for c in cols:
-            new_cols[c] = c.replace('- ','').replace(' ', '_')
-        df.rename(columns=new_cols, inplace=True)
-        df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, balance_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
- 
+        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'income-statement', income_table)
     if 'cash-flow' in stk[fig]['financial-statements'].keys():
-        df = form_df(stk[fig]['financial-statements']['cash-flow'], 'cash-flow')
-        df = fin_change(df, fig)
-        df['Date'] = df.index
-        df['Symbol'] = stk['bscs']['symbol']
-        cols = list(df.columns)
-        cols = cols[-2:]+cols[:-2]
-        df = df[cols]
-        new_cols = {}
-        for c in cols:
-            new_cols[c] = c.replace('- ','').replace(' ', '_')
-        df.rename(columns=new_cols, inplace=True)
-        df = df.where(pd.notnull(df), None) 
-        mysql_update_table(mysql_engine, cash_table, df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True)
+        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'cash-flow', cash_table)
+    if 'balance-sheet' in stk[fig]['financial-statements'].keys():
+        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'balance-sheet', balance_table)
  
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
 def update_all_US_fin_percent_change():
     db = open_db('Stocks')
-    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Fin", pool_size=1)
+    #mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Fin", pool_size=1)
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
 
     stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
-        if i > 3319:
-        #if True:
+        #if i > 3319:
+        if True:
             print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-            #update_US_fin_percent_change(db, mysql_engine, stk, 'fig')
-            update_US_fin_percent_change(db, mysql_engine, stk, 'quart_fig')
+            #update_US_fin_percent_change(mysql_engine, stk, 'fig')
+            update_US_fin_percent_change(mysql_engine, stk, 'quart_fig')
+            break
 
     close_db()
     mysql_engine.dispose()

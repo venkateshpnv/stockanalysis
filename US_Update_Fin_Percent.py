@@ -1,3 +1,5 @@
+# Read fin statements from mongodb, calculate and store the percentage changes in mysql.
+
 import DB
 
 if __name__ == "__main__":
