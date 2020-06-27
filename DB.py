@@ -1407,34 +1407,36 @@ def update_symbol_name_changes():
         if stk.count() == 1:
             query = 'select tried_count from Symbol_Changes where Old_Symbol=\'{}\''.format(old_symbol)
             tried_count = read_from_sql(query, mysql_engine, date=False)
+            tried_count = tried_count.iloc[0]['tried_count'] + 1
             query = 'update Symbol_Changes set tried_count={} where Old_Symbol=\'{}\''.format(tried_count, old_symbol)
+
             #mysql_engine.execute(query)
             if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
                 print("Symbol %s does not have a table in mysql database" %(old_symbol))
                 return
 
-            stk = stk[0]
             ## Update the symbol to new symbol
             #db.US_Stocks.update({'bscs.symbol': old_symbol}, {'$set': {"bscs.symbol": new_symbol}})
+            ## Update the old symbol in US_Stocks_List with the new symbol
+            #db.US_Stocks_List.update({'symbol': old_symbol}, {'$set': {'symbol': new_symbol}})
             # Save previous symbols information
             prev_syms = []
             prev_syms_till_date = []
+            stk = stk[0]
             if 'previous_symbols' in stk['bscs'].keys():
                 prev_syms = stk['bscs']['previous_symbols']['Names']
                 prev_syms_till_date = stk['bscs']['previous_symbols']['Till_Date']
            
-            prev_syms.append(new_symbol)
+            prev_syms.append(old_symbol)
             prev_syms_till_date.append(str(dt.strptime(d['Effective_Date'], "%Y/%m/%d").date()-timedelta(1)))
             #db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
             #db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Till_Date": prev_syms_till_date}})
+            
             ## Reset failcount
             #if 'price_failcount' in stk['bscs'].keys():
             #    db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.price_failcount": 0}})
             #    db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.trading": "YES"}})
            
-            ## Delete the entry from US_Stocks_List
-            #db.US_Stocks_List.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
-
             # Rename table with the new symbol name
             query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
             #price_change_mysql_engine.execute(query)
@@ -1445,20 +1447,6 @@ def update_symbol_name_changes():
             query = 'update Symbol_Changes set updated_date={}'.format(str(dt.now().date()))
             #mysql_engine.execute(query)
 
-
-        #items = {}
-        #key = str(pd.to_datetime(index).date())
-        #for k in d.keys().to_list(): #Skip date, date.1
-        #    #if k != 'Date':
-        #    if d[k] != None:
-        #        items[k]=d[k]
-        #    # TODO: Handle on conflict
-        #if insert:
-        #    stmt=table.insert().values(items)
-        #else:
-        #    stmt=table.update().where(table.c.Date==key).values(items)
-        #conn.execute(stmt)
- 
 def build_US_All_Stocks_List():
     update_symbol_name_changes()
     return
