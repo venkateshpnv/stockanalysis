@@ -291,7 +291,7 @@ def nullify_price_change_errors():
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     symbols = DB.get_symbols_from_sql(country, sql_engine)
@@ -439,7 +439,7 @@ def fork_hdf5_process(country, sem):
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
@@ -557,6 +557,7 @@ def update_all_stocks_price_change(country):
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  
+    print("Updating price percent changes")
     fork_hdf5_process(country, hdf5_sem)
     #fork_betas_process(country, betas_sem)
     #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, ))

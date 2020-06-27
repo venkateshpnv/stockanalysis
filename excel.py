@@ -85,7 +85,7 @@ def get_usd_to_inr():
 
 def get_symbol_prices(sym, name, country, index, shortlist_price):
     entry = []
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if not index:
         entry.append(sym)
     entry.append(name)

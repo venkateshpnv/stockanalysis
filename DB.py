@@ -126,9 +126,9 @@ def mysql_get_latest_price(sql_engine, country, sym):
     return None
 
 
-def read_from_sql(query, mysql_engine):
+def read_from_sql(query, mysql_engine, date=True):
     df = pd.read_sql_query(query, mysql_engine)
-    if not df.empty:
+    if date and not df.empty:
         df.index = pd.to_datetime(df['Date'])
     return df
 
@@ -177,12 +177,13 @@ def write_to_sql(mysql_engine, table, df):
         print("DB.py: write_to_sql(), table: %r, exception: %r" %(table, str(E)))
 
 def mysql_exists_table(mysql_engine, table_name):
-    query = 'show tables like %r;' %(table_name)
-    output= mysql_engine.execute(query)
-    #If table does not exist
-    if output.first() is None:
-        return False
-    return True
+    return mysql_engine.has_table(table_name)
+    #query = 'show tables like %r;' %(table_name)
+    #output= mysql_engine.execute(query)
+    ##If table does not exist
+    #if output.first() is None:
+    #    return False
+    #return True
 
 def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False):
     if not mysql_exists_table(mysql_engine, table_name):
@@ -235,14 +236,15 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price')
             mysql_add_column(mysql_engine, table_name, c, c_dtype)
     return unknown_fields
 
-def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True):
     if df.empty:
         return
-    if 'Date.1' in list(df.columns):
-        df['Date']=df['Date.1']
-        del df['Date.1']
-    else:
-        df['Date'] = df.index
+    if date_column:
+        if 'Date.1' in list(df.columns):
+            df['Date']=df['Date.1']
+            del df['Date.1']
+        else:
+            df['Date'] = df.index
 
     try:
         metadata = MetaData()
@@ -931,7 +933,7 @@ def fork_hdf5_process(country, sem, vpn_event=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
@@ -1344,11 +1346,11 @@ def get_US_Stock_list():
 
 def update_symbol_name_changes():
     #First get total number of web pages with symbol changes
-    br = open_browser('headless')
+    br  = internet.open_browser('headless')
     url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
     br.get(url)
     page = br.page_source
-    soup = get_soup(page)
+    soup = parse_html.get_soup(page)
     last_page = soup.find(id='two_column_main_content_lb_LastPage')
     last_page = last_page.attrs.get('href')
     pages = re.split(r'page=', last_page)
@@ -1356,30 +1358,110 @@ def update_symbol_name_changes():
         last_page = pages[-1]
     else:
         last_page = 1
-    close_browser(br)
+    internet.close_browser(br)
 
     # Retrieve and form a dataframe of all symbol changes.
     df = pd.DataFrame()
-    for i in range(last_page):
+    for i in range(1, int(last_page)+1):
         url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
         rdf = pd.read_html(url)
-        df.append(rdf[0])
+        df  = df.append(rdf[0])
 
     cols = list(df.columns)
     new_cols = {}
     for c in cols:
         new_cols[c] = c.replace(' ', '_')
     df.rename(columns=new_cols, inplace=True)
- 
-    mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Changes", pool_size=1)
+    df.index=pd.RangeIndex(len(df.index))
+    #The below two statements are required to convert date from YY/mm/dd to YY-mm-dd
+    df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+    df['Effective_Date'] = df['Effective_Date'].astype('str')
+
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Changes')
+    price_change_mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if mysql_exists_table(mysql_engine, 'Symbol_Changes'):
-        query = 'select * from {}'.format('Symbol_Changes')
-        ddf = read_from_sql(query, mysql_engine)
-        del ddf['updated']
-    df = df[~df.index.isin(df.index)]
+        query = 'select Old_Symbol, New_Symbol, Effective_Date from {} where updated_to_mongodb = \'NO\' order by Effective_Date desc'.format('Symbol_Changes')
+        ddf = read_from_sql(query, mysql_engine, date=False)
+        if not ddf.empty:
+            ddf['Effective_Date'] = ddf['Effective_Date'].astype('str')
+            df = df_difference(df, ddf)
+            #df = df[~df.isin(ddf)].dropna()
+            #df = df[~df.index.isin(ddf.index)]
+
+    # Convert to string. Just for info.
+    #df['Effective_Date']=df['Effective_Date'].astype('str')
+    if not df.empty:
+        # Convert to datetime
+        df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+        mysql_update_table(mysql_engine, 'Symbol_Changes', df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False)
+
+    # Read all symbol's information that are not yet updated to mongodb and price changes.
+    query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' order by Effective_Date desc'
+    df = read_from_sql(query, mysql_engine, date=False)
+    db = open_db('Stocks')
+    for index, d in df.iterrows():
+        old_symbol = d['Old_Symbol']
+        new_symbol = d['New_Symbol']
+
+        stk = db.US_Stocks.find({'bscs.symbol':old_symbol})
+        if stk.count() == 1:
+            query = 'select tried_count from Symbol_Changes where Old_Symbol=\'{}\''.format(old_symbol)
+            tried_count = read_from_sql(query, mysql_engine, date=False)
+            query = 'update Symbol_Changes set tried_count={} where Old_Symbol=\'{}\''.format(tried_count, old_symbol)
+            #mysql_engine.execute(query)
+            if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+                print("Symbol %s does not have a table in mysql database" %(old_symbol))
+                return
+
+            stk = stk[0]
+            ## Update the symbol to new symbol
+            #db.US_Stocks.update({'bscs.symbol': old_symbol}, {'$set': {"bscs.symbol": new_symbol}})
+            # Save previous symbols information
+            prev_syms = []
+            prev_syms_till_date = []
+            if 'previous_symbols' in stk['bscs'].keys():
+                prev_syms = stk['bscs']['previous_symbols']['Names']
+                prev_syms_till_date = stk['bscs']['previous_symbols']['Till_Date']
+           
+            prev_syms.append(new_symbol)
+            prev_syms_till_date.append(str(dt.strptime(d['Effective_Date'], "%Y/%m/%d").date()-timedelta(1)))
+            #db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
+            #db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Till_Date": prev_syms_till_date}})
+            ## Reset failcount
+            #if 'price_failcount' in stk['bscs'].keys():
+            #    db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.price_failcount": 0}})
+            #    db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.trading": "YES"}})
+           
+            ## Delete the entry from US_Stocks_List
+            #db.US_Stocks_List.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
+
+            # Rename table with the new symbol name
+            query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+            #price_change_mysql_engine.execute(query)
+
+            # Update Symbol_changes table 'updated_to_mongodb field and updated date field
+            query = 'update Symbol_Changes set updated_to_mongodb=\'YES\' where Old_Symbol=\'{}\''.format(old_symbol)
+            #mysql_engine.execute(query)
+            query = 'update Symbol_Changes set updated_date={}'.format(str(dt.now().date()))
+            #mysql_engine.execute(query)
+
+
+        #items = {}
+        #key = str(pd.to_datetime(index).date())
+        #for k in d.keys().to_list(): #Skip date, date.1
+        #    #if k != 'Date':
+        #    if d[k] != None:
+        #        items[k]=d[k]
+        #    # TODO: Handle on conflict
+        #if insert:
+        #    stmt=table.insert().values(items)
+        #else:
+        #    stmt=table.update().where(table.c.Date==key).values(items)
+        #conn.execute(stmt)
  
 def build_US_All_Stocks_List():
     update_symbol_name_changes()
+    return
     get_US_Stock_list()
     new_stocks = [] 
     head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
@@ -1621,7 +1703,7 @@ def update_sector_info():
 
 def get_beta(country, sym, sdate, edate, df=None):
     betas = {}
-    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if df is None:
         try:
             query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
@@ -1868,7 +1950,7 @@ def update_stock_betas2(country, stk, df=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     try:
         update_stock_betas(country, collection, sql_engine, stk, sem=None, df=df)
     finally:
@@ -2025,7 +2107,7 @@ def update_all_stock_betas(country):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-    sql_engine = open_sql_connection('localhost', 'root', 'petla123')
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
@@ -2439,6 +2521,8 @@ def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
         new_cols[c] = c.replace('- ','').replace(' ', '_').replace('-','')
     df.rename(columns=new_cols, inplace=True)
     items = df.index
+    if len(items) == 0:
+        return
    
     #if mysql_exists_table(mysql_engine, table):
     #    query = 'select * from '+table+' where Symbol = \'{}\''.format(stk['bscs']['symbol'])
@@ -2499,12 +2583,11 @@ def update_all_US_fin_percent_change():
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
-        #if i > 3319:
-        if True:
+        if i > 4620:
+        #if True:
             print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
             #update_US_fin_percent_change(mysql_engine, stk, 'fig')
             update_US_fin_percent_change(mysql_engine, stk, 'quart_fig')
-            break
 
     close_db()
     mysql_engine.dispose()

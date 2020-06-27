@@ -9,7 +9,8 @@ import time
 from datetime import datetime as dt, timedelta
 from dateutil.relativedelta import relativedelta
 from datetime import date
-
+import re
+import pandas as pd
 
 YEAR=1
 QUARTER=2
@@ -128,7 +129,15 @@ def lowest_3(a, b, c):
         return b
     return c
 
-import re
+# Compare two dataframes and return the difference rows
+def df_difference(df1,df2):
+    df = pd.concat([df1,df2])
+    df = df.reset_index(drop=True)
+    df_gpby = df.groupby(list(df.columns))
+    idx = [x[0]  for x in  df_gpby.groups.values() if len(x) == 1]
+    return df.reindex(idx)
+    # This should work too. Concat both. Drop duplicates. Rest is the difference.
+    #return pd.concat([df1,df2]).drop_duplicates(keep=False)
 
 def change_vpn():
     retries = 0

@@ -1,3 +1,5 @@
+# Read the latest updated financial statements information from barchart and update the mongodb
+
 import DB
 import pdb
 
