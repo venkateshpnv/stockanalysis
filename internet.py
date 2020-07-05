@@ -2,6 +2,7 @@ import sys
 import os
 import time
 #Web Driver
+import selenium
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
@@ -75,8 +76,8 @@ def open_browser(head=None):
     profile = webdriver.FirefoxProfile()
 
     options = Options()
-    if head == 'headless':
-        options.add_argument('--headless')
+    #if head == 'headless':
+    #    options.add_argument('--headless')
 
     profile.set_preference("browser.cache.disk.enable", False)
     profile.set_preference("browser.cache.memory.enable", False)
@@ -954,6 +955,12 @@ def get_price_volume(stk, country, vpn_event=None):
                 stk['bscs']['outstanding_shares'] = d['sharesOutstanding'][0]
             else:
                 stk['bscs']['outstanding_shares'] = 0
+            if 'longName' in d.keys():
+                stk['bscs']['Name'] = d.iloc[0]['longName']
+            elif 'shortName' in d.keys():
+                stk['bscs']['Name'] = d.iloc[0]['shortName']
+            if 'fullExchangeName' in d.keys():
+                stk['bscs']['exchange_name'] = d.iloc[0]['fullExchangeName']
 
         except AttributeError as e:
             if 'outstanding_shares' not in stk['bscs'].keys():
@@ -1060,7 +1067,8 @@ def get_LTP(country, sym):
     elif country != 'US':
         PRINT_ERR("Unknown Country")
         return 0
-    price = yf(sym).get_current_price()
+    #price = yf(sym).get_current_price()
+    price = data.get_quote_yahoo(sym).iloc[0]['price']
     if not price and '.' in sym:
         sym = sym.replace('.', '-')
         price = yf(sym).get_current_price()
@@ -1671,6 +1679,9 @@ def popout_chart(br):
     #e=soup.find(text=pattern)
 
     scroll(br, Keys.ARROW_DOWN)
+    time.sleep(1)
+    scroll(br, Keys.ARROW_DOWN)
+    time.sleep(1)
     # Popout Chart
     we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
     h=a.move_to_element(we)
@@ -1738,6 +1749,8 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     entries = {}
     entry = {}
     now = dt.now().date()
+    start = dt.strptime("1950-01-01", '%Y-%m-%d').date()
+    end = now
 
     if item not in stk['fig'].keys():
         stk['fig'][item]={}
@@ -1746,18 +1759,19 @@ def get_all_entries(br, stk, item, field, pattern, convert):
 
     time.sleep(2)
     scroll(br, Keys.ARROW_DOWN)
-    soup = BeautifulSoup(br.page_source, 'html.parser')
-    tags = soup.find({"g"}, {"class":"highcharts-series-group"})
-    labels = tags.findAll({"rect"})
-    start  = convert_date(str(labels[0].attrs['aria-label']))
-    end    = convert_date(str(labels[-1].attrs['aria-label']))
+    #soup = BeautifulSoup(br.page_source, 'html.parser')
+    #tags = soup.find({"g"}, {"class":"#bc-interactive-chart__chart-container"})
+    ##tags = soup.find({"g"}, {"class":"highcharts-series-group"})
+    #labels = tags.findAll({"rect"})
+    #start  = convert_date(str(labels[0].attrs['aria-label']))
+    #end    = convert_date(str(labels[-1].attrs['aria-label']))
 
     db = DB.open_db('Stocks')
     if start < last_date:
         start = last_date + timedelta(7)
         end   = now
-    else:
-        DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.since", str(start))
+    #else:
+    #    DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.since", str(start))
 
     st = start
     while True:
@@ -1770,14 +1784,16 @@ def get_all_entries(br, stk, item, field, pattern, convert):
         we = br.find_element_by_css_selector(".bc-glyph-calendar")
         we.click()
         d="%s/%s/%s"%(st.strftime('%m'), st.strftime('%d'), st.strftime('%Y'))
-        we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[1]/div/input")
+        #we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[1]/div/input")
+        we = br.find_element_by_css_selector("div.interactive-chart-date-range:nth-child(1) > div:nth-child(1) > input:nth-child(1)")
         we.clear()
         we.click()
         we.send_keys(d)
         time.sleep(0.5)
         we.send_keys(Keys.TAB)
         d="%s/%s/%s"%(en.strftime('%m'), en.strftime('%d'), en.strftime('%Y'))
-        we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[2]/div/input")
+        #we = br.find_element_by_xpath("/html/body/div[6]/div/div/form/div[3]/div[2]/div/input")
+        we = br.find_element_by_css_selector("div.interactive-chart-date-range:nth-child(3) > div:nth-child(1) > input:nth-child(1)")
         we.clear()
         we.click()
         we.send_keys(d)
@@ -1792,7 +1808,7 @@ def get_all_entries(br, stk, item, field, pattern, convert):
         soup = BeautifulSoup(br.page_source, 'html.parser')
         elements = soup.findAll(text=pattern)
     
-        a = ac(br)
+        #a = ac(br)
         i = 0
         print("elements: %d" % (len(elements)))
         if len(elements) > 0:
@@ -1994,7 +2010,7 @@ def populate_US_EPS(stk):
     fig = 'fig'
 
     if not 'EPS_History' in stk[fig].keys():
-        return
+        stk[fig]['EPS_History'] = {}
 
     dates = list(stk[fig]['EPS_History'].keys())
     dates.reverse()
@@ -2054,11 +2070,15 @@ def populate_US_EPS(stk):
         gc.collect()
         return
         
-    br.maximize_window()
+    #br.maximize_window()
+    time.sleep(1)
     popout_chart(br)
     br.maximize_window()
-    opts = WebDriverWait(br, 20).until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, '.highcharts-background')))
+    try:
+        opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bc-interactive-chart__wrapper-chart-content')))
+        #opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.highcharts-background')))
+    except selenium.common.exceptions.TimeoutException:
+        pass
     print("chart loaded")
     time.sleep(4)
 

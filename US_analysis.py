@@ -19,7 +19,10 @@ def US_main():
     #DB.update_US_all_EPS()
     #DB.update_all_stock_betas('India')
     #DB.update_all_US_fin_stmts_errors()
-    internet.update_all_stocks_price_change('US')
+    #internet.update_all_stocks_price_change('US')
+    # Build and update complete information for a new or existing symbol
+    #DB.build_US_all_stock_complete_info()
+    DB.update_US_all_EPS()
     #calculate_dcf_all_stocks('US', 5, 'COLD', 'ALL', 'BETA', 'SYNC_DB', 'EXCEL')
     #html_text=internet.get_webpage('https://www.barchart.com/stocks/quotes/SAND/profile')
     #db=DB.open_db('Stocks')

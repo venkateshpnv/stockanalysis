@@ -869,7 +869,8 @@ def update_percent_change_all(country):
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, sem, vpn_event=None):
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
-        sem.release()
+        if sem:
+            sem.release()
         return
     if country == 'India':
         indices = India_indices
@@ -892,7 +893,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
         table = DB.get_symbol_table_name(symbol)
 
-        if symbol not in symbols:
+        if len(symbols) == 0 or symbol not in symbols:
             start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             print("New symbol: getting data for %r from yahoo" %(stk['bscs']['symbol']))
             df = get_stock_data(country, stk, start, end, vpn_event)
@@ -1018,4 +1019,5 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     PRINT_ERR("df empty for %r" %(symbol))
     finally:
         # Update the date on which the price is updated
-        sem.release()
+        if sem:
+            sem.release()
