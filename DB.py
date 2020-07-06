@@ -228,7 +228,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
                 unknown_fields = unknown_fields + 1
     else:
         for c in sorted(missing_cols):
-            if c == 'Symbol' or c == 'Date':
+            if c == 'Symbol' or c == 'Date' or c == 'SPLIT':
                 c_dtype = 'varchar(12)'
             else:
                 c_dtype = 'float'
@@ -1365,9 +1365,10 @@ def build_US_all_EPS():
 
 """ Updated EPS for all existing stocks in the database"""
 def update_US_all_EPS():
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
     c  = open_db_client()
     db = c['Stocks']
-    stocks = db.US_Stocks.find({'bscs.symbol':'AAPL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     count = stocks.count()
     print(count)
     if count == 0:
@@ -1377,12 +1378,13 @@ def update_US_all_EPS():
         #    break
         try:
             print("%d: %s: %s"%(i,stock['bscs']['symbol'],stock['bscs']['name']))
-            internet.populate_US_EPS(stock)
+            internet.populate_US_EPS(stock, mysql_engine, db)
         except Exception as E:
             print(str(E))
             continue
         
     close_db_client(c)
+    close_sql_connection(mysql_engine)
 
 def build_US_all_earnings_estimates():
 

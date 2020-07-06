@@ -4,6 +4,7 @@ import time
 #Web Driver
 import selenium
 from selenium import webdriver
+from seleniumwire import webdriver as wire_webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,6 +14,7 @@ from selenium.webdriver.support.select import Select
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains as ac
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -21,6 +23,8 @@ import multiprocessing
 import threading
 import urllib3
 import OpenSSL
+
+from io import StringIO
 
 import gc
 
@@ -72,8 +76,9 @@ from common import *
 import hdf5
 
 
-def open_browser(head=None):
+def open_browser(head=None, wiredriver=False):
     profile = webdriver.FirefoxProfile()
+    capabilities = DesiredCapabilities.FIREFOX
 
     options = Options()
     #if head == 'headless':
@@ -85,7 +90,10 @@ def open_browser(head=None):
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
     profile.set_preference("dom.webnotifications.enabled", False)
-    browser = webdriver.Firefox(profile, options=options)
+    if wiredriver:
+        browser = wire_webdriver.Firefox(profile, options=options, capabilities=capabilities)
+    else:
+        browser = webdriver.Firefox(profile, options=options, capabilities=capabilities)
     #browser.set_page_load_timeout(30)
     #browser.maximize_window()
     return browser
@@ -1682,8 +1690,12 @@ def popout_chart(br):
     time.sleep(1)
     scroll(br, Keys.ARROW_DOWN)
     time.sleep(1)
+    scroll(br, Keys.ARROW_DOWN)
+    time.sleep(1)
     # Popout Chart
     we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
+    #we =br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
+    #we = br.find_element_by_class_name("bc-interactive-chart-context-menu__menu-list-item grouped margin-bottom-7")
     h=a.move_to_element(we)
     h.click().perform()
     WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
@@ -1757,8 +1769,20 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     dates = list(stk['fig'][item].keys())
     last_date = get_last_date(stk, dates, '%Y-%m-%d')
 
-    time.sleep(2)
-    scroll(br, Keys.ARROW_DOWN)
+    time.sleep(1)
+    #scroll(br, Keys.ARROW_DOWN)
+
+    # wire driver
+    req = br.requests[-1]
+    path = req.path
+    if path.find('earnings=true'):
+        earnings = response.body
+        data = StringIO(earnings.decode('utf-8'))
+        df = pd.read_csv(data, names=['Symbol','Date', 'Earnings','EPS'])
+
+    else:
+        return
+
     #soup = BeautifulSoup(br.page_source, 'html.parser')
     #tags = soup.find({"g"}, {"class":"#bc-interactive-chart__chart-container"})
     ##tags = soup.find({"g"}, {"class":"highcharts-series-group"})
@@ -1807,7 +1831,7 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     
         soup = BeautifulSoup(br.page_source, 'html.parser')
         elements = soup.findAll(text=pattern)
-    
+   
         #a = ac(br)
         i = 0
         print("elements: %d" % (len(elements)))
@@ -2006,29 +2030,72 @@ def write_hist_to_db(stk, eps_hist, dividend_hist, split_hist):
     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.DIVIDEND_History", dividend_hist)
     DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "fig.SPLIT_History", split_hist)
 
-def populate_US_EPS(stk):
-    fig = 'fig'
+# field can be earnings, dividends, splits
+def populate_entries(br, mysql_engine, field):
+    column = {"earnings":"EPS", "dividends":"DIVIDEND", "splits":"SPLIT"}
+    table = {'earnings':'EPS_History', 'dividends': 'DIVIDEND_History', 'splits':'SPLIT_History'}
 
-    if not 'EPS_History' in stk[fig].keys():
-        stk[fig]['EPS_History'] = {}
+    for i in reversed(range(len(br.requests))):
+        path = br.requests[i].path
+        if path.find('{}=true'.format(field)) > 0:
+            field_data = br.requests[i].response.body
+            break
+    if i == 0:
+        print("Couldn't find the response for field: %r"%(field))
+        return
 
-    dates = list(stk[fig]['EPS_History'].keys())
-    dates.reverse()
-    if 'date' in dates:
-        now = dt.now().date()
-        last_date = stk[fig]['EPS_History']['date']
-        last_date = dt.strptime(last_date, "%Y-%m-%d").date()
-        if (dt.now().date() - last_date) < timedelta(30):
-            print("Already updated on %r" %(str(last_date)))
+    data = StringIO(field_data.decode('utf-8'))
+
+    df = pd.read_csv(data, names=['Symbol','Date', 'junk', column[field]])
+    del df['junk']
+
+    if not df.empty:
+        if mysql_engine.has_table(table[field]):
+            query = 'select * from {}'.format(table[field])
+            ddf = DB.read_from_sql(query, mysql_engine, date=False)
+            if not ddf.empty:
+                df = df[~df.Date.isin(ddf.Date)]
+ 
+        DB.mysql_update_table(mysql_engine, table[field], df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
+
+def populate_US_EPS(stk, mysql_engine=None, db=None):
+    if 'EPS_DIV_SPLIT_History_Date' in stk['bscs'].keys():
+        last_date = stk['bscs']['EPS_DIV_SPLIT_History_Date']
+        if (dt.now() - last_date) < timedelta(30):
+            print("Already updated on %r" %(str(last_date.date())))
             return
 
+    mysql_engine_created=False
+    mongodb_engine_created=False
+    if not mysql_engine:
+        mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+        mysql_engine_created=True
+    if not db:
+        c  = open_db_client()
+        db = c['Stocks']
+        mongodb_engine_created=True
 
-    eps_hist = {}
-    split_hist = {}
-    dividend_hist = {}
+    fig = 'fig'
+    #if not 'EPS_History' in stk[fig].keys():
+    #    stk[fig]['EPS_History'] = {}
+
+    #dates = list(stk[fig]['EPS_History'].keys())
+    #dates.reverse()
+    #if 'date' in dates:
+    #    now = dt.now().date()
+    #    last_date = stk[fig]['EPS_History']['date']
+    #    last_date = dt.strptime(last_date, "%Y-%m-%d").date()
+    #    if (dt.now().date() - last_date) < timedelta(30):
+    #        print("Already updated on %r" %(str(last_date)))
+    #        return
+
+
+    #eps_hist = {}
+    #split_hist = {}
+    #dividend_hist = {}
 
     url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
-    br = open_browser('headless')
+    br = open_browser('headless', wiredriver=True)
 
     #t1 = threading.Thread(target=close_popups, args=(br,lock,))
     #t1.start()
@@ -2063,17 +2130,19 @@ def populate_US_EPS(stk):
     time.sleep(1)
     
     if set_max_range(br, stk) is False:
-        #db = DB.open_db('Stocks')
-        #DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "ignore", "Yes")
-        write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
-        close_browser(br)
+        ##db = DB.open_db('Stocks')
+        ##DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "ignore", "Yes")
+        #write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
+        #close_browser(br)
         gc.collect()
+        if mysql_engine_created:
+            DB.close_mysql_connection(mysql_engine)
         return
         
-    #br.maximize_window()
+    br.maximize_window()
     time.sleep(1)
     popout_chart(br)
-    br.maximize_window()
+    #br.maximize_window()
     try:
         opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bc-interactive-chart__wrapper-chart-content')))
         #opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.highcharts-background')))
@@ -2083,29 +2152,43 @@ def populate_US_EPS(stk):
     time.sleep(4)
 
     toggle_earnings_button(br)
-    pattern = re.compile(r'^E$')
-    eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
-
+    time.sleep(3)
+    populate_entries(br, mysql_engine, 'earnings')
+    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_History_Date": dt.now()}})
+    #pattern = re.compile(r'^E$')
+    #eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
     toggle_earnings_button(br)
     
     time.sleep(1)
     set_max_range(br, stk)
-    time.sleep(3)
+    time.sleep(2)
     toggle_dividend_button(br)
-    pattern = re.compile(r'^D$')
-    dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+    time.sleep(3)
+    populate_entries(br, mysql_engine, 'dividends')
+    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.DIVIDEND_History_Date": dt.now()}})
+    #pattern = re.compile(r'^D$')
+    #dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
     toggle_dividend_button(br)
 
     time.sleep(1)
     set_max_range(br, stk)
-    time.sleep(3)
+    time.sleep(2)
     toggle_split_button(br)
-    pattern = re.compile(r'^S$')
-    split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+    time.sleep(3)
+    populate_entries(br, mysql_engine, 'splits')
+    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.SPLIT_History_Date": dt.now()}})
+    #pattern = re.compile(r'^S$')
+    #split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
 
-    write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
+    #write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
+
+    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_DIV_SPLIT_History_Date": dt.now()}})
 
     close_browser(br)
+    if mysql_engine_created:
+        DB.close_mysql_connection(mysql_engine)
+    if mongodb_engine_created:
+        DB.close_db_client(c)
     gc.collect()
     #t1.join()
 
