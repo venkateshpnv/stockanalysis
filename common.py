@@ -1,5 +1,6 @@
 from inspect import currentframe
 import os
+import sys
 import pprint
 import shutil
 import subprocess
@@ -128,6 +129,11 @@ def lowest_3(a, b, c):
     if b < c:
         return b
     return c
+
+def exception_info(E):
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+    print("Exception: %s, filename: %r, line no: %d" %(exc_type, fname, exc_tb.tb_lineno))
 
 # Compare two dataframes and return the difference rows
 def df_difference(df1,df2):
