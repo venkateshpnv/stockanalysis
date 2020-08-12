@@ -90,6 +90,8 @@ def open_browser(head=None, wiredriver=False):
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
     profile.set_preference("dom.webnotifications.enabled", False)
+    profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/jid1-P34HaABBBpOerQ@jetpack.xpi')
+    profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/{246C9D65-51E6-4B0C-9CCF-B081B7BF9242}.xpi')
     if wiredriver:
         browser = wire_webdriver.Firefox(profile, options=options, capabilities=capabilities)
     else:
@@ -1676,33 +1678,36 @@ def tab(br):
     a.send_keys(Keys.TAB).perform()
 
 def popout_chart(br):
-    a = ac(br)
+    try:
+        a = ac(br)
 
-    #Interactive chart
-    we=br.find_element_by_class_name("bc-interactive-chart__wrapper-chart-content")
-    h=a.move_to_element(we)
-    h.context_click().perform()
-    #soup=BeautifulSoup(br.page_source,'html.parser')
-    #pattern=re.compile(r'Popout Chart')
-    #e=soup.find(text=pattern)
+        #Interactive chart
+        we=br.find_element_by_class_name("bc-interactive-chart__wrapper-chart-content")
+        h=a.move_to_element(we)
+        h.context_click().perform()
+        #soup=BeautifulSoup(br.page_source,'html.parser')
+        #pattern=re.compile(r'Popout Chart')
+        #e=soup.find(text=pattern)
 
-    scroll(br, Keys.ARROW_DOWN)
-    time.sleep(1)
-    scroll(br, Keys.ARROW_DOWN)
-    time.sleep(1)
-    scroll(br, Keys.ARROW_DOWN)
-    time.sleep(1)
-    # Popout Chart
-    we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
-    #we =br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
-    #we = br.find_element_by_class_name("bc-interactive-chart-context-menu__menu-list-item grouped margin-bottom-7")
-    h=a.move_to_element(we)
-    h.click().perform()
-    WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
-    handles=br.window_handles
-    br.switch_to_window(handles[0])
-    br.close()
-    br.switch_to_window(handles[-1])
+        scroll(br, Keys.ARROW_DOWN)
+        time.sleep(1)
+        scroll(br, Keys.ARROW_DOWN)
+        time.sleep(1)
+        scroll(br, Keys.ARROW_DOWN)
+        time.sleep(1)
+        # Popout Chart
+        we=br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
+        #we =br.find_element_by_css_selector("li.bc-interactive-chart-context-menu__menu-list-item:nth-child(28)")
+        #we = br.find_element_by_class_name("bc-interactive-chart-context-menu__menu-list-item grouped margin-bottom-7")
+        h=a.move_to_element(we)
+        h.click().perform()
+        WebDriverWait(br, 20).until(EC.number_of_windows_to_be(2))
+        handles=br.window_handles
+        br.switch_to_window(handles[0])
+        br.close()
+        br.switch_to_window(handles[-1])
+    except Exception as E:
+        exception_info(E)
 
 def get_eps_for_element(br, description, convert, entries, offset, field, we, trial):
     entry = {}
@@ -1914,19 +1919,47 @@ def get_all_entries(br, stk, item, field, pattern, convert):
     scroll(br, Keys.ARROW_UP)
     return sorted_entries
 
+def thread_click(e, lock):
+    if e:
+        lock.acquire()
+        try:
+            e.click()
+        finally:
+            lock.release()
+ 
 def thread_close_popups(br, lock):
     while True:
         e = None
+        print("looping close_popups")
+        if stop_thread:
+            break
         try:
             e = br.find_element_by_xpath("/html/body/div[8]/div[2]/div[1]")
+            thread_click(e, lock)
         except Exception:
             pass
-        if e:
-            lock.acquire()
-            try:
-                e.click()
-            finally:
-                lock.release()
+        try:
+            # e=br.find_element_by_xpath("//*[@id="ic_guyoff6702"]")
+            e = br.find_element_by_xpath("/html/body/div[9]/div[2]/div[3]/div/img")
+            thread_click(e, lock)
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_class_name("hide-for-small hide-for-medium-only")
+            thread_click(e, lock)
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_css_selector(".form-close-wrapper > i:nth-child(1)")
+            thread_click(e, lock)
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_css_selector("#off9609")
+            thread_click(e, lock)
+        except Exception as E:
+           pass
+ 
         time.sleep(1)
 
 def close_login(br):
@@ -2032,165 +2065,221 @@ def write_hist_to_db(stk, eps_hist, dividend_hist, split_hist):
 
 # field can be earnings, dividends, splits
 def populate_entries(br, mysql_engine, field):
-    column = {"earnings":"EPS", "dividends":"DIVIDEND", "splits":"SPLIT"}
-    table = {'earnings':'EPS_History', 'dividends': 'DIVIDEND_History', 'splits':'SPLIT_History'}
+    try:
+        column = {"earnings":"EPS", "dividends":"DIVIDEND", "splits":"SPLIT"}
+        table = {'earnings':'EPS_History', 'dividends': 'DIVIDEND_History', 'splits':'SPLIT_History'}
 
-    for i in reversed(range(len(br.requests))):
-        path = br.requests[i].path
-        if path.find('{}=true'.format(field)) > 0:
-            field_data = br.requests[i].response.body
-            break
-    if i == 0:
-        print("Couldn't find the response for field: %r"%(field))
-        return
-
-    data = StringIO(field_data.decode('utf-8'))
-
-    df = pd.read_csv(data, names=['Symbol','Date', 'junk', column[field]])
-    del df['junk']
-
-    if not df.empty:
-        if mysql_engine.has_table(table[field]):
-            query = 'select * from {}'.format(table[field])
-            ddf = DB.read_from_sql(query, mysql_engine, date=False)
-            if not ddf.empty:
-                df = df[~df.Date.isin(ddf.Date)]
- 
-        DB.mysql_update_table(mysql_engine, table[field], df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
-
-def populate_US_EPS(stk, mysql_engine=None, db=None):
-    if 'EPS_DIV_SPLIT_History_Date' in stk['bscs'].keys():
-        last_date = stk['bscs']['EPS_DIV_SPLIT_History_Date']
-        if (dt.now() - last_date) < timedelta(30):
-            print("Already updated on %r" %(str(last_date.date())))
+        for i in reversed(range(len(br.requests))):
+            path = br.requests[i].path
+            if path.find('{}=true'.format(field)) > 0:
+                field_data = br.requests[i].response.body
+                break
+        if i == 0:
+            print("Couldn't find the response for field: %r"%(field))
             return
 
-    mysql_engine_created=False
-    mongodb_engine_created=False
-    if not mysql_engine:
-        mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
-        mysql_engine_created=True
-    if not db:
-        c  = open_db_client()
-        db = c['Stocks']
-        mongodb_engine_created=True
+        data = StringIO(field_data.decode('utf-8'))
 
-    fig = 'fig'
-    #if not 'EPS_History' in stk[fig].keys():
-    #    stk[fig]['EPS_History'] = {}
+        df = pd.read_csv(data, names=['Symbol','Date', 'junk', column[field]])
+        del df['junk']
 
-    #dates = list(stk[fig]['EPS_History'].keys())
-    #dates.reverse()
-    #if 'date' in dates:
-    #    now = dt.now().date()
-    #    last_date = stk[fig]['EPS_History']['date']
-    #    last_date = dt.strptime(last_date, "%Y-%m-%d").date()
-    #    if (dt.now().date() - last_date) < timedelta(30):
-    #        print("Already updated on %r" %(str(last_date)))
-    #        return
-
-
-    #eps_hist = {}
-    #split_hist = {}
-    #dividend_hist = {}
-
-    url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
-    br = open_browser('headless', wiredriver=True)
-
-    #t1 = threading.Thread(target=close_popups, args=(br,lock,))
-    #t1.start()
-
-    try:
-        br.get(url)
-    except Exception:
-        print("%s: %s webpage loading timeout, trying again" %(stk['bscs']['symbol'], stk['bscs']['name']))
-        close_browser(br)
-        time.sleep(5)
-        br = open_browser()
-        br.get(url)
-
-    e = None
-    try:
-        # e=br.find_element_by_xpath("//*[@id="ic_guyoff6702"]")
-        e = br.find_element_by_xpath("/html/body/div[9]/div[2]/div[3]/div/img")
-        print(e)
-        if e:
-            e.click()
+        if not df.empty:
+            if mysql_engine.has_table(table[field]):
+                query = 'select * from {}'.format(table[field])
+                ddf = DB.read_from_sql(query, mysql_engine, date=False)
+                if not ddf.empty:
+                    df = df[~df.Date.isin(ddf.Date)]
+ 
+            DB.mysql_update_table(mysql_engine, table[field], df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
     except Exception as E:
-       pass
-        #print(str(E))
+        exception_info(E)
 
-    # try:
-    #    e=br.find_element_by_xpath("//*[@id="off7131"]")
-    #    if e:
-    #        e.click()
+stop_thread=False
 
-    # set 10 year range
-    #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
-    time.sleep(1)
-    
-    if set_max_range(br, stk) is False:
-        ##db = DB.open_db('Stocks')
-        ##DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "ignore", "Yes")
+def close_popups(br):
+    global stop_thread
+    while True:
+        if stop_thread:
+            print("Exiting thread")
+            break
+        e = None
+        try:
+            e = br.find_element_by_xpath("/html/body/div[8]/div[2]/div[1]")
+            if e:
+                print("Closed popup")
+                e.click()
+        except Exception:
+            pass
+        try:
+            # e=br.find_element_by_xpath("//*[@id="ic_guyoff6702"]")
+            e = br.find_element_by_xpath("/html/body/div[9]/div[2]/div[3]/div/img")
+            if e:
+                print("Closed popup")
+                e.click()
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_class_name("hide-for-small hide-for-medium-only")
+            if e:
+                print("Closed popup")
+                e.click()
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_css_selector(".form-close-wrapper > i:nth-child(1)")
+            if e:
+                print("Closed popup")
+                e.click()
+        except Exception as E:
+           pass
+        try:
+            e = br.find_element_by_css_selector("#off9609")
+            if e:
+                print("Closed popup")
+                e.click()
+        except Exception as E:
+           pass
+ 
+    print("Exiting thread")
+
+def populate_US_EPS(stk, mysql_engine=None, db=None):
+    #if 'EPS_DIV_SPLIT_History_Date' in stk['bscs'].keys():
+    #    last_date = stk['bscs']['EPS_DIV_SPLIT_History_Date']
+    #    if (dt.now() - last_date) < timedelta(30):
+    #        print("Already updated on %r" %(str(last_date.date())))
+    #        return
+    global stop_thread
+
+    try:
+        mysql_engine_created=False
+        mongodb_engine_created=False
+        if not mysql_engine:
+            mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+            mysql_engine_created=True
+        if not db:
+            c  = open_db_client()
+            db = c['Stocks']
+            mongodb_engine_created=True
+
+        fig = 'fig'
+        #if not 'EPS_History' in stk[fig].keys():
+        #    stk[fig]['EPS_History'] = {}
+
+        #dates = list(stk[fig]['EPS_History'].keys())
+        #dates.reverse()
+        #if 'date' in dates:
+        #    now = dt.now().date()
+        #    last_date = stk[fig]['EPS_History']['date']
+        #    last_date = dt.strptime(last_date, "%Y-%m-%d").date()
+        #    if (dt.now().date() - last_date) < timedelta(30):
+        #        print("Already updated on %r" %(str(last_date)))
+        #        return
+
+
+        #eps_hist = {}
+        #split_hist = {}
+        #dividend_hist = {}
+
+        url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
+        br = open_browser('headless', wiredriver=True)
+
+        try:
+            br.get(url)
+        except Exception:
+            print("%s: %s webpage loading timeout, trying again" %(stk['bscs']['symbol'], stk['bscs']['name']))
+            close_browser(br)
+            time.sleep(5)
+            br = open_browser()
+            br.get(url)
+
+        stop_thread=False
+        th = threading.Thread(target=close_popups, args=(br, ))
+        th.start()
+
+        # try:
+        #    e=br.find_element_by_xpath("//*[@id="off7131"]")
+        #    if e:
+        #        e.click()
+
+        # set 10 year range
+        #e = br.find_element_by_css_selector("div.quick-settings:nth-child(2) > ul:nth-child(1) > li:nth-child(11)")
+        time.sleep(4)
+        
+        if set_max_range(br, stk) is False:
+            ##db = DB.open_db('Stocks')
+            ##DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "ignore", "Yes")
+            #write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
+            #close_browser(br)
+            gc.collect()
+            if mysql_engine_created:
+                DB.close_mysql_connection(mysql_engine)
+            return
+            
+        br.maximize_window()
+        time.sleep(2)
+
+        # Cookies policy pop-up. Close it
+        try:
+            br.find_element_by_css_selector(".closebutton_closeButton--3abym > svg:nth-child(1) > path:nth-child(1)").click()
+        except:
+            pass
+        time.sleep(1)
+        popout_chart(br)
+        #br.maximize_window()
+        try:
+            opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bc-interactive-chart__wrapper-chart-content')))
+            #opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.highcharts-background')))
+        except selenium.common.exceptions.TimeoutException:
+            pass
+        print("chart loaded")
+        time.sleep(4)
+
+        toggle_earnings_button(br)
+        time.sleep(3)
+        populate_entries(br, mysql_engine, 'earnings')
+        db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_History_Date": dt.now()}})
+        #pattern = re.compile(r'^E$')
+        #eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
+        toggle_earnings_button(br)
+        
+        time.sleep(1)
+        set_max_range(br, stk)
+        time.sleep(2)
+        toggle_dividend_button(br)
+        time.sleep(3)
+        populate_entries(br, mysql_engine, 'dividends')
+        db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.DIVIDEND_History_Date": dt.now()}})
+        #pattern = re.compile(r'^D$')
+        #dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
+        toggle_dividend_button(br)
+
+        time.sleep(1)
+        set_max_range(br, stk)
+        time.sleep(2)
+        toggle_split_button(br)
+        time.sleep(3)
+        populate_entries(br, mysql_engine, 'splits')
+        db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.SPLIT_History_Date": dt.now()}})
+        #pattern = re.compile(r'^S$')
+        #split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
+
         #write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
-        #close_browser(br)
-        gc.collect()
+
+        db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_DIV_SPLIT_History_Date": dt.now()}})
+
+        close_browser(br)
         if mysql_engine_created:
             DB.close_mysql_connection(mysql_engine)
-        return
-        
-    br.maximize_window()
-    time.sleep(1)
-    popout_chart(br)
-    #br.maximize_window()
-    try:
-        opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bc-interactive-chart__wrapper-chart-content')))
-        #opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.highcharts-background')))
-    except selenium.common.exceptions.TimeoutException:
-        pass
-    print("chart loaded")
-    time.sleep(4)
-
-    toggle_earnings_button(br)
-    time.sleep(3)
-    populate_entries(br, mysql_engine, 'earnings')
-    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_History_Date": dt.now()}})
-    #pattern = re.compile(r'^E$')
-    #eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
-    toggle_earnings_button(br)
-    
-    time.sleep(1)
-    set_max_range(br, stk)
-    time.sleep(2)
-    toggle_dividend_button(br)
-    time.sleep(3)
-    populate_entries(br, mysql_engine, 'dividends')
-    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.DIVIDEND_History_Date": dt.now()}})
-    #pattern = re.compile(r'^D$')
-    #dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
-    toggle_dividend_button(br)
-
-    time.sleep(1)
-    set_max_range(br, stk)
-    time.sleep(2)
-    toggle_split_button(br)
-    time.sleep(3)
-    populate_entries(br, mysql_engine, 'splits')
-    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.SPLIT_History_Date": dt.now()}})
-    #pattern = re.compile(r'^S$')
-    #split_hist = get_all_entries(br, stk, "SPLIT_History", "split_factor", pattern, 0)
-
-    #write_hist_to_db(stk, eps_hist, dividend_hist, split_hist)
-
-    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_DIV_SPLIT_History_Date": dt.now()}})
-
-    close_browser(br)
-    if mysql_engine_created:
-        DB.close_mysql_connection(mysql_engine)
-    if mongodb_engine_created:
-        DB.close_db_client(c)
-    gc.collect()
-    #t1.join()
+        if mongodb_engine_created:
+            DB.close_db_client(c)
+        gc.collect()
+    except Exception as E:
+        exception_info(E)
+    finally:
+        print("Killing firefox")
+        os.system('killall firefox')
+        stop_thread=True
+        th.join()
 
 def get_page_with_check(url):
     html_page = get_webpage(url)
