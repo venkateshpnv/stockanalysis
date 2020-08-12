@@ -4,6 +4,10 @@ Quandl Key
 ==========
 JUCdxdDQ4LDzprPBrgsk
 
+Python
+======
+e2.decode('utf-8') -> bytes to string
+
 Mongodb
 ========
 Table -> Collection
