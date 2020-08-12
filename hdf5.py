@@ -464,8 +464,28 @@ def hdf_price_change(country, sym=None, df=None, days=None, weeks=None, months=N
 # has traded will be friday 25-oct-2019. If friday is a holiday,
 # the nearest date will be 24-oct-2019.
 # if the date is 24-oct-2019, its nearest will be the same date.
-def get_nearest_index(df, req_date):
-    return df.index.get_loc(req_date, method='nearest')
+def get_nearest_index(df, req_date, tolerance=pd.Timedelta('2Y')):
+    l = list(df.index)
+    try:
+        # get the index of the entry
+        i = l.index(pd.Timestamp(str(req_date)))
+        #while True:
+        #    x = df.index.get_loc(str(req_date), method='nearest', tolerance=tolerance)
+        #    if x.size != 0:
+        #        return int(x)
+        #    req_date = req_date - relativedelta(months=3) 
+    except Exception as e:
+        # If entry does not exists, add the entry to the list,
+        # sort the list and find the entry location.
+        # return entry location - 1. if entry location is zero, return 1
+        l.append(pd.Timestamp(str(req_date)))
+        l.sort()
+        #if pd.Timestamp(str(req_date)) > l[0]:
+            #print("entry greater than first entry")
+        i = l.index(pd.Timestamp(str(req_date)))
+        if i != 0:
+            i = i - 1
+    return i
     #return df.index.get_loc(req_date, method='nearest', tolerance=30)
 
 def hdf_get_price(sym, df, req_date):
