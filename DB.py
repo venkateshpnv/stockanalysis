@@ -1374,8 +1374,8 @@ def update_US_all_EPS():
     if count == 0:
         return
     for i, stock in enumerate(stocks):
-        #if i > 50:
-        #    break
+        #if i % 10 == 0:
+        #    change_vpn()
         try:
             print("%d: %s: %s"%(i,stock['bscs']['symbol'],stock['bscs']['name']))
             internet.populate_US_EPS(stock, mysql_engine, db)
@@ -2392,8 +2392,11 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
         else:
             change = 0
     else:
-        # Get the first non nan value and non-zero from the set of records
-        start_val = df.iloc[start_loc][c]
+        if start_loc is None:
+            start_val = nan
+        else:
+            # Get the first non nan value and non-zero from the set of records
+            start_val = df.iloc[start_loc][c]
 
         if start_val is None:
             start_val = nan
@@ -2475,6 +2478,8 @@ def fin_change(df, fig, items=None):
         durations = fin_quarter_price_durations
         ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
         reg_exp   = r'qo\S+'
+    
+    print("%r: %r" %(df.iloc[0]['Symbol'], fig))
 
     if items is None:
         items = df.iloc[1:].index
@@ -2491,7 +2496,7 @@ def fin_change(df, fig, items=None):
             continue
         if c == 'Symbol':
             continue
-        print("%r: Column: %r" %(df.iloc[0]['Symbol'], c))
+        #print("%r: Column: %r, fig: %r" %(df.iloc[0]['Symbol'], c, fig))
 
         for i in range(len(durations)):
             match = re.search(reg_exp, c)
@@ -2704,6 +2709,14 @@ def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
     if mysql_exists_table(mysql_engine, table):
         query = 'select * from '+table+' where Symbol = \'{}\''.format(stk['bscs']['symbol'])
         edf = read_from_sql(query, mysql_engine)
+        if not edf.empty:
+            ret = same_calculations(copy.deepcopy(edf), fig)
+            if ret:
+                #Only once due to wrong entries
+                print("Deleting {} entries from {}".format(stk['bscs']['symbol'], table))
+                mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
+                edf = pd.DataFrame()
+
         # Exclude already existing entries in the database.
         # Calculate percentage change for the new entries only.
         df  = df[~df.index.isin(edf.index)]
@@ -2712,8 +2725,10 @@ def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
         # Up-to-date. Return
         if len(items) == 0:
             return
+        #print("Total entries to calculate: %r" %(items))
         df = edf.append(df, sort=True)
-    
+   
+    print("****** {} *******".format(table))
     df = fin_change(df, fig, items=items)
     # Replace NaN with None
     df = df.where(pd.notnull(df), None)
@@ -2727,7 +2742,39 @@ def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
     #mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
 
     mysql_update_table(mysql_engine, table, df.loc[items], check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
- 
+
+# By error, calculated same values for all yoys and qoqs
+# Check if two columns have the same values
+def same_calculations(df, fig):
+    df.dropna(axis=1,inplace=True)
+    if df.empty:
+        return False
+
+    columns = list(df.columns)
+    if fig == 'fig':
+        r1 = 'yoy'
+        r2 = 'yo3y'
+    else:
+        r1 = 'qoq'
+        r2 = 'qo2q'
+
+    f1 = f2 = None
+    for c in columns:
+        if c.find(r1) != -1:
+            f1 = c
+        if c.find(r2) != -1:
+            f2 = c
+        if f1 and f2:
+            break
+
+    if f1 is None:
+        return False
+
+    ret = df[f1].equals(df[f2])
+    if ret:
+        print(df[[f1,f2]])
+    return ret
+
 def update_US_fin_percent_change(mysql_engine, stk, fig):
     if fig == 'fig':
         income_table = 'income_table'
@@ -2757,6 +2804,7 @@ def US_fin_percent_change(mysql_engine, db, stk, sem=None):
     #print("sem acquire: %r: %r: %r" %(threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
     if 'fin_percent_update_date' in stk['bscs'].keys():
         if dt.now().date() - stk['bscs']['fin_percent_update_date'].date() < timedelta(30):
+        #if False:
             if sem:
                 #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
                 sem.release()
@@ -2781,11 +2829,12 @@ def update_all_US_fin_percent_change():
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
-        #if i > 0:
+        #if i > 8:
+        #    break
         sem.acquire()
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        #threading.Thread(target=US_fin_percent_change, args=(mysql_engine, db, copy.deepcopy(stk), sem)).start()
-        US_fin_percent_change(mysql_engine, db, stk, sem)
+        threading.Thread(target=US_fin_percent_change, args=(mysql_engine, db, copy.deepcopy(stk), sem)).start()
+        #US_fin_percent_change(mysql_engine, db, stk, sem)
 
     time.sleep(30)
     close_db_client(c)
