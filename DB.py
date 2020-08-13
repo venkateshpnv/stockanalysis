@@ -699,24 +699,24 @@ def build_US_stock_complete_info(db, mysql_fin_engine, mysql_engine, symbol, sym
         #update_US_stk_profile(html_text, db.US_Stocks)
  
     ## Update financial data percent change
-    #update_US_fin_percent_change(mysql_fin_engine, stk, 'fig')
-    #update_US_fin_percent_change(mysql_fin_engine, stk, 'quart_fig')
+    update_US_fin_percent_change(mysql_fin_engine, stk, 'fig')
+    update_US_fin_percent_change(mysql_fin_engine, stk, 'quart_fig')
 
-    #if symbols is None:
-    #    symbols = get_symbols_from_sql('US', mysql_engine)
+    if symbols is None:
+        symbols = get_symbols_from_sql('US', mysql_engine)
 
     ## Update price and price change
     #hdf5.update_dataframe_price_volume('US', db, mysql_engine, symbol, symbols, stk, None, vpn_event=None)
-    #internet.update_price_change('US', db.US_Stocks, symbol, None, mysql_engine)
+    internet.update_price_change('US', db.US_Stocks, symbol, None, mysql_engine)
 
     ## Update stocks bscs
-    #update_stk_bscs_db('US', db, stk, sem=None, lock=None, vpn_event=None)
+    update_stk_bscs_db('US', db, stk, sem=None, lock=None, vpn_event=None)
    
     # Update betas
     #update_stock_betas('US', db.US_Stocks, mysql_engine, stk)
 
     # Populate/Update EPS, Dividend and Split History
-    #internet.populate_US_EPS(stk)
+    internet.populate_US_EPS(stk)
     
     if sem:
         sem.release()
@@ -1470,26 +1470,36 @@ def get_US_Stock_list():
 
 def update_symbol_name_changes():
     #First get total number of web pages with symbol changes
+    url = 'https://www.nasdaq.com/market-activity/stocks/symbol-change-history'
     br  = internet.open_browser('headless')
-    url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
     br.get(url)
-    page = br.page_source
-    soup = parse_html.get_soup(page)
-    last_page = soup.find(id='two_column_main_content_lb_LastPage')
-    last_page = last_page.attrs.get('href')
-    pages = re.split(r'page=', last_page)
-    if len(pages) > 1:
-        last_page = pages[-1]
-    else:
-        last_page = 1
-    internet.close_browser(br)
-
-    # Retrieve and form a dataframe of all symbol changes.
     df = pd.DataFrame()
-    for i in range(1, int(last_page)+1):
-        url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
-        rdf = pd.read_html(url)
-        df  = df.append(rdf[0])
+    df = pd.read_html(br.page_source)
+    df = df[0]
+    del df['Company Name']
+
+    #br  = internet.open_browser('headless')
+    #url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
+    #br.get(url)
+    #page = br.page_source
+    #soup = parse_html.get_soup(page)
+    #last_page = soup.find(id='two_column_main_content_lb_LastPage')
+    #last_page = last_page.attrs.get('href')
+    #pages = re.split(r'page=', last_page)
+    #if len(pages) > 1:
+    #    last_page = pages[-1]
+    #else:
+    #    last_page = 1
+    ##internet.close_browser(br)
+
+    ## Retrieve and form a dataframe of all symbol changes.
+    #df = pd.DataFrame()
+    #for i in range(1, int(last_page)+1):
+    #    url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
+    #    #url = 'https://www.nasdaq.com/market-activity/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
+    #    br.get(url)
+    #    rdf = pd.read_html(br.page_source)
+    #    df  = df.append(rdf[0])
 
     cols = list(df.columns)
     new_cols = {}
@@ -1519,6 +1529,9 @@ def update_symbol_name_changes():
         df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
         mysql_update_table(mysql_engine, 'Symbol_Changes', df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False)
 
+        subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
+        send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+        
     # Read all symbol's information that are not yet updated to mongodb and price changes.
     query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
     df = read_from_sql(query, mysql_engine, date=False)
