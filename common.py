@@ -135,15 +135,17 @@ def exception_info(E):
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
     print("Exception: %s, filename: %r, line no: %d" %(exc_type, fname, exc_tb.tb_lineno))
 
-# Compare two dataframes and return the difference rows
+# Compare two dataframes and return the difference rows (df1-df2)
+# Return entries present in df1 but not in df2
 def df_difference(df1,df2):
-    df = pd.concat([df1,df2])
-    df = df.reset_index(drop=True)
-    df_gpby = df.groupby(list(df.columns))
-    idx = [x[0]  for x in  df_gpby.groups.values() if len(x) == 1]
-    return df.reindex(idx)
-    # This should work too. Concat both. Drop duplicates. Rest is the difference.
-    #return pd.concat([df1,df2]).drop_duplicates(keep=False)
+    #df = pd.concat([df1,df2])
+    #df = df.reset_index(drop=True)
+    #df_gpby = df.groupby(list(df.columns))
+    #idx = [x[0]  for x in  df_gpby.groups.values() if len(x) == 1]
+    #return df.reindex(idx)
+    ## This should work too. Concat both. Drop duplicates. Rest is the difference.
+    ##return pd.concat([df1,df2]).drop_duplicates(keep=False)
+    return df1[~df1.apply(tuple,1).isin(df2.apply(tuple,1))]
 
 def change_vpn():
     retries = 0
