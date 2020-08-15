@@ -706,7 +706,7 @@ def add_price_change_header(sheet, i, sheet_type):
 
     i+=1
     # 2007 Percent Change
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Since Then Till Last Recession", style_wrap)
     conf.SINCE_LAST_PER_CHG=i
 
@@ -717,13 +717,17 @@ def add_price_change_header(sheet, i, sheet_type):
     #conf.R2007_IPER_CHG=i
 
     i = i + 1
-    sheet.col(i).width = 4*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Whole Price Change", style_wrap)
     conf.WH_PR_CHANGE=i
     i = i + 1
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Yr Price Change", style_wrap)
     conf.YR_PR_CHANGE=i
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Half Yr Price Change", style_wrap)
+    conf.HF_YR_PR_CHANGE=i
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Qr Price Change", style_wrap)
@@ -850,8 +854,9 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 #        sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
 
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
-        sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_decimal)
+        sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
     sh_write(ash, count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+    sh_write(ash, count, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent)
     sh_write(ash, count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
     sh_write(ash, count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
     sh_write(ash, count, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
@@ -1343,8 +1348,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num)
     sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
-        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_decimal)
+        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
     sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+    sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent)
     sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
     sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
     sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
