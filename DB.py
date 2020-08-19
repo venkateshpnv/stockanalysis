@@ -50,12 +50,14 @@ from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, BatchStatement
 from cassandra import ConsistencyLevel
 
-thread_factor=4
+num_cores = multiprocessing.cpu_count()
+thread_factor = num_cores
+#thread_factor=multiprocessing.cpu_count() * 8
 
 def open_sql_connection(ip, user, passwd, port=3306, db=None):
-    max_threads = multiprocessing.cpu_count() * thread_factor
+    max_threads = thread_factor
     try:
-        mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}'.format(user, passwd, ip, port), pool_size=max_threads*4)
+        mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}'.format(user, passwd, ip, port), pool_size=max_threads)
         if db:
             existing_databases = mysql_engine.execute("SHOW DATABASES;")
             existing_databases = [d[0] for d in existing_databases]
@@ -63,7 +65,7 @@ def open_sql_connection(ip, user, passwd, port=3306, db=None):
                 mysql_engine.execute("CREATE DATABASE {0}".format(db))
             #mysql_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db))
             close_sql_connection(mysql_engine)
-            mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}/{4}'.format(user, passwd, ip, port, db), pool_size=max_threads*4)
+            mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}/{4}'.format(user, passwd, ip, port, db), pool_size=max_threads)
 
     except Exception as E:
         print("%r" %(str(E)))
@@ -442,13 +444,13 @@ client=None
 ########################### DB Related Calls ########3###################
 def open_db(db_name):
     global client
-    client = pymongo.MongoClient("mongodb://localhost:27017/", multiprocessing.cpu_count() * thread_factor)
+    client = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
     #print("Opening: %r" %(client))
     db = client[db_name]
     return db
 
 def open_db_client():
-    c = pymongo.MongoClient("mongodb://localhost:27017/", multiprocessing.cpu_count() * thread_factor)
+    c = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
     return c 
 
 def close_db():
@@ -1165,7 +1167,7 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
 
 def update_all_price_volume_db(country):
     global j
-    max_threads = multiprocessing.cpu_count() * thread_factor
+    max_threads = thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
     #vpn_event = threading.Event()
@@ -2301,7 +2303,7 @@ def update_all_stock_betas(country):
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
 
-    max_threads = multiprocessing.cpu_count() * thread_factor
+    max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
 
     for doc in docs:
@@ -2492,7 +2494,7 @@ def fin_change(df, fig, items=None):
         ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
         reg_exp   = r'qo\S+'
     
-    print("%r: %r" %(df.iloc[0]['Symbol'], fig))
+    #print("%r: %r" %(df.iloc[0]['Symbol'], fig))
 
     if items is None:
         items = df.iloc[1:].index
@@ -2829,13 +2831,28 @@ def US_fin_percent_change(mysql_engine, db, stk, sem=None):
         #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
 
+def US_fin_percent_per_process(stk, sem, core):
+    # Set process affinity
+    aff = 0 | 1 << core
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+    US_fin_percent_change(mysql_engine, db, stk)
+
+    close_db_client(c)
+    close_sql_connection(mysql_engine)
+    sem.release()
+
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
 def update_all_US_fin_percent_change():
-    sem = threading.BoundedSemaphore(4)
+    #os.system("taskset -p 0xfffff %d" % os.getpid())
+    sem = multiprocessing.BoundedSemaphore(num_cores)
+    #sem = threading.BoundedSemaphore(num_cores)
     c  = open_db_client()
     db = c['Stocks']
-    #mysql_engine = sqlalchemy.create_engine("mysql+pymysql://root:petla123@localhost:3306/US_Stocks_Fin", pool_size=1)
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
 
     stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(2).sort([["sno",1]])
@@ -2846,8 +2863,10 @@ def update_all_US_fin_percent_change():
         #    break
         sem.acquire()
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        threading.Thread(target=US_fin_percent_change, args=(mysql_engine, db, copy.deepcopy(stk), sem)).start()
+        #threading.Thread(target=US_fin_percent_change, args=(mysql_engine, db, copy.deepcopy(stk), sem)).start()
         #US_fin_percent_change(mysql_engine, db, stk, sem)
+        #US_fin_percent_per_process(stk, sem)
+        multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,)).start()
 
     time.sleep(30)
     close_db_client(c)
