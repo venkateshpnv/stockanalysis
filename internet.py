@@ -75,14 +75,16 @@ import DB
 from common import *
 import hdf5
 
+stop_thread=False
+br=None
 
 def open_browser(head=None, wiredriver=False):
     profile = webdriver.FirefoxProfile()
     capabilities = DesiredCapabilities.FIREFOX
 
     options = Options()
-    #if head == 'headless':
-    #    options.add_argument('--headless')
+    if head == 'headless':
+        options.add_argument('--headless')
 
     profile.set_preference("browser.cache.disk.enable", False)
     profile.set_preference("browser.cache.memory.enable", False)
@@ -90,8 +92,8 @@ def open_browser(head=None, wiredriver=False):
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
     profile.set_preference("dom.webnotifications.enabled", False)
-    profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/jid1-P34HaABBBpOerQ@jetpack.xpi')
-    profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/{246C9D65-51E6-4B0C-9CCF-B081B7BF9242}.xpi')
+    #profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/jid1-P34HaABBBpOerQ@jetpack.xpi')
+    #profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/{246C9D65-51E6-4B0C-9CCF-B081B7BF9242}.xpi')
     if wiredriver:
         browser = wire_webdriver.Firefox(profile, options=options, capabilities=capabilities)
     else:
@@ -1677,7 +1679,8 @@ def tab(br):
     a = ac(br)
     a.send_keys(Keys.TAB).perform()
 
-def popout_chart(br):
+def popout_chart():
+    global br
     try:
         a = ac(br)
 
@@ -1988,7 +1991,8 @@ def find_element_by_css_selector(br, select):
         f.close()
         exit()
 
-def toggle_earnings_button(br):
+def toggle_earnings_button():
+    global br
     # goto settings
     e = find_element_by_css_selector(br, "span.show-for-medium-up")
     click(e)
@@ -2002,10 +2006,12 @@ def toggle_earnings_button(br):
     click(e)
 
     # apply
-    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    #e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    e = find_element_by_css_selector(br, "button.light-blue")
     click(e)
 
-def toggle_dividend_button(br):
+def toggle_dividend_button():
+    global br
     # goto settings
     e = find_element_by_css_selector(br, "span.show-for-medium-up")
     click(e)
@@ -2020,10 +2026,12 @@ def toggle_dividend_button(br):
     click(e)
 
     # apply
-    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    #e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    e = find_element_by_css_selector(br, "button.light-blue")
     click(e)
 
-def toggle_split_button(br):
+def toggle_split_button():
+    global br
     # goto settings
     e = find_element_by_css_selector(br, "span.show-for-medium-up")
     click(e)
@@ -2038,7 +2046,9 @@ def toggle_split_button(br):
     click(e)
 
     # apply
-    e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    #e = find_element_by_css_selector(br, "button.bc-button:nth-child(2)")
+    e = find_element_by_css_selector(br, "button.light-blue")
+
     click(e)
 
 def set_max_range(br, stk):
@@ -2096,8 +2106,10 @@ def populate_entries(br, mysql_engine, field):
 
 stop_thread=False
 
-def close_popups(br):
+def close_popups():
     global stop_thread
+    global br
+
     while True:
         if stop_thread:
             print("Exiting thread")
@@ -2149,6 +2161,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
     #        print("Already updated on %r" %(str(last_date.date())))
     #        return
     global stop_thread
+    th = None
 
     try:
         mysql_engine_created=False
@@ -2157,7 +2170,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
             mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
             mysql_engine_created=True
         if not db:
-            c  = open_db_client()
+            c  = DB.open_db_client()
             db = c['Stocks']
             mongodb_engine_created=True
 
@@ -2193,7 +2206,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
             br.get(url)
 
         stop_thread=False
-        th = threading.Thread(target=close_popups, args=(br, ))
+        th = threading.Thread(target=close_popups, args=())
         th.start()
 
         # try:
@@ -2224,7 +2237,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         except:
             pass
         time.sleep(1)
-        popout_chart(br)
+        popout_chart()
         #br.maximize_window()
         try:
             opts = WebDriverWait(br, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.bc-interactive-chart__wrapper-chart-content')))
@@ -2234,29 +2247,29 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         print("chart loaded")
         time.sleep(4)
 
-        toggle_earnings_button(br)
+        toggle_earnings_button()
         time.sleep(3)
         populate_entries(br, mysql_engine, 'earnings')
         db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.EPS_History_Date": dt.now()}})
         #pattern = re.compile(r'^E$')
         #eps_hist = get_all_entries(br, stk, "EPS_History", "eps", pattern, 1)
-        toggle_earnings_button(br)
+        toggle_earnings_button()
         
-        time.sleep(1)
+        time.sleep(2)
         set_max_range(br, stk)
         time.sleep(2)
-        toggle_dividend_button(br)
+        toggle_dividend_button()
         time.sleep(3)
         populate_entries(br, mysql_engine, 'dividends')
         db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.DIVIDEND_History_Date": dt.now()}})
         #pattern = re.compile(r'^D$')
         #dividend_hist = get_all_entries(br, stk, "DIVIDEND_History", "dividend", pattern, 1)
-        toggle_dividend_button(br)
+        toggle_dividend_button()
 
-        time.sleep(1)
+        time.sleep(2)
         set_max_range(br, stk)
         time.sleep(2)
-        toggle_split_button(br)
+        toggle_split_button()
         time.sleep(3)
         populate_entries(br, mysql_engine, 'splits')
         db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.SPLIT_History_Date": dt.now()}})
@@ -2279,7 +2292,8 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         print("Killing firefox")
         os.system('killall firefox')
         stop_thread=True
-        th.join()
+        if th:
+            th.join()
 
 def get_page_with_check(url):
     html_page = get_webpage(url)

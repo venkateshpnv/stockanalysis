@@ -3,20 +3,17 @@ import sys
 
 if __name__ == "__main__":
     DB.update_symbol_name_changes()
-    sys.exit(0)
-    new_stocks = DB.build_US_All_Stocks_List()
-
-    print("Number of new stocks: %r" %(new_stocks))
+    #new_stocks = DB.build_US_All_Stocks_List()
+    #print("Number of new stocks: %r" %(new_stocks))
     # Get financial statements html pages and build database.
     DB.build_US_all_stock_information()
     # Update sno for all stocks
     DB.set_sno('US')
-    if True:
-    #if new_stocks > 1:
+    if new_stocks > 1:
         ## Build EPS, Split, Dividend history for all new stocks 
         DB.build_US_all_EPS()
         ## Update stock profile information for all stocks
-        DB.update_US_all_stk_profile()
+        #DB.update_US_all_stk_profile()
         ## Update EPS, Split, Dividend history for existing stocks
         #DB.update_US_all_EPS()
         ## Update financial statements with newly populated quarterly, annual statements

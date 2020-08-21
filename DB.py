@@ -1477,8 +1477,11 @@ def update_symbol_name_changes():
     br.get(url)
     df = pd.DataFrame()
     df = pd.read_html(br.page_source)
+    if len(df) == 0:
+        return
     df = df[0]
     del df['Company Name']
+    internet.close_browser(br)
 
     #br  = internet.open_browser('headless')
     #url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
@@ -1531,6 +1534,7 @@ def update_symbol_name_changes():
         df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
         mysql_update_table(mysql_engine, 'Symbol_Changes', df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False)
 
+        print("Sending email of the list of new symbol changes")
         subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
         send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
         
