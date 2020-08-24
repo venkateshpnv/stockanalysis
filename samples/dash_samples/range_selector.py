@@ -1,0 +1,132 @@
+import json
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.express as px
+import pandas as pd
+
+
+df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/finance-charts-apple.csv')
+
+import sys
+sys.path.insert(1, '/home/vpetla/work/stockanalysis/')
+import DB
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+styles = {
+    'pre': {
+        'border': 'thin lightgrey solid',
+        'overflowX': 'scroll'
+    }
+}
+
+mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+query = 'select Date, `Adj Close`, `Volume` from {} order by Date'.format('STKAAPL')
+df = DB.read_from_sql(query, mysql_engine)
+DB.close_sql_connection(mysql_engine)
+
+
+fig = px.line(df, x='Date', y='Adj Close', title='Time Series with Range Slider and Selectors')
+
+fig.update_xaxes(
+    rangeslider_visible=True,
+    rangeselector=dict(
+        buttons=list([
+            dict(count=1, label="1m", step="month", stepmode="backward"),
+            dict(count=6, label="6m", step="month", stepmode="backward"),
+            dict(count=1, label="YTD", step="year", stepmode="todate"),
+            dict(count=1, label="1y", step="year", stepmode="backward"),
+            dict(step="all")
+        ])
+    )
+)
+
+app.layout = html.Div([
+    dcc.Graph(
+        id='basic-interactions',
+        figure=fig
+    ),
+
+    html.Div(className='row', children=[
+        html.Div([
+            dcc.Markdown("""
+                **Hover Data**
+
+                Mouse over values in the graph.
+            """),
+            html.Pre(id='hover-data', style=styles['pre'])
+        ], className='three columns'),
+
+        html.Div([
+            dcc.Markdown("""
+                **Click Data**
+
+                Click on points in the graph.
+            """),
+            html.Pre(id='click-data', style=styles['pre']),
+        ], className='three columns'),
+
+        html.Div([
+            dcc.Markdown("""
+                **Selection Data**
+
+                Choose the lasso or rectangle tool in the graph's menu
+                bar and then select points in the graph.
+
+                Note that if `layout.clickmode = 'event+select'`, selection data also 
+                accumulates (or un-accumulates) selected data if you hold down the shift
+                button while clicking.
+            """),
+            html.Pre(id='selected-data', style=styles['pre']),
+        ], className='three columns'),
+
+        html.Div([
+            dcc.Markdown("""
+                **Zoom and Relayout Data**
+
+                Click and drag on the graph to zoom or click on the zoom
+                buttons in the graph's menu bar.
+                Clicking on legend items will also fire
+                this event.
+            """),
+            html.Pre(id='relayout-data', style=styles['pre']),
+        ], className='three columns')
+    ])
+])
+
+
+#@app.callback(
+#    Output('hover-data', 'children'),
+#    [Input('basic-interactions', 'hoverData')])
+#def display_hover_data(hoverData):
+#    return json.dumps(hoverData, indent=2)
+#
+#
+#@app.callback(
+#    Output('click-data', 'children'),
+#    [Input('basic-interactions', 'clickData')])
+#def display_click_data(clickData):
+#    return json.dumps(clickData, indent=2)
+#
+#
+#@app.callback(
+#    Output('selected-data', 'children'),
+#    [Input('basic-interactions', 'selectedData')])
+#def display_selected_data(selectedData):
+#    return json.dumps(selectedData, indent=2)
+
+
+@app.callback(
+    Output('relayout-data', 'children'),
+    [Input('basic-interactions', 'relayoutData')])
+def display_relayout_data(relayoutData):
+    return json.dumps(relayoutData, indent=2)
+
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+fig.show()
