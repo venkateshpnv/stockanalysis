@@ -28,23 +28,6 @@ df = DB.read_from_sql(query, mysql_engine)
 DB.close_sql_connection(mysql_engine)
 graph_df = df
 
-#fig = px.line(df, x="Date", y="Adj Close", title='Price Graph')
-#fig.update_xaxes(
-#    rangeslider_visible=True,
-#    rangeselector=dict(
-#        buttons=list([
-#            dict(count=1, label="1m", step="month", stepmode="backward"),
-#            dict(count=6, label="6m", step="month", stepmode="backward"),
-#            dict(count=1, label="YTD", step="year", stepmode="todate"),
-#            dict(count=1, label="1y", step="year", stepmode="backward"),
-#            dict(step="all")
-#        ])
-#    )
-#)
-#fig.layout.on_change(zoom, 'xaxis.range')
-
-#fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
-
 years = len(pd.to_datetime(df.index).year.unique())
 mark_divisions = years / 2
 if mark_divisions < 2:
@@ -76,6 +59,8 @@ app.layout = html.Div(children=[
     html.Br(),
     html.Br(),
 
+    html.P(id="p"),
+
     dcc.RangeSlider(
         id='range-slider',
         #min = min_year, 
@@ -85,32 +70,48 @@ app.layout = html.Div(children=[
         step = None,
         marks=date_list,
         #allowCross=True,
-        value = [0, len(graph_df.index)]
+        value = [0, len(graph_df.index)],
+        vertical=True,
+        verticalHeight=400
     )
 ])
 
+def get_start_end(df, points):
+    # Return None for 'autosize', 'xaxis.autorange', None
+    start = end = None
+
+    if points:
+        keys = points.keys()
+
+        if len(keys) == 1 and 'yaxis.range' in keys:
+            start = df[df['Adj Close'] == points['yaxis.range'][0]].index[0]
+            end   = df[df['Adj Close'] == points['yaxis.range'][1]].index[0]
+        elif 'xaxis.range' in keys:
+            start = points['xaxis.range'][0].split(' ')[0].split('T')[0]
+            end   = points['xaxis.range'][1].split(' ')[0].split('T')[0]
+        elif 'xaxis.range[0]' in keys:
+            start = points['xaxis.range[0]'].split(' ')[0].split('T')[0]
+            end   = points['xaxis.range[1]'].split(' ')[0].split('T')[0]
+    print("Start: %r, End: %r" %(start, end))
+    return start, end 
+
 @app.callback(
+    #Output('p', 'title'),
     Output('candle-graph', 'figure'),
-    [Input('range-slider', 'value')])
-def update_figure(value):
+    [Input('candle-graph', 'relayoutData')])
+def hover(points):
+    print("Hover Value : {}".format(points))
+    if points:
+        print("Hover keys : {}".format(points.keys()))
 
-    print("values:{},{}".format(value[0], value[1]))
-    print(type(value[0]), type(value[1]))
-    #start = dt.strptime(str(value[0]), "%Y").date()
-    #print("start: %r" %(start))
-    #start = hdf5.get_nearest_index(df, start)
-    #print("start: %r" %(start))
-    #end = dt.strptime(str(value[1]), "%Y").date()
-    #print("end: %r" %(end))
-    #end = hdf5.get_nearest_index(df, end)
-    #print("end: %r" %(end))
-
-    #print("start: %r" %(start))
-    #print("end: %r" %(end))
-    #print(type(start))
-    #print(type(end))
-    graph_df = df.iloc[value[0]:value[1]]
-    print(graph_df)
+    #if points == None or 'autosize' in points.keys() or 'xaxis.autorange' in points.keys():
+    #    graph_df = df 
+    #else:
+    if True:
+        graph_df = df
+        start, end = get_start_end(df, points)
+        if start and end:
+            graph_df = df.loc[start:end]
 
     line_graph = go.Scatter(
             x = graph_df.index,
@@ -120,41 +121,42 @@ def update_figure(value):
             #x = df.index,
             #y = df['Adj Close']
             )
-    
+  
+    #layout = go.Layout()
     layout = go.Layout(
-            paper_bgcolor='#27293d',
-            plot_bgcolor='rgba(0,0,0,0)',
+            #paper_bgcolor='#27293d',
+            #plot_bgcolor='rgba(0,0,0,0)',
             #xaxis=dict(type='category'),
-            xaxis=dict(range=[graph_df.index.min(), graph_df.index.max()], autorange=True),
-            yaxis=dict(range=[graph_df['Adj Close'].min(), graph_df['Adj Close'].max()], autorange=True),
-            font=dict(color='white'),
+            xaxis=dict(
+                       rangeselector=dict(
+                          buttons=list([
+                              dict(count=1, label="1m", step="month", stepmode="backward"),
+                              dict(count=3, label="3m", step="month", stepmode="backward"),
+                              dict(count=6, label="6m", step="month", stepmode="backward"),
+                              dict(count=1, label="YTD", step="year", stepmode="todate"),
+                              dict(count=1, label="1y", step="year", stepmode="backward"),
+                              dict(count=50, label="50y", step="year", stepmode="backward"),
+                              dict(step="all")
+                          ])
+                       ),
+                       rangeslider=dict(visible=True),
+                       range=[graph_df.index.min(), graph_df.index.max()], 
+                       #autorange=True, automargin=True,
+                       fixedrange=False,
+                       type="date"
+                       ),
+            yaxis=dict(range=[graph_df['Adj Close'].min(), 
+                       graph_df['Adj Close'].max()], 
+                       #autorange=True, 
+                       #automargin=True,
+                       fixedrange=False
+                      ),
+                      #font=dict(color='white'),
             )
 
     data = [line_graph]
 
     return {'data':data, 'layout':layout}
-#
-#    graph_df = df.iloc[value[0]:value[1]]
-#
-#    fig = px.line(graph_df, x='Date', y='Adj Close', title='Time Series with Range Slider and Selectors')
-#    #fig = px.line(graph_df, x='Date', y='Adj Close', title='Time Series with Range Slider and Selectors', log_x=True)
-#
-#    #fig.update_xaxes(
-#    #    rangeslider_visible=True,
-#    #    rangeselector=dict(
-#    #        buttons=list([
-#    #            dict(count=1, label="1m", step="month", stepmode="backward"),
-#    #            dict(count=6, label="6m", step="month", stepmode="backward"),
-#    #            dict(count=1, label="YTD", step="year", stepmode="todate"),
-#    #            dict(count=1, label="1y", step="year", stepmode="backward"),
-#    #            dict(step="all")
-#    #        ])
-#    #    )
-#    #)
-#    #fig.update_yaxes()
-#
-#    fig.update_layout(transition_duration=500)
-#    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)
