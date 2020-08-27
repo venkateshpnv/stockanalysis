@@ -6,6 +6,7 @@ import hdf5
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 import plotly.express as px
@@ -24,7 +25,8 @@ def zoom(layout, xrange):
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LITERA])
+#app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 def get_stock_data(symbol):
 	mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
@@ -35,6 +37,9 @@ def get_stock_data(symbol):
 
 df = get_stock_data('AAPL')
 df['RSI'] = ta.rsi(df['Adj Close'])
+fig = None
+df['SMA30']=df['Adj Close'].rolling(window=30).mean()
+df['SMA100']=df['Adj Close'].rolling(window=100).mean()
 
 #years = len(pd.to_datetime(df.index).year.unique())
 #mark_divisions = years / 2
@@ -60,8 +65,8 @@ app.layout = html.Div(children=[
         Dash: A web application framework for Python.
     '''),
 
-    #dcc.Input(id='input-box', value='', type='text', placeholder='Enter a stock symbol', ),
-    #html.Button('Submit', id='button'),
+    dcc.Input(id='input-box', value='', type='text', placeholder='Enter a stock symbol', ),
+    html.Button('Submit', id='button'),
 
     dcc.Graph(
         id='stock-graph',
@@ -79,8 +84,9 @@ def get_start_end(df, points):
         keys = points.keys()
 
         if len(keys) == 1 and 'yaxis.range' in keys:
-            start = df[df['Adj Close'] == points['yaxis.range'][0]].index[0]
-            end   = df[df['Adj Close'] == points['yaxis.range'][1]].index[0]
+            #start = df[df['Adj Close'] == points['yaxis.range'][0]].index[0]
+            start = df.iloc[(df['Adj Close']-points['yaxis.range'][0]).abs().argsort()[:2]].index[0]
+            end   = df.index[-1]
         elif 'xaxis.range' in keys:
             start = points['xaxis.range'][0].split(' ')[0].split('T')[0]
             end   = points['xaxis.range'][1].split(' ')[0].split('T')[0]
@@ -92,23 +98,25 @@ def get_start_end(df, points):
 
 @app.callback(
     Output('stock-graph', 'figure'),
+    #[Input('button', 'n_clicks')],
+    #[State('input-box', 'value'), State('stock-graph', 'relayoutData')] 
     [Input('stock-graph', 'relayoutData')] 
-    #Input('button', 'n_clicks')
     #],
     #[State('input-box', 'value')]
    )
-def price_graph(points): # n_clicks, symbol):
+def price_graph(points):
+#def price_graph(n_clicks, symbol, points): # n_clicks, symbol):
+    global df
     print("Hover Value : {}".format(points))
     if points:
         print("Hover keys : {}".format(points.keys()))
 
     #print("Symbol: %s" %(symbol))
-    #if not symbol:
-    #    symbol = 'AAPL'
-
-    #df = get_stock_data(symbol.upper())
-
-    #df['RSI'] = ta.rsi(df['Adj Close'])
+    #if symbol:
+    #    df = get_stock_data(symbol.upper())
+    #    df['RSI'] = ta.rsi(df['Adj Close'])
+    #    df['SMA30']=df['Adj Close'].rolling(window=30).mean()
+    #    df['SMA100']=df['Adj Close'].rolling(window=100).mean()
 
     graph_df = df
     start, end = get_start_end(df, points)
@@ -140,20 +148,43 @@ def price_graph(points): # n_clicks, symbol):
             #x = df.index,
             #y = df['Adj Close']
             )
- 
-    candlestick_graph = go.Candlestick(
+    sma30_graph = go.Scatter(
             x = graph_df.index,
-            open = graph_df['Open'] + 50,
-            high = graph_df['High'] + 50,
-            low  = graph_df['Low']  + 50,
-            close= graph_df['Close']+ 50,
-            increasing = {'line': {'color' : '#00CC94'}},
-            decreasing = {'line': {'color' : '#F50030'}},
-            name = 'Candlestick'
-            ) 
-    data = [line_graph, sell_graph, buy_graph]
+            y = graph_df['SMA30'],
+            name = 'SMA30',
+            fillcolor = 'rgb(1,128,0)'
+            #x = graph_df.index[value[0]:value[1]],
+            #y = graph_df['Adj Close'][value[0]:value[1]]
+            #x = df.index,
+            #y = df['Adj Close']
+            )
+    sma100_graph = go.Scatter(
+            x = graph_df.index,
+            y = graph_df['SMA100'],
+            name = 'SMA100',
+            fillcolor = 'rgb(2,128,0)'
+            #x = graph_df.index[value[0]:value[1]],
+            #y = graph_df['Adj Close'][value[0]:value[1]]
+            #x = df.index,
+            #y = df['Adj Close']
+            )
+ 
+    #candlestick_graph = go.Candlestick(
+    #        x = graph_df.index,
+    #        open = graph_df['Open'] + 50,
+    #        high = graph_df['High'] + 50,
+    #        low  = graph_df['Low']  + 50,
+    #        close= graph_df['Close']+ 50,
+    #        increasing = {'line': {'color' : '#00CC94'}},
+    #        decreasing = {'line': {'color' : '#F50030'}},
+    #        name = 'Candlestick'
+    #        ) 
+    data = [line_graph, sell_graph, buy_graph, sma30_graph, sma100_graph]
     #data = [sell_graph, buy_graph, line_graph, candlestick_graph]
-            
+
+    y_min = min(graph_df['Adj Close'].min(), graph_df['SMA30'].min(),  graph_df['SMA100'].min())
+    y_max = max(graph_df['Adj Close'].max(), graph_df['SMA30'].max(),  graph_df['SMA100'].max())
+
     #layout = go.Layout()
     layout = go.Layout(
             #paper_bgcolor='#27293d',
@@ -175,12 +206,12 @@ def price_graph(points): # n_clicks, symbol):
                        #rangeslider=dict(visible=True,
                        #                 range=[df.index.min(), df.index.max()]), 
                        range=[graph_df.index.min(), graph_df.index.max()], 
+                       #range=[graph_df.index[-90:].min(), graph_df[-90:].index.max()], 
                        #autorange=True, automargin=True,
                        fixedrange=False,
                        type="date"
                        ),
-            yaxis=dict(range=[graph_df['Adj Close'].min(), 
-                       graph_df['Adj Close'].max()+100], 
+            yaxis=dict(range=[y_min, y_max], 
                        #autorange=True, 
                        #automargin=True,
                        fixedrange=False
@@ -189,9 +220,9 @@ def price_graph(points): # n_clicks, symbol):
             )
    # pp.pprint(layout)
      
-    #fig = go.Figure(data, layout)
-    #return fig 
-    return {'data':data, 'layout':layout}
+    fig = go.Figure(data, layout)
+    return fig 
+    #return {'data':data, 'layout':layout}
 
 if __name__ == '__main__':
     app.run_server(debug=True)
