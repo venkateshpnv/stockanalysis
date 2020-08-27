@@ -16,17 +16,19 @@ from datetime import date, timedelta, datetime as dt
 import pandas as pd
 import pprint
 import pandas_ta as ta
+import numpy as np
+import copy
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LITERA])
+#app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 pp = pprint.PrettyPrinter(indent=4)
 
 def zoom(layout, xrange):
     in_view = df.loc[fig.layout.xaxis.range[0]:fig.layout.xaxis.range[1]]
     fig.layout.yaxis.range = [in_view.High.min() - 10, in_view.High.max() + 10]
-
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LITERA])
-#app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 def get_stock_data(symbol):
 	mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
@@ -35,11 +37,41 @@ def get_stock_data(symbol):
 	DB.close_sql_connection(mysql_engine)
 	return df
 
+def buy_sell(df):
+    flag = -1
+    buy  = []
+    sell = []
+
+    idx = 0
+    for i, d in df.iterrows():
+        if d['SMA30'] < d['SMA100']:
+            if flag != 1:
+                buy.append(d['Adj Close'])
+                sell.append(np.nan)
+                flag = 1
+            else:
+                buy.append(np.nan)
+                sell.append(np.nan)
+        elif d['SMA30'] > d['SMA100']:
+            if flag != 0:
+                buy.append(np.nan)
+                sell.append(d['Adj Close'])
+                flag = 0
+            else:
+                buy.append(np.nan)
+                sell.append(np.nan)
+        else:
+            buy.append(np.nan)
+            sell.append(np.nan)
+        idx = idx + 1
+    return buy, sell
+
 df = get_stock_data('AAPL')
 df['RSI'] = ta.rsi(df['Adj Close'])
 fig = None
 df['SMA30']=df['Adj Close'].rolling(window=30).mean()
 df['SMA100']=df['Adj Close'].rolling(window=100).mean()
+df['SMA_Buy'], df['SMA_Sell'] = buy_sell(copy.deepcopy(df))
 
 #years = len(pd.to_datetime(df.index).year.unique())
 #mark_divisions = years / 2
@@ -117,6 +149,7 @@ def price_graph(points):
     #    df['RSI'] = ta.rsi(df['Adj Close'])
     #    df['SMA30']=df['Adj Close'].rolling(window=30).mean()
     #    df['SMA100']=df['Adj Close'].rolling(window=100).mean()
+    #    buy, sell = buy_sell(df)
 
     graph_df = df
     start, end = get_start_end(df, points)
@@ -127,16 +160,36 @@ def price_graph(points):
            x = graph_df['Adj Close'][graph_df['RSI']>70].index,
            y = graph_df['Adj Close'][graph_df['RSI']>70],
            mode = 'markers',
+           marker = dict(size=10),
            name = 'Sell',
-           fillcolor = 'rgb(128,0,0)'
+           fillcolor = 'rgb(128,0,0)',
            )
 
     buy_graph = go.Scatter(
            x = graph_df['Adj Close'][graph_df['RSI']<35].index,
            y = graph_df['Adj Close'][graph_df['RSI']<35],
            mode = 'markers',
+           marker = dict(size=10),
            name = 'Buy',
            fillcolor = 'rgb(0,128,0)'
+           )
+
+    buy_sma_graph = go.Scatter(
+           x = graph_df['Adj Close'].index,
+           y = graph_df['SMA_Buy'],
+           mode = 'markers',
+           marker = dict(size=10),
+           name = 'Buy SMA',
+           fillcolor = 'rgb(2,52,0)'
+           )
+
+    sell_sma_graph = go.Scatter(
+           x = graph_df['Adj Close'].index,
+           y = graph_df['SMA_Sell'],
+           mode = 'markers',
+           marker = dict(size=10),
+           name = 'Sell SMA',
+           fillcolor = 'rgb(3,12,0)'
            )
 
     line_graph = go.Scatter(
@@ -179,7 +232,14 @@ def price_graph(points):
     #        decreasing = {'line': {'color' : '#F50030'}},
     #        name = 'Candlestick'
     #        ) 
-    data = [line_graph, sell_graph, buy_graph, sma30_graph, sma100_graph]
+    data = [line_graph]
+    data.append(sell_graph)
+    data.append(buy_graph)
+    data.append(sma30_graph)
+    data.append(sma100_graph)
+    data.append(buy_sma_graph)
+    data.append(sell_sma_graph)
+
     #data = [sell_graph, buy_graph, line_graph, candlestick_graph]
 
     y_min = min(graph_df['Adj Close'].min(), graph_df['SMA30'].min(),  graph_df['SMA100'].min())
