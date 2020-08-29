@@ -127,7 +127,6 @@ def mysql_get_latest_price(sql_engine, country, sym):
         return df['Adj Close'][-1]
     return None
 
-
 def read_from_sql(query, mysql_engine, date=True):
     df = pd.read_sql_query(query, mysql_engine)
     if date and not df.empty:
@@ -177,6 +176,14 @@ def write_to_sql(mysql_engine, table, df):
         df.to_sql(name=table,con=mysql_engine,index=False,if_exists='append')
     except Exception as E:
         print("DB.py: write_to_sql(), table: %r, exception: %r" %(table, str(E)))
+
+def get_stock_prices(symbol, columns=None):
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    query = 'select `Date`, `Open`, `Close`, `High`, `Low`, `Adj Close` from {} order by Date'.format('STK'+symbol)
+    df = read_from_sql2(mysql_engine, 'STK'+symbol, columns)
+    close_sql_connection(mysql_engine)
+
+    return df
 
 def mysql_exists_table(mysql_engine, table_name):
     return mysql_engine.has_table(table_name)
@@ -359,9 +366,28 @@ def get_symbol_table_name(symbol):
         symbol = US_indices[symbol]
     return 'STK'+symbol.replace('.','_')
 
-def get_symbols_from_mongo(collection):
+def get_symbols_from_mongo(collection=None, country='US'):
+    if not collection:
+        c = open_db_client()
+        db = c['Stocks']
+
+    collection = get_collection(country, db)
     symbols=collection.distinct("bscs.symbol")
+
+    if not collection:
+        close_db_client(c)
+
     return sorted(symbols)
+
+# Fetch a stock data from mongodb
+def read_stock_from_mongo(symbol):
+    c  = open_db_client()
+    db = c['Stocks']
+    stocks = db.US_Stocks.find({'bscs.symbol':symbol}, no_cursor_timeout=True)
+    close_db_client(c)
+    if stocks.count() == 1:
+        return stocks[0]
+    return None
 
 def rename_table(engine, t):
     new_t = 'STK'+t
