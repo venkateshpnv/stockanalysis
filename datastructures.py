@@ -422,3 +422,8 @@ fin_year_price_durations = [relativedelta(years=1), relativedelta(years=3), rela
 fin_quarter_fields = ['qoq', 'qo2q', 'qo4q', 'qo6q', 'qowq']
 fin_quarter_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_quarter_price_durations = [relativedelta(months=3), relativedelta(months=6), relativedelta(months=12), relativedelta(months=24)]
+
+income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuous Ops']
+balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
+cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
+

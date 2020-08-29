@@ -24,6 +24,7 @@ from dashcore import *
 pp = pprint.PrettyPrinter(indent=4)
 
 db = DashBoard()
+items = DB.get_symbols_names_from_mongo()
 
 @db.app.callback(
     Output(db.p_graph_id, 'figure'),
@@ -37,21 +38,24 @@ def price_graph(points, n_clicks, symbol):
     #if points:
     #    print("Hover keys : {}".format(points.keys()))
 
-    print("Symbol: {}, N_Clicks: {}".format(symbol, n_clicks))
+    if symbol:
+        symbol = symbol.split(" ")[0]
+    #print("Symbol: {}, N_Clicks: {}".format(symbol, n_clicks))
     if db.stock.symbol != symbol:
         db.stock.symbol = symbol
 
     if not db.stock.symbol:
-        db.fig = go.Figure([], go.Layout())
+        db.fig = go.Figure([], None)
+        #db.fig = go.Figure([], go.Layout())
         return db.fig 
 
     ctx = dash.callback_context
-    print(ctx.triggered)
+    #print(ctx.triggered)
     if ctx.triggered:
         id = ctx.triggered[0]['prop_id'].split('.')[1]
-        print("ID: {}".format(id))
+        #print("ID: {}".format(id))
 
-    print("Points: {}".format(points))
+    #print("Points: {}".format(points))
     graph_df = db.stock.df
     if not points:
         raise PreventUpdate
@@ -78,8 +82,8 @@ def price_graph(points, n_clicks, symbol):
            mode = 'markers',
            marker = dict(size=10),
            name = 'Buy',
-           fillcolor = 'rgb(0,128,0)',
-           visible = 'legendonly'
+           fillcolor = 'rgb(0,128,0)'
+           #visible = 'legendonly'
            )
 
     db.p_graph['buy_sma'] = go.Scatter(
@@ -88,8 +92,8 @@ def price_graph(points, n_clicks, symbol):
            mode = 'markers',
            marker = dict(size=10),
            name = 'Buy SMA',
-           fillcolor = 'rgb(2,52,0)',
-           visible = 'legendonly'
+           fillcolor = 'rgb(2,52,0)'
+           #visible = 'legendonly'
            )
 
     db.p_graph['sell_sma'] = go.Scatter(
@@ -98,8 +102,8 @@ def price_graph(points, n_clicks, symbol):
            mode = 'markers',
            marker = dict(size=10),
            name = 'Sell SMA',
-           fillcolor = 'rgb(3,12,0)',
-           visible = 'legendonly'
+           fillcolor = 'rgb(3,12,0)'
+           #visible = 'legendonly'
            )
 
     db.p_graph['line'] = go.Scatter(
@@ -111,15 +115,15 @@ def price_graph(points, n_clicks, symbol):
             x = graph_df.index,
             y = graph_df['SMA30'],
             name = 'SMA30',
-            fillcolor = 'rgb(1,128,0)',
-            visible = 'legendonly'
+            fillcolor = 'rgb(1,128,0)'
+            #visible = 'legendonly'
             )
     db.p_graph['sma100'] = go.Scatter(
             x = graph_df.index,
             y = graph_df['SMA100'],
             name = 'SMA100',
-            fillcolor = 'rgb(2,128,0)',
-            visible = 'legendonly'
+            fillcolor = 'rgb(2,128,0)'
+            #visible = 'legendonly'
             )
  
     #db.p_graph['candlestick'] = go.Candlestick(
@@ -135,10 +139,11 @@ def price_graph(points, n_clicks, symbol):
     #        )
 
 
-    for k in list(db.p_graph_prop.keys())[1:]:
-        if 'visible' not in db.p_graph_prop[k].keys():
-            db.p_graph_prop[k]['visible'] = 'legendonly'
-            db.p_graph[k]['visible'] = 'legendonly'
+    #for k in list(db.p_graph_prop.keys())[1:]:
+    #    print(k, db.p_graph_prop[k])
+    #    if 'visible' not in db.p_graph_prop[k].keys():
+    #        db.p_graph_prop[k]['visible'] = 'legendonly'
+    #        db.p_graph[k]['visible'] = 'legendonly'
 
     data = [db.p_graph['line']]
     data.append(db.p_graph['sell'])

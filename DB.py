@@ -179,8 +179,21 @@ def write_to_sql(mysql_engine, table, df):
 
 def get_stock_prices(symbol, columns=None):
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    query = 'select `Date`, `Open`, `Close`, `High`, `Low`, `Adj Close` from {} order by Date'.format('STK'+symbol)
     df = read_from_sql2(mysql_engine, 'STK'+symbol, columns)
+    close_sql_connection(mysql_engine)
+
+    return df
+def get_fin_stmts(symbol, stmt_type, duration):
+    columns = stmt_type + '_fields'
+    exec("columns = %s" %(columns))
+    if duration == 'quart':
+        table = stmt_type + '_quart_table'
+    else:
+        table = stmt_type + '_table'
+    exec("table = %s" %(table))
+
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+    df = read_from_sql2(mysql_engine, table, columns)
     close_sql_connection(mysql_engine)
 
     return df
@@ -378,6 +391,23 @@ def get_symbols_from_mongo(collection=None, country='US'):
         close_db_client(c)
 
     return sorted(symbols)
+
+def get_symbols_names_from_mongo(collection=None, country='US'):
+    if not collection:
+        c = open_db_client()
+        db = c['Stocks']
+
+    collection = get_collection(country, db)
+    items = collection.find({},{'bscs.symbol':1,'bscs.name':1,'_id':0})
+    if not collection:
+        close_db_client(c)
+
+    stocks = []
+    for i in items:
+        stocks.append("{}              {}".format(i['bscs']['symbol'], i['bscs']['name']))
+
+    return stocks
+
 
 # Fetch a stock data from mongodb
 def read_stock_from_mongo(symbol):

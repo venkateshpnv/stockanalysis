@@ -48,21 +48,28 @@ class DashBoard:
     def create_layout(self):
         self.app.layout = html.Div(children=[
             html.H1(children='Stock Prices'),
-        
-            html.Div(children='''
-                Dash: A web application framework for Python.
-            '''),
+
+            html.Br(),
+            #html.Div(children='''
+            #    Dash: A web application framework for Python.
+            #'''),
             html.Datalist(
                 id=self.com['sym']['suggest'], 
                 children=[html.Option(value=word) 
-                            for word in DB.get_symbols_from_mongo()]
+                            for word in DB.get_symbols_names_from_mongo()]
             ),
             dcc.Input(id=self.com['sym']['input'],
                 type='text',
                 list=self.com['sym']['suggest'],
                 placeholder='Enter a Stock Symbol',
+                size='30',
                 value=''
             ),
+            html.Data("                "),
+            html.Data("                "),
+            html.Data("                "),
+            html.Data("                "),
+            html.Data("                "),
         
             html.Button('Submit', id=self.com['sym']['button']),
         
@@ -79,6 +86,14 @@ class DashStock:
         self.df     = pd.DataFrame()
         self.data   = {}
         self._symbol = symbol
+        self.fin = {'income': pd.DataFrame(),
+                    'balance': pd.DataFrame(),
+                    'cash': pd.DataFrame()
+                    }
+        self.quart_fin = {'income': pd.DataFrame(),
+                    'balance': pd.DataFrame(),
+                    'cash': pd.DataFrame()
+                    }
 
     @property
     def symbol(self):
