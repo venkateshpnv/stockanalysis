@@ -27,6 +27,7 @@ US_hdf_store_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/hdf_store2
 India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_store2.h5'
 
 lock = threading.Lock()
+fail_lock = threading.Lock()
 US_Cal = get_calendar('USFederalHolidayCalendar')
 
 def get_stock_data(country, stk, start, end, vpn_event=None):
@@ -43,7 +44,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
 
             if country == 'India' and symbol not in India_indices.keys():
                 symbol = symbol + '.BO'
-            df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=5)
+            df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
             df = df.astype('float64')
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
             if vpn_event:
@@ -66,9 +67,15 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
                     retries = retries + 1
                     continue
             else:
-                if retries  > 5:
+                if retries  > 1:
                     PRINT_ERR("Unable to get DF for %s"%(symbol))
                     DB.update_price_failcount(stk, country, df=True)
+                    fail_lock.acquire()
+                    count=len(open("/home/vpetla/work/stockanalysis/get_price_fails.txt").readlines())+1
+                    f = open("/home/vpetla/work/stockanalysis/get_price_fails.txt", "a")
+                    f.write("%s: %s: %s\n"%(count, symbol, stk['bscs']['name']))
+                    f.close()
+                    fail_lock.release()
                     break
                 retries = retries + 1
                 time.sleep(2)
@@ -77,8 +84,15 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
  
         #except (urllib3.exceptions.NewConnectionError, OpenSSL.SSL.SysCallError) as E:
         except Exception as E:
-            if conn_retries > 5:
+            if conn_retries > 1:
                 PRINT_ERR("Unable to get DF for %s"%(symbol))
+                fail_lock.acquire()
+                count=len(open("/home/vpetla/work/stockanalysis/get_price_fails.txt").readlines())+1
+                f = open("/home/vpetla/work/stockanalysis/get_price_fails.txt", "a")
+                f.write("%s: %s: %s\n"%(count, symbol, stk['bscs']['name']))
+                f.close()
+                fail_lock.release()
+ 
                 break
             PRINT_ERR("%s: Connection Error, retrying" %(symbol))
             time.sleep(1)
@@ -900,7 +914,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
     df=pd.DataFrame() 
     collection = DB.get_collection(country, db)
     try:
-        today=str(dt.now())
+        today=dt.now()
         end=dt.now().date()# - timedelta(7)
         #Updating the price and volume for the first time
         if stk['bscs']['symbol'] in indices.keys():
@@ -1020,6 +1034,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
+                        DB.update_field(collection, symbol, "bscs.price_date", today)
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
