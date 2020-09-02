@@ -369,6 +369,14 @@ def add_basic_header(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Prom Stake", style_wrap)
     conf.PRM_S=i
+
+    i+=1
+    # RSI
+    sheet.col(i).width = 5*367
+    st = "RSI"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI=i
+
     return i
 
 def add_calc_header(sheet, i):
@@ -853,6 +861,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 #    if sheet_type == 'DAY':
 #        sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
 
+    if stk['technicals']['rsi'] is not None:
+        sh_write(ash, count, conf.RSI, stk['technicals']['rsi'], style_decimal)
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
     sh_write(ash, count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
@@ -1347,6 +1357,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
         check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
     sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num)
     sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
+    
+    if stk['technicals']['rsi'] is not None:
+        sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi'], style_decimal)
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
     sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
