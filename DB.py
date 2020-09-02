@@ -24,6 +24,7 @@ from common import *
 from datastructures import *
 import conf
 import hdf5
+import pandas_ta as ta
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column
@@ -1037,7 +1038,7 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": to_int(stk['bscs']['volume'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": to_float(stk['bscs']['mcap'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": to_int(stk['bscs']['outstanding_shares'])}})
-    update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.now())
+    #update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.now())
 
 j=0
 
@@ -1100,6 +1101,9 @@ def fork_hdf5_process(country, sem, vpn_event=None):
     collection = get_collection(country, db)
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
+    f = open("/home/vpetla/work/stockanalysis/get_price_fails.txt", "w")
+    f.close()
+
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
     #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
@@ -1148,10 +1152,10 @@ def fork_hdf5_process(country, sem, vpn_event=None):
             #if stk['bscs']['symbol'] not in symbols:
             #    print("Skipping: %r" %(stk['bscs']['symbol']))
             #    continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
-                print("Skipping: %r" %(stk['bscs']['symbol']))
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 30:
+                print("Price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
                 continue
-            print("%d: Checking: %r" %(i, stk['bscs']['symbol']))
+            print("%d: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
             t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
@@ -1221,6 +1225,34 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
         if sem:
             sem.release()
 
+def update_tech_analysis_params(collection, sym, df):
+    if df.empty:
+        print("Empty df")
+        update_field(collection, sym, "technicals.rsi", None)
+    else:
+        rsi = ta.rsi(df['Adj Close']).iloc[-1]
+        update_field(collection, sym, "technicals.rsi", rsi)
+
+    update_field(collection, sym, "technicals.date", dt.now())
+
+def update_all_tech_analysis_params(country='US'):
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    symbols = get_symbols_from_sql(country, mysql_engine)
+
+    edate = dt.now().date()
+    sdate = edate - relativedelta(months=4)
+    for sym in symbols:
+        if sym == '':
+            continue
+        print("Symbol: %r" %(sym))
+        query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+        df = read_from_sql(query, mysql_engine)
+        update_tech_analysis_params(db.US_Stocks, sym, df)
+
+    close_sql_connection(mysql_engine)
+ 
 def update_all_price_volume_db(country):
     global j
     max_threads = thread_factor
@@ -1239,7 +1271,7 @@ def update_all_price_volume_db(country):
         return
 
     #fork_hdf5_process(country, hdf5_sem, vpn_event)
-    #fork_db_process(country, db_sem, db_lock, vpn_event)
+    fork_db_process(country, db_sem, db_lock, vpn_event)
     hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,vpn_event))
     db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock, vpn_event))
     try:
@@ -1507,6 +1539,11 @@ def build_US_quarterly_stock_information(stk):
 def get_US_Stock_list():
     #nasdaq_url="https://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
     nasdaq_url="https://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
+    br  = internet.open_browser()
+    br.get(nasdaq_url)
+    internet.close_browser(br)
+
+
     wb=requests.get(nasdaq_url)
     f=open(conf.nasdaq_stocks,"wb")
     f.write(wb.content)
@@ -1622,11 +1659,11 @@ def update_symbol_name_changes():
             tried_count = read_from_sql(query, mysql_engine, date=False)
             tried_count = tried_count.iloc[0]['tried_count'] + 1
             query = 'update Symbol_Changes set tried_count={} where Old_Symbol=\'{}\''.format(tried_count, old_symbol)
-
             mysql_engine.execute(query)
-            if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
-                print("Symbol %s does not have a table in mysql database" %(old_symbol))
-                continue
+
+            #if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+            #    print("Symbol %s does not have a table in mysql database" %(old_symbol))
+            #    continue
 
             # Check if the new_symbol already exists in your databases.
             # If so, break there and manually handle the case.
@@ -1637,12 +1674,17 @@ def update_symbol_name_changes():
                 #print("Handle manually")
                 #choice = input("1. Delete the new symbol info \n2. Delete the old symbol info\nChoice : ")
                 sym = new_symbol
-                query = 'drop table {}'.format('STK'+sym.replace('.','_'))
-                #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
-                price_change_mysql_engine.execute(query)
-                #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
-                #price_change_mysql_engine.execute(query)
 
+                # If there exists an old table, drop the new table and
+                # update the name of the old table with the new table.
+                if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+                    query = 'drop table {}'.format('STK'+sym.replace('.','_'))
+                    #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
+                    price_change_mysql_engine.execute(query)
+                    #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+                    #price_change_mysql_engine.execute(query)
+
+                # Delete all new symbol financial data entries
                 query = 'delete from US_Stocks_Fin.income_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
                 price_change_mysql_engine.execute(query)
                 query = 'delete from US_Stocks_Fin.cash_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
@@ -1656,6 +1698,7 @@ def update_symbol_name_changes():
                 query = 'delete from US_Stocks_Fin.balance_table where Symbol=\'{}\''.format(sym.replace('.','_'))
                 price_change_mysql_engine.execute(query)
  
+                # Remove new symbol information from the mongodb
                 db.US_Stocks.remove({"bscs.symbol" : sym},1)
                 db.US_Stocks_List.remove({"symbol" : sym},1)
                 #if choice == '2':
