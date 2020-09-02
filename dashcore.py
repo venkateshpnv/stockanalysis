@@ -27,14 +27,21 @@ class DashBoard:
         self.com['sym']['suggest']= 'suggest-syms'
         self.com['sym']['button'] = 'button'
         self.fig = None
+        self.symbol_info = ""
         self.p_graph_id = 'price-graph'
         self.p_graph = {}
         self.p_graph_prop = {}
         self.p_graph_prop['line'] ={} 
-        self.p_graph_prop['sell'] ={} 
-        self.p_graph_prop['buy'] ={} 
-        self.p_graph_prop['buy_sma'] ={} 
-        self.p_graph_prop['sell_sma'] ={}
+        self.p_graph_prop['rsi'] ={} 
+        self.p_graph_prop['rsi_sell'] ={} 
+        self.p_graph_prop['rsi_buy'] ={} 
+        self.p_graph_prop['mfi'] ={} 
+        self.p_graph_prop['mfi_sell'] ={} 
+        self.p_graph_prop['mfi_buy'] ={} 
+        self.p_graph_prop['sma_sell'] ={} 
+        self.p_graph_prop['sma_buy'] ={}
+        self.p_graph_prop['sma30'] ={} 
+        self.p_graph_prop['sma100'] ={} 
 
         self.app = dash.Dash(__name__, 
                 external_stylesheets=[dbc.themes.LITERA])
@@ -46,33 +53,108 @@ class DashBoard:
 
 
     def create_layout(self):
+        PLOTLY_LOGO = "https://images.plot.ly/logo/new-branding/plotly-logomark.png"
+       
+        data_list =  html.Datalist(
+                        id=self.com['sym']['suggest'], 
+                        children=[html.Option(value=word) 
+                            for word in DB.get_symbols_names_from_mongo()]
+            )
+
+        search_bar = dbc.Row(
+            [
+                dbc.Col(dbc.Input(id=self.com['sym']['input'], 
+                                type="search",
+                                list=self.com['sym']['suggest'],
+                                placeholder="Enter a Stock Symbol",
+                                size='30',
+                                value=''
+                )),
+                dbc.Col(
+                    dbc.Button("Search",
+                               color="primary", 
+                               className="ml-2",
+                               id=self.com['sym']['button']
+                              ),
+                    width="auto",
+                ),
+            ],
+            no_gutters=True,
+            className="ml-auto flex-nowrap mt-3 mt-md-0",
+            align="center",
+        )
+        navbar = dbc.Navbar(
+            [
+                html.Div(
+                    # Use row and col to control vertical alignment of logo / brand
+                    dbc.Row(
+                        [
+                            dbc.Col(html.Img(src=PLOTLY_LOGO, height="30px")),
+                            dbc.Col(dbc.NavbarBrand("Stock Analyser", className="ml-2")),
+                        ],
+                        align="center",
+                        no_gutters=True,
+                    ),
+                    #href="https://plot.ly",
+                ),
+                dbc.NavbarToggler(id="navbar-toggler"),
+                dbc.Collapse(search_bar, id="navbar-collapse", navbar=True),
+            ],
+            color="dark",
+            dark=True,
+        )
+
+        symbol_info = dbc.Row(
+                      [
+                        html.H5(children="Symbol : AAPL", id='symbol-info'),
+                        html.H5(children='Apple Computers Inc.', id='company-name'),
+                      ],
+                      align='left'
+                     )
+        price_info = dbc.Row(
+                      [
+                        html.H3(children="Price", id='symbol-price'),
+                        html.H3(children='price change', id='price-change'),
+                        html.H3(children='', id='price-change'),
+                      ],
+                      align='right'
+                     )
+                       
         self.app.layout = html.Div(children=[
             html.H1(children='Stock Prices'),
+
+            #dbc.Alert("This is a primary alert", color="primary"),
 
             html.Br(),
             #html.Div(children='''
             #    Dash: A web application framework for Python.
             #'''),
-            html.Datalist(
-                id=self.com['sym']['suggest'], 
-                children=[html.Option(value=word) 
-                            for word in DB.get_symbols_names_from_mongo()]
-            ),
-            dcc.Input(id=self.com['sym']['input'],
-                type='text',
-                list=self.com['sym']['suggest'],
-                placeholder='Enter a Stock Symbol',
-                size='30',
-                value=''
-            ),
+
+            data_list,
+            navbar,
+            symbol_info,
+
+            #html.Datalist(
+            #    id=self.com['sym']['suggest'], 
+            #    children=[html.Option(value=word) 
+            #                for word in DB.get_symbols_names_from_mongo()]
+            #),
+            #dcc.Input(id=self.com['sym']['input'],
+            #    type='text',
+            #    list=self.com['sym']['suggest'],
+            #    placeholder='Enter a Stock Symbol',
+            #    size='30',
+            #    value=''
+            #),
             html.Data("                "),
             html.Data("                "),
             html.Data("                "),
             html.Data("                "),
             html.Data("                "),
         
-            html.Button('Submit', id=self.com['sym']['button']),
-        
+            ##html.Button('Submit', id=self.com['sym']['button']),
+            #dbc.Button("Submit", id=self.com['sym']['button'], outline=True, color="primary", className="mr-1"),
+
             dcc.Graph(
                 id=self.p_graph_id,
                 animate=True
@@ -140,14 +222,24 @@ class DashStock:
     def populate(self):
         columns = ['Date', 
                    'Open', 
-                   'Low', 
                    'Close',
-                   'Adj Close'
+                   'Low', 
+                   'High', 
+                   'Adj Close',
+                   'Volume'
                 ]
         self.df  = DB.get_stock_prices(self.symbol, columns=columns)
         self.df['SMA30']  = self.df['Adj Close'].rolling(window=30).mean()
         self.df['SMA100'] = self.df['Adj Close'].rolling(window=100).mean()
         self.df['RSI']    = ta.rsi(self.df['Adj Close'])
+        self.df['MFI']    = ta.mfi(self.df['High'],
+									self.df['Low'], 
+									self.df['Adj Close'],
+									self.df['Volume'], 
+								  )
+        self.df['MACD'], self.df['MACD_Hist'], self.df['MACD_Signal'] =  ta.macd(self.df['Adj Close'])
+        self.df['BBANDS_Low'], self.df['BBANDS_Mid'], self.df['BBANDS_Upper'] = ta.bbands(self.df['Adj Close'])
+
         self.update_sma_buy_sell()
         self.data = DB.read_stock_from_mongo(self.symbol)
 
