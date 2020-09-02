@@ -5,7 +5,8 @@ import sys
 import time
 import math
 import xlwt
-from datetime import datetime
+from datetime import date, timedelta, datetime as dt
+from dateutil.relativedelta import relativedelta
 
 from excel import add_dcf_header, add_wb_sheet
 import DB
@@ -162,7 +163,7 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta, prices_only=Fa
 
             stk['num']['dcf_years'] = years
             stk['num']['fig_yr'] = int(stk['fig']['Years'][-1].split('-')[1].lstrip().rstrip())
-            stk['num']['cur_yr'] = datetime.now().year
+            stk['num']['cur_yr'] = dt.now().year
             stk['num']['term_yr'] = stk['num']['cur_yr'] + 20
 
             PRINT("EPS: %r"%(eps))
@@ -290,7 +291,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         #for doc in docs:
     no_dcf = 0
     count = 0
-    for doc in collection.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
+    mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    symbols = DB.get_symbols_from_sql('US', mysql_engine)
+    DB.close_sql_connection(mysql_engine)
+    for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(1)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:
@@ -304,9 +308,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #obj = namedtuple("Stock", doc.keys())(*doc.values())
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
             #obj = bunchify(doc)
-            
-            if stock['bscs']['symbol'] == 'TPL':
-                print("TPL")
+
+            if stock['bscs']['symbol'] not in symbols:
+                continue
+
             if not stock:
                 PRINT_ERR("Stock not present")
                 no_dcf += 1
@@ -382,7 +387,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
     print("Stocks Calculated: %r" %(j))
     print("No DCF: %r" %(no_dcf))
-    now = datetime.now().date()
+    now = dt.now().date()
     if prices_only:
         excel = "%s/DCF_Calc/All_Stocks_Prices_%s.xls" % (path, str(now))
     else:
