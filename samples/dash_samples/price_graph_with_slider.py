@@ -8,6 +8,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
+import dash_elasticsearch_autosuggest as dea
 
 import plotly.express as px
 import plotly.graph_objs as go
@@ -66,7 +67,7 @@ def buy_sell(df):
         idx = idx + 1
     return buy, sell
 
-df = get_stock_data('AAPL')
+df = get_stock_data('MTDR')
 df['RSI'] = ta.rsi(df['Adj Close'])
 fig = None
 df['SMA30']=df['Adj Close'].rolling(window=30).mean()
@@ -90,6 +91,8 @@ df['SMA_Buy'], df['SMA_Sell'] = buy_sell(copy.deepcopy(df))
 #min_year = pd.to_datetime(graph_df.index[0]).year
 #max_year = pd.to_datetime(graph_df.index[-1]).year
 
+fields = ['AAPL', 'AMZN', 'GOOGL']
+
 app.layout = html.Div(children=[
     html.H1(children='Stock Prices'),
 
@@ -98,6 +101,21 @@ app.layout = html.Div(children=[
     '''),
 
     dcc.Input(id='input-box', value='', type='text', placeholder='Enter a stock symbol', ),
+    dea.ESAutosuggest(
+        id='input', 
+        value='',
+        endpoint='...',
+        fields=fields,
+        defaultField=fields[0],
+        additionalField=None,
+        sort=["_score"],
+        placeholder='Enter a Stock Symbol',
+        suggestions=[],
+        authUser='user',
+        authPass='pass',
+        searchField="original.edgengram"
+    ),
+
     html.Button('Submit', id='button'),
 
     dcc.Graph(

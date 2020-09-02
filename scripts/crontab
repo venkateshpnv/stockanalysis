@@ -30,15 +30,15 @@
 # Every week day 1:30 PM, run the script for US
 30 13 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'US'
 # Every week day 4:00 AM, run the script for India
-0 4 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'India'
+#0 4 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'India'
 #*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Stocks.sh
 #*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Price_Surprises.sh
 #Every week Saturday night 12:00 AM
-0 12 * * * 6 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Beta.sh
+#0 12 * * * 6 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Beta.sh
 #*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_EPS.sh
 #*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
 # Every week on sunday night 1:30 AM check for new listings and update them
-30 01 * * 1 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
+#30 01 * * 1 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
 #30 01 * * 1-5 cd /home/vpetla/work/stockanalysis && python3 US_Update_Price.py
-0 12 01 02 * 6 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Fin_Statements.sh
+#0 12 01 02 * 6 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Fin_Statements.sh
 
