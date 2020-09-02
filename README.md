@@ -8,6 +8,10 @@ Python
 ======
 e2.decode('utf-8') -> bytes to string
 
+Update all packages
+$ pip3 freeze > /tmp/r.txt
+$ pip3 install -r /tmp/r.txt --upgrade
+
 Mongodb
 ========
 Table -> Collection
