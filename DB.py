@@ -1672,13 +1672,27 @@ def get_US_Stock_list():
 def update_symbol_name_changes():
     #First get total number of web pages with symbol changes
     url = 'https://www.nasdaq.com/market-activity/stocks/symbol-change-history'
+    #br  = internet.open_browser()
     br  = internet.open_browser('headless')
     br.get(url)
+    br.maximize_window()
+
     df = pd.DataFrame()
     df = pd.read_html(br.page_source)
     if len(df) == 0:
         return
     df = df[0]
+
+    br.execute_script("window.scrollTo(0, 2000)")
+
+    #we = br.find_element_by_css_selector("button.pagination__page:nth-child(2)")
+    we = br.find_element_by_class_name("pagination__next")
+    a = internet.get_action_chain(br)
+    h = a.move_to_element(we)
+    h.click().perform()
+    rdf = pd.read_html(br.page_source)
+    df  = df.append(rdf[0])
+
     del df['Company Name']
     internet.close_browser(br)
 
@@ -1735,7 +1749,7 @@ def update_symbol_name_changes():
 
         print("Sending email of the list of new symbol changes")
         subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
-        send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
         
     # Read all symbol's information that are not yet updated to mongodb and price changes.
     query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
@@ -1816,14 +1830,19 @@ def update_symbol_name_changes():
             db.US_Stocks_List.update({'symbol': old_symbol}, {'$set': {'symbol': new_symbol}})
             # Save previous symbols information
             prev_syms = []
+            prev_names = []
             prev_syms_till_date = []
             if 'previous_symbols' in stk['bscs'].keys():
                 prev_syms = stk['bscs']['previous_symbols']['Names']
+                if 'Company_Names' in stk['bscs']['previous_symbols'].keys():
+                    prev_names = stk['bscs']['previous_symbols']['Company_Names']
                 prev_syms_till_date = stk['bscs']['previous_symbols']['Till_Date']
            
             prev_syms.append(old_symbol)
+            prev_names.append(stk['bscs']['name'])
             prev_syms_till_date.append(str(d['Effective_Date'] - timedelta(1)))
             db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
+            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Company_Names": prev_names}})
             db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Till_Date": prev_syms_till_date}})
             
             # Reset failcount

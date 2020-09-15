@@ -92,12 +92,27 @@ def open_browser(head=None, wiredriver=False):
     profile.set_preference("network.http.use-cache", False)
     profile.set_preference("browser.privatebrowsing.autostart", True)
     profile.set_preference("dom.webnotifications.enabled", False)
+    #profile.set_preference('browser.download.folderList', 2) # custom location
+    #profile.set_preference('browser.download.manager.showWhenStarting', False)
+    #profile.set_preference('browser.download.manager.focusWhenStarting', False)
+    #profile.set_preference('browser.download.manager.closeWhenDone', True)
+    #profile.set_preference('browser.download.manager.showAlertComplete', False)
+    #profile.set_preference('browser.download.manager.useWindow', False)
+    #profile.set_preference('services.sync.prefs.sync.browser.download.manager.showWhenStarting', False)
+    #profile.set_preference('browser.download.useDownloadDir', True)
+    #profile.set_preference('browser.download.dir', '/tmp')
+    #profile.set_preference("browser.helperApps.alwaysAsk.force", False);
+    #profile.set_preference("browser.helperApps.neverAsk.openFile", "text/plain, application/octet-stream, application/binary, text/csv, application/csv, application/excel, text/comma-separated-values, text/xml, application/xml");
+    #profile.set_preference('browser.helperApps.neverAsk.saveToDisk', "text/plain, application/octet-stream, application/binary, text/csv, application/csv, application/excel, text/comma-separated-values, text/xml, application/xml")
+    #profile.set_preference('csvjs.disabled', True)
+    #profile.set_preference('pdfjs.disabled', True)
+
     #profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/jid1-P34HaABBBpOerQ@jetpack.xpi')
     #profile.add_extension(extension='/home/vpetla/.mozilla/firefox/ekwma54v.default-release/extensions/{246C9D65-51E6-4B0C-9CCF-B081B7BF9242}.xpi')
     if wiredriver:
-        browser = wire_webdriver.Firefox(profile, options=options, capabilities=capabilities)
+        browser = wire_webdriver.Firefox(firefox_profile=profile, options=options, capabilities=capabilities)
     else:
-        browser = webdriver.Firefox(profile, options=options, capabilities=capabilities)
+        browser = webdriver.Firefox(firefox_profile=profile, options=options, capabilities=capabilities)
     #browser.set_page_load_timeout(30)
     #browser.maximize_window()
     return browser
@@ -408,14 +423,14 @@ def update_price_change(country, collection, sym, sem, sql_engine):
             price = result.first()[0]
             #price = hdf5.hdf_get_price(sym, df, dt.now().date())
             
-            if high_price == 0:
+            if not high_price or high_price == 0:
                 change = 0
             else:
                 change = (price/high_price) - 1
 
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             
-            if low_price == 0:
+            if not low_price or low_price == 0:
                 change = 0
             else:
                 change = (price/low_price) - 1
@@ -504,8 +519,9 @@ def fork_hdf5_process(country, sem):
             #    continue
             #if stk['bscs']['symbol'] not in symbols:
             #    continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
-                continue
+            
+            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
+            #    continue
  
             sem.acquire()
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
@@ -566,7 +582,7 @@ def fork_betas_process(country, sem):
 # Update the DB with yearly, quarterly and monthly percentage price change
 def update_all_stocks_price_change(country):
     i = 0
-    max_threads = multiprocessing.cpu_count() * DB.thread_factor
+    max_threads = DB.thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  
@@ -1668,6 +1684,9 @@ def perform(h):
         perform(h)
     perform_i=0
     return True
+
+def get_action_chain(br):
+    return ac(br)
 
 def scroll(br, direction):
     e=br.find_element_by_tag_name('html')
