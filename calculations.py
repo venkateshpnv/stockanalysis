@@ -294,7 +294,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     symbols = DB.get_symbols_from_sql('US', mysql_engine)
     DB.close_sql_connection(mysql_engine)
-    for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(1)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
+    for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(2)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:

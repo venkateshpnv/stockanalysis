@@ -311,9 +311,11 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                 items = {}
                 key = str(pd.to_datetime(index).date())
                 for k in d.keys().to_list(): #Skip date, date.1
-                    #if k != 'Date':
                     if d[k] != None:
-                        items[k]=d[k]
+                        if k == 'Date':
+                            items[k]=str(d[k]).split(' ')[0]
+                        else:
+                            items[k]=d[k]
                     # TODO: Handle on conflict
                 if insert:
                     stmt=table.insert().values(items)
@@ -430,6 +432,20 @@ def rename_table(engine, t):
         engine.execute(query)
     query = "rename table {} to {}".format(t, new_t)
     engine.execute(query)
+
+def get_index_prices(country):
+    indices_prices = {}
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    for k in US_indices.keys():
+        query = 'select Date, `Adj Close`, `Day Change` from STK{} order by Date desc limit 1;'.format(US_indices[k])
+        output = pd.read_sql_query(query, mysql_engine)
+        indices_prices[US_indices[k]] = { 
+                                        'price'  : output.iloc[0]['Adj Close'],
+                                        'change' : output.iloc[0]['Day Change'],
+                                        }
+
+    close_sql_connection(mysql_engine)
+    return indices_prices
 
 def get_symbols_from_sql(country, engine):
     inspector = sqlalchemy.inspect(engine)
@@ -1070,9 +1086,12 @@ def fork_db_process(country, sem, lock, vpn_event=None):
             if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
                 continue
 
-            if vpn_event:
-                while vpn_event.is_set() is False:
-                    continue
+            #if vpn_event:
+            #    while vpn_event.is_set() is False:
+            #        time.sleep(2)
+            #        continue
+            if vpn_event and vpn_event.is_set() is False:
+                vpn_event.wait()
 
             sem.acquire()
             print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
@@ -1152,7 +1171,7 @@ def fork_hdf5_process(country, sem, vpn_event=None):
             #if stk['bscs']['symbol'] not in symbols:
             #    print("Skipping: %r" %(stk['bscs']['symbol']))
             #    continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 30:
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
                 print("Price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
                 continue
             print("%d: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
@@ -1225,42 +1244,128 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
         if sem:
             sem.release()
 
-def update_tech_analysis_params(collection, sym, df):
-    if df.empty:
+def update_tech_analysis_params(collection, sym, df, sem=None):
+    if df.empty or len(df.index) == 1:
         print("Empty df")
-        update_field(collection, sym, "technicals.rsi", None)
+        update_field(collection, sym, "technicals.rsi", {})
+        update_field(collection, sym, "technicals.bbands", {})
     else:
-        rsi = ta.rsi(df['Adj Close']).iloc[-1]
-        update_field(collection, sym, "technicals.rsi", rsi)
+        rsi = ta.rsi(df['Adj Close'])
+        if len(rsi.index) == 0:
+            update_field(collection, sym, "technicals.rsi", {})
+        else:
+            update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
+            idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
+            update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
+            update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
+
+            idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+            update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
+            update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
+
+        # bollinger bands
+        bbands = ta.bbands(df['Adj Close'])
+        if bbands.empty:
+            update_field(collection, sym, "technicals.bbands", {})
+        else:
+            update_field(collection, sym, "technicals.bbands.lower", bbands['BBL_5'][-1])
+            update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
+            update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
 
     update_field(collection, sym, "technicals.date", dt.now())
+    if sem:
+        sem.release()
 
 def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
+    sem = threading.BoundedSemaphore(num_cores*2)
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     symbols = get_symbols_from_sql(country, mysql_engine)
 
     edate = dt.now().date()
     sdate = edate - relativedelta(months=4)
-    for sym in symbols:
+    for i, sym in enumerate(symbols):
         if sym == '':
             continue
-        print("Symbol: %r" %(sym))
-        query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+        print("%d: Symbol: %r" %(i, sym))
+        query = 'select Date, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+        #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
         df = read_from_sql(query, mysql_engine)
         update_tech_analysis_params(db.US_Stocks, sym, df)
+        #sem.acquire()
+        #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, df, sem)).start()
+
+    time.sleep(20)
+    close_db_client(c)
+    close_sql_connection(mysql_engine)
+
+def price_range_anomoly(country, mysql_engine, sym, df):
+    if len(df.index) < 1:
+        return
+
+    start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+    end = dt.now().date()
+    try:
+        ddf = pdr.DataReader(sym,'yahoo',start, end)
+        ddf = ddf[~ddf.index.isin(df.index)]
+        if not ddf.empty:
+            print(ddf)
+            mysql_update_table(mysql_engine, get_symbol_table_name(sym), ddf, insert=True)
+    except Exception as E:
+        print(str(E))
+        pass
+
+    #start = df.index[0]
+    #for i in df.index[1:]:
+    #    end = i
+    #    if (end-start) > timedelta(7):
+    #        print("symbol:%r, start:%r, end: %r" %(sym, start, end))
+    #        try:
+    #            ddf = pdr.DataReader(sym,'yahoo',start.to_pydatetime()+timedelta(1),
+    #                                end.to_pydatetime()-timedelta(1), retry_count=3)
+    #            mysql_update_table(mysql_engine, get_symbol_table_name(sym), ddf, insert=True)
+    #        except Exception as E:
+    #            print("Symbol: %r, exception: %r" %(sym, str(E)))
+    #            pass
+
+    #    start = end
+
+# Some times, due to errors from yahoo finance, the application misses some
+# of the price entries related to a particular date. This could cause the loss
+# in the sequence of the series. Check those issues are try to get the price changes
+# again. The logic is to check if there is atleast 4 days of difference between
+# consecutive price changes(assuming a long holiday). If so, truncate from that point
+# in the mysql database and get the prices again.
+def check_price_range_anomolies(country='US'):
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    symbols = get_symbols_from_sql(country, mysql_engine)
+
+    for i, sym in enumerate(symbols):
+        if sym == '':
+            continue
+        print("%d: Symbol: %r" %(i, sym))
+        if i % 200  == 0:
+            change_vpn()
+        query = 'select Date, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+        df = read_from_sql(query, mysql_engine)
+        price_range_anomoly(country, mysql_engine, sym, df)
 
     close_sql_connection(mysql_engine)
- 
+
+
 def update_all_price_volume_db(country):
     global j
     max_threads = thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
-    #vpn_event = threading.Event()
-    #vpn_event.set()
-    vpn_event=None
+    vpn_event = threading.Event()
+    vpn_event.set()
+    #vpn_event=None
     db_lock = threading.Lock()
     today=str(dt.now().date())
     count=0
@@ -1270,16 +1375,17 @@ def update_all_price_volume_db(country):
         PRINT_ERR("Unknown Country")
         return
 
+    change_vpn()
     #fork_hdf5_process(country, hdf5_sem, vpn_event)
-    fork_db_process(country, db_sem, db_lock, vpn_event)
+    #fork_db_process(country, db_sem, db_lock, vpn_event)
     hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,vpn_event))
     db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock, vpn_event))
     try:
         hdf5_process.start()
         db_process.start()
     finally:
-        hdf5_process.join()
         db_process.join()
+        hdf5_process.join()
     print("Exiting hdf5 and db processes")
 
 #Find missing entries in the db.

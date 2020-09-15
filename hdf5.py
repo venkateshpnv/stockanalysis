@@ -28,9 +28,15 @@ India_hdf_store_path='/home/vpetla/work/stockanalysis/India_Stocks/DCF_Calc/hdf_
 
 lock = threading.Lock()
 fail_lock = threading.Lock()
+vpn_lock = threading.Lock()
 US_Cal = get_calendar('USFederalHolidayCalendar')
 
+vpn_change_time = dt.now()
+
 def get_stock_data(country, stk, start, end, vpn_event=None):
+    global vpn_change_time
+    global vpn_lock
+
     retries = 0
     conn_retries = 0
     df = pd.DataFrame()
@@ -38,7 +44,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
     while True:
         try:
             if vpn_event and vpn_event.is_set() is False:
-                print("**** %s: DF: Waiting..  VPN is changing" %(symbol))
+                print("**** %s: DF: Waiting..  for VPN change" %(symbol))
                 vpn_event.wait()
                 print("**** %s: DF: Waking up" %(symbol))
 
@@ -53,18 +59,28 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
                     DB.update_price_failcount(stk, country, df=True)
                     break
                 if vpn_event.is_set() is False:
-                    print("**** %s: DF: Waiting..  VPN is changing" %(symbol))
+                    print("**** Exception : %s: DF: Waiting..  for VPN change" %(symbol))
                     vpn_event.wait()
-                    print("**** %s: DF: Waking up" %(symbol))
+                    print("**** Exception : %s: DF: Waking up" %(symbol))
                     continue
                 else:
-                    time.sleep(5)
-                    vpn_event.clear()
-                    print("**** %s: VPN Changing: Sent Wait Event" %(symbol))
-                    change_vpn()
-                    vpn_event.set()
-                    print("**** %s: VPN Changed: Sending Wakeup Event" %(symbol))
+                    time.sleep(2)
+                    vpn_lock.acquire()
+                    print("**** %s: Got VPN lock" %(symbol))
+                    now  = dt.now()
+                    diff = now - vpn_change_time
+                    # if vpn has not changed atleast a minutue ago, change it. else no use of changing it again.
+                    if diff.seconds > 300:
+                        print(now, vpn_change_time)
+                        vpn_event.clear()
+                        print("**** %s: Changing VPN " %(symbol))
+                        change_vpn()
+                        vpn_change_time = dt.now()
+                        vpn_event.set()
+                        print("**** %s: VPN Changed" %(symbol))
                     retries = retries + 1
+                    vpn_lock.release()
+                    print("**** %s: Released VPN lock" %(symbol))
                     continue
             else:
                 if retries  > 1:
