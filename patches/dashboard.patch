@@ -1,0 +1,288 @@
+diff --git a/dashboard.py b/dashboard.py
+index a61e5127..8d76c777 100644
+--- a/dashboard.py
++++ b/dashboard.py
+@@ -27,6 +27,39 @@ pp = pprint.PrettyPrinter(indent=4)
+ db = DashBoard()
+ items = DB.get_symbols_names_from_mongo()
+ 
++# Update page
++@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
++def display_page(pathname):
++    if pathname == "/dash-financial-report/price-performance":
++        return pricePerformance.create_layout(app)
++    elif pathname == "/dash-financial-report/portfolio-management":
++        return portfolioManagement.create_layout(app)
++    elif pathname == "/dash-financial-report/fees":
++        return feesMins.create_layout(app)
++    elif pathname == "/dash-financial-report/distributions":
++        return distributions.create_layout(app)
++    elif pathname == "/dash-financial-report/news-and-reviews":
++        return newsReviews.create_layout(app)
++    elif pathname == "/dash-financial-report/full-view":
++        return (
++            overview.create_layout(app),
++            pricePerformance.create_layout(app),
++            portfolioManagement.create_layout(app),
++            feesMins.create_layout(app),
++            distributions.create_layout(app),
++            newsReviews.create_layout(app),
++        )
++    else:
++        return dash.create_layout(app)
++
++@db.app.callback(
++    Output(db.p_graph_id, 'figure'),
++    [Input(db.p_graph_id, 'relayoutData'),
++     Input(db.com['sym']['button'], 'n_clicks')],
++    [State(db.com['sym']['input'], 'value')]
++   )
++def price_graph(points, n_clicks, symbol):
++ 
+ @db.app.callback(
+     Output(db.p_graph_id, 'figure'),
+     [Input(db.p_graph_id, 'relayoutData'),
+@@ -246,4 +279,4 @@ def price_graph(points, n_clicks, symbol):
+     return db.fig 
+ 
+ if __name__ == '__main__':
+-    db.app.run_server(debug=True)
++    db.app.run_server(debug=True, port=8086)
+diff --git a/dashcore.py b/dashcore.py
+index c204fef8..805d6c01 100644
+--- a/dashcore.py
++++ b/dashcore.py
+@@ -18,6 +18,8 @@ import pandas_ta as ta
+ import numpy as np
+ import copy
+ 
++from dash_common import *
++
+ class DashBoard:
+     def __init__(self, symbol=None):
+         self.stock  = DashStock(symbol)
+@@ -53,115 +55,122 @@ class DashBoard:
+ 
+ 
+     def create_layout(self):
+-        PLOTLY_LOGO = "https://images.plot.ly/logo/new-branding/plotly-logomark.png"
+-       
+-        data_list =  html.Datalist(
+-                        id=self.com['sym']['suggest'], 
+-                        children=[html.Option(value=word) 
+-                            for word in DB.get_symbols_names_from_mongo()]
+-            )
+-
+-        search_bar = dbc.Row(
+-            [
+-                dbc.Col(dbc.Input(id=self.com['sym']['input'], 
+-                                type="search",
+-                                list=self.com['sym']['suggest'],
+-                                placeholder="Enter a Stock Symbol",
+-                                size='30',
+-                                value=''
+-                )),
+-                dbc.Col(
+-                    dbc.Button("Search",
+-                               color="primary", 
+-                               className="ml-2",
+-                               id=self.com['sym']['button']
+-                              ),
+-                    width="auto",
+-                ),
+-            ],
+-            no_gutters=True,
+-            className="ml-auto flex-nowrap mt-3 mt-md-0",
+-            align="center",
+-        )
+-        navbar = dbc.Navbar(
+-            [
+-                html.Div(
+-                    # Use row and col to control vertical alignment of logo / brand
+-                    dbc.Row(
+-                        [
+-                            dbc.Col(html.Img(src=PLOTLY_LOGO, height="30px")),
+-                            dbc.Col(dbc.NavbarBrand("Stock Analyser", className="ml-2")),
+-                        ],
+-                        align="center",
+-                        no_gutters=True,
+-                    ),
+-                    #href="https://plot.ly",
+-                ),
+-                dbc.NavbarToggler(id="navbar-toggler"),
+-                dbc.Collapse(search_bar, id="navbar-collapse", navbar=True),
+-            ],
+-            color="dark",
+-            dark=True,
++        # Describe the layout/ UI of the app
++        self.app.layout = html.Div(
++            [dcc.Location(id="url", refresh=False), html.Div(id="page-content")]
+         )
+ 
+-        symbol_info = dbc.Row(
+-                      [
+-                        html.H5(children="Symbol : AAPL", id='symbol-info'),
+-                        html.H5(children='Apple Computers Inc.', id='company-name'),
+-                      ],
+-                      align='left'
+-                     )
+-        price_info = dbc.Row(
+-                      [
+-                        html.H3(children="Price", id='symbol-price'),
+-                        html.H3(children='price change', id='price-change'),
+-                        html.H3(children='', id='price-change'),
+-                      ],
+-                      align='right'
+-                     )
+-                       
+-        self.app.layout = html.Div(children=[
+-            html.H1(children='Stock Prices'),
+ 
+-            #dbc.Alert("This is a primary alert", color="primary"),
++    #def create_layout(self):
++    #    PLOTLY_LOGO = "https://images.plot.ly/logo/new-branding/plotly-logomark.png"
++    #   
++    #    data_list =  html.Datalist(
++    #                    id=self.com['sym']['suggest'], 
++    #                    children=[html.Option(value=word) 
++    #                        for word in DB.get_symbols_names_from_mongo()]
++    #        )
++
++    #    search_bar = dbc.Row(
++    #        [
++    #            dbc.Col(dbc.Input(id=self.com['sym']['input'], 
++    #                            type="search",
++    #                            list=self.com['sym']['suggest'],
++    #                            placeholder="Enter a Stock Symbol",
++    #                            size='30',
++    #                            value=''
++    #            )),
++    #            dbc.Col(
++    #                dbc.Button("Search",
++    #                           color="primary", 
++    #                           className="ml-2",
++    #                           id=self.com['sym']['button']
++    #                          ),
++    #                width="auto",
++    #            ),
++    #        ],
++    #        no_gutters=True,
++    #        className="ml-auto flex-nowrap mt-3 mt-md-0",
++    #        align="center",
++    #    )
++    #    navbar = dbc.Navbar(
++    #        [
++    #            html.Div(
++    #                # Use row and col to control vertical alignment of logo / brand
++    #                dbc.Row(
++    #                    [
++    #                        dbc.Col(html.Img(src=PLOTLY_LOGO, height="30px")),
++    #                        dbc.Col(dbc.NavbarBrand("Stock Analyser", className="ml-2")),
++    #                    ],
++    #                    align="center",
++    #                    no_gutters=True,
++    #                ),
++    #                #href="https://plot.ly",
++    #            ),
++    #            dbc.NavbarToggler(id="navbar-toggler"),
++    #            dbc.Collapse(search_bar, id="navbar-collapse", navbar=True),
++    #        ],
++    #        color="dark",
++    #        dark=True,
++    #    )
++
++    #    symbol_info = dbc.Row(
++    #                  [
++    #                    html.H5(children="Symbol : AAPL", id='symbol-info'),
++    #                    html.H5(children='Apple Computers Inc.', id='company-name'),
++    #                  ],
++    #                  align='left'
++    #                 )
++    #    price_info = dbc.Row(
++    #                  [
++    #                    html.H3(children="Price", id='symbol-price'),
++    #                    html.H3(children='price change', id='price-change'),
++    #                    html.H3(children='', id='price-change'),
++    #                  ],
++    #                  align='right'
++    #                 )
++    #                   
++    #    self.app.layout = html.Div(children=[
++    #        html.H1(children='Stock Prices'),
++
++    #        #dbc.Alert("This is a primary alert", color="primary"),
+ 
+-            html.Br(),
+-            #html.Div(children='''
+-            #    Dash: A web application framework for Python.
+-            #'''),
++    #        html.Br(),
++    #        #html.Div(children='''
++    #        #    Dash: A web application framework for Python.
++    #        #'''),
+ 
+-            data_list,
+-            navbar,
+-            symbol_info,
++    #        data_list,
++    #        navbar,
++    #        symbol_info,
+ 
+-            #html.Datalist(
+-            #    id=self.com['sym']['suggest'], 
+-            #    children=[html.Option(value=word) 
+-            #                for word in DB.get_symbols_names_from_mongo()]
+-            #),
+-            #dcc.Input(id=self.com['sym']['input'],
+-            #    type='text',
+-            #    list=self.com['sym']['suggest'],
+-            #    placeholder='Enter a Stock Symbol',
+-            #    size='30',
+-            #    value=''
+-            #),
+-            html.Data("                "),
+-            html.Data("                "),
+-            html.Data("                "),
+-            html.Data("                "),
+-            html.Data("                "),
+-        
+-            ##html.Button('Submit', id=self.com['sym']['button']),
+-            #dbc.Button("Submit", id=self.com['sym']['button'], outline=True, color="primary", className="mr-1"),
++    #        #html.Datalist(
++    #        #    id=self.com['sym']['suggest'], 
++    #        #    children=[html.Option(value=word) 
++    #        #                for word in DB.get_symbols_names_from_mongo()]
++    #        #),
++    #        #dcc.Input(id=self.com['sym']['input'],
++    #        #    type='text',
++    #        #    list=self.com['sym']['suggest'],
++    #        #    placeholder='Enter a Stock Symbol',
++    #        #    size='30',
++    #        #    value=''
++    #        #),
++    #        html.Data("                "),
++    #        html.Data("                "),
++    #        html.Data("                "),
++    #        html.Data("                "),
++    #        html.Data("                "),
++    #    
++    #        ##html.Button('Submit', id=self.com['sym']['button']),
++    #        #dbc.Button("Submit", id=self.com['sym']['button'], outline=True, color="primary", className="mr-1"),
+ 
+-            dcc.Graph(
+-                id=self.p_graph_id,
+-                animate=True
+-                #style={'backgroundColor':'#1a2d46', 'color':'#ffffff'},
+-                )
+-        
+-        ])
++    #        dcc.Graph(
++    #            id=self.p_graph_id,
++    #            animate=True
++    #            #style={'backgroundColor':'#1a2d46', 'color':'#ffffff'},
++    #            )
++    #    
++    #    ])
+ 
+ class DashStock:
+     def __init__(self, symbol=None):
