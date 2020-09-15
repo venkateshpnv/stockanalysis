@@ -149,28 +149,54 @@ def df_difference(df1,df2):
 
 def change_vpn():
     retries = 0
-    while True:
+    done=False
+    while not done:
         try:
-            while True:
+            while not done:
                 cmd="hotspotshield locations | cut -f 1 -d ' ' | shuf -n 1"
                 s=subprocess.check_output(cmd, shell=True)
                 loc = str(s)[2:].split("\\")[0]
-                if loc.find('-') == -1:
+                if loc.find('-') != -1:
                     break
 
-            print("%s: Changing to location %s" %(dt.today(), loc))
-            ret = subprocess.check_output('hotspotshield disconnect', shell=True)
-            time.sleep(2)
-            cmd = 'hotspotshield connect %s' %(loc)
-            ret = subprocess.check_output(cmd, shell=True)
-            #ret=b''
-            if ret.decode("utf-8") != '':
+                print("%s: Changing to location %s" %(dt.today(), loc))
+                ret = subprocess.check_output('hotspotshield disconnect', shell=True)
+                time.sleep(2)
+                cmd = 'hotspotshield connect %s' %(loc)
+                ret = subprocess.check_output(cmd, shell=True)
+                time.sleep(5)
+                status_retries=0
+                while True:
+                    cmd = 'hotspotshield status'
+                    ret = subprocess.check_output(cmd, shell=True)
+                    if ret.decode("utf-8").find('disconnected') > 0:
+                        print("VPN is disconnected, retrying...")
+                        if status_retries > 5:
+                            retries = retries + 1
+                            time.sleep(5)
+                            break
+                        status_retries = status_retries + 1
+                        time.sleep(5)
+                        continue
+                    elif ret.decode("utf-8").find('connected') > 0:
+                        done = True
+                        break
+                    else:
+                        if status_retries > 5:
+                            break
+                        status_retries = status_retries + 1
+                        time.sleep(5)
+                        continue
+                ##ret=b''
+                #if ret.decode("utf-8") != '':
                 if retries > 5:
+                    print('Failed changing vpn... retrying')
                     break
-                print('Failed changing vpn... retrying')
-                retries = retries + 1
-                time.sleep(15)
+                #retries = retries + 1
+                time.sleep(5)
                 continue
+ 
+            #ret=b''
             #time.sleep(1)
         except subprocess.CalledProcessError:
             if retries > 5:
@@ -178,8 +204,10 @@ def change_vpn():
             retries = retries + 1
             time.sleep(15)
             continue
-        time.sleep(5)
-        break
+        #time.sleep(5)
+        if retries > 5:
+            break
+        #break
 
 # Get last date of financial statements
 def get_last_date(stk, dates, fmt):
