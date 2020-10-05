@@ -667,11 +667,11 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         #except Exception as e:
         #    collection.update({'bscs.symbol': bscs['symbol']}, {'$set': {"fig.betas.six_months.beta": 0}})
         #    entry.append(str("None"))
-        if 'fiftytwoweek_high' in bscs.keys():
+        if 'fiftytwoweek_high' in bscs.keys() and bscs['fiftytwoweek_high'] is not None:
             entry.append(str(round(bscs['fiftytwoweek_high'], 2)))
         else:
             entry.append("")
-        if 'fiftytwoweek_low' in bscs.keys():
+        if 'fiftytwoweek_low' in bscs.keys() and bscs['fiftytwoweek_low'] is not None:
             entry.append(str(round(bscs['fiftytwoweek_low'], 2)))
         else:
             entry.append("")
@@ -2114,12 +2114,12 @@ def populate_entries(br, mysql_engine, field):
 
         if not df.empty:
             if mysql_engine.has_table(table[field]):
-                query = 'select * from {}'.format(table[field])
+                query = 'select * from {} where Symbol=\'{}\''.format(table[field], df['Symbol'][0])
                 ddf = DB.read_from_sql(query, mysql_engine, date=False)
                 if not ddf.empty:
                     df = df[~df.Date.isin(ddf.Date)]
- 
-            DB.mysql_update_table(mysql_engine, table[field], df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
+            if not df.empty: 
+                DB.mysql_update_table(mysql_engine, table[field], df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
     except Exception as E:
         exception_info(E)
 
@@ -2174,12 +2174,13 @@ def close_popups():
     print("Exiting thread")
 
 def populate_US_EPS(stk, mysql_engine=None, db=None):
-    #if 'EPS_DIV_SPLIT_History_Date' in stk['bscs'].keys():
-    #    last_date = stk['bscs']['EPS_DIV_SPLIT_History_Date']
-    #    if (dt.now() - last_date) < timedelta(30):
-    #        print("Already updated on %r" %(str(last_date.date())))
-    #        return
+    if 'EPS_DIV_SPLIT_History_Date' in stk['bscs'].keys():
+        last_date = stk['bscs']['EPS_DIV_SPLIT_History_Date']
+        if (dt.now() - last_date) < timedelta(30):
+            print("Already updated on %r" %(str(last_date.date())))
+            return
     global stop_thread
+    global br
     th = None
 
     try:
@@ -2213,7 +2214,8 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         #dividend_hist = {}
 
         url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
-        br = open_browser('headless', wiredriver=True)
+        br = open_browser(wiredriver=True)
+        #br = open_browser('headless', wiredriver=True)
 
         try:
             br.get(url)

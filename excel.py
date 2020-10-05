@@ -249,25 +249,25 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Sector
-    sheet.col(i).width = 8*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Sector", style_wrap)
     conf.SEC=i
 
     i+=1
     #Sector
-    sheet.col(i).width = 8*367
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "Industry", style_wrap)
     conf.IND=i
 
     i+=1
     #Since
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 3*367
     sheet.write(0, i, "Since", style_wrap)
     conf.SINCE=i
 
     i+=1
     #Current Price Date
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 3*367
     sheet.write(0, i, "Current Price Date", style_wrap)
     conf.CUR_PR_DT=i
 
@@ -303,7 +303,7 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Volume
-    sheet.col(i).width = 9*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
 
@@ -345,30 +345,30 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "MCap Millions", style_wrap)
     conf.MCAP=i
 
-    i+=1
-    # Market Cap in Cr
-    sheet.col(i).width = 8*367
-    sheet.write(0, i, "Revenue Millions", style_wrap)
-    conf.REVENUE=i
+    #i+=1
+    ## Market Cap in Cr
+    #sheet.col(i).width = 8*367
+    #sheet.write(0, i, "Revenue Millions", style_wrap)
+    #conf.REVENUE=i
 
+
+    ##i+=1
+    ### conf.FII
+    ##sheet.col(i).width = 5*367
+    ##sheet.write(0, i, "FII", style_wrap)
+    ##conf.FII=i
 
     #i+=1
-    ## conf.FII
+    ## conf.DII
     #sheet.col(i).width = 5*367
-    #sheet.write(0, i, "FII", style_wrap)
-    #conf.FII=i
+    #sheet.write(0, i, "DII", style_wrap)
+    #conf.DII=i
 
-    i+=1
-    # conf.DII
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "DII", style_wrap)
-    conf.DII=i
-
-    i+=1
-    # Promoter Stake
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Prom Stake", style_wrap)
-    conf.PRM_S=i
+    #i+=1
+    ## Promoter Stake
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Prom Stake", style_wrap)
+    #conf.PRM_S=i
 
     i+=1
     # RSI
@@ -392,12 +392,25 @@ def add_basic_header(sheet, i):
     conf.RSI_60_MAX=i
 
     i+=1
-    # RSI min max price change
+    # 60 day max RSI
     sheet.col(i).width = 5*367
+    st = "RSI Max Min Diff"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI_DIFF=i
+
+    i+=1
+    # RSI min max price change
+    sheet.col(i).width = 7*367
     st = "RSI price change"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_PRICE_CHANGE=i
 
+    i+=1
+    # RSI min max price change
+    sheet.col(i).width = 4*367
+    st = "RSI price change days"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI_PRICE_CHANGE_DAYS=i
 
     i+=1
     # BBands 
@@ -405,6 +418,14 @@ def add_basic_header(sheet, i):
     st = "BBands Range"
     sheet.write(0, i, st, style_wrap)
     conf.BBANDS_RANGE=i
+
+    i+=1
+    # Morning Star
+    sheet.col(i).width = 3*367
+    st = "MStar"
+    sheet.write(0, i, st, style_wrap)
+    conf.MSTAR=i
+
 
     return i
 
@@ -755,32 +776,39 @@ def add_price_change_header(sheet, i, sheet_type):
 
     i = i + 1
     sheet.col(i).width = 6*367
-    sheet.write(0, i, "Whole Price Change", style_wrap)
-    conf.WH_PR_CHANGE=i
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Yr Price Change", style_wrap)
-    conf.YR_PR_CHANGE=i
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Half Yr Price Change", style_wrap)
-    conf.HF_YR_PR_CHANGE=i
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Qr Price Change", style_wrap)
-    conf.QR_PR_CHANGE=i
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Mon Price Change", style_wrap)
-    conf.MON_PR_CHANGE=i
+    sheet.write(0, i, "Day Price Change", style_wrap)
+    conf.DAY_PR_CHANGE=i
+
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Week Price Change", style_wrap)
     conf.WEEK_PR_CHANGE=i
+
     i = i + 1
     sheet.col(i).width = 6*367
-    sheet.write(0, i, "Day Price Change", style_wrap)
-    conf.DAY_PR_CHANGE=i
+    sheet.write(0, i, "Mon Price Change", style_wrap)
+    conf.MON_PR_CHANGE=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Qr Price Change", style_wrap)
+    conf.QR_PR_CHANGE=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Half Yr Price Change", style_wrap)
+    conf.HF_YR_PR_CHANGE=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Yr Price Change", style_wrap)
+    conf.YR_PR_CHANGE=i
+ 
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Whole Price Change", style_wrap)
+    conf.WH_PR_CHANGE=i
+
     return i
 
 
@@ -894,14 +922,20 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
+        sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
         if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
         else:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent)
+        days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
+        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight)
 
-    if stk['technicals']['bbands'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
+    if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
+    
+    if stk['technicals']['candlesticks'] is not None and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
+        sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text)
  
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
@@ -913,9 +947,9 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
-    sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
+    #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
     #sh_write(ash, count, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
-    sh_write(ash, count, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
+    #sh_write(ash, count, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
     sh_write(ash, count, conf.DIV, stk['Dividend']['yld']/100, style_percent)
     sh_write(ash, count, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
     sh_write(ash, count, conf.FLT, stk['bscs']['float']/100)
@@ -928,7 +962,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.SEC, stk['bscs']['sector'], style_text)
     sh_write(ash, count, conf.IND, stk['bscs']['industry'], style_text)
     sh_write(ash, count, conf.MCAP, stk['bscs']['mcap'], style_num)
-    sh_write(ash, count, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
+    #sh_write(ash, count, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
     sh_write(ash, count, conf.SINCE, stk['bscs']['since'], style_text)
     sh_write(ash, count, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0])
     sh_write(ash, count, conf.CUR_PR, stk['bscs']['price'])
@@ -1110,11 +1144,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
 
     sheet.write(i, 3, "Promoter Stake")
     sheet.write(i, 4, stk['bscs']['promoter_stake']/100, style_percent)
-    sh_write(ash, conf.COUNT, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
+    #sh_write(ash, conf.COUNT, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
     #if 'fii_stake' in stk['bscs'].keys():
     #    sh_write(ash, conf.COUNT, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
-    if 'dii_stake' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
+    #if 'dii_stake' in stk['bscs'].keys():
+    #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
     if 'yld' in stk['Dividend'].keys():
         sh_write(ash, conf.COUNT, conf.DIV, stk['Dividend']['yld']/100, style_percent)
     if 'payout_ratio' in stk['Dividend'].keys():
@@ -1396,23 +1430,27 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     if 'PAT_M' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
     sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num)
-    sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
+    #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
 
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
+        sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
         if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
         else:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent)
-
-
+        days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
+        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight)
 
     if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
- 
+
+    if stk['technicals']['candlesticks'] is not None and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
+        sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text)
+
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
     sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)

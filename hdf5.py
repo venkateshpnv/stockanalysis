@@ -956,7 +956,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
                 DB.check_n_write_to_sql(sql_engine, symbol, copy.deepcopy(df), list(df.columns))
                 # Update the date on which the price is updated
-                DB.update_field(collection, symbol, "bscs.price_date", today)
+                DB.update_field(collection, symbol, "bscs.price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
  
             if df.empty:
                 DB.update_field(collection, symbol, "ignore", "YES")
@@ -970,7 +970,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             if True:
                 ##write_to_hdf(country, df, symbol)
                 # Update the date on which the price is updated
-                DB.update_field(collection, symbol, "bscs.price_date",today)
+                DB.update_field(collection, symbol, "bscs.price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
                 #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
@@ -1050,7 +1050,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
-                        DB.update_field(collection, symbol, "bscs.price_date", today)
+                        DB.update_field(collection, symbol, "bscs.price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
