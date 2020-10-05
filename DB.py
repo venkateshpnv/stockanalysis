@@ -51,6 +51,8 @@ from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, BatchStatement
 from cassandra import ConsistencyLevel
 
+import talib
+
 num_cores = multiprocessing.cpu_count()
 thread_factor = num_cores
 #thread_factor=multiprocessing.cpu_count() * 8
@@ -1244,11 +1246,79 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
         if sem:
             sem.release()
 
-def update_tech_analysis_params(collection, sym, df, sem=None):
+def update_candlesticks(collection, sym, df):
+    update_field(collection, sym, "technicals.candlesticks.TWOCROWS",float(talib.CDL2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREECROWS",float(talib.CDL3BLACKCROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREEINSIDE",float(talib.CDL3INSIDE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREELINESTRIKE",float(talib.CDL3LINESTRIKE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREEOUTSIDE",float(talib.CDL3OUTSIDE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREESTARSINSOUTH",float(talib.CDL3STARSINSOUTH(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THREEWHITESOLDIERS",float(talib.CDL3WHITESOLDIERS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.ABANDONEDBABY",float(talib.CDLABANDONEDBABY(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.ADVANCEBLOCK",float(talib.CDLADVANCEBLOCK(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.BELTHOLD",float(talib.CDLBELTHOLD(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.BREAKAWAY",float(talib.CDLBREAKAWAY(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.CLOSINGMARUBOZU",float(talib.CDLCLOSINGMARUBOZU(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.CONCEALBABYSWALL",float(talib.CDLCONCEALBABYSWALL(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.COUNTERATTACK",float(talib.CDLCOUNTERATTACK(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.DARKCLOUDCOVER",float(talib.CDLDARKCLOUDCOVER(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.DOJI",float(talib.CDLDOJI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.DOJISTAR",float(talib.CDLDOJISTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.DRAGONFLYDOJI",float(talib.CDLDRAGONFLYDOJI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.ENGULFING",float(talib.CDLENGULFING(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.EVENINGDOJISTAR",float(talib.CDLEVENINGDOJISTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.EVENINGSTAR",float(talib.CDLEVENINGSTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.GAPSIDESIDEWHITE",float(talib.CDLGAPSIDESIDEWHITE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.GRAVESTONEDOJI",float(talib.CDLGRAVESTONEDOJI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HAMMER",float(talib.CDLHAMMER(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HANGINGMAN",float(talib.CDLHANGINGMAN(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HARAMI",float(talib.CDLHARAMI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HARAMICROSS",float(talib.CDLHARAMICROSS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1])) 
+    update_field(collection, sym, "technicals.candlesticks.HIGHWAVE",float(talib.CDLHIGHWAVE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1])) 
+    update_field(collection, sym, "technicals.candlesticks.HIKKAKE",float(talib.CDLHIKKAKE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HIKKAKEMOD",float(talib.CDLHIKKAKEMOD(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.HOMINGPIGEON",float(talib.CDLHOMINGPIGEON(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.IDENTICAL3CROWS",float(talib.CDLIDENTICAL3CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.INNECK",float(talib.CDLINNECK(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.INVERTEDHAMMER",float(talib.CDLINVERTEDHAMMER(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.KICKING",float(talib.CDLKICKING(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.KICKINGBYLENGTH",float(talib.CDLKICKINGBYLENGTH(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.LADDERBOTTOM",float(talib.CDLLADDERBOTTOM(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.LONGLEGGEDDOJI",float(talib.CDLLONGLEGGEDDOJI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.LONGLINE",float(talib.CDLLONGLINE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.MARUBOZU",float(talib.CDLMARUBOZU(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.MATCHINGLOW",float(talib.CDLMATCHINGLOW(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.MATHOLD",float(talib.CDLMATHOLD(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.MORNINGDOJISTAR",float(talib.CDLMORNINGDOJISTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.MORNINGSTAR",float(talib.CDLMORNINGSTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.ONNECK",float(talib.CDLONNECK(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.PIERCING",float(talib.CDLPIERCING(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.RICKSHAWMAN",float(talib.CDLRICKSHAWMAN(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.RISEFALL3METHODS",float(talib.CDLRISEFALL3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1])) 
+    update_field(collection, sym, "technicals.candlesticks.SEPARATINGLINES",float(talib.CDLSEPARATINGLINES(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.SHOOTINGSTAR",float(talib.CDLSHOOTINGSTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.SHORTLINE",float(talib.CDLSHORTLINE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.SPINNINGTOP",float(talib.CDLSPINNINGTOP(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.STALLEDPATTERN",float(talib.CDLSTALLEDPATTERN(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.STICKSANDWICH",float(talib.CDLSTICKSANDWICH(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.TAKURI",float(talib.CDLTAKURI(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.TASUKIGAP",float(talib.CDLTASUKIGAP(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.THRUSTING",float(talib.CDLTHRUSTING(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.TRISTAR",float(talib.CDLTRISTAR(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.UNIQUE3RIVER",float(talib.CDLUNIQUE3RIVER(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.UPSIDEGAP2CROWS",float(talib.CDLUPSIDEGAP2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+    update_field(collection, sym, "technicals.candlesticks.XSIDEGAP3METHODS",float(talib.CDLXSIDEGAP3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
+
+def update_tech_analysis_params(collection, sym, mysql_engine, sem=None):
+    query = 'select Date, Open, High, Low, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+    #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+    df = read_from_sql(query, mysql_engine)
+ 
     if df.empty or len(df.index) == 1:
         print("Empty df")
         update_field(collection, sym, "technicals.rsi", {})
         update_field(collection, sym, "technicals.bbands", {})
+        update_field(collection, sym, "technicals.candlesticks", {})
     else:
         rsi = ta.rsi(df['Adj Close'])
         if len(rsi.index) == 0:
@@ -1276,6 +1346,8 @@ def update_tech_analysis_params(collection, sym, df, sem=None):
             update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
             update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
 
+        update_candlesticks(collection, sym, df)
+
     update_field(collection, sym, "technicals.date", dt.now())
     if sem:
         sem.release()
@@ -1293,12 +1365,9 @@ def update_all_tech_analysis_params(country='US'):
         if sym == '':
             continue
         print("%d: Symbol: %r" %(i, sym))
-        query = 'select Date, `Adj Close` from {}'.format(get_symbol_table_name(sym))
-        #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
-        df = read_from_sql(query, mysql_engine)
-        update_tech_analysis_params(db.US_Stocks, sym, df)
+        update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
         #sem.acquire()
-        #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, df, sem)).start()
+        #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, mysql_engine, sem)).start()
 
     time.sleep(20)
     close_db_client(c)
@@ -1531,16 +1600,18 @@ def build_US_all_EPS():
     print("****************** Building US EPS ******************")
     c  = open_db_client()
     db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+
     #docs = db.US_Stocks.find({"$and": [{"bscs.since":{"$exists": False}}, {"ignore":"No"}]},no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.US_Stocks.find({"bscs.since":{"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.US_Stocks.find({"bscs.symbol":"BKD"}).sort([["sno",1]])
     #docs = db.US_Stocks.find({}).sort([["sno",1]])
-    #docs = db.US_Stocks.find({"fig.EPS_History":{"$exists":False}})
     #docs  = db.US_Stocks.find(get_nin("file.txt", "nins.txt"))
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"fig.DIVIDEND_History": {"$exists": False}},{"fig.Split_History": {"$exists": False}}, {"bscs.symbol":{"$ne": "ARR"}}]})
     #docs = db.US_Stocks.find({"fig.EPS_History": {"$exists": False}})
-    stocks = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, ]},no_cursor_timeout=True)
+    #stocks = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, ]},no_cursor_timeout=True)
     #docs = db.US_Stocks.find({"$and": [{"fig.EPS_History": {"$exists": False}}, {"bscs.symbol":{"$nin": ["DAIO", "IBCP", "MRTN", "SLGN"]}}]},no_cursor_timeout=True)
+    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     count = stocks.count()
     print(count)
     if count == 0:
@@ -1553,6 +1624,9 @@ def build_US_all_EPS():
                 print("%d: %s: %s"%(sno,stock['bscs']['symbol'],stock['bscs']['name']))
                 #write_stock_to_file(stock['bscs']['symbol'], "file2.txt", "a")
                 internet.populate_US_EPS(stock)
+            if sno % 100 == 0:
+                change_vpn()
+
         except Exception as E:
             print(str(E))
             continue
@@ -1668,6 +1742,203 @@ def get_US_Stock_list():
     f=open(conf.amex_stocks,"wb")
     f.write(wb.content)
     f.close()
+
+def US_update_split_history():
+    #First get total number of web pages with symbol changes
+    url = 'https://www.nasdaq.com/market-activity/stocks/symbol-change-history'
+    #br  = internet.open_browser()
+    br  = internet.open_browser('headless')
+    br.get(url)
+    br.maximize_window()
+
+    df = pd.DataFrame()
+    df = pd.read_html(br.page_source)
+    if len(df) == 0:
+        return
+    df = df[0]
+
+    br.execute_script("window.scrollTo(0, 2000)")
+
+    #we = br.find_element_by_css_selector("button.pagination__page:nth-child(2)")
+    we = br.find_element_by_class_name("pagination__next")
+    a = internet.get_action_chain(br)
+    h = a.move_to_element(we)
+    h.click().perform()
+    rdf = pd.read_html(br.page_source)
+    df  = df.append(rdf[0])
+
+    del df['Company Name']
+    internet.close_browser(br)
+
+    #br  = internet.open_browser('headless')
+    #url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y'
+    #br.get(url)
+    #page = br.page_source
+    #soup = parse_html.get_soup(page)
+    #last_page = soup.find(id='two_column_main_content_lb_LastPage')
+    #last_page = last_page.attrs.get('href')
+    #pages = re.split(r'page=', last_page)
+    #if len(pages) > 1:
+    #    last_page = pages[-1]
+    #else:
+    #    last_page = 1
+    ##internet.close_browser(br)
+
+    ## Retrieve and form a dataframe of all symbol changes.
+    #df = pd.DataFrame()
+    #for i in range(1, int(last_page)+1):
+    #    url = 'https://old.nasdaq.com/markets/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
+    #    #url = 'https://www.nasdaq.com/market-activity/stocks/symbol-change-history.aspx?sortby=EFFECTIVE&descending=Y&page=%s' %(i)
+    #    br.get(url)
+    #    rdf = pd.read_html(br.page_source)
+    #    df  = df.append(rdf[0])
+
+    cols = list(df.columns)
+    new_cols = {}
+    for c in cols:
+        new_cols[c] = c.replace(' ', '_')
+    df.rename(columns=new_cols, inplace=True)
+    df.index=pd.RangeIndex(len(df.index))
+    #The below two statements are required to convert date from YY/mm/dd to YY-mm-dd
+    df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+    df['Effective_Date'] = df['Effective_Date'].astype('str')
+
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Changes')
+    price_change_mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    if mysql_exists_table(mysql_engine, 'Symbol_Changes'):
+        query = 'select Old_Symbol, New_Symbol, Effective_Date from {} order by Effective_Date desc'.format('Symbol_Changes')
+        ddf = read_from_sql(query, mysql_engine, date=False)
+        if not ddf.empty:
+            ddf['Effective_Date'] = ddf['Effective_Date'].astype('str')
+            df = df_difference(df, ddf)
+            #df = df[~df.isin(ddf)].dropna()
+            #df = df[~df.index.isin(ddf.index)]
+
+    # Convert to string. Just for info.
+    #df['Effective_Date']=df['Effective_Date'].astype('str')
+    if not df.empty:
+        # Convert to datetime
+        df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+        mysql_update_table(mysql_engine, 'Symbol_Changes', df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False)
+
+        print("Sending email of the list of new symbol changes")
+        subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
+        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+        
+    # Read all symbol's information that are not yet updated to mongodb and price changes.
+    query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
+    df = read_from_sql(query, mysql_engine, date=False)
+    c  = open_db_client()
+    db = c['Stocks']
+    for index, d in df.iterrows():
+        old_symbol = d['Old_Symbol']
+        new_symbol = d['New_Symbol']
+        
+        stks = db.US_Stocks.find({'bscs.symbol':old_symbol})
+        # old symbol not in our database
+        if stks.count() == 0:
+            if db.US_Stocks.find({"bscs.symbol":new_symbol}).count() > 0:
+                print("%r: %r: %r" %(index, old_symbol, new_symbol))
+                # New symbol already exists in mongodb
+                # Update Symbol_changes table 'updated_to_mongodb field and updated date field
+                query = 'update Symbol_Changes set updated_to_mongodb=\'YES\' where Old_Symbol=\'{}\''.format(old_symbol)
+                mysql_engine.execute(query)
+                query = 'update Symbol_Changes set updated_date=\'{}\' where Old_Symbol=\'{}\''.format(str(dt.now().date()), old_symbol)
+                mysql_engine.execute(query)
+        # old symbol in our database
+        else:
+            print("%r: %r: %r" %(index, old_symbol, new_symbol))
+            stk = stks[0]
+            query = 'select tried_count from Symbol_Changes where Old_Symbol=\'{}\''.format(old_symbol)
+            tried_count = read_from_sql(query, mysql_engine, date=False)
+            tried_count = tried_count.iloc[0]['tried_count'] + 1
+            query = 'update Symbol_Changes set tried_count={} where Old_Symbol=\'{}\''.format(tried_count, old_symbol)
+            mysql_engine.execute(query)
+
+            #if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+            #    print("Symbol %s does not have a table in mysql database" %(old_symbol))
+            #    continue
+
+            # Check if the new_symbol already exists in your databases.
+            # If so, break there and manually handle the case.
+            if db.US_Stocks.find({'bscs.symbol':new_symbol}).count() > 0 or price_change_mysql_engine.has_table('STK'+new_symbol.replace('.','_')):
+                print("new_sym: %r, old_sym: %r, new_symbol entry already exists in mongodb or mysqldb" %(new_symbol, old_symbol))
+                #print("Skipping")
+                #continue
+                #print("Handle manually")
+                #choice = input("1. Delete the new symbol info \n2. Delete the old symbol info\nChoice : ")
+                sym = new_symbol
+
+                # If there exists an old table, drop the new table and
+                # update the name of the old table with the new table.
+                if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+                    query = 'drop table {}'.format('STK'+sym.replace('.','_'))
+                    #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
+                    price_change_mysql_engine.execute(query)
+                    #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+                    #price_change_mysql_engine.execute(query)
+
+                # Delete all new symbol financial data entries
+                query = 'delete from US_Stocks_Fin.income_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+                query = 'delete from US_Stocks_Fin.cash_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+                query = 'delete from US_Stocks_Fin.balance_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+                query = 'delete from US_Stocks_Fin.income_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+                query = 'delete from US_Stocks_Fin.cash_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+                query = 'delete from US_Stocks_Fin.balance_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+ 
+                # Remove new symbol information from the mongodb
+                db.US_Stocks.remove({"bscs.symbol" : sym},1)
+                db.US_Stocks_List.remove({"symbol" : sym},1)
+                #if choice == '2':
+                #    continue
+
+            # Update the symbol to new symbol
+            db.US_Stocks.update({'bscs.symbol': old_symbol}, {'$set': {"bscs.symbol": new_symbol}})
+            # Update the old symbol in US_Stocks_List with the new symbol
+            db.US_Stocks_List.update({'symbol': old_symbol}, {'$set': {'symbol': new_symbol}})
+            # Save previous symbols information
+            prev_syms = []
+            prev_names = []
+            prev_syms_till_date = []
+            if 'previous_symbols' in stk['bscs'].keys():
+                prev_syms = stk['bscs']['previous_symbols']['Names']
+                if 'Company_Names' in stk['bscs']['previous_symbols'].keys():
+                    prev_names = stk['bscs']['previous_symbols']['Company_Names']
+                prev_syms_till_date = stk['bscs']['previous_symbols']['Till_Date']
+           
+            prev_syms.append(old_symbol)
+            prev_names.append(stk['bscs']['name'])
+            prev_syms_till_date.append(str(d['Effective_Date'] - timedelta(1)))
+            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
+            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Company_Names": prev_names}})
+            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Till_Date": prev_syms_till_date}})
+            
+            # Reset failcount
+            if 'mysql_price_failcount' in stk['bscs'].keys():
+                db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.mysql_price_failcount": 0}})
+                db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.trading": "YES"}})
+           
+            # Rename table with the new symbol name
+            if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+                query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+                price_change_mysql_engine.execute(query)
+
+            # Update Symbol_changes table 'updated_to_mongodb field and updated date field
+            query = 'update Symbol_Changes set updated_to_mongodb=\'YES\' where Old_Symbol=\'{}\''.format(old_symbol)
+            mysql_engine.execute(query)
+            query = 'update Symbol_Changes set updated_date=\'{}\' where Old_Symbol=\'{}\''.format(str(dt.now().date()), old_symbol)
+            mysql_engine.execute(query)
+
+    close_sql_connection(mysql_engine)
+    close_sql_connection(price_change_mysql_engine)
+    close_db_client(c)
+
 
 def update_symbol_name_changes():
     #First get total number of web pages with symbol changes
@@ -1866,7 +2137,7 @@ def update_symbol_name_changes():
     close_db_client(c)
 
 def build_US_All_Stocks_List():
-    get_US_Stock_list()
+    #get_US_Stock_list()
     new_stocks = [] 
     head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
     new_stocks.append(head)
