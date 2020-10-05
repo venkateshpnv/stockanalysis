@@ -332,9 +332,18 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
-def update_price_change(country, collection, sym, sem, sql_engine):
+def update_price_change(country, sym, sem, core):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
+
+    c = DB.open_db_client()
+    db = c['Stocks']
+    collection = DB.get_collection(country, db)
+    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+
+    aff = 0 | 1 << core
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+    
     table_name = DB.get_symbol_table_name(sym)
     change = 0
 
@@ -347,6 +356,8 @@ def update_price_change(country, collection, sym, sem, sql_engine):
             #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
             df = DB.read_from_sql(query, sql_engine)
             if df.empty:
+                if sem:
+                    sem.release()
                 return
 
             ipo_price = df['Adj Close'][0]
@@ -452,6 +463,8 @@ def update_price_change(country, collection, sym, sem, sql_engine):
  
     finally:
         DB.update_field(collection, sym, "price_change.date", dt.now())
+        DB.close_sql_connection(sql_engine)
+        DB.close_db_client(c)
         if sem:
             sem.release()
 
@@ -489,12 +502,13 @@ def fork_hdf5_process(country, sem):
 
     try:
         ##Indices
-        for k in indices.keys():
+        for i, k in enumerate(indices.keys()):
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
             sem.acquire()
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
-            threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+            #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+            multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), sem, i%DB.num_cores)).start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
@@ -525,8 +539,9 @@ def fork_hdf5_process(country, sem):
  
             sem.acquire()
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
-            t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
-            t.start()
+            #t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
+            #t.start()
+            multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), sem, i%DB.num_cores)).start()
             #if i > 10:
             #    break;
 
@@ -582,8 +597,9 @@ def fork_betas_process(country, sem):
 # Update the DB with yearly, quarterly and monthly percentage price change
 def update_all_stocks_price_change(country):
     i = 0
-    max_threads = DB.thread_factor
-    hdf5_sem = threading.BoundedSemaphore(max_threads)
+    #max_threads = DB.thread_factor
+    #hdf5_sem = threading.BoundedSemaphore(max_threads)
+    hdf5_sem = multiprocessing.BoundedSemaphore(DB.num_cores)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  
     print("Updating price percent changes")

@@ -1309,54 +1309,63 @@ def update_candlesticks(collection, sym, df):
     update_field(collection, sym, "technicals.candlesticks.UPSIDEGAP2CROWS",float(talib.CDLUPSIDEGAP2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
     update_field(collection, sym, "technicals.candlesticks.XSIDEGAP3METHODS",float(talib.CDLXSIDEGAP3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
 
-def update_tech_analysis_params(collection, sym, mysql_engine, sem=None):
-    query = 'select Date, Open, High, Low, `Adj Close` from {}'.format(get_symbol_table_name(sym))
-    #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
-    df = read_from_sql(query, mysql_engine)
+def update_tech_analysis_params(sym, core, sem=None):
+    c  = open_db_client()
+    db = c['Stocks']
+    collection=db.US_Stocks
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+
+    try:
+        query = 'select Date, Open, High, Low, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+        #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+        df = read_from_sql(query, mysql_engine)
  
-    if df.empty or len(df.index) == 1:
-        print("Empty df")
-        update_field(collection, sym, "technicals.rsi", {})
-        update_field(collection, sym, "technicals.bbands", {})
-        update_field(collection, sym, "technicals.candlesticks", {})
-    else:
-        rsi = ta.rsi(df['Adj Close'])
-        if len(rsi.index) == 0:
+        if df.empty or len(df.index) == 1:
+            print("Empty df")
             update_field(collection, sym, "technicals.rsi", {})
-        else:
-            update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
-            idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
-            update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
-            update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
-            update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
-            #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
-
-            idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
-            update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
-            update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
-            update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
-            #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
-
-        # bollinger bands
-        bbands = ta.bbands(df['Adj Close'])
-        if bbands.empty:
             update_field(collection, sym, "technicals.bbands", {})
+            update_field(collection, sym, "technicals.candlesticks", {})
         else:
-            update_field(collection, sym, "technicals.bbands.lower", bbands['BBL_5'][-1])
-            update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
-            update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
+            rsi = ta.rsi(df['Adj Close'])
+            if len(rsi.index) == 0:
+                update_field(collection, sym, "technicals.rsi", {})
+            else:
+                update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
+                idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
+                update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
+                update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
+                update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
+                #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
 
-        update_candlesticks(collection, sym, df)
+                idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+                update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
+                update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
+                update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
+                #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
 
-    update_field(collection, sym, "technicals.date", dt.now())
-    if sem:
-        sem.release()
+            # bollinger bands
+            bbands = ta.bbands(df['Adj Close'])
+            if bbands.empty:
+                update_field(collection, sym, "technicals.bbands", {})
+            else:
+                update_field(collection, sym, "technicals.bbands.lower", bbands['BBL_5'][-1])
+                update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
+                update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
+
+            update_candlesticks(collection, sym, df)
+
+        update_field(collection, sym, "technicals.date", dt.now())
+    finally:
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
+        if sem:
+            sem.release()
 
 def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
-    sem = threading.BoundedSemaphore(num_cores*2)
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    sem = multiprocessing.BoundedSemaphore(num_cores)
     symbols = get_symbols_from_sql(country, mysql_engine)
 
     edate = dt.now().date()
@@ -1365,9 +1374,10 @@ def update_all_tech_analysis_params(country='US'):
         if sym == '':
             continue
         print("%d: Symbol: %r" %(i, sym))
-        update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
-        #sem.acquire()
+        #update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
+        sem.acquire()
         #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, mysql_engine, sem)).start()
+        multiprocessing.Process(target=update_tech_analysis_params, args=(sym, i%num_cores, sem,)).start()
 
     time.sleep(20)
     close_db_client(c)
