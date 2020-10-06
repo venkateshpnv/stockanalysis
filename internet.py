@@ -332,7 +332,7 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
-def update_price_change(country, sym, sem, core):
+def update_price_change(country, sym, core, sem=None):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
 
@@ -356,8 +356,8 @@ def update_price_change(country, sym, sem, core):
             #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
             df = DB.read_from_sql(query, sql_engine)
             if df.empty:
-                if sem:
-                    sem.release()
+                #if sem:
+                #    sem.release()
                 return
 
             ipo_price = df['Adj Close'][0]
@@ -499,6 +499,8 @@ def fork_hdf5_process(country, sem):
         indices = US_indices 
     stk = {}
     stk['bscs']={}
+    processes = [None]*DB.num_cores
+
 
     try:
         ##Indices
@@ -508,7 +510,8 @@ def fork_hdf5_process(country, sem):
             sem.acquire()
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), sem, i%DB.num_cores)).start()
+            processes[i%DB.num_cores] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%DB.num_cores].start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
@@ -541,7 +544,8 @@ def fork_hdf5_process(country, sem):
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
             #t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
             #t.start()
-            multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), sem, i%DB.num_cores)).start()
+            processes[i%DB.num_cores] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%DB.num_cores].start()
             #if i > 10:
             #    break;
 
@@ -550,7 +554,10 @@ def fork_hdf5_process(country, sem):
         # But need to track threads and update variables.
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
-        time.sleep(30)
+        #time.sleep(30)
+        for i in range(len(processes)):
+            if processes[i] is not None:
+                processes[i].join()
         #if t:
         #    t.join()
         DB.close_sql_connection(sql_engine)
