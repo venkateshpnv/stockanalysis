@@ -671,7 +671,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         entry.append(bscs['symbol'])
         entry.append(bscs['name'])
         if country == 'US':
-            entry.append(str(bscs['since']))
+            if 'since' in bscs.keys():
+                entry.append(str(bscs['since']))
+            else:
+                entry.append("")
         else:
             entry.append(str("-"))
         entry.append(str(bscs['sector']))
@@ -682,7 +685,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
             entry.append("-")
         entry.append(str(bscs['price']))
         #try:
-        if stk['fig']['betas']['six_months'] != None:
+        if 'betas' in stk['fig'].keys() and stk['fig']['betas']['six_months'] != None:
             entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         else:
             entry.append("-")
