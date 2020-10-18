@@ -2272,7 +2272,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
             #close_browser(br)
             gc.collect()
             if mysql_engine_created:
-                DB.close_mysql_connection(mysql_engine)
+                DB.close_sql_connection(mysql_engine)
             return
             
         br.maximize_window()
@@ -2329,7 +2329,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
 
         close_browser(br)
         if mysql_engine_created:
-            DB.close_mysql_connection(mysql_engine)
+            DB.close_sql_connection(mysql_engine)
         if mongodb_engine_created:
             DB.close_db_client(c)
         gc.collect()
