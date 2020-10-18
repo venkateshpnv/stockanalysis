@@ -2337,7 +2337,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         exception_info(E)
     finally:
         print("Killing firefox")
-        os.system('killall firefox')
+        os.system('pkill -f firefox')
         stop_thread=True
         if th:
             th.join()
