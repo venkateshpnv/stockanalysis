@@ -1627,6 +1627,7 @@ def build_US_all_EPS():
     if count == 0:
         print("***************** Completed fetching EPS  *************")
         return
+    start = dt.now()
     for stock in stocks:
         try:
             sno = stock['sno']
@@ -1634,7 +1635,8 @@ def build_US_all_EPS():
                 print("%d: %s: %s"%(sno,stock['bscs']['symbol'],stock['bscs']['name']))
                 #write_stock_to_file(stock['bscs']['symbol'], "file2.txt", "a")
                 internet.populate_US_EPS(stock)
-            if sno % 100 == 0:
+            if (dt.now()-start).seconds > 1800:
+                start = dt.now()
                 change_vpn()
 
         except Exception as E:
