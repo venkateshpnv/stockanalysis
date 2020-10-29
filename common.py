@@ -147,6 +147,16 @@ def df_difference(df1,df2):
     ##return pd.concat([df1,df2]).drop_duplicates(keep=False)
     return df1[~df1.apply(tuple,1).isin(df2.apply(tuple,1))]
 
+# list difference (l1-l2)
+# Return entries present in l1 but not in l2.
+def list_difference(l1, l2):
+    s = set(l2)
+    diff = [x for x in l1 if x not in s]
+    return diff
+
+def disconnect_vpn():
+   subprocess.check_output('hotspotshield disconnect', shell=True)
+
 def change_vpn():
     retries = 0
     done=False

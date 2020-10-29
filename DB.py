@@ -78,58 +78,6 @@ def open_sql_connection(ip, user, passwd, port=3306, db=None):
 def close_sql_connection(mysql_engine):
     mysql_engine.dispose()
 
-# This function is to fix the issue with the YahooFinance.
-# Sometimes, it returns wrong volume information for the present date.
-# Especially for the indices.
-def check_volume_of_last_record(mysql_engine, table_name):
-    query = 'select Volume from {} order by Date desc limit 1'.format(table_name)
-    df = pd.read_sql_query(query, mysql_engine)
-    if not df.empty and df.iloc[0]['Volume'] == 0:
-            PRINT_ERR("Volume is zero for %s. Deleting last row" %(table_name))
-            query = 'delete from {} order by Date desc limit 1'.format(table_name)
-            mysql_engine.execute(query)
-
-def mysql_get_price(sql_engine, table_name, req_date, from_date):
-    query = 'select `Date`, `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
-    df1 = pd.read_sql_query(query, sql_engine)
-
-    query = 'select `Date`, `Adj Close` from {} where Date = (select min(Date) from {} where Date  >= \'{}\')'.format(table_name, table_name, req_date)
-    df2 = pd.read_sql_query(query, sql_engine)
-
-    if df1.empty and df2. empty:
-        return 0
-    if df1.empty:
-        return df2['Adj Close'][0]
-    if df2.empty:
-        return df1['Adj Close'][0]
-    
-    cur = dt.strptime(req_date, "%Y-%m-%d").date()
-    date1 = pd.to_datetime(df1['Date'][0]).date()
-    date2 = pd.to_datetime(df2['Date'][0]).date()
-  
-    # Both are same, return either
-    if date1 == date2:
-        return df1['Adj Close'][0]
-
-    # required should never be from date
-    if from_date == str(date1):
-        return df2['Adj Close'][0]
-    if from_date == str(date2):
-        return df1['Adj Close'][0]
-
-    if abs(cur-date1) < abs(cur-date2):
-        return df1['Adj Close'][0]
-
-    return df2['Adj Close'][0]
-
-def mysql_get_latest_price(sql_engine, country, sym):
-    table_name = get_symbol_table_name(sym)
-    query = 'select Date, `Adj Close` from {} order by Date desc limit 1'.format(table_name)
-    df = read_from_sql(query, sql_engine)
-    if not df.empty:
-        return df['Adj Close'][-1]
-    return None
-
 def read_from_sql(query, mysql_engine, date=True):
     df = pd.read_sql_query(query, mysql_engine)
     if date and not df.empty:
@@ -180,27 +128,6 @@ def write_to_sql(mysql_engine, table, df):
     except Exception as E:
         print("DB.py: write_to_sql(), table: %r, exception: %r" %(table, str(E)))
 
-def get_stock_prices(symbol, columns=None):
-    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    df = read_from_sql2(mysql_engine, 'STK'+symbol, columns)
-    close_sql_connection(mysql_engine)
-
-    return df
-def get_fin_stmts(symbol, stmt_type, duration):
-    columns = stmt_type + '_fields'
-    exec("columns = %s" %(columns))
-    if duration == 'quart':
-        table = stmt_type + '_quart_table'
-    else:
-        table = stmt_type + '_table'
-    exec("table = %s" %(table))
-
-    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
-    df = read_from_sql2(mysql_engine, table, columns)
-    close_sql_connection(mysql_engine)
-
-    return df
-
 def mysql_exists_table(mysql_engine, table_name):
     return mysql_engine.has_table(table_name)
     #query = 'show tables like %r;' %(table_name)
@@ -226,6 +153,14 @@ def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False):
 def mysql_get_columns(table):
     c = [i[0] for i in table.columns.items()]
     return c
+
+def mysql_get_columns_from_engine(mysql_engine, table_name):
+    metadata = MetaData()
+    table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+    cols  =  mysql_get_columns(table)
+    del metadata
+    del table
+    return cols
 
 def mysql_add_column(mysql_engine, table_name, col_name, col_dtype, remove_spaces=True):
     if remove_spaces:
@@ -435,20 +370,6 @@ def rename_table(engine, t):
     query = "rename table {} to {}".format(t, new_t)
     engine.execute(query)
 
-def get_index_prices(country):
-    indices_prices = {}
-    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    for k in US_indices.keys():
-        query = 'select Date, `Adj Close`, `Day Change` from STK{} order by Date desc limit 1;'.format(US_indices[k])
-        output = pd.read_sql_query(query, mysql_engine)
-        indices_prices[US_indices[k]] = { 
-                                        'price'  : output.iloc[0]['Adj Close'],
-                                        'change' : output.iloc[0]['Day Change'],
-                                        }
-
-    close_sql_connection(mysql_engine)
-    return indices_prices
-
 def get_symbols_from_sql(country, engine):
     inspector = sqlalchemy.inspect(engine)
 
@@ -516,7 +437,7 @@ def get_cassandra_session(cluster):
 #########################################################################
 
 client=None
-########################### DB Related Calls ########3###################
+########################### MongoDB Related Calls ########3###################
 def open_db(db_name):
     global client
     client = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
@@ -535,15 +456,6 @@ def close_db():
 
 def close_db_client(c):
     c.close()
-
-def ignore_stock(stk):
-    #if 'trading' in stk['bscs'].keys():
-    #    if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
-    #        return True
-    if 'ignore' in stk.keys():
-        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
-            return True
-    return False
 
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
@@ -573,6 +485,102 @@ def get_stock_from_db(country, sym):
     close_db_client(c)
     return stk[0]
  
+# This function is to fix the issue with the YahooFinance.
+# Sometimes, it returns wrong volume information for the present date.
+# Especially for the indices.
+def check_volume_of_last_record(mysql_engine, table_name):
+    query = 'select Volume from {} order by Date desc limit 1'.format(table_name)
+    df = pd.read_sql_query(query, mysql_engine)
+    if not df.empty and df.iloc[0]['Volume'] == 0:
+            PRINT_ERR("Volume is zero for %s. Deleting last row" %(table_name))
+            query = 'delete from {} order by Date desc limit 1'.format(table_name)
+            mysql_engine.execute(query)
+
+def mysql_get_price(sql_engine, table_name, req_date, from_date):
+    query = 'select `Date`, `Adj Close` from {} where Date = (select max(Date) from {} where Date  <= \'{}\')'.format(table_name, table_name, req_date)
+    df1 = pd.read_sql_query(query, sql_engine)
+
+    query = 'select `Date`, `Adj Close` from {} where Date = (select min(Date) from {} where Date  >= \'{}\')'.format(table_name, table_name, req_date)
+    df2 = pd.read_sql_query(query, sql_engine)
+
+    if df1.empty and df2. empty:
+        return 0
+    if df1.empty:
+        return df2['Adj Close'][0]
+    if df2.empty:
+        return df1['Adj Close'][0]
+    
+    cur = dt.strptime(req_date, "%Y-%m-%d").date()
+    date1 = pd.to_datetime(df1['Date'][0]).date()
+    date2 = pd.to_datetime(df2['Date'][0]).date()
+  
+    # Both are same, return either
+    if date1 == date2:
+        return df1['Adj Close'][0]
+
+    # required should never be from date
+    if from_date == str(date1):
+        return df2['Adj Close'][0]
+    if from_date == str(date2):
+        return df1['Adj Close'][0]
+
+    if abs(cur-date1) < abs(cur-date2):
+        return df1['Adj Close'][0]
+
+    return df2['Adj Close'][0]
+
+def mysql_get_latest_price(sql_engine, country, sym):
+    table_name = get_symbol_table_name(sym)
+    query = 'select Date, `Adj Close` from {} order by Date desc limit 1'.format(table_name)
+    df = read_from_sql(query, sql_engine)
+    if not df.empty:
+        return df['Adj Close'][-1]
+    return None
+
+def get_stock_prices(symbol, columns=None):
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    df = read_from_sql2(mysql_engine, 'STK'+symbol, columns)
+    close_sql_connection(mysql_engine)
+
+    return df
+def get_fin_stmts(symbol, stmt_type, duration):
+    columns = stmt_type + '_fields'
+    exec("columns = %s" %(columns))
+    if duration == 'quart':
+        table = stmt_type + '_quart_table'
+    else:
+        table = stmt_type + '_table'
+    exec("table = %s" %(table))
+
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+    df = read_from_sql2(mysql_engine, table, columns)
+    close_sql_connection(mysql_engine)
+
+    return df
+
+def get_index_prices(country):
+    indices_prices = {}
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    for k in US_indices.keys():
+        query = 'select Date, `Adj Close`, `Day Change` from STK{} order by Date desc limit 1;'.format(US_indices[k])
+        output = pd.read_sql_query(query, mysql_engine)
+        indices_prices[US_indices[k]] = { 
+                                        'price'  : output.iloc[0]['Adj Close'],
+                                        'change' : output.iloc[0]['Day Change'],
+                                        }
+
+    close_sql_connection(mysql_engine)
+    return indices_prices
+
+def ignore_stock(stk):
+    #if 'trading' in stk['bscs'].keys():
+    #    if stk['bscs']['trading'] == 'NO' or stk['bscs']['trading'] == 'No':
+    #        return True
+    if 'ignore' in stk.keys():
+        if stk['ignore'] == 'YES' or stk['ignore'] == 'Yes':
+            return True
+    return False
+
 def update_since_dataframe(mysql_engine, table_name, collection, stk):
     #df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
     #df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
@@ -1365,21 +1373,31 @@ def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    sem = multiprocessing.BoundedSemaphore(num_cores)
+    num_processes = num_cores * 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+
     symbols = get_symbols_from_sql(country, mysql_engine)
 
     edate = dt.now().date()
     sdate = edate - relativedelta(months=4)
-    for i, sym in enumerate(symbols):
-        if sym == '':
-            continue
-        print("%d: Symbol: %r" %(i, sym))
-        #update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
-        sem.acquire()
-        #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, mysql_engine, sem)).start()
-        multiprocessing.Process(target=update_tech_analysis_params, args=(sym, i%num_cores, sem,)).start()
+    try:
+        for i, sym in enumerate(symbols):
+            if sym == '':
+                continue
+            print("%d: Symbol: %r" %(i, sym))
+            #update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
+            sem.acquire()
+            #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, mysql_engine, sem)).start()
+            processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(sym, i%num_cores, sem,))
+            processes[i%num_processes].start()
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
 
-    time.sleep(20)
+    print("Tech params: Stocks tried :%r"%(i))
+
     close_db_client(c)
     close_sql_connection(mysql_engine)
 

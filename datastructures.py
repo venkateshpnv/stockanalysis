@@ -408,9 +408,9 @@ US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'R
 price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close']
 price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'BIGINT', 'float']
 
-price_change_fields = ['Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
-price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
-price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+price_change_fields = ['Day Change', 'Week Change', 'Two Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
+price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(weeks=2), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
 beta_change_fields = ['Month_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
 beta_change_durations = [relativedelta(months=1), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]

@@ -342,44 +342,74 @@ def update_price_change(country, sym, core, sem=None):
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     aff = 0 | 1 << core
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
     
     table_name = DB.get_symbol_table_name(sym)
     change = 0
 
-    wdf = pd.DataFrame(columns=['Date']+price_change_fields) 
-
     try:
         if DB.mysql_exists_table(sql_engine, table_name):
-            #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
-            query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
-            #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
-            df = DB.read_from_sql(query, sql_engine)
-            if df.empty:
-                #if sem:
-                #    sem.release()
-                return
+            print("mysql: percent_change: %s"%(sym))
 
-            ipo_price = df['Adj Close'][0]
+            table_cols = DB.mysql_get_columns_from_engine(sql_engine, table_name)
+            missing_cols = list_difference(price_change_fields, table_cols)
+            # Some price change fields are not present in the database.
+            # The datatype of the fields is taken from the price fields 
+            # mentioned in the datastructures.py 
+            if len(missing_cols) > 0:
+                print("%s: Adding missing columns: %r", table_name, missing_cols)
+                miss = DB.mysql_add_columns(sql_engine, table_name, missing_cols, remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",missing_cols)
+                    sys.exit(1)
 
-            for index, d in df.iloc[1:].iterrows():
-                cur_price = d['Adj Close']
-                cur_date = pd.to_datetime(index).date()
-                cur_date_str = str(cur_date)
-                wdf.loc[cur_date_str]=nan
-                wdf.loc[cur_date_str]['Date'] = cur_date_str
-                #Percent Changes for Day, Week, Month etc
-                for i in range(len(price_change_durations)):
+            for i, field in enumerate(price_change_fields[0:-1]):
+                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+                #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
+                #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
+                #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+                df = DB.read_from_sql(query, sql_engine)
+                if df.empty:
+                    #if sem:
+                    #    sem.release()
+                    continue
+                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+
+                for index, d in df.iloc[1:].iterrows():
+                    cur_price = d['Adj Close']
+                    cur_date = pd.to_datetime(index).date()
+                    cur_date_str = str(cur_date)
+                    #wdf.loc[cur_date_str]=nan
+                    wdf.loc[cur_date_str]['Date'] = cur_date_str
                     start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
                     change = percent_change(start_price, cur_price)
                     wdf.loc[cur_date_str][price_change_fields[i]] = change
 
-                # Whole Change
-                change = percent_change(ipo_price, cur_price)
-                wdf.loc[cur_date_str][price_change_fields[-1]] = change
-                #wdf.drop(wdf.index, inplace=True)
+                wdf = wdf.dropna(axis=0)
+                # Write to the database
+                DB.mysql_update_table(sql_engine, table_name, wdf)
 
-            print("mysql: percent_change: %s"%(sym))
+            # To save time in condition checks, calculate the 
+            # whole field seperately outside the loop.
+            start_price = df['Adj Close'][0]
+            field = price_change_fields[-1]
+            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            df = DB.read_from_sql(query, sql_engine)
+            if not df.empty:
+                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+                for index, d in df.iloc[1:].iterrows():
+                    cur_price = d['Adj Close']
+                    cur_date = pd.to_datetime(index).date()
+                    cur_date_str = str(cur_date)
+                    #wdf.loc[cur_date_str]=nan
+                    wdf.loc[cur_date_str]['Date'] = cur_date_str
+                    change = percent_change(start_price, cur_price)
+                    wdf.loc[cur_date_str][price_change_fields[-1]] = change
+
+            wdf = wdf.dropna(axis=0)
+            # Write to the database
             DB.mysql_update_table(sql_engine, table_name, wdf)
 
             query = 'select `Date`, {} from {} order by Date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
@@ -390,6 +420,9 @@ def update_price_change(country, sym, core, sem=None):
 
             change = get_change(df, 'Week Change')
             DB.update_field(collection, sym, "price_change.week", change)
+
+            change = get_change(df, 'Two Week Change')
+            DB.update_field(collection, sym, "price_change.two_week", change)
 
             change = get_change(df, 'Month Change')
             DB.update_field(collection, sym, "price_change.month", change)
@@ -468,7 +501,7 @@ def update_price_change(country, sym, core, sem=None):
         if sem:
             sem.release()
 
-def fork_hdf5_process(country, sem):
+def fork_hdf5_process(country):
     ## Randomly get all records whose price is not updated till today
     ##pipeline = [{'$sample': {'size':num_docs}},
     ##            {'$match' : {"price_change.date": {'$ne':today}}},
@@ -499,8 +532,10 @@ def fork_hdf5_process(country, sem):
         indices = US_indices 
     stk = {}
     stk['bscs']={}
-    processes = [None]*DB.num_cores
 
+    num_processes = DB.num_cores * 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
 
     try:
         ##Indices
@@ -508,10 +543,10 @@ def fork_hdf5_process(country, sem):
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
             sem.acquire()
-            #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
+            #update_price_change(country, stk['bscs']['symbol'], 1, sem)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            processes[i%DB.num_cores] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
-            processes[i%DB.num_cores].start()
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%num_processes].start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
@@ -544,8 +579,8 @@ def fork_hdf5_process(country, sem):
             #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
             #t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
             #t.start()
-            processes[i%DB.num_cores] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
-            processes[i%DB.num_cores].start()
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%num_processes].start()
             #if i > 10:
             #    break;
 
@@ -555,15 +590,14 @@ def fork_hdf5_process(country, sem):
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
         #time.sleep(30)
-        for i in range(len(processes)):
-            if processes[i] is not None:
-                processes[i].join()
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
         #if t:
         #    t.join()
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
-    print("MYSQL Stocks tried :%r"%(i))
-
+    print("Percentage Change: Stocks tried :%r"%(i))
 
 def fork_betas_process(country, sem):
     c = DB.open_db_client()
@@ -606,11 +640,10 @@ def update_all_stocks_price_change(country):
     i = 0
     #max_threads = DB.thread_factor
     #hdf5_sem = threading.BoundedSemaphore(max_threads)
-    hdf5_sem = multiprocessing.BoundedSemaphore(DB.num_cores)
     #betas_sem = threading.BoundedSemaphore(max_threads)
  
     print("Updating price percent changes")
-    fork_hdf5_process(country, hdf5_sem)
+    fork_hdf5_process(country)
     #fork_betas_process(country, betas_sem)
     #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem, ))
     #betas_process = multiprocessing.Process(target=fork_betas_process, args=(country, betas_sem, ))
@@ -789,6 +822,8 @@ def get_price_changes(s, country, duration):
     return s
 
 def send_email_price_changes(country):
+    disconnect_vpn()
+
     s = parse_html.html_head()
     s = parse_html.html_text(s, ["Daily Price Surprises"])
     s = parse_html.html_set_line(s)
@@ -2240,8 +2275,8 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         #dividend_hist = {}
 
         url = "https://www.barchart.com/stocks/quotes/%s/interactive-chart" %(stk['bscs']['symbol'])
-        br = open_browser(wiredriver=True)
-        #br = open_browser('headless', wiredriver=True)
+        #br = open_browser(wiredriver=True)
+        br = open_browser('headless', wiredriver=True)
 
         try:
             br.get(url)
