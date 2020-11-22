@@ -35,13 +35,14 @@ if __name__ == "__main__":
     except Exception as e:
         s = parse_html.html_head()
         error = [str(e)]
+        print(error)
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Technical Params Error" %(sys.argv[1]), s)
  
     # send email
     internet.send_email_price_changes(sys.argv[1])
 
-    # Radar Stocks
+    ## Radar Stocks
     if sys.argv[1] == 'US':
         excel.get_radar_stocks('US')
 

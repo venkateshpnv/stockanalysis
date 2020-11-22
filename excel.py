@@ -776,6 +776,11 @@ def add_price_change_header(sheet, i, sheet_type):
 
     i = i + 1
     sheet.col(i).width = 6*367
+    sheet.write(0, i, "One Month Volatility", style_wrap)
+    conf.VOLATILITY=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Day Price Change", style_wrap)
     conf.DAY_PR_CHANGE=i
 
@@ -783,6 +788,11 @@ def add_price_change_header(sheet, i, sheet_type):
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Week Price Change", style_wrap)
     conf.WEEK_PR_CHANGE=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Two Week Price Change", style_wrap)
+    conf.TWO_WEEK_PR_CHANGE=i
 
     i = i + 1
     sheet.col(i).width = 6*367
@@ -944,7 +954,10 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
     sh_write(ash, count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
     sh_write(ash, count, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+    sh_write(ash, count, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent)
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
+    if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
+        sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
     #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
@@ -1458,7 +1471,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
     sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
     sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+    sh_write(ash, conf.COUNT, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent)
     sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
+
+    if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
+        sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
     if 'price_growth' in stk['fig'].keys():
         sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent)
     if 'sales_growth' in stk['fig'].keys():
