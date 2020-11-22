@@ -397,6 +397,7 @@ recessions = {
                            "duration" : 1
                          },
                 "2020" : { "start" : "19 February 2020",
+                           "end"   : "23 March 2020",
                            "duration" : 1
                          },
              }
@@ -412,8 +413,11 @@ price_change_fields = ['Day Change', 'Week Change', 'Two Week Change', 'Month Ch
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
 price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(weeks=2), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
-beta_change_fields = ['Month_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
-beta_change_durations = [relativedelta(months=1), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+beta_change_fields = ['One_Month', 'Three_Months', 'Six_Months', 'Year', 'Five_Year', 'Ten_Year', 'Whole']
+#beta_change_fields = ['One_Month_Beta', 'Three_Months_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
+beta_change_durations = [relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+beta_parameters = ['beta', 'volatility']
+#beta_parameters = ['Start_Price', 'End_Price', 'Start_Date', 'End_Date', 'Index_CAGR', 'Index_Percent_Change', 'CAGR', 'Percent_Change', 'beta', 'alpha', 'alpha_pure', 'r_squared', 'volatility', 'avg_price']
 
 fin_year_fields = ['yoy', 'yo3y', 'yo5y', 'yo10y', 'yowy']
 fin_year_fields_datatypes = ['float', 'float', 'float', 'float', 'float']

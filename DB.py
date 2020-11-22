@@ -78,6 +78,9 @@ def open_sql_connection(ip, user, passwd, port=3306, db=None):
 def close_sql_connection(mysql_engine):
     mysql_engine.dispose()
 
+def db_name(mysql_engine):
+    return str(mysql_engine.url).split('/')[-1]
+
 def read_from_sql(query, mysql_engine, date=True):
     df = pd.read_sql_query(query, mysql_engine)
     if date and not df.empty:
@@ -188,7 +191,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
                 unknown_fields = unknown_fields + 1
     else:
         for c in sorted(missing_cols):
-            if c == 'Symbol' or c == 'Date' or c == 'SPLIT':
+            if 'Symbol'.lower() in c.lower() or 'Date'.lower() in c.lower() or 'SPLIT'.lower() in c.lower():
                 c_dtype = 'varchar(12)'
             else:
                 c_dtype = 'float'
@@ -206,6 +209,7 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
         else:
             df['Date'] = df.index
 
+    df = df.where(pd.notnull(df), None)
     try:
         metadata = MetaData()
         if check:
@@ -237,6 +241,12 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                     PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
                     PRINT_ERR("Columns: ",missing_cols)
                     sys.exit(1)
+
+                # Read the table again as the new columns have been added.
+                del metadata
+                del table
+                metadata = MetaData()
+                table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
         else:
             table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
 
@@ -248,16 +258,33 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                 items = {}
                 key = str(pd.to_datetime(index).date())
                 for k in d.keys().to_list(): #Skip date, date.1
-                    if d[k] != None:
-                        if k == 'Date':
+                    if d[k] != None and not pd.isnull(d[k]):
+                        if 'date' in k.lower():# == 'Date':
                             items[k]=str(d[k]).split(' ')[0]
                         else:
                             items[k]=d[k]
                     # TODO: Handle on conflict
+
+                # If you are sure that this is the new record
                 if insert:
                     stmt=table.insert().values(items)
                 else:
-                    stmt=table.update().where(table.c.Date==key).values(items)
+                    # check if the key exists. If so, update the record,
+                    # else create a new record.
+                    stmt = select([table]).where(table.c.Date == key)
+                    records = conn.execute(stmt).fetchall()
+                    if len(records) == 0:
+                        stmt=table.insert().values(items)
+                    else:
+                        if 'Date' in items.keys():
+                            del items['Date']
+                            # No items to insert, go to next row
+                            if len(items) == 0:
+                                continue
+                        stmt=table.update().where(table.c.Date==key).values(items)
+                        # table.c.keys() -> prints the list of all columns in the table.
+
+                    #stmt=table.update().where(table.c.Date==key).values(items)
                 conn.execute(stmt)
     finally:
         del metadata
@@ -2412,7 +2439,7 @@ def update_sector_info():
     print("Total : %d" %(j))
     close_db_client(c)
 
-def get_beta(country, sym, sdate, edate, df=None):
+def get_beta(country, sym, sdate, edate, df=None, recession=False):
     betas = {}
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if df is None:
@@ -2467,6 +2494,8 @@ def get_beta(country, sym, sdate, edate, df=None):
         print("last is complex number")
     #print(df['Adj Close'].head(5))
     #print(df['Adj Close'].tail(5))
+    df_start_date = df.index[0].to_pydatetime().date()
+    df_end_date   = df.index[-1].to_pydatetime().date()
     try:
         years = (edate-sdate).days/365.25
     except Exception:
@@ -2513,9 +2542,12 @@ def get_beta(country, sym, sdate, edate, df=None):
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # from daily data points, create a time-series of monthly data points
-    if edate-sdate < timedelta(days=31):
+    if df_end_date-df_start_date <= timedelta(days=31):
         duration='d'
-        time_period = 31/(edate-sdate).days * 12
+        if df_end_date == df_start_date:
+            time_period = 1
+        else:
+            time_period = 31/(df_end_date-df_start_date).days * 12
     else:
         duration = 'M'
         time_period=12. #months
@@ -2571,8 +2603,8 @@ def get_beta(country, sym, sdate, edate, df=None):
  
     betas.update({"Start_Price":float(s_first)})
     betas.update({"End_Price":float(s_last)})
-    betas.update({"Start_Date":str(df.index[0].date())})
-    betas.update({"End_Date":str(df.index[-1].date())})
+    betas.update({"Start_Date":df.index[0].to_pydatetime()})
+    betas.update({"End_Date":df.index[-1].to_pydatetime()})
     betas.update({"Index_CAGR":b_cagr})
     betas.update({"Index_Percent_Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
@@ -2586,7 +2618,8 @@ def get_beta(country, sym, sdate, edate, df=None):
     #print(betas)
 
     # Only for recession betas
-    if edate != dt.now().date():
+    #if edate != dt.now().date():
+    if recession:
         try:
             query = 'select Date, `Adj Close` from {} where Date between \'{}\' and NOW()'.format(get_symbol_table_name(sym), df.index[-1].strftime("%Y-%m-%d"))
             df = read_from_sql(query, sql_engine)
@@ -2645,7 +2678,7 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                         en_date = dt.now().date()
                     #print(st_date)
                     #print(en_date)
-                    betas = get_beta(country, sym, st_date, en_date, df=None)
+                    betas = get_beta(country, sym, st_date, en_date, df=None, recession=True)
                     #print("Beta: %r" %(betas))
                     field="fig.betas.recession.%s" %(year)
                     collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -2655,7 +2688,7 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                 en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(country, sym, st_date, en_date, df=None)
+                betas = get_beta(country, sym, st_date, en_date, df=None, recession=True)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -2665,32 +2698,40 @@ def update_stock_betas2(country, stk, df=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    price_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
     try:
-        update_stock_betas(country, collection, sql_engine, stk, sem=None, df=df)
+        update_stock_betas(country, collection, price_engine, beta_engine, stk, sem=None, df=df)
     finally:
         close_db_client(c)
-        close_sql_connection(sql_engine)
+        close_sql_connection(price_engine)
+        close_sql_connection(beta_engine)
 
 def add_beta_columns(sql_engine, table_name, cols):
     for b in beta_change_fields:
         if b not in cols:
             DB.mysql_add_column(sql_engine, table_name, b, 'float', remove_spaces=False)
 
-def update_stock_betas(country, collection, sql_engine, stk, sem=None, df=None):
-    wdf = pd.DataFrame(columns=['Date']+beta_change_fields) 
+def get_beta_columns(beta_field):
+    cols = []
+    for c1 in beta_parameters:
+        cols.append(beta_field+'_'+c1)
+
+    return cols
+
+def get_all_beta_columns():
+    cols = []
+    for c1 in beta_change_fields:
+        for c2 in beta_parameters:
+            cols.append(c1+'_'+c2)
+
+    return cols
+
+def update_stock_betas(country, collection, price_engine, beta_engine, stk, sem=None, df=None):
     try:
         sym = stk['bscs']['symbol']
-        table_name = DB.get_symbol_table_name(sym)
+        table_name = get_symbol_table_name(sym)
         
-        mysql_check_n_create_table(sql_engine, table_name)
-        metadata = MetaData()
-        table = Table(table_name, metadata, autoload=True, autoload_with=sql_engine)
-        cols = mysql_get_columns(table)
-        add_beta_columns(sql_engine, table_name, cols)
-        del metadata
-        del table
-
         print("beta: %r: %r" %(stk['sno'], sym))
         if 'since' not in stk['bscs'].keys():
             stk  = update_since_dataframe(sql_engine, table_name, collection, stk)
@@ -2703,117 +2744,105 @@ def update_stock_betas(country, collection, sql_engine, stk, sem=None, df=None):
         since_start = dt.strptime(since, "%Y-%m-%d").date()
         
         update_stock_recession_betas(country, collection, stk, sym, df=df)
-        
-        #print(stk['fig']['betas'].keys())
-        #Since last recession
-        betas = None
-        year = sorted(recessions.keys())[-1]
-        #st_date = dt.strptime(recessions['2007']['end'], "%d %B %Y").date()
-        # If last recession has successfully ended, calculate betas from the end date of the
-        # recession. If not, that means the economy is still in recession. In that case,
-        # calculate from start date of the recession.
-        if 'end' in recessions[list(recessions.keys())[-1]].keys():
-            st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['end'], "%d %B %Y").date()
-        else:
-            st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
-        en_date = dt.now().date()
-        #print("Since last recession")
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        #print("Betas: %r" %(betas))
-        field="fig.betas.since_last_recession"
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+       
+        #if ('since_last_recession' in stk['fig']['betas'].keys() and 
+        #   stk['fig']['betas']['since_last_recession']['End_Date'].date() < dt.now().date()
+        #   ):
+        if True:
+            #print(stk['fig']['betas'].keys())
+            #Since last recession
+            betas = None
+            year = sorted(recessions.keys())[-1]
+            #st_date = dt.strptime(recessions['2007']['end'], "%d %B %Y").date()
+            # If last recession has successfully ended, calculate betas from the end date of the
+            # recession. If not, that means the economy is still in recession. In that case,
+            # calculate from start date of the recession.
+            if 'end' in recessions[list(recessions.keys())[-1]].keys():
+                st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['end'], "%d %B %Y").date()
+            else:
+                st_date = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
+            en_date = dt.now().date()
+            #print("Since last recession")
+            #print(st_date)
+            #print(en_date)
+            betas = get_beta(country, sym, st_date, en_date, df=df)
+            #print("Betas: %r" %(betas))
+            field="fig.betas.since_last_recession"
+            collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+
+        #mysql_check_n_create_table(beta_engine, table_name)
+        #metadata = MetaData()
+        #table = Table(table_name, metadata, autoload=True, autoload_with=beta_engine)
+        #table_cols = mysql_get_columns(table)
+        #beta_cols  = get_all_beta_columns()
+
+        #missing_cols = list(set(beta_cols)-set(table_cols))
+        #if len(missing_cols) > 0:
+        #    #print("%s: Adding missing columns:", %(table_name, missing_cols))
+        #    miss = mysql_add_columns(beta_engine, table_name, missing_cols, 'float', remove_spaces=False)
+        #    if miss > 0:
+        #        PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+        #        PRINT_ERR("Columns: ",missing_cols)
+        #        sys.exit(1)
+ 
+        ##add_beta_columns(sql_engine, table_name, cols)
+        #del metadata
+        #del table
+
+
+        price_db = db_name(price_engine)
+        beta_db  = db_name(beta_engine)
 
         # Get all entries whose betas are not yet calculated
-        query = 'select `Date`, `Adj Close` from %s where `Month_Beta` is NULL order by Date' %(table_name)
-        dfs = read_from_sql(query, sql_engine)
-        if sdf.empty:
-            return
+        #query = 'select `Date`, `Adj Close` from %s where `%s` is NULL order by Date' %(table_name, beta_cols[0])
+        #query = 'select `Date` from %s order by Date' %(table_name)
+        #beta_df = read_from_sql(query, price_engine)
+        #query = 'select `Date` from %s order by Date' %(table_name)
+        #beta_df = read_from_sql(query, price_engine)
+        #if df.empty:
+        #    return
 
-        for index, d in df.iloc[1:].iterrows():
-            st_date = pd.to_datetime(index).date()
-            cur_date_str = str(cur_date)
-            wdf.loc[cur_date_str]=nan
-            wdf.loc[cur_date_str]['Date'] = cur_date_str
-            #Percent Changes for Day, Week, Month etc
-            for i in range(len(beta_change_fields)):
-                betas = None
-                end_date = st_date - beta_change_durations[i]
-                betas = get_beta(country, sym, st_date, en_date)
-                wdf.loc[cur_date_str][beta_change_fields[i]] = betas['beta']
+        insert=False
+        for i, field in enumerate(beta_change_fields):
+            if (mysql_exists_table(beta_engine, table_name) and
+                    field+'_Beta' in mysql_get_columns_from_engine(beta_engine, table_name)):
+                query = 'select Date, `Adj Close` from {}.{} WHERE Date not in (Select Date from {}.{} WHERE {} is not NULL order by Date);'.format(price_db, table_name, beta_db, table_name, field+'_Beta')
+            else:
+                query = 'select Date, `Adj Close` from {}.{};'.format(price_db, table_name)
+            price_df = read_from_sql(query, price_engine)
+            if price_df.empty:
+                continue
 
-                start_price = mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
-                change = percent_change(start_price, cur_price)
+            #wdf = pd.DataFrame(index=price_df.index[1:], columns=['Date']+get_beta_columns(b)) 
+            #wdf = pd.DataFrame(index=price_df.index[1:], columns = [b+'_'+s for s in list(betas.keys())])
+            print("%s: %s" %(sym, field))
+            betas = []
+            for index, d in price_df.iterrows():
+            #for index, d in price_df.iloc[1:].iterrows():
+                beta = None
+                en_date = pd.to_datetime(index).date()
+                if field == 'Whole':
+                    st_date = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+                else:
+                    st_date = en_date - beta_change_durations[i]
+                beta = get_beta(country, sym, st_date, en_date)
+                betas.append(beta)
 
-            # Whole Change
-            change = percent_change(ipo_price, cur_price)
-            wdf.loc[cur_date_str][price_change_fields[-1]] = change
-            #wdf.drop(wdf.index, inplace=True)
+            wdf = pd.DataFrame(betas)
+            wdf.index = wdf['End_Date']
+            wdf.rename(columns = {'End_Date': 'Date'}, inplace=True)
+            wdf = wdf[['Date']+beta_parameters]
+            w_cols = ['Date'] +[field+'_'+s.capitalize() for s in beta_parameters]
+            wdf.columns = w_cols
+            #wdf = wdf.dropna()
+            # taken care in mysql_update_table
+            #wdf = wdf.where(pd.notnull(wdf), None)
+                
+            field="fig.betas." + field.lower()
+            #field="fig.betas." + field.rsplit('_', 1)[0].lower()
+            collection.update({'bscs.symbol':sym},{'$set': {field : beta}})
+            mysql_update_table(beta_engine, table_name, wdf, check=True, cols_type='float', insert=insert, date_column=False, format_columns=False)
 
-        print("mysql: percent_change: %s"%(sym))
-        mysql_update_table(sql_engine, table_name, wdf)
-
-       
-        #whole beta
-        #print("whole beta")
-        st_date = since_start
-        en_date = dt.now().date()
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        #print("Betas: %r" %(betas))
-        field="fig.betas.whole"
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-        
-        #10 year beta
-        #print("10 year beta")
-        en_date = dt.now().date()
-        betas = None
-        st_date = en_date - relativedelta(years=10)
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        #print("Betas: %r" %(betas))
-        field="fig.betas.ten_year"
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-        
-        #5 year beta
-        #print("5 year beta")
-        en_date = dt.now().date()
-        betas = None
-        st_date = en_date - relativedelta(years=5)
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        #print("Betas: %r" %(betas))
-        field="fig.betas.five_year"
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-        
-        #1 year beta
-        #print("1 year beta")
-        en_date = dt.now().date()
-        betas = None
-        st_date = en_date - relativedelta(years=1)
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        field="fig.betas.one_year"
-        #print("Betas: %r" %(betas))
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-        
-        #6 months beta
-        #print("6 months beta")
-        en_date = dt.now().date()
-        betas = None
-        st_date = en_date - relativedelta(months=6)
-        #print(st_date)
-        #print(en_date)
-        betas = get_beta(country, sym, st_date, en_date, df=df)
-        field="fig.betas.six_months"
-        #print("Betas: %r" %(betas))
-        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
-    
     finally:
         if sem:
             sem.release()
@@ -2822,12 +2851,12 @@ def update_all_stock_betas(country):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
-    sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    #sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
-    docs = collection.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    docs = collection.find({'bscs.symbol':'ORCL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
@@ -2839,12 +2868,12 @@ def update_all_stock_betas(country):
         #if ignore_stock(doc):
         #    continue
         #sem.acquire()
-        update_stock_betas(country, collection, sql_engine, copy.deepcopy(doc))
+        update_stock_betas2(country, copy.deepcopy(doc))
         #threading.Thread(target=update_stock_betas, args=(country, collection, sql_engine, copy.deepcopy(doc),sem, )).start()
 
     time.sleep(10)
     close_db_client(c)
-    close_sql_connection(sql_engine)
+    #close_sql_connection(sql_engine)
  
 def set_sno(country):
     c  = open_db_client()
