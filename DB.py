@@ -2694,14 +2694,15 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
-def update_stock_betas2(country, stk, df=None):
+def update_stock_betas2(country, stk, core=0, sem=None, df=None):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
     price_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+
     try:
-        update_stock_betas(country, collection, price_engine, beta_engine, stk, sem=None, df=df)
+        update_stock_betas(country, collection, price_engine, beta_engine, stk, core=core, sem=sem, df=df)
     finally:
         close_db_client(c)
         close_sql_connection(price_engine)
@@ -2727,12 +2728,16 @@ def get_all_beta_columns():
 
     return cols
 
-def update_stock_betas(country, collection, price_engine, beta_engine, stk, sem=None, df=None):
+def update_stock_betas(country, collection, price_engine, beta_engine, stk, core=0, sem=None, df=None):
+    aff = 0 | 1 << core
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+ 
     try:
         sym = stk['bscs']['symbol']
         table_name = get_symbol_table_name(sym)
         
-        print("beta: %r: %r" %(stk['sno'], sym))
+        #print("beta: %r: %r" %(stk['sno'], sym))
         if 'since' not in stk['bscs'].keys():
             stk  = update_since_dataframe(sql_engine, table_name, collection, stk)
 
@@ -2821,10 +2826,11 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, sem=
             #for index, d in price_df.iloc[1:].iterrows():
                 beta = None
                 en_date = pd.to_datetime(index).date()
-                if field == 'Whole':
-                    st_date = dt.strptime("1970-01-01", "%Y-%m-%d").date()
-                else:
-                    st_date = en_date - beta_change_durations[i]
+                st_date = en_date - beta_change_durations[i]
+                #if field == 'Whole':
+                #    st_date = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+                #else:
+                #    st_date = en_date - beta_change_durations[i]
                 beta = get_beta(country, sym, st_date, en_date)
                 betas.append(beta)
 
@@ -2856,24 +2862,36 @@ def update_all_stock_betas(country):
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
-    docs = collection.find({'bscs.symbol':'ORCL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    docs = collection.find({}, no_cursor_timeout=True).batch_size(5).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
 
-    max_threads = thread_factor
+    #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
+    num_processes = num_cores * 3
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
 
-    for doc in docs:
-        #if ignore_stock(doc):
-        #    continue
-        #sem.acquire()
-        update_stock_betas2(country, copy.deepcopy(doc))
-        #threading.Thread(target=update_stock_betas, args=(country, collection, sql_engine, copy.deepcopy(doc),sem, )).start()
+    try:
+        for i, doc in enumerate(docs):
+            #if ignore_stock(doc):
+            #    continue
+            sem.acquire()
+            print("%d: %s" %(i, doc['bscs']['symbol']))
+            #update_stock_betas2(country, copy.deepcopy(doc))
+            processes[i%num_processes] = multiprocessing.Process(target=update_stock_betas2, args=(country, copy.deepcopy(doc), i%num_cores, sem,))
+            processes[i%num_processes].start()
+            #threading.Thread(target=update_stock_betas, args=(country, collection, sql_engine, copy.deepcopy(doc),sem, )).start()
 
-    time.sleep(10)
-    close_db_client(c)
-    #close_sql_connection(sql_engine)
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        time.sleep(10)
+        close_db_client(c)
+        #close_sql_connection(sql_engine)
+        print("Betas: Stocks tried :%r"%(i))
  
 def set_sno(country):
     c  = open_db_client()
