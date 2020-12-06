@@ -5,6 +5,7 @@ import sys
 import time
 import math
 import xlwt
+import xlrd
 from datetime import date, timedelta, datetime as dt
 from dateutil.relativedelta import relativedelta
 
@@ -13,6 +14,7 @@ import DB
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
 from excel import write_to_excel
+from datastructures import *
 import pprint
 
 def calculate_PAT(stk):
@@ -241,20 +243,25 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta, prices_only=Fa
     return True
     #return False
 
-def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state, excel_state, prices_only=False):
+def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state, excel_state, prices_only=False, radar_stocks=False):
     if excel_state == 'EXCEL':
         # All Stocks Excel File
         all_stk = xlwt.Workbook()
         ash = {}
+        if radar_stocks:
+            ash['Radar_Stocks'] = add_wb_sheet(all_stk, "Radar_Stocks")
         ash['Above_100bn'] = add_wb_sheet(all_stk, "Above 100 Bn")
 
         ash['10bn_100bn'] = add_wb_sheet(all_stk, "10Bn to 100 Bn")
         ash['5bn_10bn'] = add_wb_sheet(all_stk, "5Bn to 10 Bn")
-        ash['1bn_5bn'] = add_wb_sheet(all_stk, "1Bn 5 Bn")
-        ash['Below_1bn'] = add_wb_sheet(all_stk, "Below 1Bn")
+        ash['1bn_5bn'] = add_wb_sheet(all_stk, "1Bn to 5Bn")
+        ash['500mn_1bn'] = add_wb_sheet(all_stk, "500mn to 1Bn")
+        ash['Below_500mn'] = add_wb_sheet(all_stk, "Below 500mn")
+
         add_dcf_header(ash, years, prices_only)
     j = 0
     init_variables()
+    radar_stocks_list = []
 
     db = DB.open_db('Stocks')
     if country == 'India':
@@ -294,6 +301,19 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     symbols = DB.get_symbols_from_sql('US', mysql_engine)
     DB.close_sql_connection(mysql_engine)
+    if radar_stocks:
+        wb = xlrd.open_workbook(radar_stocks_file)
+        if wb.nsheets > 0:
+            for j in range(1,wb.nsheets):
+                entries = []
+                sheet = wb.sheet_by_index(j)
+                for i in range(1,sheet.nrows):
+                    entry = []
+                    sym  = str(sheet.cell_value(i, 0))
+                    if sym == '':
+                        continue
+                    radar_stocks_list.append(sym)
+
     for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(7)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
@@ -360,7 +380,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                 stock['num']['inflation'] = inflation
                 stock['num']['discount_rate'] = discount_rate
                 stock['num']['margin_of_safety'] = mos
-                if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only) is False:
+                if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only,radar_stocks) is False:
                     #if db_state == 'SYNC_DB':
                     if True:
                         DB.update_dummy_dcf_numbers(collection, stock)
@@ -372,11 +392,14 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
-                if write_to_excel(country, com, ash, stock, years, prices_only) != None:
-                    excel = "%s/excel_files/%s.xls" % (path, stock['bscs']['name'])
-                    PRINT("Writing to %s" % (excel))
-                    com.save(excel)
-                del com
+                #if write_to_excel(country, com, ash, stock, years, prices_only) != None:
+                #    excel = "%s/excel_files/%s.xls" % (path, stock['bscs']['name'])
+                #    PRINT("Writing to %s" % (excel))
+                #    com.save(excel)
+                ##del com
+                write_to_excel(country, com, ash, stock, years, prices_only)
+                if stock['bscs']['symbol'] in radar_stocks_list:
+                    write_to_excel(country, com, ash, stock, years, prices_only, radar_stocks)
             if db_state == 'SYNC_DB':
                 DB.update_dcf_numbers(collection, stock)
             j+=1

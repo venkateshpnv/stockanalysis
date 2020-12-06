@@ -2453,7 +2453,7 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
             ##df = hdf5.get_dataframe(country, sym, sdate, edate)
             #df = hdf5.read_from_hdf(country, sym, sdate, edate)
         except Exception as e:
-            print("Could not get data for %s. Failed to calculate beta" %(sym))
+            print("Could not get data for %s. Failed to calculate beta, query: %s" %(sym, query))
             close_sql_connection(sql_engine)
             return None
     if df.empty:
@@ -2586,7 +2586,7 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
 
     # 5- year volatiity and 1-year momentum
     volatility = np.sqrt(covmat[0,0])
-    #momentum = np.prod(1+dfsm["s_returns"].tail(12).values) -1
+    momentum = np.prod(1+dfsm["s_returns"].tail(12).values) -1
     
     # annualize the numbers
     prd = 12. # used monthly returns; 12 periods to annualize
@@ -2614,6 +2614,7 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
     betas.update({"alpha_pure":alpha_pure})
     betas.update({"r_squared":r_squared})
     betas.update({"volatility":volatility})
+    betas.update({"momentum":momentum})
     betas.update({"avg_price":df['Adj Close'].mean()})
     #print(betas)
 
@@ -2810,8 +2811,8 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         insert=False
         for i, field in enumerate(beta_change_fields):
             if (mysql_exists_table(beta_engine, table_name) and
-                    field+'_Beta' in mysql_get_columns_from_engine(beta_engine, table_name)):
-                query = 'select Date, `Adj Close` from {}.{} WHERE Date not in (Select Date from {}.{} WHERE {} is not NULL order by Date);'.format(price_db, table_name, beta_db, table_name, field+'_Beta')
+                    field+'_Momentum' in mysql_get_columns_from_engine(beta_engine, table_name)):
+                query = 'select Date, `Adj Close` from {}.{} WHERE Date not in (Select Date from {}.{} WHERE {} is not NULL order by Date);'.format(price_db, table_name, beta_db, table_name, field+'_Momentum')
             else:
                 query = 'select Date, `Adj Close` from {}.{};'.format(price_db, table_name)
             price_df = read_from_sql(query, price_engine)
@@ -2820,7 +2821,7 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
 
             #wdf = pd.DataFrame(index=price_df.index[1:], columns=['Date']+get_beta_columns(b)) 
             #wdf = pd.DataFrame(index=price_df.index[1:], columns = [b+'_'+s for s in list(betas.keys())])
-            print("%s: %s" %(sym, field))
+            #print("%s: %s" %(sym, field))
             betas = []
             for index, d in price_df.iterrows():
             #for index, d in price_df.iloc[1:].iterrows():
@@ -2862,14 +2863,14 @@ def update_all_stock_betas(country):
     #docs = db.find({"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({ "$and": [{"$or": [{"fig.betas.recession": {"$exists": False}},{"fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, {"bscs.symbol":{"$nin" : ["AAN", "GOLF", "SFS"]}}]}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = collection.find({"fig.betas": {"$exists": False}},no_cursor_timeout=True).sort([["sno",1]])
-    docs = collection.find({}, no_cursor_timeout=True).batch_size(5).sort([["sno",1]])
+    docs = collection.find({}, no_cursor_timeout=True).batch_size(3).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total Stocks: %r" %(docs.count()))
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
-    num_processes = num_cores * 3
+    num_processes = num_cores * 2 
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
@@ -2882,7 +2883,6 @@ def update_all_stock_betas(country):
             #update_stock_betas2(country, copy.deepcopy(doc))
             processes[i%num_processes] = multiprocessing.Process(target=update_stock_betas2, args=(country, copy.deepcopy(doc), i%num_cores, sem,))
             processes[i%num_processes].start()
-            #threading.Thread(target=update_stock_betas, args=(country, collection, sql_engine, copy.deepcopy(doc),sem, )).start()
 
     finally:
         for j in range(len(processes)):

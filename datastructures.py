@@ -416,7 +416,7 @@ price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativ
 beta_change_fields = ['One_Month', 'Three_Months', 'Six_Months', 'Year', 'Five_Year']
 #beta_change_fields = ['One_Month_Beta', 'Three_Months_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
 beta_change_durations = [relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5)]
-beta_parameters = ['beta', 'volatility']
+beta_parameters = ['beta', 'volatility', 'momentum']
 #beta_parameters = ['Start_Price', 'End_Price', 'Start_Date', 'End_Date', 'Index_CAGR', 'Index_Percent_Change', 'CAGR', 'Percent_Change', 'beta', 'alpha', 'alpha_pure', 'r_squared', 'volatility', 'avg_price']
 
 fin_year_fields = ['yoy', 'yo3y', 'yo5y', 'yo10y', 'yowy']
@@ -431,3 +431,6 @@ income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuo
 balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
 cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
 
+
+# paths
+radar_stocks_file='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls'

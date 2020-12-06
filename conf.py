@@ -82,6 +82,7 @@ FLT=0
 FLT_PER=0
 RSI=0
 RSI_MIN_DIFF=0
+RSI_MAX_DIFF=0
 RSI_60_MAX=0
 RSI_DIFF=0
 RSI_PRICE_CHANGE=0
@@ -97,6 +98,7 @@ WEEK_PR_CHANGE=0
 TWO_WEEK_PR_CHANGE=0
 DAY_PR_CHANGE=0
 VOLATILITY=0
+MOMENTUM=0
 
 MAX_Years = 20
 
@@ -231,6 +233,7 @@ def init_variables():
     FLT_PER=0
     RSI=0
     RSI_MIN_DIFF=0
+    RSI_MAX_DIFF=0
     RSI_60_MAX=0
     RSI_DIFF=0
     RSI_PRICE_CHANGE=0
@@ -245,6 +248,8 @@ def init_variables():
     WEEK_PR_CHANGE=0
     TWO_WEEK_PR_CHANGE=0
     DAY_PR_CHANGE=0
+    VOLATILITY=0
+    MOMENTUM=0
     
     MAX_Years = 20
     #Sales, PAT, Cash Flow, Book Value

@@ -20,6 +20,7 @@ import internet
 import parse_html
 from common import *
 import  hdf5
+from datastructures import *
 
 pattern = xlwt.Pattern()
 pattern.pattern = xlwt.Pattern.SOLID_PATTERN
@@ -132,7 +133,7 @@ def get_radar_stocks(country):
     if country != 'US':
         return
 
-    wb = xlrd.open_workbook('/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls')
+    wb = xlrd.open_workbook(radar_stocks_file)
     if wb.nsheets < 1:
         print("No sheets found")
         return
@@ -383,6 +384,13 @@ def add_basic_header(sheet, i):
     st = "RSI Min Diff"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_MIN_DIFF=i
+
+    i+=1
+    # difference between 60 day min RSI and latest RSI
+    sheet.col(i).width = 5*367
+    st = "RSI Max Diff"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI_MAX_DIFF=i
 
     i+=1
     # 60 day max RSI
@@ -781,6 +789,11 @@ def add_price_change_header(sheet, i, sheet_type):
 
     i = i + 1
     sheet.col(i).width = 6*367
+    sheet.write(0, i, "One Month Momentum", style_wrap)
+    conf.MOMENTUM=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Day Price Change", style_wrap)
     conf.DAY_PR_CHANGE=i
 
@@ -931,6 +944,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
+        sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
         sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
         if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
@@ -958,6 +972,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
+        sh_write(ash, count, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
     #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
@@ -1061,7 +1076,7 @@ def check_and_write(ash, count, col, entry, index, factor, style):
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
-def write_to_excel(country, com, ashs, stk, years, prices_only=False):
+def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stocks=False):
     #wb = xlwt.Workbook()
 
     try:
@@ -1075,10 +1090,13 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
         print(str(e))
 
     if country == 'US':
-        Bn = 1000
+        Mn = 1
+        Bn = 1000*Mn
         Tn = 1000*Bn
         try:
-            if stk['bscs']['mcap'] > 100 * Bn:
+            if radar_stocks:
+                ash = ashs['Radar_Stocks']
+            elif stk['bscs']['mcap'] > 100 * Bn:
                 ash = ashs['Above_100bn']
             elif stk['bscs']['mcap'] > 10 * Bn:
                 ash = ashs['10bn_100bn']
@@ -1086,8 +1104,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
                 ash = ashs['5bn_10bn']
             elif stk['bscs']['mcap'] > 1 * Bn:
                 ash = ashs['1bn_5bn']
+            elif stk['bscs']['mcap'] > 500 * Mn:
+                ash = ashs['500mn_1bn']
             else:
-                ash = ashs['Below_1bn']
+                ash = ashs['Below_500mn']
         except Exception as e:
             print("Mcap exception: %r" %(stk['bscs']['symbol']))
             return None
@@ -1108,7 +1128,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
 
     conf.COUNT = len(ash.rows)
     #open a company sheet
-    sheet = com.add_sheet(stk['bscs']['symbol'])
+    if radar_stocks:
+        sheet = com.add_sheet("dummy")
+    else:
+        sheet = com.add_sheet(stk['bscs']['symbol'])
     sheet.col(0).width = 28*367
     sheet.col(1).width = 10*367
     sheet.col(3).width = 10*367
@@ -1448,6 +1471,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
+        sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal)
         sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
         sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
         if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
@@ -1476,6 +1500,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False):
 
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
+        sh_write(ash, conf.COUNT, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
     if 'price_growth' in stk['fig'].keys():
         sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent)
     if 'sales_growth' in stk['fig'].keys():

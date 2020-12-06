@@ -802,14 +802,16 @@ highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quart
 def get_price_changes(s, country, duration):
 
     if country == 'US':
-        Bn = 1000
+        Mn = 1
+        Bn = 1000*Mn
         Tn = 1000*Bn
         #s = parse_html.html_set_line(s)
-        s = build_html_price_change(s, 'US', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
+        s = build_html_price_change(s, 'US', 100*Bn, 10*Tn,   1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
         s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
         s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
         s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
-        s = build_html_price_change(s, 'US', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 1 Bn"])
+        s = build_html_price_change(s, 'US', 500*Mn, 1*Bn,    1, pcent_chg[duration][4], duration, ["MCap 500Mn and 1 Bn"])
+        s = build_html_price_change(s, 'US', 1, 500*Mn,       1, pcent_chg[duration][4], duration, ["MCap < 500 Mn"])
     elif country == 'India':
         Bn = 100 # crores
         Tn = 100 * Bn
@@ -828,6 +830,8 @@ def send_email_price_changes(country):
     s = parse_html.html_text(s, ["Daily Price Surprises"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'day')
+    #subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
+    #send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'shravanrdstocks@gmail.com', subject, s)
     s = parse_html.html_text(s, ["Weekly Price Surprises"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'week')
@@ -843,9 +847,9 @@ def send_email_price_changes(country):
     s = parse_html.html_text(s, ["Yearly Price Surprises"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'year')
-    f = open("/tmp/test.html","w")
-    f.write(s)
-    f.close()
+    #f = open("/tmp/test.html","w")
+    #f.write(s)
+    #f.close()
     subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
 
