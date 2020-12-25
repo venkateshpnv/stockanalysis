@@ -1104,6 +1104,11 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         return
 
     try:
+        if dt.now().day % 2 == 0:
+            order = -1
+        else:
+            order = 1
+ 
         today=str(dt.now().date())
         #Randomly get all records whose price is not updated till today
         #pipeline = [{'$sample': {'size':num_docs}},
@@ -1111,10 +1116,10 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
         #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
         #            ]
- 
+
         #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
         i=0
         for stk in stocks:
             #if ignore_stock(stk):
@@ -1196,9 +1201,13 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
         #            ]
 
+        if dt.now().day % 2 == 0:
+            order = 1
+        else:
+            order = -1
         #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
  
         i=0
         t=None
@@ -1351,7 +1360,7 @@ def update_tech_analysis_params(sym, core, sem=None):
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     try:
-        query = 'select Date, Open, High, Low, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+        query = 'select Date, Open, High, Low, Volume, `Adj Close` from {}'.format(get_symbol_table_name(sym))
         #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
         df = read_from_sql(query, mysql_engine)
  
@@ -1387,6 +1396,8 @@ def update_tech_analysis_params(sym, core, sem=None):
                 update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
                 update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
 
+            mf = ((df.iloc[-1]['Low'] + df.iloc[-1]['High'] + df.iloc[-1]['Adj Close'] ) / 3) * df.iloc[-1]['Volume']
+            update_field(collection, sym, "technicals.mf", mf)
             update_candlesticks(collection, sym, df)
 
         update_field(collection, sym, "technicals.date", dt.now())
@@ -1413,7 +1424,7 @@ def update_all_tech_analysis_params(country='US'):
             if sym == '':
                 continue
             print("%d: Symbol: %r" %(i, sym))
-            #update_tech_analysis_params(db.US_Stocks, sym, mysql_engine)
+            #update_tech_analysis_params(sym, 0)
             sem.acquire()
             #threading.Thread(target=update_tech_analysis_params, args=(db.US_Stocks, sym, mysql_engine, sem)).start()
             processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(sym, i%num_cores, sem,))
@@ -1484,7 +1495,7 @@ def check_price_range_anomolies(country='US'):
 
 def update_all_price_volume_db(country):
     global j
-    max_threads = thread_factor
+    max_threads = thread_factor/2
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
     vpn_event = threading.Event()

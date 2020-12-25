@@ -155,7 +155,7 @@ def list_difference(l1, l2):
     return diff
 
 def disconnect_vpn():
-   subprocess.check_output('hotspotshield disconnect', shell=True)
+    subprocess.check_output('hotspotshield disconnect', shell=True)
 
 def change_vpn():
     retries = 0

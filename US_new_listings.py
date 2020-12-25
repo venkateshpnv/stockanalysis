@@ -1,14 +1,17 @@
 import DB
 import sys
+from common import change_vpn
 
 if __name__ == "__main__":
+    change_vpn()
     new_stocks = DB.build_US_All_Stocks_List()
-    #print("Number of new stocks: %r" %(new_stocks))
-    # Get financial statements html pages and build database.
-    DB.build_US_all_stock_information()
-    # Update sno for all stocks
+    ###print("Number of new stocks: %r" %(new_stocks))
+    ### Update sno for all stocks
     DB.set_sno('US')
-    if new_stocks > 1:
+    ### Get financial statements html pages and build database.
+    DB.build_US_all_stock_information()
+    #new_stocks=2
+    if new_stocks > 0:
         ## Build EPS, Split, Dividend history for all new stocks 
         DB.build_US_all_EPS()
         ## Update stock profile information for all stocks

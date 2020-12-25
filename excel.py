@@ -394,17 +394,17 @@ def add_basic_header(sheet, i):
 
     i+=1
     # 60 day max RSI
-    sheet.col(i).width = 8*367
-    st = "RSI Range"
-    sheet.write(0, i, st, style_wrap)
-    conf.RSI_60_MAX=i
-
-    i+=1
-    # 60 day max RSI
     sheet.col(i).width = 5*367
     st = "RSI Max Min Diff"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_DIFF=i
+
+    i+=1
+    # 60 day max RSI
+    sheet.col(i).width = 8*367
+    st = "RSI Range"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI_60_MAX=i
 
     i+=1
     # RSI min max price change
@@ -1195,7 +1195,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
             if '2020' in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession']['2020'] != None:
                 if 'Percent_Change' in stk['fig']['betas']['recession']['2020'].keys():
-                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['recession']['2020']['Percent_Change'], style_percent)
+                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent)
             if '2007' in stk['fig']['betas']['recession'].keys():
                 if stk['fig']['betas']['recession']['2007'] != None:
                     try:

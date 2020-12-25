@@ -179,6 +179,10 @@ Query OK, 0 rows affected (0.02 sec)
 mysql> DELIMITER ;
 mysql> call balance_quart('MFA');
 
+Pandas
+======================
+timestamp to datetime
+df.index[0].to_pydatetime()
 
 PyMongo python package
 ======================
@@ -218,3 +222,11 @@ rclone mount petlafingdrive: ~/gdrive
 
 curl -s --compressed 'ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqlisted.txt' > nasdaq.txt
 https://datahub.io/core/nyse-other-listings
+
+Split Data from Yahoo Finance
+import yfinance as yf
+tick = yf.Ticker('AAPL')
+tick.get_info() -> Complete info of the stock
+
+import pandas_datareader.data as data
+data.get_iex_symbols()
