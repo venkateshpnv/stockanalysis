@@ -17,6 +17,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import pandas_datareader as pdr
+import pandas_datareader.data as data
 
 import internet
 import parse_html
@@ -1541,6 +1542,31 @@ def find_files():
     f.close()
     close_db_client(c)
 
+def get_iex_symbols():
+    c  = open_db_client()
+    db = c['Stocks']
+    j = db.US_Stocks_List.find({}).count()
+
+    df = data.get_iex_symbols()
+    df = df[df['name']!='']
+    df = df[df['type']!='crypto']
+    entries = []
+
+    for index, d in df.iterrows():
+        obj = db.US_Stocks_List.find({"symbol":d['symbol']})
+        if obj.count() == 0:
+            print("%r: %r" %(d['symbol'],d['name']))
+            entry = []
+            entry.append(d['symbol'])
+            entry.append(d['name'])
+            entries.append(entry)
+            j+=1
+            stk = {"symbol" : d['symbol'], "Name" : d['name'], "data" : "NO", "parsed" : "NO", "sno": j}
+            db.US_Stocks_List.insert_one(stk)
+
+    close_db_client(c)
+    return entries
+ 
 def build_US_Stocks_List(excel_file):
     c  = open_db_client()
     db = c['Stocks']
@@ -2207,11 +2233,13 @@ def update_symbol_name_changes():
 def build_US_All_Stocks_List():
     #get_US_Stock_list()
     new_stocks = [] 
-    head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
+    head=["Symbol", "Name"]
+    #head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
     new_stocks.append(head)
-    new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
-    new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
-    new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
+    #new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
+    #new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
+    #new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
+    new_stocks.extend(get_iex_symbols())
     # If atleast one new IPO
     if len(new_stocks) > 1:
         s = parse_html.html_head()

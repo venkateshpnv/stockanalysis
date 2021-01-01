@@ -1029,6 +1029,9 @@ def get_price_volume(stk, country, vpn_event=None):
         #    continue
         try:
             # Add moving average etc. Refer /tmp/test.csv for details
+            stk['bscs']['type'] = d.iloc[0]['quoteType']
+            stk['bscs']['exchange'] = d.iloc[0]['fullExchangeName']
+
             if 'regularMarketVolume' in d.keys():
                 stk['bscs']['volume'] = (d['regularMarketVolume'][0])
             elif 'averageDailyVolume3Month' in d.keys():
