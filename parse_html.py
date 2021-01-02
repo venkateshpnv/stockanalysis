@@ -816,23 +816,28 @@ def populate_financial_statement(stock, root, files, sheet_type, tenure):
     stock[fig]['financial-statements'][sheet_type] = sorted_entries
     return stock
 
-def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
+def populate_US_stocks(db, root, files, stock, symbol, name, sector=None, industry=None, etf=False):
 
-    if len(files) == 0:
-        PRINT_ERR("len(files): %d" %(len(files)))
-        count = db.US_Stocks.find({'bscs.symbol':symbol})
-        if count == 0:
+    if files == None or len(files) == 0:
+        #PRINT_ERR("len(files): %d" %(len(files)))
+        stocks = db.US_Stocks.find({'bscs.symbol':symbol})
+        if stocks.count() == 0:
             stock['bscs']={}
             stock['bscs']['symbol'] = symbol
             stock['bscs']['name'] = name
-            stock['fig']={}
+            if etf:
+                stock['bscs']['type'] = 'ETF'
+            else:
+                stock['bscs']['type'] = 'EQUITY'
+            stock['fig'] = {}
+            stock['quart_fig'] = {}
             stock['fig']['financial-statements'] = {}
             stock['quart_fig']['financial-statements'] = {}
             DB.write_to_collection(db['US_Stocks'], stock)
-        else:
-            DB.update_field(db['US_Stocks'], symbol, "fig.financial-statements", {})
-            DB.update_field(db['US_Stocks'], symbol, "quart_fig.financial-statements", {})
-        return False
+        #else:
+        #    DB.update_field(db['US_Stocks'], symbol, "fig.financial-statements", {})
+        #    DB.update_field(db['US_Stocks'], symbol, "quart_fig.financial-statements", {})
+        return True
 
     #Name and Symbol
     if 'bscs' not in stock.keys():
@@ -844,17 +849,22 @@ def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
 
     stock['bscs']['symbol'] = symbol
     stock['bscs']['name'] = name
-    stock['bscs']['sector'] = sector
-    stock['bscs']['industry'] = industry
+    stock['bscs']['type'] = 'ETF'
+    if sector:
+        stock['bscs']['sector'] = sector
+    if industry:
+        stock['bscs']['industry'] = industry
     stock['fig']['financial-statements']={}
     stock['quart_fig']['financial-statements']={}
 
-    stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'annual')
-    stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'quarterly')
-    stock = populate_financial_statement(stock, root, files, 'cash-flow', 'annual')
-    stock = populate_financial_statement(stock, root, files, 'cash-flow', 'quarterly')
-    stock = populate_financial_statement(stock, root, files, 'income-statement', 'annual')
-    stock = populate_financial_statement(stock, root, files, 'income-statement', 'quarterly')
+    if etf == False:
+        stock['bscs']['type'] = 'EQUITY'
+        stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'annual')
+        stock = populate_financial_statement(stock, root, files, 'balance-sheet', 'quarterly')
+        stock = populate_financial_statement(stock, root, files, 'cash-flow', 'annual')
+        stock = populate_financial_statement(stock, root, files, 'cash-flow', 'quarterly')
+        stock = populate_financial_statement(stock, root, files, 'income-statement', 'annual')
+        stock = populate_financial_statement(stock, root, files, 'income-statement', 'quarterly')
 
     #pretty_print(stock)
     DB.write_to_collection(db['US_Stocks'], stock)
@@ -862,12 +872,12 @@ def populate_US_stocks(db, root, files, stock, symbol, name, sector, industry):
     #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig", stock['fig']['financial-statements'])
     #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "fig.financial-statements", stock['fig']['financial-statements'])
     #DB.update_field(db['US_Stocks'], stock['bscs']['symbol'], "quart_fig.financial-statements", stock['quart_fig']['financial-statements'])
-    url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(symbol)
-    html_page=internet.get_webpage(url)
-    DB.update_US_stk_profile(html_page, db.US_Stocks)
+    if etf == False:
+        url = 'https://www.barchart.com/stocks/quotes/%s/profile' %(symbol)
+        html_page=internet.get_webpage(url)
+        DB.update_US_stk_profile(html_page, db.US_Stocks)
 
     return True
-
 
 #def populate_US_stocks(db, root, files, symbol, name, sector, industry):
 #    stk = Stock()

@@ -957,6 +957,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 DB.check_n_write_to_sql(sql_engine, symbol, copy.deepcopy(df), list(df.columns))
                 # Update the date on which the price is updated
                 DB.update_field(collection, symbol, "bscs.price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
+                # Reset mysql_price_failcount
+                DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
  
             if df.empty:
                 DB.update_field(collection, symbol, "ignore", "YES")
@@ -1051,6 +1053,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
                         DB.update_field(collection, symbol, "bscs.price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
+                        # Reset mysql_price_failcount
+                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))

@@ -1278,6 +1278,8 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
             # Update price and volume to db
             #print("%r: %r" %(stock['bscs']['symbol'], stock['bscs']['volume']))
             update_db_price_volume(collection, stock)
+            # Reset price fail count
+            update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", 0)
             j = j+1
         else:
             if 'bscs' in stk.keys() and 'price_failcount' in stk['bscs'].keys():
@@ -2395,31 +2397,37 @@ def build_US_stock_information(doc):
     stocks = db.US_Stocks.find({"bscs.symbol":sym})
     if stocks.count() == 0:
         print("%d: %s: %s "%(doc['sno'],doc['symbol'], doc['Name']))
-        # Get financial data from the internet
-        path = internet.get_US_stock_page(sym, name)
-        
-        path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
-        path = path.lstrip().rstrip().replace(",","")
-        
-        ret=True
-        for (root,dirs,files) in os.walk(path, topdown=True):
-            files = [f for f in files if not f[0] == '.']
-            dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
-            dirs[:] = [d for d in dirs if not d[0] == '.']
-            #print("Root: %r" %(root))
-            #print(dirs)
-
-            #Sort strings with numbers
-            # natural_keys() is a function defined in common.py
-            files.sort(key=natural_keys)
-            #print(files)
-
+        if 'etf' in doc['Name'].lower() or 'fund' in doc['Name'].lower():
             stock = {}
-            ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name, doc['Sector'], doc['Industry']) 
-        if ret is True:
-            db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
-            #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
-            remove_dir(path)
+            ret = parse_html.populate_US_stocks(db, None, None, stock, sym, name, etf=True) 
+
+        else:
+            # Get financial data from the internet
+            path = internet.get_US_stock_page(sym, name)
+            
+            path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
+            path = path.lstrip().rstrip().replace(",","")
+            
+            ret=True
+            for (root,dirs,files) in os.walk(path, topdown=True):
+                files = [f for f in files if not f[0] == '.']
+                dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
+                dirs[:] = [d for d in dirs if not d[0] == '.']
+                #print("Root: %r" %(root))
+                #print(dirs)
+
+                #Sort strings with numbers
+                # natural_keys() is a function defined in common.py
+                files.sort(key=natural_keys)
+                #print(files)
+
+                stock = {}
+                ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name) 
+                #ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name, doc['Sector'], doc['Industry']) 
+            if ret is True:
+                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+                #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
+                remove_dir(path)
     db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
  
 def build_US_all_stock_information():
