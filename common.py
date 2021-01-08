@@ -158,6 +158,15 @@ def disconnect_vpn():
     subprocess.check_output('hotspotshield disconnect', shell=True)
 
 def change_vpn():
+    cmd = 'hotspotshield status'
+    s   = subprocess.check_output(cmd, shell=True)
+    ss  = str(s)
+    loc = ss.find('Session uptime')
+    if loc > 0:
+       uptime = int(ss[loc:].split('\\')[0].split(" ")[-1].split(':')[0])
+       if uptime < 30:
+           return
+
     retries = 0
     done=False
     while not done:

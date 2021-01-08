@@ -310,7 +310,7 @@ def check_n_write_to_sql(engine, table, df, fields=None):
     query = 'show tables like %r;' %(table)
     output= engine.execute(query)
     #If table does not exist
-    if output.first() is None:
+    if output.rowcount == 0:
         query = 'create table '+ table + ' like test2;'
         engine.execute(query)
         #query = 'alter table ' + table +' add index(Date);'
@@ -329,9 +329,16 @@ def check_n_write_to_sql(engine, table, df, fields=None):
     #        query = 'alter table %s add column %s %s' %(table, c, c_dtype)
 
 
-    query = 'select * from '+ table
-    #query = 'select * from '+ table + ' where Symbol=%r' %(table)
-    rdf = pd.read_sql_query(query, engine)
+    try:
+        query = 'select * from '+ table
+        #query = 'select * from '+ table + ' where Symbol=%r' %(table)
+        rdf = pd.read_sql_query(query, engine)
+    except (sqlalchemy.exc.ProgrammingError) as E:
+        query = 'create table '+ table + ' like test2;'
+        engine.execute(query)
+        query = 'select * from '+ table
+        rdf   = pd.read_sql_query(query, engine)
+
     if not rdf.empty:
         rdf.index = rdf['Date'] #Is this required?
         #Select all rows except that in SQL Database
@@ -339,13 +346,12 @@ def check_n_write_to_sql(engine, table, df, fields=None):
     if not df.empty:
         df.to_sql(name=table, con=engine,index=False,chunksize=1000,if_exists='append')
         #df.to_sql(name=table, con=engine,index=False,if_exists='append')
-
 def get_symbol_table_name(symbol):
     if symbol in India_indices.keys():
         symbol = India_indices[symbol]
     elif symbol in US_indices.keys():
         symbol = US_indices[symbol]
-    return 'STK'+symbol.replace('.','_')
+    return 'STK'+symbol.replace('.','_').replace('-','_')
 
 def get_symbols_from_mongo(collection=None, country='US'):
     if not collection:
@@ -517,6 +523,9 @@ def get_stock_from_db(country, sym):
 # Sometimes, it returns wrong volume information for the present date.
 # Especially for the indices.
 def check_volume_of_last_record(mysql_engine, table_name):
+    columns = mysql_get_columns_from_engine(mysql_engine, table_name)
+    if 'Volume' not in columns:
+        return
     query = 'select Volume from {} order by Date desc limit 1'.format(table_name)
     df = pd.read_sql_query(query, mysql_engine)
     if not df.empty and df.iloc[0]['Volume'] == 0:
@@ -1092,6 +1101,8 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.volume": to_int(stk['bscs']['volume'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": to_float(stk['bscs']['mcap'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": to_int(stk['bscs']['outstanding_shares'])}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.type": stk['bscs']['type']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.exchange": stk['bscs']['exchange']}})
     #update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.now())
 
 j=0
@@ -1120,14 +1131,18 @@ def fork_db_process(country, sem, lock, vpn_event=None):
 
         #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["bscs.price_failcount",-1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({'bscs.price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        till_date = dt.combine(dt.now(), dt.min.time()) 
+        stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
         i=0
         for stk in stocks:
-            #if ignore_stock(stk):
+            ##if ignore_stock(stk):
+            ##    continue
+            ##print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
             #    continue
-            #print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
-                continue
 
             #if vpn_event:
             #    while vpn_event.is_set() is False:
@@ -1168,7 +1183,7 @@ def fork_hdf5_process(country, sem, vpn_event=None):
 
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
-    #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
+    #num_docs = collection.find({"bscs.mysql_price_date": {'$ne':today}})
     if num_docs == 0:
         close_db_client(c)
         close_sql_connection(sql_engine)
@@ -1185,6 +1200,11 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         indices = US_indices 
 
     try:
+        if dt.now().day % 2 == 0:
+            order = 1
+        else:
+            order = -1
+ 
         ##Indices
         for k in indices.keys():
             stk = {}
@@ -1195,33 +1215,47 @@ def fork_hdf5_process(country, sem, vpn_event=None):
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
             threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event)).start()
 
-        # Randomly get all records whose price is not updated till today
+        # First get price data for all new stocks
+        stocks = db.US_Stocks.find({"bscs.mysql_price_date": {"$exists": False }}).batch_size(10)
+        t=None
+        i=0
+        for stk in stocks:
+            print("%d: Mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            sem.acquire()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
+            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
+            t.start()
+            i = i + 1
+
+
+
+        ###Randomly get all records whose price is not updated till today
         #pipeline = [{'$sample': {'size':num_docs}},
-        #            {'$match' : {"bscs.price_date": {'$ne':today}}},
+        #            {'$match' : {"bscs.mysql_price_date": {'$ne':today}}},
+        #            {'$sort' : {"bscs.mysql_price_date": 1}},
         #            #{"$group": {"_id": _id, "count": {"$sum":1}}},
         #            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
         #            ]
 
-        if dt.now().day % 2 == 0:
-            order = 1
-        else:
-            order = -1
-        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
+        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True, maxTimeMS=0).batch_size(10)
+        #stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True, maxTimeMS=0).batch_size(10).addOption(DBQuery.Option.noTimeout);
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
+        #stocks = db.US_Stocks.find({'bscs.mysql_price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
+        till_date = dt.combine(dt.now(), dt.min.time()) 
+        stocks = db.US_Stocks.find({'bscs.mysql_price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
  
-        i=0
-        t=None
+        t = None
         for stk in stocks:
-            #if ignore_stock(stk):
+            ##if ignore_stock(stk):
+            ##    continue
+            ##if stk['bscs']['symbol'] not in symbols:
+            ##    print("Skipping: %r" %(stk['bscs']['symbol']))
+            ##    continue
+            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
+            #    print("Price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
             #    continue
-            #if stk['bscs']['symbol'] not in symbols:
-            #    print("Skipping: %r" %(stk['bscs']['symbol']))
-            #    continue
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
-                print("Price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
-                continue
-            print("%d: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            print("%d: Mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
             t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
@@ -1261,7 +1295,10 @@ def update_price_failcount(stk, country, df=False):
     # Ignore the stk for future purposes if failed to get data
     # for more than 10 times.
     if failcount > 10:
-        if stk['bscs']['trading'] == 'Yes' or stk['bscs']['trading'] == 'YES':
+        if 'trading' not in stk['bscs'].keys():
+            update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
+            update_field(collection, stk['bscs']['symbol'], "bscs.trading_stop_date", str(dt.now().date()))
+        elif stk['bscs']['trading'] == 'Yes' or stk['bscs']['trading'] == 'YES':
             update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
             update_field(collection, stk['bscs']['symbol'], "bscs.trading_stop_date", str(dt.now().date()))
  
@@ -1280,15 +1317,17 @@ def update_stk_bscs_db(country, db, stk, sem, lock, vpn_event):
             update_db_price_volume(collection, stock)
             # Reset price fail count
             update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", 0)
+            update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.combine(dt.now(), dt.min.time()))
             j = j+1
         else:
             if 'bscs' in stk.keys() and 'price_failcount' in stk['bscs'].keys():
                 failcount = failcount + stk['bscs']['price_failcount']
             # Ignore the stk for future purposes if failed to get data
             # for more than 10 times.
-                if failcount > 10:
-                    update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
-                    update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
+            if failcount > 10:
+                update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
+            update_field(collection, stk['bscs']['symbol'], "bscs.price_failcount", failcount)
+            update_field(collection, stk['bscs']['symbol'], "bscs.price_date", dt.combine(dt.now(), dt.min.time()))
     finally:
         if sem:
             sem.release()
@@ -1552,6 +1591,9 @@ def get_iex_symbols():
     df = data.get_iex_symbols()
     df = df[df['name']!='']
     df = df[df['type']!='crypto']
+    # Exclude all symbols ending with +,=,-
+    # TODO: Remove all symbols ending with special characters
+    df = df[df['symbol'].str.match(r'(.*[\=|\+|\-]$)')==False]
     entries = []
 
     for index, d in df.iterrows():
@@ -2165,11 +2207,12 @@ def update_symbol_name_changes():
                 # If there exists an old table, drop the new table and
                 # update the name of the old table with the new table.
                 if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
-                    query = 'drop table {}'.format('STK'+sym.replace('.','_'))
-                    #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
-                    price_change_mysql_engine.execute(query)
-                    #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
-                    #price_change_mysql_engine.execute(query)
+                    if price_change_mysql_engine.has_table('STK'+sym.replace('.','_')):
+                        query = 'drop table {}'.format('STK'+sym.replace('.','_'))
+                        #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
+                        price_change_mysql_engine.execute(query)
+                        #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+                        #price_change_mysql_engine.execute(query)
 
                 # Delete all new symbol financial data entries
                 query = 'delete from US_Stocks_Fin.income_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
@@ -2377,7 +2420,7 @@ def update_US_all_stock_information():
 
     close_db_client(c)
 
-def build_US_stock_information(doc):
+def build_US_stock_information(doc, finance=True):
     c    = open_db_client()
     db   = c['Stocks']
     sym  = doc['symbol']
@@ -2400,7 +2443,9 @@ def build_US_stock_information(doc):
         if 'etf' in doc['Name'].lower() or 'fund' in doc['Name'].lower():
             stock = {}
             ret = parse_html.populate_US_stocks(db, None, None, stock, sym, name, etf=True) 
-
+        elif finance == False:
+            stock = {}
+            ret = parse_html.populate_US_stocks(db, None, None, stock, sym, name, etf=False) 
         else:
             # Get financial data from the internet
             path = internet.get_US_stock_page(sym, name)
@@ -2444,8 +2489,9 @@ def build_US_all_stock_information():
     #    del s[-1]
     #syms = {"$nin" : s}
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks_list = db.US_Stocks_List.find({'parsed':'NO'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    print("Number of stocks not yet parsed: %r" %(stocks_list.count()))
+    stocks_list = db.US_Stocks_List.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks_list = db.US_Stocks_List.find({'parsed':'NO'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #print("Number of stocks not yet parsed: %r" %(stocks_list.count()))
 
     remove_dir('/home/vpetla/work/stockanalysis/US_Stocks/html_pages')
     create_dir('/home/vpetla/work/stockanalysis/US_Stocks/html_pages')
@@ -2459,7 +2505,7 @@ def build_US_all_stock_information():
             #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
             #    continue
 
-            build_US_stock_information(doc)
+            build_US_stock_information(doc, finance=False)
 
     #set_sno('US')
     # Create index based on sno
