@@ -163,9 +163,12 @@ def change_vpn():
     ss  = str(s)
     loc = ss.find('Session uptime')
     if loc > 0:
-       uptime = int(ss[loc:].split('\\')[0].split(" ")[-1].split(':')[0])
-       if uptime < 30:
-           return
+        uptime = ss[loc:].split('\\')[0].split(" ")[-1].split(':')
+        # If less than an hour
+        if len(uptime) < 3:
+            uptime = int(uptime[0])
+            if uptime < 30:
+               return
 
     retries = 0
     done=False
