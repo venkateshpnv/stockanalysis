@@ -1135,14 +1135,17 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["bscs.price_failcount",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
         till_date = dt.combine(dt.now(), dt.min.time()) 
-        stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+
         i=0
         for stk in stocks:
             ##if ignore_stock(stk):
             ##    continue
             ##print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
-            #    continue
+            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
+                print("price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
+                continue
 
             #if vpn_event:
             #    while vpn_event.is_set() is False:
@@ -1243,6 +1246,8 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",order]])
         #stocks = db.US_Stocks.find({'bscs.mysql_price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
         till_date = dt.combine(dt.now(), dt.min.time()) 
+        yesterday  = dt.combine(dt.now()-timedelta(1), dt.min.time()) 
+        #stocks = db.US_Stocks.find({"$or" : [{'bscs.mysql_price_date':{'$lt': till_date}}, {"$and": [{'bscs.mysql_price_failcount': {'$gt':0}}, {'bscs.mysql_price_date':{'$lt': yesterday}}]}]}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
         stocks = db.US_Stocks.find({'bscs.mysql_price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
  
         t = None
@@ -1252,10 +1257,10 @@ def fork_hdf5_process(country, sem, vpn_event=None):
             ##if stk['bscs']['symbol'] not in symbols:
             ##    print("Skipping: %r" %(stk['bscs']['symbol']))
             ##    continue
-            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
-            #    print("Price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
-            #    continue
-            print("%d: Mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            if 'mysql_price_failcount' in stk['bscs'].keys() and stk['bscs']['mysql_price_failcount'] > 10:
+                print("mysql_price_failcount: %d, Skipping: %r" %(stk['bscs']['mysql_price_failcount'], stk['bscs']['symbol']))
+                continue
+            print("%d: mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
             t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
@@ -2696,8 +2701,8 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
  
     betas.update({"Start_Price":float(s_first)})
     betas.update({"End_Price":float(s_last)})
-    betas.update({"Start_Date":df.index[0].to_pydatetime()})
-    betas.update({"End_Date":df.index[-1].to_pydatetime()})
+    betas.update({"Start_Date":dt.combine(df.index[0].date(), dt.min.time())})
+    betas.update({"End_Date": dt.combine(df.index[-1].date(), dt.min.time())})
     betas.update({"Index_CAGR":b_cagr})
     betas.update({"Index_Percent_Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
