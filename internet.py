@@ -710,7 +710,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
                 entry.append("")
         else:
             entry.append(str("-"))
-        entry.append(str(bscs['sector']))
+        if 'sector' in bscs.keys():
+            entry.append(str(bscs['sector']))
+        else:
+            entry.append("")
         entry.append(str(round(bscs['mcap']*factor, 2)))
         if 'volume' in bscs.keys():
             entry.append(str(round(bscs['volume']/1000, 2))+'k')

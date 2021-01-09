@@ -1081,7 +1081,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     try:
         #if not isinstance(stk['num']['eps_20yr'], list):
-        if 'eps_20yr' not in stk['num'].keys():
+        if 'num' in stk.keys() and 'eps_20yr' not in stk['num'].keys():
             db=DB.open_db('Stocks')
             db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']},{'$set':{"num.eps_20yr":[]}})
             print("Setting eps_20yr to []")
@@ -1215,17 +1215,17 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                         sh_write(ash, conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['recession']['2007']['since_then_till_last_recession'], 2), style_decimal)
                     except Exception:
                         pass
-            if stk['fig']['betas']['whole']:
-                sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
-                sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
-                sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
+        if 'whole' in stk['fig']['betas'].keys() and stk['fig']['betas']['whole']:
+            sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
+            sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
+            sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
 
-            if stk['fig']['betas']['six_months']:
-                sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
-            if stk['fig']['betas']['one_year']:
-                sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
-            if stk['fig']['betas']['five_year']:
-                sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
+        if 'six_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['six_months']:
+            sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
+        if 'one_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_year']:
+            sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
+        if 'five_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['five_year']:
+            sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
  
     sh_write(ash, conf.COUNT, conf.FLT, stk['bscs']['float']/100)
     sh_write(ash, conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
@@ -1254,9 +1254,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sh_write(ash, conf.COUNT, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'])
     if 'fiftytwoweek_low' in stk['bscs'].keys():
         sh_write(ash, conf.COUNT, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'])
-    if 'with_52week_high' in stk['bscs'].keys():
+    if 'with_52week_high' in stk['price_change'].keys():
         sh_write(ash, conf.COUNT, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
-    if 'with_52week_low' in stk['bscs'].keys():
+    if 'with_52week_low' in stk['price_change'].keys():
         sh_write(ash, conf.COUNT, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
 
@@ -1275,7 +1275,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         i += 1 #row 8
         sheet.write(i, 0, "P/E")
     try:
-        pe  = round(stk['bscs']['price']/stk['fig']['ttm_eps'],2)
+        if 'ttm_eps' in stk['fig'].keys():
+            pe = round(stk['bscs']['price']/stk['fig']['ttm_eps'],2)
+        else:
+            pe = 0
     except Exception as e:
         pe  = 0
     if prices_only is False:
