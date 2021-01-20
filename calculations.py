@@ -252,11 +252,14 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             ash['Radar_Stocks'] = add_wb_sheet(all_stk, "Radar_Stocks")
         ash['Above_100bn'] = add_wb_sheet(all_stk, "Above 100 Bn")
 
-        ash['10bn_100bn'] = add_wb_sheet(all_stk, "10Bn to 100 Bn")
+        ash['50bn_100bn'] = add_wb_sheet(all_stk, "50Bn to 100 Bn")
+        ash['25bn_50bn'] = add_wb_sheet(all_stk, "25Bn to 50 Bn")
+        ash['10bn_25bn'] = add_wb_sheet(all_stk, "10Bn to 25 Bn")
         ash['5bn_10bn'] = add_wb_sheet(all_stk, "5Bn to 10 Bn")
         ash['1bn_5bn'] = add_wb_sheet(all_stk, "1Bn to 5Bn")
         ash['500mn_1bn'] = add_wb_sheet(all_stk, "500mn to 1Bn")
         ash['Below_500mn'] = add_wb_sheet(all_stk, "Below 500mn")
+        ash['All'] = add_wb_sheet(all_stk, "All")
 
         add_dcf_header(ash, years, prices_only)
     j = 0

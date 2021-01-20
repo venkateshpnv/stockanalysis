@@ -59,12 +59,18 @@ style_num.font.height = 10 * 20 #(10 pt)
 style_highlight = xlwt.XFStyle()
 style_highlight.pattern = pattern
 
-def sh_write(exl_sht, row, column, data, style=None):
+def sh_write(exl_sht, row, column, data, style=None, all_sht=None):
     try:
         if style:
             exl_sht.write(row, column, data, style)
         else:
             exl_sht.write(row, column, data)
+        if all_sht:
+            if style:
+                all_sht.write(row, column, data, style)
+            else:
+                all_sht.write(row, column, data)
+ 
     except:
         pass
 
@@ -102,8 +108,11 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
 
     if not index:
         entry.append(str(shortlist_price))
-        since_shortlist = price / shortlist_price - 1  
-        entry.append(str(round(since_shortlist*100, 2))+'%')
+        if type(shortlist_price) is not str:
+            since_shortlist = price / shortlist_price - 1  
+            entry.append(str(round(since_shortlist*100, 2))+'%')
+        else:
+            entry.append(' ')
 
     try:
         query = 'select * from {} order by Date desc limit 2'.format(DB.get_symbol_table_name(sym))
@@ -187,7 +196,12 @@ def get_radar_stocks(country):
             name = str(sheet.cell_value(i, 1))
             print("Symbol: %r, Name: %r" %(sym, name))
             #print("\"%s\"" %(sheet.cell_value(i,4)))
-            shortlist_price = float(sheet.cell_value(i, 3))
+            s_price = sheet.cell_value(i,3)
+            if type(s_price) is str and len(s_price) == 0:
+                shortlist_price = ' '
+            else:
+                shortlist_price = float(sheet.cell_value(i, 3))
+
 
             entries.append(get_symbol_prices(sym, name, 'US', None, shortlist_price))
             ##print(entries)
@@ -1098,8 +1112,12 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['Radar_Stocks']
             elif stk['bscs']['mcap'] > 100 * Bn:
                 ash = ashs['Above_100bn']
+            elif stk['bscs']['mcap'] > 50 * Bn:
+                ash = ashs['50bn_100bn']
+            elif stk['bscs']['mcap'] > 25 * Bn:
+                ash = ashs['25bn_50bn']
             elif stk['bscs']['mcap'] > 10 * Bn:
-                ash = ashs['10bn_100bn']
+                ash = ashs['10bn_25bn']
             elif stk['bscs']['mcap'] > 5 * Bn:
                 ash = ashs['5bn_10bn']
             elif stk['bscs']['mcap'] > 1 * Bn:
@@ -1108,6 +1126,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['500mn_1bn']
             else:
                 ash = ashs['Below_500mn']
+            all_sht = ashs['All']
         except Exception as e:
             print("Mcap exception: %r" %(stk['bscs']['symbol']))
             return None
@@ -1181,65 +1200,65 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     i += 1 #row 4
     sheet.write(i, 0, "Name")
     sheet.write(i, 1, stk['bscs']['name'])
-    sh_write(ash, conf.COUNT, conf.COMP, stk['bscs']['name'], style_text)
+    sh_write(ash, conf.COUNT, conf.COMP, stk['bscs']['name'], style_text, all_sht)
 
     sheet.write(i, 3, "Promoter Stake")
     if 'promoter_stake' in stk['bscs'].keys():
         sheet.write(i, 4, stk['bscs']['promoter_stake']/100, style_percent)
-    #sh_write(ash, conf.COUNT, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
+    #sh_write(ash, conf.COUNT, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent, all_sht)
     #if 'fii_stake' in stk['bscs'].keys():
-    #    sh_write(ash, conf.COUNT, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
+    #    sh_write(ash, conf.COUNT, conf.FII, stk['bscs']['fii_stake']/100, style_percent, all_sht)
     #if 'dii_stake' in stk['bscs'].keys():
-    #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
+    #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent, all_sht)
     if 'yld' in stk['Dividend'].keys():
-        sh_write(ash, conf.COUNT, conf.DIV, stk['Dividend']['yld']/100, style_percent)
+        sh_write(ash, conf.COUNT, conf.DIV, stk['Dividend']['yld']/100, style_percent, all_sht)
     if 'payout_ratio' in stk['Dividend'].keys():
-        sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
+        sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent, all_sht)
    
     #Betas
     if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
             if '2020' in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession']['2020'] != None:
-                if 'Percent_Change' in stk['fig']['betas']['recession']['2020'].keys():
-                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent)
+                if 'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
+                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent, all_sht)
             if '2007' in stk['fig']['betas']['recession'].keys():
                 if stk['fig']['betas']['recession']['2007'] != None:
                     try:
-                        sh_write(ash, conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal)
-                        sh_write(ash, conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal)
-                        sh_write(ash, conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal)
-                        #sh_write(ash, conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index_Percent_Change'], 2), style_percent)
-                        sh_write(ash, conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent_Change'], 2), style_percent)
-                        sh_write(ash, conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal)
-                        #sh_write(ash, conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal)
-                        sh_write(ash, conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['recession']['2007']['since_then_till_last_recession'], 2), style_decimal)
+                        sh_write(ash, conf.COUNT, conf.R2007_BETA, round(stk['fig']['betas']['recession']['2007']['beta'], 2), style_decimal, all_sht)
+                        sh_write(ash, conf.COUNT, conf.R2007_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha'], 2), style_decimal, all_sht)
+                        sh_write(ash, conf.COUNT, conf.R2007_PURE_ALPHA, round(stk['fig']['betas']['recession']['2007']['alpha_pure'], 2), style_decimal, all_sht)
+                        #sh_write(ash, conf.COUNT, conf.R2007_IPER_CHG, round(stk['fig']['betas']['recession']['2007']['Index_Percent_Change'], 2), style_percent, all_sht)
+                        sh_write(ash, conf.COUNT, conf.R2007_PER_CHG, round(stk['fig']['betas']['recession']['2007']['Percent_Change'], 2), style_percent, all_sht)
+                        sh_write(ash, conf.COUNT, conf.R2007_CAGR, round(stk['fig']['betas']['recession']['2007']['CAGR'], 2), style_decimal, all_sht)
+                        #sh_write(ash, conf.COUNT, conf.R2007_ICAGR, round(stk['fig']['betas']['recession']['2007']['Index_CAGR'], 2), style_decimal, all_sht)
+                        sh_write(ash, conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['recession']['2007']['since_then_till_last_recession'], 2), style_decimal, all_sht)
                     except Exception:
                         pass
         if 'whole' in stk['fig']['betas'].keys() and stk['fig']['betas']['whole']:
-            sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal)
-            sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal)
-            sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal)
+            sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal, all_sht)
 
         if 'six_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['six_months']:
-            sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2))
+            sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2), all_sht=all_sht)
         if 'one_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_year']:
-            sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2))
+            sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2), all_sht=all_sht)
         if 'five_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['five_year']:
-            sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2))
+            sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2), all_sht=all_sht)
  
-    sh_write(ash, conf.COUNT, conf.FLT, stk['bscs']['float']/100)
-    sh_write(ash, conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent)
+    sh_write(ash, conf.COUNT, conf.FLT, stk['bscs']['float']/100, all_sht=all_sht)
+    sh_write(ash, conf.COUNT, conf.FLT_PER, stk['bscs']['float_percent']/100, style_percent, all_sht)
 
     i += 1 #row 5
     sheet.write(i, 0, "Symbol")
     sheet.write(i, 1, stk['bscs']['symbol'])
-    sh_write(ash, conf.COUNT, conf.SYM, stk['bscs']['symbol'], style_text)
+    sh_write(ash, conf.COUNT, conf.SYM, stk['bscs']['symbol'], style_text, all_sht)
     if 'sector' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.SEC, stk['bscs']['sector'], style_text)
+        sh_write(ash, conf.COUNT, conf.SEC, stk['bscs']['sector'], style_text, all_sht)
     if 'industry' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.IND, stk['bscs']['industry'], style_text)
+        sh_write(ash, conf.COUNT, conf.IND, stk['bscs']['industry'], style_text, all_sht)
     if 'since' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.SINCE, stk['bscs']['since'], style_text)
+        sh_write(ash, conf.COUNT, conf.SINCE, stk['bscs']['since'], style_text, all_sht)
 
     sheet.write(i, 3, "Public Stake")
     if 'pub_stake' in stk['bscs'].keys():
@@ -1248,28 +1267,28 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     i += 1 #row 6
     sheet.write(i, 0, "Price")
     sheet.write(i, 1, stk['bscs']['price'])
-    sh_write(ash, conf.COUNT, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0])
-    sh_write(ash, conf.COUNT, conf.CUR_PR, stk['bscs']['price'])
+    sh_write(ash, conf.COUNT, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0], all_sht=all_sht)
+    sh_write(ash, conf.COUNT, conf.CUR_PR, stk['bscs']['price'], all_sht=all_sht)
     if 'fiftytwoweek_high' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'])
+        sh_write(ash, conf.COUNT, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'], all_sht=all_sht)
     if 'fiftytwoweek_low' in stk['bscs'].keys():
-        sh_write(ash, conf.COUNT, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'])
+        sh_write(ash, conf.COUNT, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'], all_sht=all_sht)
     if 'with_52week_high' in stk['price_change'].keys():
-        sh_write(ash, conf.COUNT, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
+        sh_write(ash, conf.COUNT, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent, all_sht)
     if 'with_52week_low' in stk['price_change'].keys():
-        sh_write(ash, conf.COUNT, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
+        sh_write(ash, conf.COUNT, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent, all_sht)
 
 
     if 'volume' in stk['bscs'].keys():
         sheet.write(i, 3, "Volume")
         sheet.write(i, 4, stk['bscs']['volume'])
-        sh_write(ash, conf.COUNT, conf.VOL, stk['bscs']['volume'])
+        sh_write(ash, conf.COUNT, conf.VOL, stk['bscs']['volume'], all_sht=all_sht)
 
     #i += 1 #row 7
     #sheet.write(i, 0, "Face Value")
     #if 'Face Value' in stk['bscs'].keys():
     #    sheet.write(i, 1, stk['bscs']['face_value'])
-    #    sh_write(ash, conf.COUNT, conf.FV, stk['bscs']['face_value'])
+    #    sh_write(ash, conf.COUNT, conf.FV, stk['bscs']['face_value'], all_sht)
 
     if prices_only is False:
         i += 1 #row 8
@@ -1283,14 +1302,14 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         pe  = 0
     if prices_only is False:
         sheet.write(i, 1, pe)
-    sh_write(ash, conf.COUNT, conf.PE, pe)
+    sh_write(ash, conf.COUNT, conf.PE, pe, all_sht=all_sht)
     try:
-        sh_write(ash, conf.COUNT, conf.F_PE, stk['Ratios']['forward_PE'])
+        sh_write(ash, conf.COUNT, conf.F_PE, stk['Ratios']['forward_PE'], all_sht=all_sht)
     except AttributeError:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.forward_PE", 0)
     try:
-        sh_write(ash, conf.COUNT, conf.TTM_PE, stk['Ratios']['ttm_PE'])
+        sh_write(ash, conf.COUNT, conf.TTM_PE, stk['Ratios']['ttm_PE'], all_sht=all_sht)
     except AttributeError:
         db=DB.open_db('Stocks')
         DB.update_field(db.US_Stocks, stk['bscs']['symbol'], "Ratios.ttm_PE", 0)
@@ -1299,7 +1318,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         i += 1
         sheet.write(i, 0, "Five Year Beta")
         sheet.write(i, 1, stk['bscs']['five_yr_beta'])
-    #sh_write(ash, conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'])
+    #sh_write(ash, conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'], all_sht=all_sht)
 
     if prices_only is False:
         i = 10 #row 11
@@ -1322,13 +1341,13 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         #sheet.write(i, 5, len(stk['fig']['Sales']))
         #sheet.write(i, 6, len(stk['fig']['CASH']))
         #sheet.write(i, 7, len(stk['fig']['PAT']))
-        #sh_write(ash, conf.COUNT, conf.YR_DAT, len(stk['fig']['Sales']))
+        #sh_write(ash, conf.COUNT, conf.YR_DAT, len(stk['fig']['Sales']), all_sht=all_sht)
         sheet.write(i, 4, years)
         sheet.write(i, 5, years)
         sheet.write(i, 6, years)
         sheet.write(i, 7, years)
-        sh_write(ash, conf.COUNT, conf.YR_DAT, years)
-        ##sh_write(ash, conf.COUNT, conf.PRICE_YR_DAT, stk['bscs']['price_years'])
+        sh_write(ash, conf.COUNT, conf.YR_DAT, years, all_sht=all_sht)
+        ##sh_write(ash, conf.COUNT, conf.PRICE_YR_DAT, stk['bscs']['price_years'], all_sht=all_sht)
 
         i += 1 #row 13
         #sheet.write(i, 0, "Growth Rate(9-10 Years)")
@@ -1433,18 +1452,18 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             i += 2 #row 36
             sheet.write(i, 0, "Earnings after 20 years")
             sheet.write(i, 1, Formula("SUM($B$25:$K$25) + SUM($B$28:$K$28)"), style_decimal)
-            sh_write(ash, conf.COUNT, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal)
+            sh_write(ash, conf.COUNT, conf.SAL_PR, round(sum(stk['num']['eps_20yr']),2), style_decimal, all_sht=all_sht)
 
             i += 1 #row 37
             sheet.write(i, 0, "Today's Value with Inflation")
-            sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal)
-            sh_write(ash, conf.COUNT, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal)
-            sh_write(ash, conf.COUNT, conf.EPS, stk['fig']['ttm_eps'], style_decimal)
+            sheet.write(i, 1, Formula("($B$35 * ((1-$B$17)^20)) * $B$9"), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.DCF_PR, stk['num']['dcf_price']*2, style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.EPS, stk['fig']['ttm_eps'], style_decimal, all_sht)
 
             i += 1 #row 38
             sheet.write(i, 0, "Price with Margin of Safety")
             sheet.write(i, 1, Formula("$B$36*$B$18"), style_decimal)
-            sh_write(ash, conf.COUNT, conf.MOS_PR, stk['num']['dcf_price'], style_decimal)
+            sh_write(ash, conf.COUNT, conf.MOS_PR, stk['num']['dcf_price'], style_decimal, all_sht)
 
             i += 1  # row 39
             sheet.write(i, 0, "Current Price", style_bold)
@@ -1459,82 +1478,82 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             i += 1 #row 4
             sheet.write(i, 0, "Rate of return at Current Price")
             sheet.write(i, 1, Formula("($B$35/$B$38)^0.05-1"), style_percent)
-            sh_write(ash, conf.COUNT, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent)
-            #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent)
+            sh_write(ash, conf.COUNT, conf.CUR_RT, stk['num']['cp_return_rate'], style_percent, all_sht)
+            #sheet.write(i, 1, Formula("((($B$35/$B$39)^(1/$K$27-$B$22))-1)))"), style_percent, all_sht)
 
             i += 1 #row 41
             sheet.write(i, 0, "Rate of return at MoS Price")
             sheet.write(i, 1, Formula("($B$35/$B$37)^0.05-1"), style_percent)
-            sh_write(ash, conf.COUNT, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent)
+            sh_write(ash, conf.COUNT, conf.MOS_RT, stk['num']['dcf_return_rate'], style_percent, all_sht)
    
     #Ratios
     if 'DtoE' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.DTOTE, stk['fig']['DtoE'], -1, 1, style_num)
     # vpetla. Calcuate interest coverage ratio and uncomment this line
-    ##sh_write(ash, conf.COUNT, conf.INT_C, stk['fig']['INTR'][-1])
+    ##sh_write(ash, conf.COUNT, conf.INT_C, stk['fig']['INTR'][-1], all_sht)
     if 'ROE' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.ROE, stk['fig']['ROE'], -1, 1, style_percent)
     if 'ROA' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.ROA, stk['fig']['ROA'], -1, 1, style_percent)
     # vpetla. Calcuate ROCE and uncomment this line
-    ##sh_write(ash, conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1])
+    ##sh_write(ash, conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1], all_sht=all_sht)
     if 'PAT_M' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
-    sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num)
-    #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
+    sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num, all_sht)
+    #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num, all_sht=all_sht)
 
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
-        sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
+        sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, all_sht)
         if '60day_min' in stk['technicals']['rsi'].keys():
-            sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
-            sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal)
-            sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
-            sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
+            sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text, all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal, all_sht)
             if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
                 rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
             else:
                 rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
-            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent)
+            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent, all_sht)
             days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
-            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight)
+            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight, all_sht)
 
     if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
-        sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
+        sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text, all_sht)
 
     if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
-        sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text)
+        sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, all_sht)
 
     if 'whole' in stk['price_change'].keys() and stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
-        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
+        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent, all_sht)
     if 'year' in stk['price_change'].keys() and stk['price_change']['year'] is not None and stk['price_change']['year'] != 0:
-        sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+        sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent, all_sht)
     if 'half_year' in stk['price_change'].keys() and stk['price_change']['half_year'] is not None and stk['price_change']['half_year'] != 0:
-        sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent)
+        sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent, all_sht)
     if 'quarter' in stk['price_change'].keys() and stk['price_change']['quarter'] is not None and stk['price_change']['quarter'] != 0:
-        sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
+        sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent, all_sht)
     if 'month' in stk['price_change'].keys() and stk['price_change']['month'] is not None and stk['price_change']['month'] != 0:
-        sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
+        sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent, all_sht)
     if 'week' in stk['price_change'].keys() and stk['price_change']['week'] is not None and stk['price_change']['week'] != 0:
-        sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent)
+        sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent, all_sht)
     if 'two_week' in stk['price_change'].keys() and stk['price_change']['two_week'] is not None and stk['price_change']['two_week'] != 0:
-        sh_write(ash, conf.COUNT, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent)
+        sh_write(ash, conf.COUNT, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent, all_sht)
     if 'day' in stk['price_change'].keys() and stk['price_change']['day'] is not None and stk['price_change']['day'] != 0:
-        sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
+        sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent, all_sht)
 
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
-        sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
-        sh_write(ash, conf.COUNT, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
+        sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
     if 'price_growth' in stk['fig'].keys():
-        sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent)
+        sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent, all_sht)
     if 'sales_growth' in stk['fig'].keys():
-        sh_write(ash, conf.COUNT, conf.TEN_SAL, stk['fig']['sales_growth'], style_percent)
+        sh_write(ash, conf.COUNT, conf.TEN_SAL, stk['fig']['sales_growth'], style_percent, all_sht)
     if 'profit_growth' in stk['fig'].keys():
-        sh_write(ash, conf.COUNT, conf.TEN_PR, stk['fig']['profit_growth'], style_percent)
+        sh_write(ash, conf.COUNT, conf.TEN_PR, stk['fig']['profit_growth'], style_percent, all_sht)
     if 'book_growth' in stk['fig'].keys():
-        sh_write(ash, conf.COUNT, conf.TEN_BK, stk['fig']['book_growth'], style_percent)
+        sh_write(ash, conf.COUNT, conf.TEN_BK, stk['fig']['book_growth'], style_percent, all_sht)
     if 'cash_growth' in stk['fig'].keys():
-        sh_write(ash, conf.COUNT, conf.TEN_CSH, stk['fig']['cash_growth'], style_percent)
-    #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent)
+        sh_write(ash, conf.COUNT, conf.TEN_CSH, stk['fig']['cash_growth'], style_percent, all_sht)
+    #sheet.write(i, 1, Formula("((($B$35/$B$37)^(1/$K$27-$B$22))-1)))"), style_percent, all_sht)
     return sheet
 
 #    excel = "excel_files/%s.xls" %(stk['bscs']['name'])
