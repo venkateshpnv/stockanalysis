@@ -804,7 +804,17 @@ def add_price_change_header(sheet, i, sheet_type):
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "One Month Momentum", style_wrap)
-    conf.MOMENTUM=i
+    conf.ONE_MOMENTUM=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Three Months Momentum", style_wrap)
+    conf.THREE_MOMENTUM=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Six Months Momentum", style_wrap)
+    conf.SIX_MOMENTUM=i
 
     i = i + 1
     sheet.col(i).width = 6*367
@@ -986,7 +996,9 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
-        sh_write(ash, count, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
+        sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
+        sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
+        sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
     #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
@@ -1542,7 +1554,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, all_sht)
-        sh_write(ash, conf.COUNT, conf.MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
+        sh_write(ash, conf.COUNT, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
     if 'price_growth' in stk['fig'].keys():
         sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent, all_sht)
     if 'sales_growth' in stk['fig'].keys():
