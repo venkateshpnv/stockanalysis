@@ -434,3 +434,4 @@ cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow',
 
 # paths
 radar_stocks_file='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls'
+pp_file='/home/vpetla/PP.csv'

@@ -325,6 +325,18 @@ def add_basic_header(sheet, i):
     i+=1
     #Beta
     sheet.col(i).width = 4*367
+    sheet.write(0, i, "1M Beta", style_wrap)
+    conf.ONE_BETA=i
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "3M Beta", style_wrap)
+    conf.THREE_BETA=i
+
+    i+=1
+    #Beta
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "6M Beta", style_wrap)
     conf.SIX_BETA=i
 
@@ -1027,6 +1039,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     sh_write(ash, count, conf.VOL, stk['bscs']['volume'], style_num)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
+        sh_write(ash, count, conf.ONE_BETA, stk['fig']['betas']['one_month']['beta'])
+        sh_write(ash, count, conf.THREE_BETA, stk['fig']['betas']['three_months']['beta'])
         sh_write(ash, count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
         sh_write(ash, count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
         sh_write(ash, count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
@@ -1102,7 +1116,7 @@ def check_and_write(ash, count, col, entry, index, factor, style):
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
-def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stocks=False):
+def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stocks=False, pp_stocks=False):
     #wb = xlwt.Workbook()
 
     try:
@@ -1122,6 +1136,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         try:
             if radar_stocks:
                 ash = ashs['Radar_Stocks']
+            elif pp_stocks:
+                ash = ashs['Portfolio_Stocks']
             elif stk['bscs']['mcap'] > 100 * Bn:
                 ash = ashs['Above_100bn']
             elif stk['bscs']['mcap'] > 50 * Bn:
@@ -1136,8 +1152,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['1bn_5bn']
             elif stk['bscs']['mcap'] > 500 * Mn:
                 ash = ashs['500mn_1bn']
+            elif stk['bscs']['mcap'] > 250 * Mn:
+                ash = ashs['250mn_500mn']
             else:
-                ash = ashs['Below_500mn']
+                ash = ashs['Below_250mn']
             all_sht = ashs['All']
         except Exception as e:
             print("Mcap exception: %r" %(stk['bscs']['symbol']))
@@ -1160,7 +1178,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     conf.COUNT = len(ash.rows)
     #open a company sheet
     if radar_stocks:
-        sheet = com.add_sheet("dummy")
+        sheet = com.add_sheet("radar_dummy")
+    elif pp_stocks:
+        sheet = com.add_sheet("pp_dummy")
     else:
         sheet = com.add_sheet(stk['bscs']['symbol'])
     sheet.col(0).width = 28*367
@@ -1251,6 +1271,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal, all_sht)
             sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal, all_sht)
 
+        if 'one_month' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_month']:
+            sh_write(ash, conf.COUNT, conf.ONE_BETA,  round(stk['fig']['betas']['one_month']['beta'],2), all_sht=all_sht)
+        if 'three_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['three_months']:
+            sh_write(ash, conf.COUNT, conf.THREE_BETA,  round(stk['fig']['betas']['three_months']['beta'],2), all_sht=all_sht)
         if 'six_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['six_months']:
             sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2), all_sht=all_sht)
         if 'one_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_year']:

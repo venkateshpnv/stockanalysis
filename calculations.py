@@ -10,6 +10,7 @@ from datetime import date, timedelta, datetime as dt
 from dateutil.relativedelta import relativedelta
 
 from excel import add_dcf_header, add_wb_sheet
+from csv import reader
 import DB
 from common import PRINT, PRINT_DBG, PRINT_ERR
 from internet import get_price_growth
@@ -243,11 +244,13 @@ def calculate_dcf(country, stk, years, data_type, criteria, beta, prices_only=Fa
     return True
     #return False
 
-def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state, excel_state, prices_only=False, radar_stocks=False):
+def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state, excel_state, prices_only=False, radar_stocks=False, pp=False):
     if excel_state == 'EXCEL':
         # All Stocks Excel File
         all_stk = xlwt.Workbook()
         ash = {}
+        if pp and os.path.exists(pp_file):
+            ash['Portfolio_Stocks'] = add_wb_sheet(all_stk, "Portfolio_Stocks")
         if radar_stocks:
             ash['Radar_Stocks'] = add_wb_sheet(all_stk, "Radar_Stocks")
         ash['Above_100bn'] = add_wb_sheet(all_stk, "Above 100 Bn")
@@ -258,13 +261,15 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         ash['5bn_10bn'] = add_wb_sheet(all_stk, "5Bn to 10 Bn")
         ash['1bn_5bn'] = add_wb_sheet(all_stk, "1Bn to 5Bn")
         ash['500mn_1bn'] = add_wb_sheet(all_stk, "500mn to 1Bn")
-        ash['Below_500mn'] = add_wb_sheet(all_stk, "Below 500mn")
+        ash['250mn_500mn'] = add_wb_sheet(all_stk, "250mn to 500mn")
+        ash['Below_250mn'] = add_wb_sheet(all_stk, "Below 250mn")
         ash['All'] = add_wb_sheet(all_stk, "All")
 
         add_dcf_header(ash, years, prices_only)
     j = 0
     init_variables()
     radar_stocks_list = []
+    pp_stocks_list = []
 
     db = DB.open_db('Stocks')
     if country == 'India':
@@ -304,6 +309,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     mysql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     symbols = DB.get_symbols_from_sql('US', mysql_engine)
     DB.close_sql_connection(mysql_engine)
+
     if radar_stocks:
         wb = xlrd.open_workbook(radar_stocks_file)
         if wb.nsheets > 0:
@@ -317,7 +323,17 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                         continue
                     radar_stocks_list.append(sym)
 
-    for doc in collection.find({'bscs.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
+    if pp and os.path.exists(pp_file):
+        with open(pp_file) as read_obj:
+            csv_reader = reader(read_obj)
+            for row in csv_reader:
+                if len(row) > 1 and len(row[1]) > 0 and \
+                        row[1] not in pp_stocks_list:
+                    print(row[1])
+                    pp_stocks_list.append(row[1])
+
+    for doc in collection.find({'bscs.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
+    #for doc in collection.find({'bscs.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
     #for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(7)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find($and: [{'bscs.mysql_price_date':{'$gte': dt.now()-timedelta(7)}}, {'bscs.mysql_price_failcount' : {'$lt': 1}}], no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
@@ -385,7 +401,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                 stock['num']['inflation'] = inflation
                 stock['num']['discount_rate'] = discount_rate
                 stock['num']['margin_of_safety'] = mos
-                if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only,radar_stocks) is False:
+                if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only) is False:
                     #if db_state == 'SYNC_DB':
                     if True:
                         DB.update_dummy_dcf_numbers(collection, stock)
@@ -404,7 +420,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                 ##del com
                 write_to_excel(country, com, ash, stock, years, prices_only)
                 if stock['bscs']['symbol'] in radar_stocks_list:
-                    write_to_excel(country, com, ash, stock, years, prices_only, radar_stocks)
+                    write_to_excel(country, com, ash, stock, years, prices_only, radar_stocks=True)
+                if stock['bscs']['symbol'] in pp_stocks_list:
+                    write_to_excel(country, com, ash, stock, years, prices_only, pp_stocks=True)
             if db_state == 'SYNC_DB':
                 DB.update_dcf_numbers(collection, stock)
             j+=1
