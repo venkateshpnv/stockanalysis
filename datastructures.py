@@ -404,7 +404,13 @@ recessions = {
 
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
 US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
+Treasury_Yields = {'^FVX' : 'TYield_5Years', '^TNX' : 'TYield_10Years', '^TYX' : 'TYield_30Years'}
 
+treasury_yield_urls = {
+                        'whole' : 'https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/TextView.aspx?data=yieldAll',
+                        'year'  : 'https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/TextView.aspx?data=yieldYear&year=YEAR_YOU_WANT',
+                        'month' : 'https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/TextView.aspx?data=yield',
+                    }
 
 price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close']
 price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'BIGINT', 'float']
@@ -431,7 +437,52 @@ income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuo
 balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
 cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
 
+generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency']
+generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(12)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'float', 'varchar(12)']
 
+#Ticker info fields in the US_Stocks.STKSYMBOL.
+# This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.
+tick_fields = ['floatShares', 'heldPercentInsiders', 'heldPercentInstitutions', 'sharesOutstanding', 'sharesPercentSharesOut', 'sharesShort', 'sharesShortPreviousMonthDate', 'sharesShortPriorMonth', 'shortPercentOfFloat', 'shortRatio']
+tick_share_holders = ['percent_insider', 'percent_institution', 'float_percent_institution', 'num_institutions']
+
+
+# Treasury Bills - Maturity rate between 4 weeks and a year
+# Treasury Notes - Maturity rate between 2 years and 10 years
+# Treasury Bonds - Maturity rate between 10 years and 30 years
+
+# Federal Reserve Economic Data
+fred = {
+        'treasury': {
+
+                        # Ten year treasury yield
+                        # Units: percent
+                        # Frequency: Daily
+                        'ten_year_yield': 'T10YFF',
+                    },
+        'interest_rates' : {
+                            
+                        },
+
+        # Monthly parameters
+            'interest_rates':'INTDSRUSM193N', 
+            'unemployment_rate': 'UNRATE',
+
+            # Total Nonfarm Payroll, is a measure of the number of U.S. workers 
+            # in the economy that excludes proprietors, private household employees, 
+            # unpaid volunteers, farm employees, and the unincorporated self-employed. 
+            # This measure accounts for approximately 80 percent of the workers 
+            # who contribute to Gross Domestic Product (GDP).
+            # Units: The data is in thousands.
+            'monthly_payroll_change': 'PAYEMS', 
+
+            # 
+            'fed_fund_rate' : 'FEDFUNDS',
+
+        # Quarterly parameters
+            'gdp':'GDP',
+            'gdp_percent_change': 'A191RL1Q225SBEA',
+            'real_gdp': 'GDPC1',
+        }
 # paths
 radar_stocks_file='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls'
 pp_file='/home/vpetla/PP.csv'

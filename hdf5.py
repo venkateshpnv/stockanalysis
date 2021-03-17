@@ -33,7 +33,7 @@ US_Cal = get_calendar('USFederalHolidayCalendar')
 
 vpn_change_time = dt.now()
 
-def get_stock_data(country, stk, start, end, vpn_event=None):
+def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=False):
     global vpn_change_time
     global vpn_lock
 
@@ -50,7 +50,18 @@ def get_stock_data(country, stk, start, end, vpn_event=None):
 
             if country == 'India' and symbol not in India_indices.keys():
                 symbol = symbol + '.BO'
-            df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
+            if tick:
+                if proxy:
+                    df = tick.history(proxy=get_proxy(), start=start, end=end)
+                else:
+                    df = tick.history(start=start, end=end)
+                if 'Dividends' in list(df.columns):
+                    del df['Dividends']
+                if 'Stock Splits' in list(df.columns):
+                    del df['Stock Splits']
+                df['Adj Close'] = df['Close']
+            else:
+                df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
             df = df.astype('float64')
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
             if vpn_event:

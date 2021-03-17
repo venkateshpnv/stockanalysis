@@ -12,6 +12,10 @@ from dateutil.relativedelta import relativedelta
 from datetime import date
 import re
 import pandas as pd
+import requests
+
+from itertools import cycle
+import secrets
 
 YEAR=1
 QUARTER=2
@@ -23,6 +27,7 @@ ALL=0x1F
 sender_email_id="petlafin@gmail.com"
 receiver_email_id="petlafin@gmail.com"
 sender_passwd="Tasche3#Gm"
+proxy_list = None
 
 #Supportive calls
 def PRINT_ERR(x):
@@ -154,10 +159,42 @@ def list_difference(l1, l2):
     diff = [x for x in l1 if x not in s]
     return diff
 
+def pull_proxies():
+    global proxy_list
+    now = dt.now()
+
+    # If proxy list is
+    # 1. empty or
+    # 2. not yet fetched or
+    # 3. fetched 30 min back
+    # pull the proxies again
+    if proxy_list is None or \
+            pull_proxies.then is None or \
+            now-pull_proxies.then >= timedelta(minutes=30):
+        ret=requests.get("http://list.didsoft.com/get?email=petlanvenkatesh@gmail.com&pass=didsoftpnv&pid=http1000&showcountry=no")
+        proxy_list = ret.content.splitlines()
+        pull_proxies.then = now
+
+        # Create a circular list of proxies
+        #proxy_list = cycle(proxy_list)
+
+pull_proxies.then=None
+
+def get_proxy():
+    pull_proxies()
+    if proxy_list is None:
+        return None
+    #return next(proxy_list)
+    # Randomly select a proxy
+    return secrets.choice(proxy_list).decode("utf-8")
+    #return '110.39.0.30:8080'
+
 def disconnect_vpn():
+    return
     subprocess.check_output('hotspotshield disconnect', shell=True)
 
 def change_vpn():
+    return
     cmd = 'hotspotshield status'
     s   = subprocess.check_output(cmd, shell=True)
     ss  = str(s)

@@ -39,6 +39,7 @@ from math import isnan, nan
 
 #Yahoo Financials
 from yahoofinancials import YahooFinancials as yf
+import yfinance
 
 import pandas_datareader as pdr
 import pandas_datareader.data as data
@@ -77,6 +78,150 @@ import hdf5
 
 stop_thread=False
 br=None
+
+def get_ticker(symbol):
+    return yfinance.Ticker(symbol)
+
+def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, proxy=False, vpn_event=None, write_to_db=True):
+    df = pd.DataFrame() 
+    collection = DB.get_collection(country, db)
+
+    try:
+        today=dt.now()
+        end=dt.now().date()# - timedelta(7)
+        #Updating the price and volume for the first time
+        if stk['bscs']['symbol'] in US_indices.keys():
+            index  = True
+            symbol = US_indices[stk['bscs']['symbol']]
+        else:
+            index  = False
+            symbol = stk['bscs']['symbol']
+        #symbol = '/' + stk['bscs']['symbol']
+
+        table = DB.get_symbol_table_name(symbol)
+
+        if len(symbols) == 0 or symbol not in symbols:
+            # Check if symbol is ending with +, =, -
+            # Delete those junk symbols from mongodb
+            if re.match(r'.*[\+|\=|\-]$', symbol):
+                print("Deleting Junk Symbol: %r" %(symbol))
+                if write_to_db:
+                    db.US_Stocks.remove({"bscs.symbol" : symbol})
+                    db.US_Stocks_List.remove({"symbol" : symbol})
+            else:
+                start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+                print("New symbol: getting data for %r from yahoo" %(stk['bscs']['symbol']))
+                df = hdf5.get_stock_data(country, stk, start, end, vpn_event, tick=tick, proxy=proxy)
+                #df = remove_df_duplicates(df)
+                if not df.empty:
+                    df['Date'] = df.index.strftime("%Y-%m-%d")
+                    df.index = df['Date'] #Is it required?
+                    print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
+                    if write_to_db:
+                        DB.check_n_write_to_sql(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), list(df.columns))
+                        # Reset mysql_price_failcount
+                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+ 
+                else:
+                    if write_to_db:
+                        DB.update_field(collection, symbol, "ignore", "YES")
+                        DB.update_price_failcount(stk, country, df=True)
+
+        #Updating today's price and volume
+        else:
+            #if index:
+            if True:
+                # Yahoo Finance sometimes returns wrong volume data for the latest date.
+                # Check and delete record.
+                # Will be populated again the below code.
+                # Happens only when small set of data is requested.
+                DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
+            else:
+                pass
+
+            query='select Date from ' + table + ' order by Date DESC limit 1'
+            rdf = DB.read_from_sql(query, sql_engine)
+
+            # Read the existing data of the symbol
+            if rdf.empty:
+                PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
+                start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+            else:
+                #get timestamp of the last entry
+                start = dt.strptime(rdf['Date'][0], "%Y-%m-%d").date()
+            if start < end:
+            #if True:
+                # If date difference is less than a week, get atleast
+                # a week of prices. yahoofinance sometimes misbehaves
+                # in case of a shorter timespan and returns inconsistent data.
+                # Min of week is a safer timespan.
+                # Though you get a week data, insert only the entries that are missing.
+                # Taken care below.
+                if end-start < timedelta(10):
+                    start = end - timedelta(10)
+
+                df = hdf5.get_stock_data(country, stk, start, end, vpn_event, tick=tick, proxy=proxy)
+                # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
+                #df.drop(df[df['Volume']==0].index, inplace=True)
+                #e=time.time()
+                #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
+                #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
+                if not df.empty:
+                    xdf=copy.deepcopy(df)
+                    #rdf = rdf.append(df)
+                    #rdf = remove_df_duplicates(rdf)
+                    #df['Symbol'] = symbol
+                    df['Date'] = df.index.strftime("%Y-%m-%d")
+                    df.index = df['Date'] #Is it required?
+                    #df = df[~df.Date.isin(rdf.Date)]
+                    # Get the data starting from the next day of the last entry in MySQL database
+                    #df=df.loc[rdf['Date'][0]:].drop(rdf['Date'][0])
+                    if not df.empty:
+                        try:
+                            if not rdf.empty and rdf['Date'][0] in list(df.index):
+                                index = df.index.get_loc(rdf['Date'][0])
+                                df = df[index+1:]
+                        except Exception as E:
+                            print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+                            print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+                            print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
+                            print("hdf5: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
+                    if not df.empty and write_to_db:
+                        #print("Writing to sql prices for %r" %(symbol))
+                        #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
+                        #s=time.time()
+                        print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
+                        #DB.write_to_sql(sql_engine, table, df)
+                        DB.mysql_update_table(sql_engine, table, df, insert=True)
+                        #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        # Reset mysql_price_failcount
+                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+                        #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
+                        #e=time.time()
+                        #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
+                        #print("Wrote to sql prices for %r" %(symbol))
+ 
+                    ##if index:
+                    ##    rdf = update_percent_change(rdf)
+                    ##Update Betas
+                    ##if stk['bscs']['symbol'] not in India_indices.keys() and stk['bscs']['symbol'] not in US_indices.keys():
+                    ##    rdf = hdf_get_beta(country, symbol, rdf)
+                    ##    #DB.update_stock_betas2(country, stk, df=rdf)
+                    #write_to_hdf(country, rdf, symbol)
+                    #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
+                    # Update the date on which the price is updated
+                    #DB.update_field(collection, symbol, "ignore", "NO")
+                else:
+                    PRINT_ERR("df empty for %r" %(symbol))
+                    DB.update_field(collection, symbol, "ignore", "YES")
+                    #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    DB.update_price_failcount(stk, country, df=True)
+
+        if write_to_db:
+            DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+
+    finally:
+        return df
 
 def open_browser(head=None, wiredriver=False):
     profile = webdriver.FirefoxProfile()
@@ -970,10 +1115,14 @@ def get_price_volume(stk, country, vpn_event=None):
                 vpn_event.wait()
                 print("**** %s: Waking up" %(symbol))
 
+            # India no longer supported
             if country == 'India':
-                d = data.get_quote_yahoo(symbol+'.BO')
+                #d = data.get_quote_yahoo(symbol+'.BO')
+                return
             elif country == 'US':
-                d = data.get_quote_yahoo(symbol)
+                tick = yfinance.Ticker(symbol)
+                info = tick.get_info(proxy=get_proxy())
+                #d = data.get_quote_yahoo(symbol)
             else:
                 PRINT_ERR("Unknown Country Name")
                 return None
@@ -1016,59 +1165,78 @@ def get_price_volume(stk, country, vpn_event=None):
             conn_retries = conn_retries + 1
             continue
  
-        #except pdr._utils.RemoteDataError:
-        #    PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
-        #    if retries  > 5:
-        #        return None
-        #    change_vpn()
-        #    retries = retries + 1
-        #    continue
-        #except IndexError:
-        #    PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
-        #    if retries  > 5:
-        #        return None
-        #    change_vpn()
-        #    retries = retries + 1
-        #    continue
-        try:
-            # Add moving average etc. Refer /tmp/test.csv for details
-            stk['bscs']['type'] = d.iloc[0]['quoteType']
-            stk['bscs']['exchange'] = d.iloc[0]['fullExchangeName']
+        stk['bscs'] = info
 
-            if 'regularMarketVolume' in d.keys():
-                stk['bscs']['volume'] = (d['regularMarketVolume'][0])
-            elif 'averageDailyVolume3Month' in d.keys():
-                stk['bscs']['volume'] = (d['averageDailyVolume3Month'][0])
-            else:
-                stk['bscs']['volume'] = 0
-            if 'marketCap' in d.keys():
-                if country == 'India':
-                    stk['bscs']['mcap']   = float(d['marketCap'][0])/10000000 # in crores
-                else:
-                    stk['bscs']['mcap']   = float(d['marketCap'][0])/1000000 # in millions
-            else:
-                stk['bscs']['mcap'] = 0
+        ##except pdr._utils.RemoteDataError:
+        ##    PRINT_ERR("Unable to get data for %s: %s"%(stk['bscs']['name'], stk['bscs']['symbol']))
+        ##    if retries  > 5:
+        ##        return None
+        ##    change_vpn()
+        ##    retries = retries + 1
+        ##    continue
+        ##except IndexError:
+        ##    PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
+        ##    if retries  > 5:
+        ##        return None
+        ##    change_vpn()
+        ##    retries = retries + 1
+        ##    continue
+        #try:
 
-            stk['bscs']['price']  = (d.price.to_list()[0])
-            if 'sharesOutstanding' in d.keys():
-                stk['bscs']['outstanding_shares'] = d['sharesOutstanding'][0]
-            else:
-                stk['bscs']['outstanding_shares'] = 0
-            if 'longName' in d.keys():
-                stk['bscs']['Name'] = d.iloc[0]['longName']
-            elif 'shortName' in d.keys():
-                stk['bscs']['Name'] = d.iloc[0]['shortName']
-            if 'fullExchangeName' in d.keys():
-                stk['bscs']['exchange_name'] = d.iloc[0]['fullExchangeName']
+        #    # Add moving average etc. Refer /tmp/test.csv for details
+        #    stk['bscs']['type'] = info['quoteType']
+        #    stk['bscs']['exchange'] = info['exchange']
 
-        except AttributeError as e:
-            if 'outstanding_shares' not in stk['bscs'].keys():
-                stk['bscs']['outstanding_shares'] = 0
-            if 'volume' not in stk['bscs'].keys():
-                stk['bscs']['volume'] = 0
-            PRINT_ERR(str(e))
-            PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
-        break
+        #    if 'averageVolume' in info.keys():
+        #        stk['bscs']['avgerageVolume'] = info['averageVolume']
+        #    else:
+        #        stk['bscs']['averageVolume'] = 0
+
+        #    stk['bscs']['price']  = info['regularMarketPrice']
+
+        #    if 'regularMarketVolume' in info.keys():
+        #        stk['bscs']['volume'] = info['volume']
+        #    elif 'volume' in info.keys():
+        #        stk['bscs']['volume'] = info['volume']
+        #    else:
+        #        stk['bscs']['volume'] = 0
+ 
+        #    if 'marketCap' in info.keys():
+        #        if country == 'India':
+        #            stk['bscs']['mcap']   = float(info['marketCap'][0])/10000000 # in crores
+        #        else:
+        #            stk['bscs']['mcap']   = float(info['marketCap'][0])/1000000 # in millions
+        #    else:
+        #        stk['bscs']['mcap'] = 0
+
+        #    if 'industry' not in stk['bscs'].keys():
+        #        stk['bscs']['industry'] = info['industry']
+        #    if 'sector' not in stk['bscs'].keys():
+        #        stk['bscs']['sector'] = info['sector']
+
+        #    if 'sharesOutstanding' in info.keys():
+        #        stk['bscs']['outstanding_shares'] = info['sharesOutstanding']
+        #    else:
+        #        stk['bscs']['outstanding_shares'] = 0
+        #    if 'shortRatio' in info.keys():
+        #        stk['bscs']['shortRatio'] = info['shortRatio']
+
+        #    if 'longName' in info.keys():
+        #        stk['bscs']['Name'] = info['longName']
+        #    elif 'shortName' in info.keys():
+        #        stk['bscs']['Name'] = info['shortName']
+
+        #    #if 'fullExchangeName' in d.keys():
+        #    #    stk['bscs']['exchange_name'] = d.iloc[0]['fullExchangeName']
+
+        #except AttributeError as e:
+        #    if 'outstanding_shares' not in stk['bscs'].keys():
+        #        stk['bscs']['outstanding_shares'] = 0
+        #    if 'volume' not in stk['bscs'].keys():
+        #        stk['bscs']['volume'] = 0
+        #    PRINT_ERR(str(e))
+        #    PRINT_ERR("Couldn't get a particular field for %s" %(stk['bscs']['symbol']))
+        #break
     print("internet: %s: %s"%(stk['bscs']['symbol'],stk['bscs']['name']))
     return stk
 
