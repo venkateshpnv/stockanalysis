@@ -179,6 +179,15 @@ Query OK, 0 rows affected (0.02 sec)
 mysql> DELIMITER ;
 mysql> call balance_quart('MFA');
 
+
+Installing TA-Lib
+==================
+https://ta-lib.org/hdr_dw.html
+$ wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+$ tar -xvzf ta-lib-0.4.0-src.tar.gz
+$ cd ta-lib
+$ ./configure && make && make install
+
 Pandas
 ======================
 timestamp to datetime
