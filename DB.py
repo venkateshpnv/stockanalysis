@@ -54,14 +54,44 @@ from cassandra import ConsistencyLevel
 
 import talib
 
+import random
+
 num_cores = multiprocessing.cpu_count()
 thread_factor = num_cores
 #thread_factor=multiprocessing.cpu_count() * 8
 
-def open_sql_connection(ip, user, passwd, port=3306, db=None):
+db_ips=['10.89.45.223', '10.89.45.152', '10.89.45.4']
+def get_db_ip():
+    return random.choice(db_ips)
+
+def check_mysql_replication_status(mysql_engine):
+    group_members = mysql_engine.execute('SELECT * FROM performance_schema.replication_group_members;')
+    replicas = [[n for n in m] for m in group_members]
+    
+    if len(replicas) != len(db_ips):
+        print("Some of the mysql nodes are down. Please check")
+        sys.exit(1)
+    
+    for r in replicas:
+        if 'ONLINE' not in r:
+            print("%r is offline, please check" %(r))
+            system.exit(1)
+        if 'PRIMARY' not in r:
+            print("%r is not primary, please check" %(r))
+            sys.exit(1)
+
+def open_sql_connection(ip=None, user='vpetla', passwd='petla123', port=3306, db=None):
     max_threads = thread_factor
+    user = 'vpetla'
+    passwd = 'petla123'
+    if not ip or ip == '127.0.0.1' or ip =='localhost':
+        ip = get_db_ip()
+
     try:
         mysql_engine = sqlalchemy.create_engine('mysql+pymysql://{0}:{1}@{2}:{3}'.format(user, passwd, ip, port), pool_size=max_threads)
+
+        check_mysql_replication_status(mysql_engine)
+
         if db:
             existing_databases = mysql_engine.execute("SHOW DATABASES;")
             existing_databases = [d[0] for d in existing_databases]
@@ -127,6 +157,7 @@ def read_from_sql2(mysql_engine, table_name, columns=None, order='asc', limit=-1
     return df
 
 def write_to_sql(mysql_engine, table, df):
+    check_mysql_replication_status(mysql_engine)
     try:
         df.to_sql(name=table,con=mysql_engine,index=False,if_exists='append')
     except Exception as E:
@@ -157,7 +188,7 @@ def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, pr
             if primary_key:
                 query = 'create table '+ table_name + ' (`Date` varchar(12) NOT NULL, PRIMARY KEY(`Date`))'
             else:
-                query = 'create table '+ table_name + ' (`row_id` int NOT NULL AUTO_INCREMENT, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
+                query = 'create table '+ table_name + ' (`row_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
 
         mysql_engine.execute(query)
 
@@ -195,8 +226,12 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
             elif c in fin_quarter_fields:
                 c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
                 mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+            elif c.lower() in list(map(lambda x: x.lower(), generic_fields)):
+                c_dtype = generic_fields_datatypes[generic_fields.index(c)]
             else:
-                unknown_fields = unknown_fields + 1
+                c_dtype = 'float'
+            print("Price cols: %s: %s" %(c, c_dtype))
+            mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     else:
         for c in sorted(missing_cols):
             #if 'Symbol'.lower() in c.lower() or 'Date'.lower() in c.lower() or 'SPLIT'.lower() in c.lower():
@@ -205,13 +240,16 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
                 c_dtype = generic_fields_datatypes[generic_fields.index(c)]
             else:
                 c_dtype = 'float'
-            print(c)
+            print("other columns: %s: %s" %(c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-    return unknown_fields
+    return unknown_fields # Use of unknown_fields is deprecated.
 
 def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True):
     if df.empty:
         return
+
+    check_mysql_replication_status(mysql_engine)
+
     if date_column:
         if 'Date.1' in list(df.columns):
             df['Date']=df['Date.1']
@@ -316,6 +354,7 @@ def check_n_write_to_sql(engine, table, df, fields=None):
     #fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Day Change', 'Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
     #df = df[fields]
 
+    check_mysql_replication_status(engine)
     query = 'show tables like %r;' %(table)
     output= engine.execute(query)
     #If table does not exist
@@ -429,7 +468,7 @@ def get_symbols_from_sql(country, engine):
         pass
 
     for t in tables:
-        if not t.startswith('STK') or not t.startswith('BOND'):
+        if not t.startswith('STK') and t not in other_tables:
             print("Renaming table: %r" %(t))
             rename_table(engine, t)
 
@@ -480,16 +519,23 @@ def get_cassandra_session(cluster):
 #########################################################################
 
 client=None
+mongodb_ip='10.89.45.49'
+mongodb_port='27017'
+def get_mongodb_connection_phrase():
+    return 'mongodb://'+mongodb_ip+':'+mongodb_port
+
 ########################### MongoDB Related Calls ########3###################
 def open_db(db_name):
     global client
-    client = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
+    client = pymongo.MongoClient(get_mongodb_connection_phrase(), thread_factor)
+    #client = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
     #print("Opening: %r" %(client))
     db = client[db_name]
     return db
 
 def open_db_client():
-    c = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
+    c = pymongo.MongoClient(get_mongodb_connection_phrase(), thread_factor)
+    #c = pymongo.MongoClient("mongodb://localhost:27017/", thread_factor)
     return c 
 
 def close_db():
@@ -1117,9 +1163,10 @@ def update_db_price_volume(collection, stk):
 j=0
 
 def update_bond_yields(sql_engine):
-    mysql_check_n_create_table(sql_engine, 'BOND_YIELDS')
+    table = 'BOND_YIELDS'
+    mysql_check_n_create_table(sql_engine, table)
     query='select Date from ' + table + ' order by Date DESC limit 1'
-    rdf = DB.read_from_sql(query, sql_engine)
+    rdf = read_from_sql(query, sql_engine)
     if rdf.empty:
         url = treasury_yield_urls['whole']
     else:
@@ -1138,9 +1185,16 @@ def update_bond_yields(sql_engine):
     df = pd.read_html(page)
     df = df[1]
     if not df.empty:
+        df['Date'] = pd.to_datetime(df['Date'])
+        df['Date'] = df['Date'].astype('str')
+        df.index = df['Date']
         if not rdf.empty and rdf['Date'][0] in list(df.index):
             index = df.index.get_loc(rdf['Date'][0])
             df = df[index+1:]
+
+    #mysql_update_table(sql_engine, table, df, insert=True)
+
+    mysql_update_table(sql_engine, table, df, check=True, insert=True, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=True)
 
 def fork_db_process(country, sem, lock, vpn_event=None):
     c = open_db_client()
@@ -1175,7 +1229,9 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
         till_date = dt.combine(dt.now(), dt.min.time()) 
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({'bscs.symbol':'FB'}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         symbols = get_symbols_from_sql(country, sql_engine)
 
@@ -1196,10 +1252,13 @@ def fork_db_process(country, sem, lock, vpn_event=None):
                 vpn_event.wait()
 
             sem.acquire()
-            print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-            update_stk_bscs_db(country, db, sql_engine, stk, sem, lock, vpn_event, proxy=True, symbols=symbols)
-            #t = threading.Thread(target=update_stk_bscs_db, args=(country, db, sql_engine, copy.deepcopy(stk), sem, lock,vpn_event))
-            # t.start()
+            if 'name' in stk['bscs'].keys():
+                print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
+            else:
+                print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['longName']))
+            #update_stk_bscs_db(country, db, sql_engine, stk, sem, lock, vpn_event, proxy=True, symbols=symbols)
+            t = threading.Thread(target=update_stk_bscs_db, args=(country, db, sql_engine, copy.deepcopy(stk), sem, lock,vpn_event))
+            t.start()
             i = i + 1
             #break
     finally:
@@ -1211,8 +1270,8 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #    print("Waiting for all threads  %r to join" %(threading.active_count()))
         #    time.sleep(5)
         #    continue
-        #if t:
-        #    t.join()
+        if t:
+            t.join()
         #time.sleep(60)
         close_db_client(c)
         close_sql_connection(sql_engine)
@@ -1362,6 +1421,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
 
         retries = 0
         conn_retries = 0
+        info_retries = 0
         info = None
 
         while True:
@@ -1372,9 +1432,18 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                     print("**** %s: Waking up" %(symbol))
     
                 if country == 'US':
+                    if info_retries > 5:
+                        print("Failed to get info for %s. Returning None" %(symbol))
+                        return None
                     tick = internet.get_ticker(symbol)
                     if proxy:
-                        info = tick.get_info(proxy=get_proxy())
+                        proxy_server = get_proxy()
+                        try:
+                            info = tick.get_info(proxy=proxy_server)
+                        except requests.exceptions.ProxyError as E:
+                            delete_proxy_server(proxy_server)
+                            info_retries = info_retries + 1
+                            continue
                     else:
                         info = tick.get_info()
                     df = internet.get_stock_price_data(country, tick, symbol, symbols, stk, db, mysql_engine, proxy, vpn_event, write_to_db=False)
@@ -1390,11 +1459,11 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
 
                         if not share_df.empty:
                             for i in range(len(tick_share_holders)-1):
-                                df[tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
+                                df.ix[-1, tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
                             df[tick_share_holders[-1]] = share_df.iloc[-1][0]
                         # Add the fields like short ratio etc.
                         for i in range(len(tick_fields)):
-                            df[tick_fields[i]] = info[tick_fields[i]]
+                            df.ix[-1, tick_fields[i]] = info[tick_fields[i]]
 
                         options_chain = tick.option_chain()
                         puts  = options_chain.puts
@@ -1410,30 +1479,42 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                         if calls_open_interest_volume > 0:
                             put_call_open_interest_ratio = puts_open_interest_volume/calls_open_interest_volume
                         else:
-                            put_call_interest_ratio = 0
-                        df['puts_volume']  = puts_volume
-                        df['calls_volume'] = calls_volume
-                        df['puts_open_interest_volume']  = puts_volume
-                        df['calls_open_interest_volume'] = calls_volume
-                        df['put_call_ratio']               = put_call_ratio
-                        df['put_call_open_interest_ratio'] = put_call_open_interest_ratio
+                            put_call_open_interest_ratio = 0
+                        df.ix[-1, 'puts_volume']  = puts_volume
+                        df.ix[-1, 'calls_volume'] = calls_volume
+                        df.ix[-1, 'puts_open_interest_volume']  = puts_volume
+                        df.ix[-1, 'calls_open_interest_volume'] = calls_volume
+                        df.ix[-1, 'put_call_ratio']               = put_call_ratio
+                        df.ix[-1, 'put_call_open_interest_ratio'] = put_call_open_interest_ratio
+
+                        df = df.where(pd.notnull(df), None)
 
                         puts['Date'] = str(dt.now().date())
                         puts.index = puts['Date']
-                        del puts['Date']
+                        #del puts['Date']
                         #first_col = puts.pop('Date')
                         #puts.insert(0, 'Date', first_col)
                         puts_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Puts')
-                        mysql_update_table(puts_engine, get_symbol_table_name(symbol), puts, check=True, insert=True, unknown_table=False, cols_type='options', temp=False, date_column=False, format_columns=True, primary_key=False)
+
+                        mysql_check_n_create_table(puts_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
+                        query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
+                        rdf = read_from_sql(query, puts_engine)
+                        if rdf.empty:
+                            mysql_update_table(puts_engine, get_symbol_table_name(symbol), puts, check=True, insert=True, unknown_table=False, cols_type='options', temp=False, date_column=False, format_columns=False, primary_key=False)
                         close_sql_connection(puts_engine)
 
                         calls['Date'] = str(dt.now().date())
-                        calls.index = puts['Date']
-                        del calls['Date']
+                        calls.index = calls['Date']
+                        #del calls['Date']
                         #first_col = calls.pop('Date')
                         #calls.insert(0, 'Date', first_col)
                         calls_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Calls')
-                        mysql_update_table(calls_engine, get_symbol_table_name(symbol), calls, check=True, insert=True, unknown_table=False, cols_type='options', temp=False, date_column=False, format_columns=True, primary_key=False)
+
+                        mysql_check_n_create_table(calls_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
+                        query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
+                        rdf = read_from_sql(query, calls_engine)
+                        if rdf.empty:
+                            mysql_update_table(calls_engine, get_symbol_table_name(symbol), calls, check=True, insert=True, unknown_table=False, cols_type='calls', temp=False, date_column=False, format_columns=False, primary_key=False)
                         close_sql_connection(calls_engine)
 
 
@@ -1446,7 +1527,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                 if vpn_event:
                     if retries  > 5:
                         PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
-                        DB.update_price_failcount(stk, country)
+                        update_price_failcount(stk, country)
                         return None
                     if vpn_event.is_set() is False:
                         print("**** %s: 2DF: Waiting..  VPN is changing" %(symbol))
@@ -1465,7 +1546,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                 else:
                     if retries  > 5:
                         PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
-                        DB.update_price_failcount(stk, country)
+                        update_price_failcount(stk, country)
                         return None
                     retries = retries + 1
                     time.sleep(2)
@@ -1500,10 +1581,10 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                         mysql_price_failcount = 0
      
                     else:
-                        DB.update_field(collection, symbol, "ignore", "YES")
-                        DB.update_price_failcount(stk, country, df=True)
+                        update_field(collection, symbol, "ignore", "YES")
+                        update_price_failcount(stk, country, df=True)
             else:
-                mysql_update_table(mysql_engine, table, df, insert=True)
+                mysql_update_table(mysql_engine, table, df, insert=True, check=True, format_columns=False)
                 # Reset mysql_price_failcount
                 mysql_price_failcount = 0
         else:
@@ -1763,12 +1844,12 @@ def check_price_range_anomolies(country='US'):
 
 def update_all_price_volume_db(country):
     global j
-    max_threads = thread_factor/2
+    max_threads = thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
-    vpn_event = threading.Event()
-    vpn_event.set()
-    #vpn_event=None
+    #vpn_event = threading.Event()
+    #vpn_event.set()
+    vpn_event=None
     db_lock = threading.Lock()
     today=str(dt.now().date())
     count=0
@@ -3031,7 +3112,7 @@ def update_stock_betas2(country, stk, core=0, sem=None, df=None):
 def add_beta_columns(sql_engine, table_name, cols):
     for b in beta_change_fields:
         if b not in cols:
-            DB.mysql_add_column(sql_engine, table_name, b, 'float', remove_spaces=False)
+            mysql_add_column(sql_engine, table_name, b, 'float', remove_spaces=False)
 
 def get_beta_columns(beta_field):
     cols = []

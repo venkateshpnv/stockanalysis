@@ -16,6 +16,9 @@ import requests
 
 from itertools import cycle
 import secrets
+import multiprocessing
+
+import internet
 
 YEAR=1
 QUARTER=2
@@ -159,6 +162,16 @@ def list_difference(l1, l2):
     diff = [x for x in l1 if x not in s]
     return diff
 
+proxy_lock = multiprocessing.Lock()
+
+def delete_proxy_server(proxy_server):
+    global proxy_list
+    #proxy_server = bytes(proxy_server, 'utf-8')
+    proxy_lock.acquire()
+    if proxy_server in proxy_list:
+        proxy_list.remove(proxy_server)
+    proxy_lock.release()
+
 def pull_proxies():
     global proxy_list
     now = dt.now()
@@ -168,25 +181,65 @@ def pull_proxies():
     # 2. not yet fetched or
     # 3. fetched 30 min back
     # pull the proxies again
+    proxy_lock.acquire()
     if proxy_list is None or \
             pull_proxies.then is None or \
             now-pull_proxies.then >= timedelta(minutes=30):
         ret=requests.get("http://list.didsoft.com/get?email=petlanvenkatesh@gmail.com&pass=didsoftpnv&pid=http1000&showcountry=no")
         proxy_list = ret.content.splitlines()
+        proxy_list = [m.decode("utf=8") for m in proxy_list]
+
         pull_proxies.then = now
 
         # Create a circular list of proxies
         #proxy_list = cycle(proxy_list)
+    proxy_lock.release()
 
 pull_proxies.then=None
 
+def pull_proxies2():
+    global proxy_list
+    now = dt.now()
+    url='https://www.proxy-list.download/HTTPS'
+    proxy_lock.acquire()
+    if proxy_list is None or \
+            pull_proxies.then is None or \
+            now-pull_proxies.then >= timedelta(minutes=30):
+        page = internet.get_webpage(url)
+        df = pd.read_html(page)
+        if len(df)>= 1:
+            df = df[0]
+            df['IP_Port'] = df['IP'].astype(str)+':'+df['Port'].astype(str)
+            proxy_list = df['IP_Port'].to_list()
+    proxy_lock.release()
+
+def pull_proxies3():
+    global proxy_list
+    now = dt.now()
+    url='https://list.proxylistplus.com/SSL-List-1'
+    proxy_lock.acquire()
+    if proxy_list is None or \
+            pull_proxies.then is None or \
+            now-pull_proxies.then >= timedelta(minutes=30):
+        page = internet.get_webpage(url)
+        df = pd.read_html(page)
+        if len(df)>= 1:
+            df = df[2]
+            df['IP_Port'] = df['IP address.1'].astype(str)+':'+df['Port'].astype(str)
+            proxy_list = df['IP_Port'].to_list()
+    proxy_lock.release()
+
 def get_proxy():
-    pull_proxies()
+    #pull_proxies()
+    #pull_proxies2()
+    return "http://petlanvenkatesh.gmail.com:proxy3pnv@gate2.proxyfuel.com:2000"
+    pull_proxies3()
     if proxy_list is None:
         return None
     #return next(proxy_list)
     # Randomly select a proxy
-    return secrets.choice(proxy_list).decode("utf-8")
+    #return secrets.choice(proxy_list).decode("utf-8")
+    return secrets.choice(proxy_list)
     #return '110.39.0.30:8080'
 
 def disconnect_vpn():

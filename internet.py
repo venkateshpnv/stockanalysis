@@ -1121,13 +1121,19 @@ def get_price_volume(stk, country, vpn_event=None):
                 return
             elif country == 'US':
                 tick = yfinance.Ticker(symbol)
-                info = tick.get_info(proxy=get_proxy())
+                proxy_server = get_proxy()
+                info = tick.get_info(proxy=proxy_server)
                 #d = data.get_quote_yahoo(symbol)
             else:
                 PRINT_ERR("Unknown Country Name")
                 return None
+        except requests.exceptions.ProxyError as E:
+            PRINT_ERR("internet.py: %s:  Proxy Error, retrying" %(symbol))
+            delete_proxy_server(proxy_server)
+            retries = retries + 1
+            continue
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
-            PRINT_ERR("internet: %s:  Error, retrying" %(symbol))
+            PRINT_ERR("internet.py: %s:  Error, retrying" %(symbol))
             if vpn_event:
                 if retries  > 5:
                     PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))

@@ -52,7 +52,8 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 symbol = symbol + '.BO'
             if tick:
                 if proxy:
-                    df = tick.history(proxy=get_proxy(), start=start, end=end)
+                    proxy_server = get_proxy()
+                    df = tick.history(proxy=proxy_server, start=start, end=end)
                 else:
                     df = tick.history(start=start, end=end)
                 if 'Dividends' in list(df.columns):
@@ -63,6 +64,11 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
             else:
                 df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
             df = df.astype('float64')
+        except requests.exceptions.ProxyError as E:
+            PRINT_ERR("hdf5.py: %s: %s:  Proxy Error, retrying" %(symbol, proxy_server))
+            delete_proxy_server(proxy_server)
+            continue
+
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
             if vpn_event:
                 if retries  > 5:

@@ -438,13 +438,14 @@ balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-
 cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
 
 generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency']
-generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(12)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'float', 'varchar(12)']
+generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)']
 
 #Ticker info fields in the US_Stocks.STKSYMBOL.
 # This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.
 tick_fields = ['floatShares', 'heldPercentInsiders', 'heldPercentInstitutions', 'sharesOutstanding', 'sharesPercentSharesOut', 'sharesShort', 'sharesShortPreviousMonthDate', 'sharesShortPriorMonth', 'shortPercentOfFloat', 'shortRatio']
 tick_share_holders = ['percent_insider', 'percent_institution', 'float_percent_institution', 'num_institutions']
 
+other_tables = ['BOND_YIELDS']
 
 # Treasury Bills - Maturity rate between 4 weeks and a year
 # Treasury Notes - Maturity rate between 2 years and 10 years
