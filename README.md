@@ -193,6 +193,12 @@ Pandas
 timestamp to datetime
 df.index[0].to_pydatetime()
 
+How to add new column at a particular position
+df.columns[0] = 'New_ID'
+
+How to add incremental values to a column 'row_id'. 0 is the position of the column
+df.insert(0,'row_id',range(start, start+len(df)))
+
 PyMongo python package
 ======================
 Read all documents one by one
