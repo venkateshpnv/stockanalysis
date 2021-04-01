@@ -1027,11 +1027,11 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.SYM, stk['bscs']['symbol'], style_text)
     sh_write(ash, count, conf.SEC, stk['bscs']['sector'], style_text)
     sh_write(ash, count, conf.IND, stk['bscs']['industry'], style_text)
-    sh_write(ash, count, conf.MCAP, stk['bscs']['mcap'], style_num)
+    sh_write(ash, count, conf.MCAP, stk['bscs']['marketCap'], style_num)
     #sh_write(ash, count, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
     sh_write(ash, count, conf.SINCE, stk['bscs']['since'], style_text)
     sh_write(ash, count, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0])
-    sh_write(ash, count, conf.CUR_PR, stk['bscs']['price'])
+    sh_write(ash, count, conf.CUR_PR, stk['bscs']['regularMarketPrice'])
     sh_write(ash, count, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'])
     sh_write(ash, count, conf.F2WK_LW, stk['bscs']['fiftytwoweek_low'])
     sh_write(ash, count, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
@@ -1049,7 +1049,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.FV, stk['bscs']['face_value'])
 
     try:
-        pe  = round(stk['bscs']['price']/stk['fig']['ttm_eps'],2)
+        pe  = round(stk['bscs']['regularPrice']/stk['fig']['ttm_eps'],2)
     except ZeroDivisionError:
         pe  = 0
     
@@ -1138,21 +1138,21 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['Radar_Stocks']
             elif pp_stocks:
                 ash = ashs['Portfolio_Stocks']
-            elif stk['bscs']['mcap'] > 100 * Bn:
+            elif stk['bscs']['marketCap'] > 100 * Bn:
                 ash = ashs['Above_100bn']
-            elif stk['bscs']['mcap'] > 50 * Bn:
+            elif stk['bscs']['marketCap'] > 50 * Bn:
                 ash = ashs['50bn_100bn']
-            elif stk['bscs']['mcap'] > 25 * Bn:
+            elif stk['bscs']['marketCap'] > 25 * Bn:
                 ash = ashs['25bn_50bn']
-            elif stk['bscs']['mcap'] > 10 * Bn:
+            elif stk['bscs']['marketCap'] > 10 * Bn:
                 ash = ashs['10bn_25bn']
-            elif stk['bscs']['mcap'] > 5 * Bn:
+            elif stk['bscs']['marketCap'] > 5 * Bn:
                 ash = ashs['5bn_10bn']
-            elif stk['bscs']['mcap'] > 1 * Bn:
+            elif stk['bscs']['marketCap'] > 1 * Bn:
                 ash = ashs['1bn_5bn']
-            elif stk['bscs']['mcap'] > 500 * Mn:
+            elif stk['bscs']['marketCap'] > 500 * Mn:
                 ash = ashs['500mn_1bn']
-            elif stk['bscs']['mcap'] > 250 * Mn:
+            elif stk['bscs']['marketCap'] > 250 * Mn:
                 ash = ashs['250mn_500mn']
             else:
                 ash = ashs['Below_250mn']
@@ -1164,15 +1164,15 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #elif country == 'India':
     #    Bn = 100 # crores
     #    Tn = 100 * Bn
-    #    if stk['bscs']['mcap'] > 100 * Bn:
+    #    if stk['bscs']['marketCap'] > 100 * Bn:
     #        ash = ashs{'Above_100bn'}
-    #    elif stk['bscs']['mcap'] > 10 * Bn:
+    #    elif stk['bscs']['marketCap'] > 10 * Bn:
     #        ash = ashs{'10bn_100bn'} 
-    #    elif stk['bscs']['mcap'] > 5 * Bn:
+    #    elif stk['bscs']['marketCap'] > 5 * Bn:
     #        ash = ashs{'5bn_10bn'}
-    #    elif stk['bscs']['mcap'] > 5 * Bn:
+    #    elif stk['bscs']['marketCap'] > 5 * Bn:
     #        ash = ashs{'1bn_5bn'}
-    #    elif stk['bscs']['mcap'] > 5 * Bn:
+    #    elif stk['bscs']['marketCap'] > 5 * Bn:
     #        ash = ashs{'Below_1bn'}
 
     conf.COUNT = len(ash.rows)
@@ -1231,8 +1231,12 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     i += 1 #row 4
     sheet.write(i, 0, "Name")
-    sheet.write(i, 1, stk['bscs']['name'])
-    sh_write(ash, conf.COUNT, conf.COMP, stk['bscs']['name'], style_text, all_sht)
+    if 'name' in stk['bscs'].keys():
+        sheet.write(i, 1, stk['bscs']['name'])
+        sh_write(ash, conf.COUNT, conf.COMP, stk['bscs']['name'], style_text, all_sht)
+    elif 'longName' in stk['bscs'].keys():
+        sheet.write(i, 1, stk['bscs']['longName'])
+        sh_write(ash, conf.COUNT, conf.COMP, stk['bscs']['longName'], style_text, all_sht)
 
     sheet.write(i, 3, "Promoter Stake")
     if 'promoter_stake' in stk['bscs'].keys():
@@ -1300,11 +1304,13 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'pub_stake' in stk['bscs'].keys():
         sheet.write(i, 4, stk['bscs']['pub_stake']/100, style_percent)
     
+    if 'price' in stk['bscs'].keys():
+        stk['bscs']['regularMarketPrice'] = stk['bscs']['price']
     i += 1 #row 6
     sheet.write(i, 0, "Price")
-    sheet.write(i, 1, stk['bscs']['price'])
+    sheet.write(i, 1, stk['bscs']['regularMarketPrice'])
     sh_write(ash, conf.COUNT, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0], all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.CUR_PR, stk['bscs']['price'], all_sht=all_sht)
+    sh_write(ash, conf.COUNT, conf.CUR_PR, stk['bscs']['regularMarketPrice'], all_sht=all_sht)
     if 'fiftytwoweek_high' in stk['bscs'].keys():
         sh_write(ash, conf.COUNT, conf.F2WK_HG, stk['bscs']['fiftytwoweek_high'], all_sht=all_sht)
     if 'fiftytwoweek_low' in stk['bscs'].keys():
@@ -1331,7 +1337,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sheet.write(i, 0, "P/E")
     try:
         if 'ttm_eps' in stk['fig'].keys():
-            pe = round(stk['bscs']['price']/stk['fig']['ttm_eps'],2)
+            pe = round(stk['bscs']['regularMarketPrice']/stk['fig']['ttm_eps'],2)
         else:
             pe = 0
     except Exception as e:
@@ -1503,7 +1509,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
             i += 1  # row 39
             sheet.write(i, 0, "Current Price", style_bold)
-            sheet.write(i, 1, stk['bscs']['price'], style_bold)
+            sheet.write(i, 1, stk['bscs']['regularMarketPrice'], style_bold)
             sheet.write(i, 2, "Profit", style_bold)
 
             i += 1 #row 40
@@ -1535,7 +1541,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     ##sh_write(ash, conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1], all_sht=all_sht)
     if 'PAT_M' in stk['fig'].keys():
         check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
-    sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['mcap'], style_num, all_sht)
+    if 'mcap' in stk['bscs'].keys():
+        stk['bscs']['marketCap'] = stk['bscs']['mcap']
+    sh_write(ash, conf.COUNT, conf.MCAP, stk['bscs']['marketCap'], style_num, all_sht)
     #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num, all_sht=all_sht)
 
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:

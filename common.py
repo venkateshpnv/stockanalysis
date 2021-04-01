@@ -185,7 +185,8 @@ def pull_proxies():
     if proxy_list is None or \
             pull_proxies.then is None or \
             now-pull_proxies.then >= timedelta(minutes=30):
-        ret=requests.get("http://list.didsoft.com/get?email=petlanvenkatesh@gmail.com&pass=didsoftpnv&pid=http1000&showcountry=no")
+        #ret=requests.get("http://list.didsoft.com/get?email=petlanvenkatesh@gmail.com&pass=didsoftpnv&pid=http1000&showcountry=no")
+        ret=requests.get("http://proxyfuel.com/gate2_list.txt")
         proxy_list = ret.content.splitlines()
         proxy_list = [m.decode("utf=8") for m in proxy_list]
 
@@ -230,10 +231,10 @@ def pull_proxies3():
     proxy_lock.release()
 
 def get_proxy():
-    #pull_proxies()
+    pull_proxies()
     #pull_proxies2()
-    return "http://petlanvenkatesh.gmail.com:proxy3pnv@gate2.proxyfuel.com:2000"
-    pull_proxies3()
+    #return "http://petlanvenkatesh.gmail.com:proxy3pnv@gate2.proxyfuel.com:2000"
+    #pull_proxies3()
     if proxy_list is None:
         return None
     #return next(proxy_list)

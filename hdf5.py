@@ -37,7 +37,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
     global vpn_change_time
     global vpn_lock
 
-    retries = 0
+    retries = 1
     conn_retries = 0
     df = pd.DataFrame()
     symbol = stk['bscs']['symbol'].replace('.','-')
@@ -53,6 +53,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
             if tick:
                 if proxy:
                     proxy_server = get_proxy()
+                    print("df: hdf5.py: proxy_server: %s" %(proxy_server))
                     df = tick.history(proxy=proxy_server, start=start, end=end)
                 else:
                     df = tick.history(start=start, end=end)
@@ -71,7 +72,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
 
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
             if vpn_event:
-                if retries  > 5:
+                if retries  > 1:
                     PRINT_ERR("Unable to get DF for %s"%(symbol))
                     DB.update_price_failcount(stk, country, df=True)
                     break
@@ -127,7 +128,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 fail_lock.release()
  
                 break
-            PRINT_ERR("%s: Connection Error, retrying" %(symbol))
+            PRINT_ERR("%s: hdf5.py : Connection Error, retrying" %(symbol))
             time.sleep(1)
             conn_retries = conn_retries + 1
             continue
@@ -1068,10 +1069,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                                 index = df.index.get_loc(rdf['Date'][0])
                                 df = df[index+1:]
                         except Exception as E:
-                            print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
-                            print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
-                            print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
-                            print("hdf5: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
+                            print("hdf5.py: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+                            print("hdf5.py: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+                            print("hdf5.py: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
+                            print("hdf5.py: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
                     if not df.empty:
                         #print("Writing to sql prices for %r" %(symbol))
                         #print("writing data for %r to mysql" %(stk['bscs']['symbol']))

@@ -410,7 +410,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #conf.COUNT+=1
             count+=1
             #print("count: %r, symb: %r" %(count, stock['bscs']['symbol']))
-            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            if 'name' in stock['bscs'].keys():
+                print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
+            elif 'longName' in stock['bscs'].keys():
+                print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['longName']))
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
                 #if write_to_excel(country, com, ash, stock, years, prices_only) != None:

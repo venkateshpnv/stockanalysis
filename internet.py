@@ -83,6 +83,7 @@ def get_ticker(symbol):
     return yfinance.Ticker(symbol)
 
 def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, proxy=False, vpn_event=None, write_to_db=True):
+    ret = False
     df = pd.DataFrame() 
     collection = DB.get_collection(country, db)
 
@@ -100,7 +101,7 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
 
         table = DB.get_symbol_table_name(symbol)
 
-        if len(symbols) == 0 or symbol not in symbols:
+        if len(symbols) == 0 or symbol.replace('-','.').replace('_','.') not in symbols:
             # Check if symbol is ending with +, =, -
             # Delete those junk symbols from mongodb
             if re.match(r'.*[\+|\=|\-]$', symbol):
@@ -144,7 +145,7 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
 
             # Read the existing data of the symbol
             if rdf.empty:
-                PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
+                PRINT_ERR("update_dataframe_price_volume: %s: No data. Read from the start" %(stk['bscs']['symbol']))
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             else:
                 #get timestamp of the last entry
@@ -167,6 +168,7 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                 #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
                 if not df.empty:
+                    ret=True
                     xdf=copy.deepcopy(df)
                     #rdf = rdf.append(df)
                     #rdf = remove_df_duplicates(rdf)
@@ -182,10 +184,10 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                                 index = df.index.get_loc(rdf['Date'][0])
                                 df = df[index+1:]
                         except Exception as E:
-                            print("hdf5: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
-                            print("hdf5: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
-                            print("hdf5: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
-                            print("hdf5: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
+                            print("internet.py: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+                            print("internet.py: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+                            print("internet.py: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
+                            print("internet.py: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
                     if not df.empty and write_to_db:
                         #print("Writing to sql prices for %r" %(symbol))
                         #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
@@ -221,7 +223,7 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
             DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
 
     finally:
-        return df
+        return ret, df
 
 def open_browser(head=None, wiredriver=False):
     profile = webdriver.FirefoxProfile()
@@ -486,6 +488,7 @@ def update_price_change(country, sym, core, sem=None):
     collection = DB.get_collection(country, db)
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
+    print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
@@ -678,20 +681,20 @@ def fork_hdf5_process(country):
     stk = {}
     stk['bscs']={}
 
-    num_processes = DB.num_cores * 4
+    num_processes = DB.num_cores #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
     try:
         ##Indices
-        for i, k in enumerate(indices.keys()):
-            stk['bscs']['symbol'] = k
-            stk['bscs']['name'] = indices[k]
-            sem.acquire()
-            #update_price_change(country, stk['bscs']['symbol'], 1, sem)
-            #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
-            processes[i%num_processes].start()
+        #for i, k in enumerate(indices.keys()):
+        #    stk['bscs']['symbol'] = k
+        #    stk['bscs']['name'] = indices[k]
+        #    sem.acquire()
+        #    #update_price_change(country, stk['bscs']['symbol'], 1, sem)
+        #    #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+        #    processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+        #    processes[i%num_processes].start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
@@ -701,8 +704,8 @@ def fork_hdf5_process(country):
         ##            ]
 
         ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-        ##stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
  
         i=0
         today=dt.now().date()
@@ -721,7 +724,7 @@ def fork_hdf5_process(country):
             #    continue
  
             sem.acquire()
-            #update_price_change(country, collection, stk['bscs']['symbol'], sem, sql_engine)
+            #update_price_change(country, stk['bscs']['symbol'], i%DB.num_cores, sem)
             #t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
             #t.start()
             processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
@@ -1106,7 +1109,7 @@ def get_price_volume(stk, country, vpn_event=None):
 
     symbol = stk['bscs']['symbol'].replace('.','-')
 
-    retries = 0
+    retries = 1
     conn_retries = 0
     while True:
         try:
@@ -1133,9 +1136,9 @@ def get_price_volume(stk, country, vpn_event=None):
             retries = retries + 1
             continue
         except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
-            PRINT_ERR("internet.py: %s:  Error, retrying" %(symbol))
+            PRINT_ERR("internet.py: %s:  Error, retrying, exception: %r" %(symbol, E))
             if vpn_event:
-                if retries  > 5:
+                if retries  > 1:
                     PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                     DB.update_price_failcount(stk, country)
                     return None
@@ -1154,7 +1157,7 @@ def get_price_volume(stk, country, vpn_event=None):
                     retries = retries + 1
                     continue
             else:
-                if retries  > 5:
+                if retries  > 1:
                     PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                     DB.update_price_failcount(stk, country)
                     return None
@@ -1163,10 +1166,10 @@ def get_price_volume(stk, country, vpn_event=None):
                 continue
         #except (urllib3.exceptions.NewConnectionError, OpenSSL.SSL.SysCallError) as E:
         except Exception as E:
-            if conn_retries > 5:
+            if conn_retries > 1:
                 PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                 return None
-            PRINT_ERR("%s: Connection Error, retrying" %(symbol))
+            PRINT_ERR("%s: internet.py: Connection Error, retrying, Exception: %r" %(symbol, E))
             time.sleep(1)
             conn_retries = conn_retries + 1
             continue

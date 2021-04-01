@@ -472,7 +472,7 @@ def get_symbols_from_sql(country, engine):
             print("Renaming table: %r" %(t))
             rename_table(engine, t)
 
-    symbols = [t.split('STK')[-1].replace('_', '.')  for t in tables if t.startswith('STK')]
+    symbols = [t.split('STK',1)[-1].replace('_', '.')  for t in tables if t.startswith('STK')]
     return sorted(symbols)
 
     #query='select distinct Symbol from ' + table
@@ -1200,6 +1200,7 @@ def fork_db_process(country, sem, lock, vpn_event=None):
     c = open_db_client()
     db = c['Stocks']
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    t = None
 
     collection = get_collection(country, db)
     num_docs = collection.find({}).count()
@@ -1229,20 +1230,27 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lte': dt.now() - timedelta(1)}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
         till_date = dt.combine(dt.now(), dt.min.time()) 
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({'bscs.symbol':'FB'}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({'bscs.symbol':'BRK_A'}).batch_size(10)
+        #stocks = db.US_Stocks.find({'bscs.price_failcount': {'$eq': 0}}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$eq': 0}}]}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 15}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         symbols = get_symbols_from_sql(country, sql_engine)
 
         i=0
+        proxy=True
+        print("Total stocks: %r" %(stocks.count()))
+
         for stk in stocks:
             ##if ignore_stock(stk):
             ##    continue
             ##print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
-            if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
-                print("price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
-                continue
+            #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 10:
+            #    print("price_Failcount: %d, Skipping: %r" %(stk['bscs']['price_failcount'], stk['bscs']['symbol']))
+            #    continue
 
             #if vpn_event:
             #    while vpn_event.is_set() is False:
@@ -1256,8 +1264,8 @@ def fork_db_process(country, sem, lock, vpn_event=None):
                 print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['name']))
             else:
                 print("DB: %d: %s: %s"%(i,stk['bscs']['symbol'],stk['bscs']['longName']))
-            #update_stk_bscs_db(country, db, sql_engine, stk, sem, lock, vpn_event, proxy=True, symbols=symbols)
-            t = threading.Thread(target=update_stk_bscs_db, args=(country, db, sql_engine, copy.deepcopy(stk), sem, lock,vpn_event))
+            #update_stk_bscs_db(country, db, sql_engine, stk, sem, lock, vpn_event, proxy=proxy, symbols=symbols)
+            t = threading.Thread(target=update_stk_bscs_db, args=(country, db, sql_engine, copy.deepcopy(stk), sem, lock, vpn_event, proxy, symbols))
             t.start()
             i = i + 1
             #break
@@ -1419,10 +1427,20 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
         if not symbols:
             symbols = get_symbols_from_sql(country, mysql_engine)
 
-        retries = 0
+        retries = 1
         conn_retries = 0
         info_retries = 0
         info = None
+        share_df = None
+        puts_volume = 0
+        calls_volume = 0
+        puts_open_interest_volume = 0
+        calls_open_interest_volume = 0
+        put_call_ratio = 0
+        put_call_open_interest_ratio = 0
+        puts = pd.DataFrame()
+        calls = pd.DataFrame()
+        df = pd.DataFrame()
 
         while True:
             try:
@@ -1436,42 +1454,106 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                         print("Failed to get info for %s. Returning None" %(symbol))
                         return None
                     tick = internet.get_ticker(symbol)
-                    if proxy:
-                        proxy_server = get_proxy()
-                        try:
-                            info = tick.get_info(proxy=proxy_server)
-                        except requests.exceptions.ProxyError as E:
-                            delete_proxy_server(proxy_server)
-                            info_retries = info_retries + 1
-                            continue
-                    else:
-                        info = tick.get_info()
-                    df = internet.get_stock_price_data(country, tick, symbol, symbols, stk, db, mysql_engine, proxy, vpn_event, write_to_db=False)
-                    share_df = tick.major_holders
+                    if not info:
+                        if proxy:
+                            proxy_server = get_proxy()
+                            print("info: proxy_server: %s" %(proxy_server))
+                            try:
+                                info = tick.get_info(proxy=proxy_server)
+                            except requests.exceptions.ProxyError as E:
+                                PRINT_ERR("DB.py: %s: %s:  tick.get_info() Proxy Error, retrying" %(symbol, proxy_server))
+                                info_retries = info_retries + 1
+                                continue
+                            #except urllib.error.HTTPError as E:
+                            except requests.exceptions.HTTPError as E:
+                                print("%s: %s" %(symbol, E))
+                                info_retries = info_retries + 1
+                                continue
+                            except requests.exceptions.ProxyError as E:
+                                delete_proxy_server(proxy_server)
+                                info_retries = info_retries + 1
+                                continue
+                            except Exception as E:
+                                print("DB.py: %s: (%s) error for bscs info" %(symbol, E))
+                                info = None
+
+                            try:
+                                share_df = tick.major_holders
+                            except Exception as E:
+                                print("DB.py: %s: (%s) error for Major Holders" %(symbol, E))
+                                share_df = None
+
+
+                        else:
+                            try:
+                                info = tick.get_info()
+                            #except KeyError as E:
+                            except Exception as E:
+                                print("DB.py: %s: (%s) error for bscs info" %(symbol, E))
+                                info = None
+
+                            try:
+                                share_df = tick.major_holders
+                            except Exception as E:
+                                print("DB.py: %s: (%s) error for Major Holders" %(symbol, E))
+                                share_df = None
+
+                    ret, df = internet.get_stock_price_data(country, tick, symbol, symbols, stk, db, mysql_engine, proxy, vpn_event, write_to_db=False)
                     if not df.empty:
 
+                        # The output can be of two types.
+                        # Number 1:
                         # Add share holders information.
                         # The share_df will be something like below.
                         # 0  13.04%        % of Shares Held by All Insider
                         # 1  12.53%       % of Shares Held by Institutions
                         # 2  14.41%        % of Float Held by Institutions
                         # 3     178  Number of Institutions Holding Shares
+                        #
+                        # Number 2:
+                        #                                        Holder  Shares Date Reported  % Out       Value
+                        #         Price (T.Rowe) Associates Inc  58431388  Sep 29, 2020         9.64%  1810788714
+                        #                              FMR, LLC  31279728  Sep 29, 2020         5.16%   969358770
+                        #  Massachusetts Financial Services Co.  27462685  Sep 29, 2020         4.53%   851068608
+                        #             Select Equity Group, Inc.  26146255  Sep 29, 2020         4.31%   810272442
+                        #               D1 Capital Partners, LP   9519618  Sep 29, 2020         1.57%   295012961
+                        #    Champlain Investment Partners, LLC   7982625  Sep 29, 2020         1.32%   247381548
+                        #             Janus Henderson Group PLC   6802256  Sep 29, 2020         1.12%   210801913
+                        #                            BAMCO Inc.   6499216  Sep 29, 2020         1.07%   201410703
+                        #  Artisan Partners Limited Partnership   6234197  Sep 29, 2020         1.03%   193197765
+                        #   Bank Of New York Mellon Corporation   6213664  Sep 29, 2020         1.03%   192561447
 
-                        if not share_df.empty:
-                            for i in range(len(tick_share_holders)-1):
-                                df.ix[-1, tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
-                            df[tick_share_holders[-1]] = share_df.iloc[-1][0]
+                        if share_df is not None and not share_df.empty:
+                            if 'Holder' in share_df.columns:
+                                df.ix[-1, 'percent_insider'] = None
+                                df.ix[-1, 'percent_institution'] = sum([float(d['% Out'].split('%')[0]) for i, d in share_df.iterrows()])
+                                df.ix[-1, 'float_percent_institution'] = None
+                                df.ix[-1, 'num_institutions'] = len(share_df.index)
+                            else:
+                                for i in range(len(tick_share_holders)-1):
+                                    df.ix[-1, tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
+                                df.ix[-1, tick_share_holders[-1]] = share_df.iloc[-1][0]
+
                         # Add the fields like short ratio etc.
                         for i in range(len(tick_fields)):
-                            df.ix[-1, tick_fields[i]] = info[tick_fields[i]]
+                            if info and tick_fields[i] in info.keys():
+                                df.ix[-1, tick_fields[i]] = info[tick_fields[i]]
+                            else:
+                                df.ix[-1, tick_fields[i]] = None
 
-                        options_chain = tick.option_chain()
-                        puts  = options_chain.puts
-                        calls = options_chain.calls
-                        puts_volume  = sum(puts['volume'].dropna())
-                        calls_volume = sum(calls['volume'].dropna())
-                        puts_open_interest_volume  = sum(puts['openInterest'].dropna())
-                        calls_open_interest_volume = sum(calls['openInterest'].dropna())
+                        try:
+                            options_chain = tick.option_chain()
+                            puts  = options_chain.puts
+                            calls = options_chain.calls
+                            puts_volume  = sum(puts['volume'].dropna())
+                            calls_volume = sum(calls['volume'].dropna())
+                            puts_open_interest_volume  = sum(puts['openInterest'].dropna())
+                            calls_open_interest_volume = sum(calls['openInterest'].dropna()) 
+                        except IndexError as E:
+                            print("%s: %s Index error for option chain" %(symbol, E))
+                        except KeyError as E:
+                            print("%s: %s Key error for option chain" %(symbol, E))
+
                         if calls_volume > 0:
                             put_call_ratio = puts_volume/calls_volume
                         else:
@@ -1489,43 +1571,63 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
 
                         df = df.where(pd.notnull(df), None)
 
-                        puts['Date'] = str(dt.now().date())
-                        puts.index = puts['Date']
-                        #del puts['Date']
-                        #first_col = puts.pop('Date')
-                        #puts.insert(0, 'Date', first_col)
-                        puts_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Puts')
+                        if not puts.empty:
+                            puts['Date'] = str(dt.now().date())
+                            puts.index = puts['Date']
+                            #del puts['Date']
+                            #first_col = puts.pop('Date')
+                            #puts.insert(0, 'Date', first_col)
+                            puts_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Puts')
+    
+                            mysql_check_n_create_table(puts_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
+                            query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
+                            rdf = read_from_sql(query, puts_engine)
+                            if rdf.empty:
+                                query='select Date, row_id from ' + get_symbol_table_name(symbol) + ' order by Date DESC LIMIT 1'
+                                rdf = read_from_sql(query, puts_engine)
+                                if rdf.empty:
+                                    row_id_start = 1
+                                else:
+                                    row_id_start = rdf['row_id'][0] + 1
+                                #puts.columns[0] = 'row_id'
+                                puts.insert(0,'row_id',range(row_id_start, row_id_start+len(puts)))
 
-                        mysql_check_n_create_table(puts_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
-                        query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
-                        rdf = read_from_sql(query, puts_engine)
-                        if rdf.empty:
-                            mysql_update_table(puts_engine, get_symbol_table_name(symbol), puts, check=True, insert=True, unknown_table=False, cols_type='options', temp=False, date_column=False, format_columns=False, primary_key=False)
-                        close_sql_connection(puts_engine)
+                                mysql_update_table(puts_engine, get_symbol_table_name(symbol), puts, check=True, insert=True, unknown_table=False, cols_type='options', temp=False, date_column=False, format_columns=False, primary_key=False)
+                            close_sql_connection(puts_engine)
 
-                        calls['Date'] = str(dt.now().date())
-                        calls.index = calls['Date']
-                        #del calls['Date']
-                        #first_col = calls.pop('Date')
-                        #calls.insert(0, 'Date', first_col)
-                        calls_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Calls')
+                        if not calls.empty:
+                            calls['Date'] = str(dt.now().date())
+                            calls.index = calls['Date']
+                            #del calls['Date']
+                            #first_col = calls.pop('Date')
+                            #calls.insert(0, 'Date', first_col)
+                            calls_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Options_Calls')
+    
+                            mysql_check_n_create_table(calls_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
+                            query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
+                            rdf = read_from_sql(query, calls_engine)
+                            if rdf.empty:
+                                query='select Date, row_id from ' + get_symbol_table_name(symbol) + ' order by Date DESC LIMIT 1'
+                                rdf = read_from_sql(query, calls_engine)
+                                if rdf.empty:
+                                    row_id_start = 1
+                                else:
+                                    row_id_start = rdf['row_id'][0] + 1
+                                #puts.columns[0] = 'row_id'
+                                calls.insert(0,'row_id',range(row_id_start, row_id_start+len(calls)))
 
-                        mysql_check_n_create_table(calls_engine, get_symbol_table_name(symbol), unknown_table=False, primary_key=False)
-                        query='select Date from ' + get_symbol_table_name(symbol) + ' where Date=%r' %(str(dt.now().date())) 
-                        rdf = read_from_sql(query, calls_engine)
-                        if rdf.empty:
-                            mysql_update_table(calls_engine, get_symbol_table_name(symbol), calls, check=True, insert=True, unknown_table=False, cols_type='calls', temp=False, date_column=False, format_columns=False, primary_key=False)
-                        close_sql_connection(calls_engine)
 
+                                mysql_update_table(calls_engine, get_symbol_table_name(symbol), calls, check=True, insert=True, unknown_table=False, cols_type='calls', temp=False, date_column=False, format_columns=False, primary_key=False)
+                            close_sql_connection(calls_engine)
 
                     break
                 else:
                     PRINT_ERR("Unknown Country Name")
                     return None
             except (KeyError, pdr._utils.RemoteDataError, IndexError) as E:
-                PRINT_ERR("internet: %s:  Error, retrying" %(symbol))
+                PRINT_ERR("DB: %s:  Error, retrying, exception: %r" %(symbol, E))
                 if vpn_event:
-                    if retries  > 5:
+                    if retries  > 1:
                         PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                         update_price_failcount(stk, country)
                         return None
@@ -1544,7 +1646,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                         retries = retries + 1
                         continue
                 else:
-                    if retries  > 5:
+                    if retries  > 1:
                         PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                         update_price_failcount(stk, country)
                         return None
@@ -1553,10 +1655,11 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                     continue
             #except (urllib3.exceptions.NewConnectionError, OpenSSL.SSL.SysCallError) as E:
             except Exception as E:
-                if conn_retries > 5:
+                if conn_retries > 1:
                     PRINT_ERR("Unable to get price and volume for %s"%(stk['bscs']['symbol']))
                     return None
-                PRINT_ERR("%s: Connection Error, retrying" %(symbol))
+                PRINT_ERR("%s: DB.py: Connection Error, retrying, exception: %r" %(symbol, E))
+                PRINT_ERR("%s: DB.py: Connection Error, retrying, exception: %r, df: %r, info: %r" %(symbol, E, df, info))
                 time.sleep(1)
                 conn_retries = conn_retries + 1
                 continue
@@ -1566,7 +1669,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
         # Update price change information
         if not df.empty:
             table = get_symbol_table_name(symbol)
-            if len(symbols) == 0 or symbol not in symbols:
+            if len(symbols) == 0 or symbol.replace('-','.').replace('_','.') not in symbols:
                 # Check if symbol is ending with +, =, -
                 # Delete those junk symbols from mongodb
                 if re.match(r'.*[\+|\=|\-]$', symbol):
@@ -1581,29 +1684,34 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
                         mysql_price_failcount = 0
      
                     else:
-                        update_field(collection, symbol, "ignore", "YES")
+                        update_field(collection, stk['bscs']['symbol'], "ignore", "YES")
                         update_price_failcount(stk, country, df=True)
             else:
                 mysql_update_table(mysql_engine, table, df, insert=True, check=True, format_columns=False)
                 # Reset mysql_price_failcount
                 mysql_price_failcount = 0
         else:
-            if 'mysql_price_failcount' in stk['bscs'].keys():
-                mysql_price_failcount = stk['bscs']['mysql_price_failcount'] + 1
+            if ret is False:
+                if 'mysql_price_failcount' in stk['bscs'].keys():
+                    mysql_price_failcount = stk['bscs']['mysql_price_failcount'] + 1
+                else:
+                    mysql_price_failcount = 1
             else:
-                mysql_price_failcount = 1
+                mysql_price_failcount = 0
 
         # Update bscs information
         if info:
             bscs = stk['bscs']
             stk['bscs'] = info
+            stk['bscs']['symbol'] = bscs['symbol']
+
             # Reset price fail count
             stk['bscs']['price_fetch_success'] = 'YES'
             stk['bscs']['price_failcount'] = 0
             stk['bscs']['trading'] = "YES"
             stk['bscs']['mysql_price_failcount'] = mysql_price_failcount
 
-            if not share_df.empty:
+            if share_df is not None and not share_df.empty:
                 stk['bscs']['percent_insiders'] = float(share_df.iloc[0][0].split('%')[0])/100
                 stk['bscs']['percent_institutions'] = float(share_df.iloc[1][0].split('%')[0])/100
                 stk['bscs']['float_percent_institutions'] = float(share_df.iloc[2][0].split('%')[0])/100
@@ -1633,7 +1741,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, sem, lock, vpn_event, pro
 
         stk['bscs']['price_date'] = dt.combine(dt.now(), dt.min.time())
         update_field(collection, stk['bscs']['symbol'], "bscs", stk['bscs'])
-        update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+        update_field(collection, stk['bscs']['symbol'], "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
 
     finally:
         if sem:
@@ -1844,7 +1952,8 @@ def check_price_range_anomolies(country='US'):
 
 def update_all_price_volume_db(country):
     global j
-    max_threads = thread_factor
+    max_threads = 5
+    #max_threads = thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
     #vpn_event = threading.Event()
