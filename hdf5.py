@@ -50,7 +50,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
 
             if country == 'India' and symbol not in India_indices.keys():
                 symbol = symbol + '.BO'
-            if tick:
+            if False:
                 if proxy:
                     proxy_server = get_proxy()
                     print("df: hdf5.py: proxy_server: %s" %(proxy_server))
@@ -63,7 +63,26 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     del df['Stock Splits']
                 df['Adj Close'] = df['Close']
             else:
-                df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
+                if proxy:
+                    proxies = {'http': get_proxy(),
+                               'https': get_proxy()
+                            }
+                    headers = {     "Accept":"application/json",
+                                    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+                                    "Accept-Encoding":"none",
+                                    "Accept-Language":"en-US,en;q = 0.8",
+                                    "Connection":"keep-alive",
+                                    "Referer":"https://cssspritegenerator.com",
+                                    "User-Agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, \
+                                     like Gecko) Chrome/23.0.1271.64 Safari/537.11"
+                                }
+
+                    with requests.Session() as s:
+                        #s.headers = headers
+                        s.proxies.update(proxies)
+                        df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3, session=s)
+                else:
+                    df = pdr.DataReader(symbol,'yahoo',start, end, retry_count=3)
             df = df.astype('float64')
         except requests.exceptions.ProxyError as E:
             PRINT_ERR("hdf5.py: %s: %s:  Proxy Error, retrying" %(symbol, proxy_server))

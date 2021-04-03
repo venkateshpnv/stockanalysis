@@ -218,6 +218,8 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                     DB.update_field(collection, symbol, "ignore", "YES")
                     #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                     DB.update_price_failcount(stk, country, df=True)
+            else:
+                ret = True
 
         if write_to_db:
             DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
