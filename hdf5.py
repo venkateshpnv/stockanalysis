@@ -16,6 +16,7 @@ import threading
 from math import nan, isnan
 import numpy as np
 import copy
+from io import StringIO
 
 import time
 
@@ -33,9 +34,18 @@ US_Cal = get_calendar('USFederalHolidayCalendar')
 
 vpn_change_time = dt.now()
 
-def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=False):
+def construct_price_data_url(symbol, start, end):
+    url = 'https://eodhistoricaldata.com/api/eod/'+symbol+'.US?'\
+            +'from='+str(start)\
+            +'&to='+str(end)\
+            +'&api_token='+get_eod_token_id()\
+            +'&period=d'
+    return url
+ 
+def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=False, eod_token=False):
     global vpn_change_time
     global vpn_lock
+    pdrDatareader = False
 
     retries = 1
     conn_retries = 0
@@ -50,7 +60,14 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
 
             if country == 'India' and symbol not in India_indices.keys():
                 symbol = symbol + '.BO'
-            if False:
+
+            if eod_token:
+                url = construct_price_data_url(symbol, start, end)
+                ret = requests.get(url)
+                df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+                df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
+
+            elif not pdrDatareader:
                 if proxy:
                     proxy_server = get_proxy()
                     print("df: hdf5.py: proxy_server: %s" %(proxy_server))
@@ -953,12 +970,28 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
-def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, sem, vpn_event=None):
+def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
+
+    print("Getting price and volume")
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+
+    if not db:
+        c = DB.open_db_client()
+        db = c['Stocks']
+    if not sql_engine:
+        sql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
+        DB.close_db_client(c)
+        DB.close_sql_connection(sql_engine)
         if sem:
             sem.release()
         return
+
     if country == 'India':
         indices = India_indices
     else:
@@ -989,8 +1022,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 db.US_Stocks_List.remove({"symbol" : symbol})
             else:
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
-                print("New symbol: getting data for %r from yahoo" %(stk['bscs']['symbol']))
-                df = get_stock_data(country, stk, start, end, vpn_event)
+                print("New symbol: getting data for %r" %(stk['bscs']['symbol']))
+                df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 #df = remove_df_duplicates(df)
                 if not df.empty:
                     #df['Symbol'] = symbol
@@ -1023,23 +1056,26 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 #    #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
-            #if index:
-            if True:
-                # Yahoo Finance sometimes returns wrong volume data for the latest date.
-                # Check and delete record.
-                # Will be populated again the below code.
-                # Happens only when small set of data is requested.
-                DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
-            else:
-                pass
-                #last_updated_date = dt.strptime(stk['bscs']['mysql_price_date'].split(' ')[0], "%Y-%m-%d").date()
-                #if last_updated_date >= end:
-                #    return
+            ##if index:
+            #if True:
+            #    # Yahoo Finance sometimes returns wrong volume data for the latest date.
+            #    # Check and delete record.
+            #    # Will be populated again the below code.
+            #    # Happens only when small set of data is requested.
+            #    DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
+            #else:
+            #    pass
+            #    #last_updated_date = dt.strptime(stk['bscs']['mysql_price_date'].split(' ')[0], "%Y-%m-%d").date()
+            #    #if last_updated_date >= end:
+            #    #    return
 
-            query='select Date from ' + table + ' order by Date DESC limit 1'
-            #rdf = read_from_hdf(country, symbol)
-            rdf = DB.read_from_sql(query, sql_engine)
-            #rdf = DB.read_from_sql2(sql_engine, table, ['Date'], order='desc', limit=1)
+            if not DB.mysql_exists_table(sql_engine, table):
+                rdf = pd.DataFrame()
+            else:
+                query = 'select Date from ' + table + ' order by Date DESC limit 1'
+                #rdf = read_from_hdf(country, symbol)
+                rdf = DB.read_from_sql(query, sql_engine)
+                #rdf = DB.read_from_sql2(sql_engine, table, ['Date'], order='desc', limit=1)
 
             # Read the existing data of the symbol
             #rdf = read_from_hdf(country, symbol)
@@ -1066,7 +1102,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
                 #print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
                 #s=time.time()
-                df = get_stock_data(country, stk, start, end, vpn_event)
+                df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
                 #df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
@@ -1096,9 +1132,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         #print("Writing to sql prices for %r" %(symbol))
                         #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
                         #s=time.time()
-                        print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
+                        print("mysql get_stock_data(): %s"%(symbol))
                         #DB.write_to_sql(sql_engine, table, df)
-                        DB.mysql_update_table(sql_engine, table, df, insert=True)
+                        DB.mysql_update_table(sql_engine, table, df, insert=True, check=True, date_column=False, format_columns=False)
                         #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                         # Reset mysql_price_failcount
                         DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
@@ -1127,5 +1163,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
     finally:
         # Update the date on which the price is updated
+        DB.close_db_client(c)
+        DB.close_sql_connection(sql_engine)
         if sem:
             sem.release()

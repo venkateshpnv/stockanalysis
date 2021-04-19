@@ -20,6 +20,8 @@ import multiprocessing
 
 import internet
 
+from datastructures import eod_token_file
+
 YEAR=1
 QUARTER=2
 MONTH=4
@@ -242,6 +244,11 @@ def get_proxy():
     #return secrets.choice(proxy_list).decode("utf-8")
     return secrets.choice(proxy_list)
     #return '110.39.0.30:8080'
+
+def get_eod_token_id():
+    with open(eod_token_file, 'r') as f:
+        data = f.read()
+    return data.strip()
 
 def disconnect_vpn():
     return

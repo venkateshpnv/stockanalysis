@@ -25,7 +25,9 @@ from common import *
 from datastructures import *
 import conf
 import hdf5
+from hdf5 import *
 import pandas_ta as ta
+from io import StringIO
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column
@@ -62,9 +64,11 @@ thread_factor = num_cores
 
 db_ips=['10.89.45.223', '10.89.45.152', '10.89.45.4']
 def get_db_ip():
-    return random.choice(db_ips)
+    #return random.choice(db_ips)
+    return '10.89.45.241'
 
 def check_mysql_replication_status(mysql_engine):
+    return
     group_members = mysql_engine.execute('SELECT * FROM performance_schema.replication_group_members;')
     replicas = [[n for n in m] for m in group_members]
     
@@ -173,23 +177,28 @@ def mysql_exists_table(mysql_engine, table_name):
     #    return False
     #return True
 
-def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True):
+def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False):
     if not mysql_exists_table(mysql_engine, table_name):
         print("Creating table: %r" %(table_name))
         #query = 'create table '+ table_name + ' like test2;'
         #mysql_engine.execute(query)
         ##query = 'alter table ' + table +' add index(Date);'
         ##mysql_engine.execute(query)
-        if unknown_table:
+        # Only add Symbol column
+        if empty_table:
+                query = 'create table '+ table_name + ' (`Symbol` varchar(12) NOT NULL, PRIMARY KEY(`Symbol`))'
+        elif unknown_table:
             if primary_key:
                 query = 'create table '+ table_name + ' (`Symbol` varchar(12) NOT NULL, `Date` varchar(12) NOT NULL, PRIMARY KEY(`Symbol`, `Date`))'
             else:
-                query = 'create table '+ table_name + ' (`row_id` int NOT NULL AUTO_INCREMENT, `Symbol` varchar(12) NOT NULL, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
+                query = 'create table '+ table_name + ' (`row_id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `Symbol` varchar(12) NOT NULL, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
+        elif fin_table:
+                query = 'create table '+ table_name + ' (`Symbol` varchar(12) NOT NULL, `Date` varchar(12) NOT NULL, PRIMARY KEY(`Symbol`, `Date`))'
         else:
             if primary_key:
                 query = 'create table '+ table_name + ' (`Date` varchar(12) NOT NULL, PRIMARY KEY(`Date`))'
             else:
-                query = 'create table '+ table_name + ' (`row_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
+                query = 'create table '+ table_name + ' (`row_id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `Date` varchar(12) NOT NULL, PRIMARY KEY(`row_id`))'
 
         mysql_engine.execute(query)
 
@@ -233,19 +242,25 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
                 c_dtype = 'float'
             print("%s: Price cols: %s: %s" %(table_name, c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+    elif cols_type == 'text':
+        for c in sorted(missing_cols):
+            c_dtype = 'text'
+            print("%s: Text cols: %s: %s" %(table_name, c, c_dtype))
+            mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     else:
         for c in sorted(missing_cols):
             #if 'Symbol'.lower() in c.lower() or 'Date'.lower() in c.lower() or 'SPLIT'.lower() in c.lower():
             #    c_dtype = 'varchar(12)'
-            if c.lower() in list(map(lambda x: x.lower(), generic_fields)):
-                c_dtype = generic_fields_datatypes[generic_fields.index(c)]
+            gen_fields = list(map(lambda x: x.lower(), generic_fields))
+            if c.lower() in gen_fields:
+                c_dtype = generic_fields_datatypes[gen_fields.index(c)]
             else:
                 c_dtype = 'float'
             print("%s: other columns: %s: %s" %(table_name, c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     return unknown_fields # Use of unknown_fields is deprecated.
 
-def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True, empty_table=False, fin_table=False):
     if df.empty:
         return
 
@@ -262,7 +277,7 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
     try:
         metadata = MetaData()
         if check:
-            mysql_check_n_create_table(mysql_engine, table_name, unknown_table, primary_key)
+            mysql_check_n_create_table(mysql_engine, table_name, unknown_table, primary_key, empty_table, fin_table)
             table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
             raw_table_cols = mysql_get_columns(table)
             table_cols = []
@@ -282,6 +297,8 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
             else:
                 df_cols = raw_df_cols
 
+            #df_cols_lower = list(map(lambda x: x.lower(), df_cols))
+            #table_cols_lower = list(map(lambda x: x.lower(), table_cols))
             missing_cols = list(set(df_cols)-set(table_cols))
             if len(missing_cols) > 0:
                 print("Adding missing columns")
@@ -395,12 +412,16 @@ def check_n_write_to_sql(engine, table, df, fields=None):
     if not df.empty:
         df.to_sql(name=table, con=engine,index=False,chunksize=1000,if_exists='append')
         #df.to_sql(name=table, con=engine,index=False,if_exists='append')
+
 def get_symbol_table_name(symbol):
     if symbol in India_indices.keys():
         symbol = India_indices[symbol]
     elif symbol in US_indices.keys():
         symbol = US_indices[symbol]
     return 'STK'+symbol.replace('.','_').replace('-','_')
+
+def get_formatted_symbol(symbol):
+    return symbol.replace('.','_').replace('-','_')
 
 def get_symbols_from_mongo(collection=None, country='US'):
     if not collection:
@@ -452,6 +473,17 @@ def rename_table(engine, t):
         engine.execute(query)
     query = "rename table {} to {}".format(t, new_t)
     engine.execute(query)
+
+def get_symbols_from_sql2():
+    engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
+
+    query='select distinct Symbol from US_All_Stocks_List' 
+    rdf=pd.read_sql_query(query, engine)
+    close_sql_connection(engine)
+
+    if not rdf.empty:
+        symbols = list(rdf['Symbol'])
+    return symbols
 
 def get_symbols_from_sql(country, engine):
     inspector = sqlalchemy.inspect(engine)
@@ -1208,7 +1240,7 @@ def fork_db_process(country, sem, lock, vpn_event=None):
     if num_docs == 0:
         return
 
-    num_processes = 5 #* 4
+    num_processes = 6 #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     i=0
@@ -1217,7 +1249,7 @@ def fork_db_process(country, sem, lock, vpn_event=None):
     try:
         symbols = get_symbols_from_sql(country, sql_engine)
 
-        update_bond_yields(sql_engine)
+        #update_bond_yields(sql_engine)
 
         today=str(dt.now().date())
 
@@ -1226,17 +1258,17 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         else:
             indices = US_indices 
  
-        ##Indices
-        for k in indices.keys():
-            stk = {}
-            stk['bscs']={}
-            stk['bscs']['symbol'] = k
-            stk['bscs']['name'] = indices[k]
-            sem.acquire()
-            print(stk)
-            update_stk_bscs_db(country, None, None, stk, 0, sem, lock, vpn_event, proxy=proxy, symbols=symbols)
-            #processes[i%num_processes] = multiprocessing.Process(target=update_stk_bscs_db, args=(country, None, None, copy.deepcopy(stk), i%num_cores, sem, lock, vpn_event, proxy, symbols))
-            #processes[i%num_processes].start()
+        ###Indices
+        #for k in indices.keys():
+        #    stk = {}
+        #    stk['bscs']={}
+        #    stk['bscs']['symbol'] = k
+        #    stk['bscs']['name'] = indices[k]
+        #    sem.acquire()
+        #    print(stk)
+        #    update_stk_bscs_db(country, None, None, stk, 0, sem, lock, vpn_event, proxy=proxy, symbols=symbols)
+        #    #processes[i%num_processes] = multiprocessing.Process(target=update_stk_bscs_db, args=(country, None, None, copy.deepcopy(stk), i%num_cores, sem, lock, vpn_event, proxy, symbols))
+        #    #processes[i%num_processes].start()
 
         #Randomly get all records whose price is not updated till today
         #pipeline = [{'$sample': {'size':num_docs}},
@@ -1253,13 +1285,13 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         till_date = dt.combine(dt.now(), dt.min.time()) 
         #stocks = db.US_Stocks.find({'bscs.price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({}).batch_size(10).sort([["bscs.price_date",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({'bscs.symbol':'LEU'}).batch_size(10)
+        stocks = db.US_Stocks.find({'bscs.symbol':'SOCL'}).batch_size(10)
         #stocks = db.US_Stocks.find({'bscs.price_failcount': {'$eq': 0}}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$or" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$gt': 0}}]}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and" : [{'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$eq': 0}}]}).batch_size(10).sort([["bscs.price_date",-1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType' : {'$ne': 'INDEX'}}, {'bscs.price_date':{'$lte': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({'bscs.price_failcount': {'$lt': 10}}).batch_size(10).sort([["sno",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType' : {'$ne': 'INDEX'}}, {'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["bscs.quoteType",1]]).allow_disk_use(True)
 
         print("Total stocks: %r" %(stocks.count()))
    
@@ -1342,9 +1374,15 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         close_sql_connection(sql_engine)
         return
 
+    num_processes = num_cores * 6
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    eod_token = True
+    i=0
+ 
     #symbols = hdf5.get_symbols_hdf_store(country)
     #symbols = hdf5.get_symbols_from_hdf(country)
-    symbols = get_symbols_from_sql(country, sql_engine)
+    symbols = get_symbols_from_sql2()
     #symbols = get_symbols_from_mongo(collection)
     
     if country == 'India':
@@ -1358,29 +1396,28 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         else:
             order = -1
  
-        ##Indices
-        for k in indices.keys():
-            stk = {}
-            stk['bscs']={}
-            stk['bscs']['symbol'] = k
-            stk['bscs']['name'] = indices[k]
-            sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
-            threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event)).start()
+        ###Indices
+        #for k in indices.keys():
+        #    stk = {}
+        #    stk['bscs']={}
+        #    stk['bscs']['symbol'] = k
+        #    stk['bscs']['name'] = indices[k]
+        #    sem.acquire()
+        #    #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+        #    processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+        #    processes[i%num_processes].start()
 
         # First get price data for all new stocks
-        stocks = db.US_Stocks.find({"bscs.mysql_price_date": {"$exists": False }}).batch_size(10)
-        t=None
-        i=0
+        stocks = db.US_Stocks.find({"$and": [{"bscs.mysql_price_date": {"$exists": False }}, {'bscs.exchange':{"$in":major_exchanges}}]}).batch_size(10)
+        #stocks = collection.find({'bscs.symbol':'COMP'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         for stk in stocks:
-            print("%d: Mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
-            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
-            t.start()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+            processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+            processes[i%num_processes].start()
             i = i + 1
-
-
+            break
 
         ###Randomly get all records whose price is not updated till today
         #pipeline = [{'$sample': {'size':num_docs}},
@@ -1398,7 +1435,10 @@ def fork_hdf5_process(country, sem, vpn_event=None):
         till_date = dt.combine(dt.now(), dt.min.time()) 
         yesterday  = dt.combine(dt.now()-timedelta(1), dt.min.time()) 
         #stocks = db.US_Stocks.find({"$or" : [{'bscs.mysql_price_date':{'$lt': till_date}}, {"$and": [{'bscs.mysql_price_failcount': {'$gt':0}}, {'bscs.mysql_price_date':{'$lt': yesterday}}]}]}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({'bscs.mysql_price_date':{'$lt': till_date}}).batch_size(10).sort([["bscs.mysql_price_date",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"bscs.mysql_price_date": {"$exists": False }}, {'bscs.exchange':{"$in":major_exchanges}}]}).batch_size(10)
+        #stocks = db.US_Stocks.find({"$and" : [{'bscs.exchange':{"$in":major_exchanges}, {'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["bscs.quoteType",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.mysql_price_date':{'$lt': till_date}}]}).batch_size(10).sort([["bscs.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
  
         t = None
         for stk in stocks:
@@ -1407,24 +1447,21 @@ def fork_hdf5_process(country, sem, vpn_event=None):
             ##if stk['bscs']['symbol'] not in symbols:
             ##    print("Skipping: %r" %(stk['bscs']['symbol']))
             ##    continue
-            if 'mysql_price_failcount' in stk['bscs'].keys() and stk['bscs']['mysql_price_failcount'] > 10:
-                print("mysql_price_failcount: %d, Skipping: %r" %(stk['bscs']['mysql_price_failcount'], stk['bscs']['symbol']))
-                continue
-            print("%d: mysql: Checking: %r, %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
+            #if 'mysql_price_failcount' in stk['bscs'].keys() and stk['bscs']['mysql_price_failcount'] > 10:
+            #    print("mysql_price_failcount: %d, Skipping: %r" %(stk['bscs']['mysql_price_failcount'], stk['bscs']['symbol']))
+            #    continue
+            print("%d: mysql: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, sem, vpn_event)
-            t = threading.Thread(target=hdf5.update_dataframe_price_volume, args=(country, db, sql_engine, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), sem, vpn_event,))
-            t.start()
+            #hdf5.update_dataframe_price_volume(country, None, None, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+            processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+            processes[i%num_processes].start()
             i = i + 1
 
     finally:
-        # Wait till all threads are completed. You can use join() instead.
-        # But need to track threads and update variables.
-        # Simplest way is to wait for tentative time taken for the end threads to complete
-        # Randomly estimated it to be 10 sec and it perfectly works.
-        time.sleep(60)
-        #if t:
-        #    t.join()
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+ 
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
@@ -1477,7 +1514,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
         today=str(dt.now().date())
         symbol = stk['bscs']['symbol'].replace('.','-')
         if not symbols:
-            symbols = get_symbols_from_sql(country, mysql_engine)
+            symbols = get_symbols_from_sql2()
 
         retries = 1
         conn_retries = 0
@@ -1493,6 +1530,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
         puts = pd.DataFrame()
         calls = pd.DataFrame()
         df = pd.DataFrame()
+        share_df_flag=True
 
         while True:
             try:
@@ -1520,14 +1558,15 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
                             except requests.exceptions.HTTPError as E:
                                 print("%s: %s" %(symbol, E))
                                 info_retries = info_retries + 1
-                                continue
-                            except requests.exceptions.ProxyError as E:
-                                delete_proxy_server(proxy_server)
-                                info_retries = info_retries + 1
-                                continue
                             except Exception as E:
                                 print("DB.py: %s: (%s) error for bscs info" %(symbol, E))
-                                info = None
+                                info = data.get_quote_yahoo(symbol)
+                                if not info.empty:
+                                    info = info.to_dict('index')
+                                    info = info[symbol]
+                                    del info['language']
+                                else:
+                                    info = None
 
                             try:
                                 share_df = tick.major_holders
@@ -1582,16 +1621,20 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
                         #  Artisan Partners Limited Partnership   6234197  Sep 29, 2020         1.03%   193197765
                         #   Bank Of New York Mellon Corporation   6213664  Sep 29, 2020         1.03%   192561447
 
-                        if share_df is not None and not share_df.empty:
+                        if info and info['quoteType'] != 'ETF' and share_df is not None and not share_df.empty:
                             if 'Holder' in share_df.columns:
                                 df.ix[-1, 'percent_insider'] = None
                                 df.ix[-1, 'percent_institution'] = sum([float(d['% Out'].split('%')[0]) for i, d in share_df.iterrows()])
                                 df.ix[-1, 'float_percent_institution'] = None
                                 df.ix[-1, 'num_institutions'] = len(share_df.index)
                             else:
-                                for i in range(len(tick_share_holders)-1):
-                                    df.ix[-1, tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
-                                df.ix[-1, tick_share_holders[-1]] = share_df.iloc[-1][0]
+                                try:
+                                    for i in range(len(tick_share_holders)-1):
+                                        df.ix[-1, tick_share_holders[i]] = float(share_df.iloc[i][0].split("%")[0])/100 
+                                    df.ix[-1, tick_share_holders[-1]] = share_df.iloc[-1][0]
+                                except Exception as E:
+                                    share_df_flag=False
+                                    print("DB.py: Exception(%r):  share_df: %r " %(E, share_df))
 
                         # Add the fields like short ratio etc.
                         for i in range(len(tick_fields)):
@@ -1758,7 +1801,7 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
             else:
                 mysql_price_failcount = 0
 
-        if info['quoteType'] == 'INDEX':
+        if info and info['quoteType'] == 'INDEX':
             # Dont worry, this is end up in finally: block
             return
 
@@ -1774,11 +1817,14 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
             stk['bscs']['trading'] = "YES"
             stk['bscs']['mysql_price_failcount'] = mysql_price_failcount
 
-            if share_df is not None and not share_df.empty:
-                stk['bscs']['percent_insiders'] = float(share_df.iloc[0][0].split('%')[0])/100
-                stk['bscs']['percent_institutions'] = float(share_df.iloc[1][0].split('%')[0])/100
-                stk['bscs']['float_percent_institutions'] = float(share_df.iloc[2][0].split('%')[0])/100
-                stk['bscs']['number_of_institutions'] = share_df.iloc[3][0]
+            if info['quoteType'] != 'ETF' and share_df_flag and share_df is not None and not share_df.empty:
+                try:
+                    stk['bscs']['percent_insiders'] = float(share_df.iloc[0][0].split('%')[0])/100
+                    stk['bscs']['percent_institutions'] = float(share_df.iloc[1][0].split('%')[0])/100
+                    stk['bscs']['float_percent_institutions'] = float(share_df.iloc[2][0].split('%')[0])/100
+                    stk['bscs']['number_of_institutions'] = share_df.iloc[3][0]
+                except Exception as E:
+                    pass
             else:
                 if 'percent_insiders' in bscs.keys():
                     stk['bscs']['percent_insiders'] = bscs['percent_insiders'] 
@@ -2037,8 +2083,8 @@ def update_all_price_volume_db(country):
         return
 
     change_vpn()
-    #fork_hdf5_process(country, hdf5_sem, vpn_event)
-    fork_db_process(country, db_sem, db_lock, vpn_event)
+    fork_hdf5_process(country, hdf5_sem, vpn_event)
+    #fork_db_process(country, db_sem, db_lock, vpn_event)
     #hdf5_process = multiprocessing.Process(target=fork_hdf5_process, args=(country, hdf5_sem,vpn_event))
     #db_process = multiprocessing.Process(target=fork_db_process, args=(country, db_sem, db_lock, vpn_event))
     #try:
@@ -2091,6 +2137,59 @@ def get_iex_symbols():
             j+=1
             stk = {"symbol" : d['symbol'], "Name" : d['name'], "data" : "NO", "parsed" : "NO", "sno": j}
             db.US_Stocks_List.insert_one(stk)
+
+    close_db_client(c)
+    return entries
+
+def get_eod_symbols():
+    url = 'https://eodhistoricaldata.com/api/exchange-symbol-list/US?api_token='+get_eod_token_id()
+    ret = requests.get(url)
+    df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+    df['Symbol'] = df.index
+
+    # Drop Null
+    df = df.dropna()
+
+    # Get only Common Stock
+    df = df[df['Type']=='Common Stock']
+
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+
+    table_name = 'US_All_Stocks_List'
+    mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
+    query = 'select * from {}'.format(table_name)
+    ddf = read_from_sql(query, mysql_engine, date=False)
+    if ddf.empty:
+        mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
+        
+    j = db.US_Stocks.find({}).count()
+
+    # Exclude all symbols ending with +,=,-
+    # TODO: Remove all symbols ending with special characters
+    #df = df[df['symbol'].str.match(r'(.*[\=|\+|\-]$)')==False]
+    entries = []
+
+    for index, d in df.iterrows():
+        if d['Symbol'] == 'OXFD' or d['Symbol'] == 'PRGX':
+            print("Required symbol")
+        obj = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
+        if obj.count() == 0:
+            print("%r: %r: %r" %(d['Symbol'],d['Name'], d['Exchange']))
+            entry = []
+            entry.append(d['Symbol'])
+            entry.append(d['Name'])
+            entry.append(d['Exchange'])
+            entries.append(entry)
+            j+=1
+            bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange']}
+            stk  = {"bscs" : bscs, "sno": j}
+            db.US_Stocks.insert_one(stk)
+        else:
+            db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.exchange": d['Exchange']}})
+            db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.quoteType": d['Type']}})
+            db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.name": d['Name']}})
 
     close_db_client(c)
     return entries
@@ -2762,13 +2861,14 @@ def update_symbol_name_changes():
 def build_US_All_Stocks_List():
     #get_US_Stock_list()
     new_stocks = [] 
-    head=["Symbol", "Name"]
+    head=["Symbol", "Name", "Exchange"]
     #head=["Symbol", "Name", "Sector", "Industry", "Market Cap", "$Price"]#, "Max Price Change"]
     new_stocks.append(head)
     #new_stocks.extend(build_US_Stocks_List(conf.amex_stocks))
     #new_stocks.extend(build_US_Stocks_List(conf.nyse_stocks))
     #new_stocks.extend(build_US_Stocks_List(conf.nasdaq_stocks))
-    new_stocks.extend(get_iex_symbols())
+    #new_stocks.extend(get_iex_symbols())
+    new_stocks.extend(get_eod_symbols())
     # If atleast one new IPO
     if len(new_stocks) > 1:
         s = parse_html.html_head()
@@ -2867,23 +2967,89 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         break
 
-def update_US_stock_information(col, stk):
-    #db = open_db('test')
-    #col = db.col
-    #income statements
-    update_US_stock_statement(col, stk, "income-statement", "annual")
-    update_US_stock_statement(col, stk, "income-statement", "quarterly")
-    #cash flow statements
-    update_US_stock_statement(col, stk, "cash-flow", "annual")
-    update_US_stock_statement(col, stk, "cash-flow", "quarterly")
-    #balance sheet statements
-    update_US_stock_statement(col, stk, "balance-sheet", "annual")
-    update_US_stock_statement(col, stk, "balance-sheet", "quarterly")
+def update_US_stock_fin_information(stk, core, sem):
 
-def update_US_all_stock_information():
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+ 
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
     c  = open_db_client()
     db = c['Stocks']
 
+    table_name = 'Balance_Sheet_quarterly' 
+    if mysql_exists_table(mysql_engine, table_name):
+        query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        ddf = read_from_sql(query, mysql_engine)
+        if not ddf.empty:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if sem:
+                sem.release()
+            close_sql_connection(mysql_engine)
+            close_db_client(c)
+            return
+
+    #income statements
+    url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()+'&filter=Financials'
+    try:
+        ret = requests.get(url)
+        if ret.status_code != 200:
+            print("Failed to get financial statements for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+            if sem:
+                sem.release()
+            return
+    except Exception as E:
+        print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+        return
+
+    try:
+        fin = ret.json()
+        if not isinstance(fin, dict):
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
+            return
+
+        for stmt_type in fin.keys():
+            if 'currency_symbol' in fin[stmt_type].keys():
+                del fin[stmt_type]['currency_symbol']
+            for duration in fin[stmt_type].keys():
+                stmt = pd.DataFrame(fin[stmt_type][duration]).transpose().sort_index()
+                if 'currency_symbol' in stmt.keys():
+                    del stmt['currency_symbol']
+                stmt.insert(loc=0, column='Symbol', value=stk['bscs']['symbol'])
+                stmt.rename(columns={'date':'Date'}, inplace=True)
+
+                table_name = stmt_type+'_'+duration
+                if mysql_exists_table(mysql_engine, table_name):
+                    query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+                    ddf = read_from_sql(query, mysql_engine)
+
+                    index = stmt.index.difference(ddf.index)
+                    #index = stmt.index.get_loc(ddf['Date'][-1])
+                    stmt = stmt.loc[index]
+
+                if not stmt.empty:
+                    mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+
+    finally:
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_US_all_stock_fin_information():
+    c  = open_db_client()
+    db = c['Stocks']
+
+    num_processes = 6 #* 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
     #s=[]
     #f = open("stocks.txt","r")
     #for line in f:
@@ -2893,17 +3059,27 @@ def update_US_all_stock_information():
     #    del s[-1]
     #syms = {"$nin" : s}
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = db.US_Stocks.find({'bscs.symbol':'DNI'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({'bscs.exchange':{"$in":major_exchanges}}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
-        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        update_US_stock_information(db.US_Stocks, stk)
+        print("%d: %r" %(i, stk['bscs']['symbol']))
+        sem.acquire()
+        #update_US_stock_fin_information(stk, 0, sem)
+        processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, j%num_cores, sem))
+        processes[j%num_processes].start()
+        j = j + 1
         #if i > 10:
         #    break
 
+    for j in range(len(processes)):
+        if processes[j] is not None:
+            processes[j].join()
+ 
     close_db_client(c)
 
+# This function is deprecated. Instead use build_US_stock_information2
 def build_US_stock_information(doc, finance=True):
     c    = open_db_client()
     db   = c['Stocks']
@@ -2958,7 +3134,62 @@ def build_US_stock_information(doc, finance=True):
                 #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
                 remove_dir(path)
     db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
- 
+
+def build_US_stock_information2(doc):
+    c    = open_db_client()
+    db   = c['Stocks']
+    sym  = doc['symbol']
+    name = doc['Name']
+
+    name = name.replace(",","").lstrip().rstrip()
+    name = name.replace("&#39;", "\'")
+    name = name.replace("/", "")
+    name = name.replace("?", "")
+    name = name.replace("*", "")
+    sym = sym.replace("^", "-").lstrip().rstrip()
+    sym = sym.replace("~", "").lstrip().rstrip()
+    sym = sym.replace("?", "").lstrip().rstrip()
+    db.US_Stocks_List.update({'Name': doc['Name']}, {'$set': {"Name": name}})
+    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"symbol": sym}})
+
+    stocks = db.US_Stocks.find({"bscs.symbol":sym})
+    if stocks.count() == 0:
+        print("%d: %s: %s "%(doc['sno'],doc['symbol'], doc['Name']))
+        if 'etf' in doc['Name'].lower() or 'fund' in doc['Name'].lower():
+            stock = {}
+            ret = parse_html.populate_US_stocks(db, None, None, stock, sym, name, etf=True) 
+        elif finance == False:
+            stock = {}
+            ret = parse_html.populate_US_stocks(db, None, None, stock, sym, name, etf=False) 
+        else:
+            # Get financial data from the internet
+            path = internet.get_US_stock_page(sym, name)
+            
+            path = "/home/vpetla/work/stockanalysis/US_Stocks/html_pages/%s" %(name)
+            path = path.lstrip().rstrip().replace(",","")
+            
+            ret=True
+            for (root,dirs,files) in os.walk(path, topdown=True):
+                files = [f for f in files if not f[0] == '.']
+                dirs[:] = [d for d in dirs if d not in sheet.cell_value(i,0)]
+                dirs[:] = [d for d in dirs if not d[0] == '.']
+                #print("Root: %r" %(root))
+                #print(dirs)
+
+                #Sort strings with numbers
+                # natural_keys() is a function defined in common.py
+                files.sort(key=natural_keys)
+                #print(files)
+
+                stock = {}
+                ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name) 
+                #ret = parse_html.populate_US_stocks(db, root, files, stock, sym, name, doc['Sector'], doc['Industry']) 
+            if ret is True:
+                db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"data": "YES"}})
+                #write_stock_to_file(doc['symbol'], "stocks.txt", "a")
+                remove_dir(path)
+    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
+
 def build_US_all_stock_information():
     j=0
     c  = open_db_client()
@@ -2989,7 +3220,8 @@ def build_US_all_stock_information():
             #    db.US_Stocks_List.update({'symbol': doc['symbol']}, {'$set': {"parsed": "YES"}})
             #    continue
 
-            build_US_stock_information(doc, finance=False)
+            build_US_stock_information2(doc)
+            #build_US_stock_information(doc, finance=False)
 
     #set_sno('US')
     # Create index based on sno
@@ -3438,6 +3670,7 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
             #field="fig.betas." + field.rsplit('_', 1)[0].lower()
             collection.update({'bscs.symbol':sym},{'$set': {field : beta}})
             mysql_update_table(beta_engine, table_name, wdf, check=True, cols_type='float', insert=insert, date_column=False, format_columns=False)
+            print("%s: %d: writing Beta Done" %(table_name, field))
 
     finally:
         if sem:

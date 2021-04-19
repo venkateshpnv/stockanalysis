@@ -402,6 +402,13 @@ recessions = {
                          },
              }
 
+major_exchanges = ['NASDAQ', 'NYSE', 'NYSE MKT', 'NYSE ARCA', 'AMEX']
+
+#select DISTINCT Exchange from US_Stocks_Data.US_All_Stocks_List order  by Exchange;
+all_symbols_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE ARCA', 'NYSE MKT', 'OTCBB', 'OTCCE', 'OTCGREY', 'OTCMKTS', 'OTCQB', 'OTCQX', 'PINK', 'US']
+
+all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
+
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
 US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
 Treasury_Yields = {'^FVX' : 'TYield_5Years', '^TNX' : 'TYield_10Years', '^TYX' : 'TYield_30Years'}
@@ -413,7 +420,7 @@ treasury_yield_urls = {
                     }
 
 price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close']
-price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'BIGINT', 'float']
+price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'INT UNSIGNED', 'float']
 
 price_change_fields = ['Day Change', 'Week Change', 'Two Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
@@ -437,8 +444,8 @@ income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuo
 balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
 cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
 
-generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency']
-generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)']
+generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency', 'currency_symbol', 'filing_date']
+generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)']
 
 #Ticker info fields in the US_Stocks.STKSYMBOL.
 # This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.
@@ -487,3 +494,7 @@ fred = {
 # paths
 radar_stocks_file='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/radar_stocks.xls'
 pp_file='/home/vpetla/PP.csv'
+
+# EOD Token file
+eod_token_file='/home/vpetla/eod_token_file.txt'
+
