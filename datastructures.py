@@ -410,7 +410,8 @@ all_symbols_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE
 all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
 
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
-US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
+US_indices = {'GSPC':'SP500', 'DJI': 'DowJones', 'IXIC': 'Nasdaq', 'RUT': 'Russel2000'} 
+#US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
 Treasury_Yields = {'^FVX' : 'TYield_5Years', '^TNX' : 'TYield_10Years', '^TYX' : 'TYield_30Years'}
 
 treasury_yield_urls = {

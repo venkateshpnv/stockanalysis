@@ -34,12 +34,16 @@ US_Cal = get_calendar('USFederalHolidayCalendar')
 
 vpn_change_time = dt.now()
 
-def construct_price_data_url(symbol, start, end):
-    url = 'https://eodhistoricaldata.com/api/eod/'+symbol+'.US?'\
-            +'from='+str(start)\
-            +'&to='+str(end)\
-            +'&api_token='+get_eod_token_id()\
-            +'&period=d'
+def construct_price_data_url(symbol, start, end, index=False):
+    url = 'https://eodhistoricaldata.com/api/eod/'+symbol
+    if index:
+        url = url + '.INDX?'
+    else:
+        url = url + '.US?'
+    url = url + 'from='+str(start)\
+                +'&to='+str(end)\
+                +'&api_token='+get_eod_token_id()\
+                +'&period=d'
     return url
  
 def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=False, eod_token=False):
@@ -62,7 +66,10 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 symbol = symbol + '.BO'
 
             if eod_token:
-                url = construct_price_data_url(symbol, start, end)
+                if 'quoteType' in stk['bscs'].keys() and stk['bscs']['quoteType'] == 'Index':
+                    url = construct_price_data_url(symbol, start, end, index=True)
+                else:
+                    url = construct_price_data_url(symbol, start, end, index=False)
                 ret = requests.get(url)
                 df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
                 df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
@@ -972,17 +979,21 @@ def update_percent_change_all(country):
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
 
-    print("Getting price and volume")
+    print("%s: Getting price and volume"%(symbol))
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
 
+    local_mdb = False
+    local_sql = False
     if not db:
         c = DB.open_db_client()
         db = c['Stocks']
+        local_mdb = True
     if not sql_engine:
         sql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        local_sql = True
 
     if stk is None:
         print("hdf5: stk none, skipping %s: %s" %(stk['bscs']['symbol'], stk['bscs']['name']))
@@ -1013,7 +1024,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
         table = DB.get_symbol_table_name(symbol)
 
-        if len(symbols) == 0 or symbol not in symbols:
+        if not index and (len(symbols) == 0 or symbol not in symbols):
             # Check if symbol is ending with +, =, -
             # Delete those junk symbols from mongodb
             if re.match(r'.*[\+|\=|\-]$', symbol):
@@ -1163,7 +1174,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
     finally:
         # Update the date on which the price is updated
-        DB.close_db_client(c)
-        DB.close_sql_connection(sql_engine)
+        if local_mdb:
+            DB.close_db_client(c)
+        if local_sql:
+            DB.close_sql_connection(sql_engine)
         if sem:
             sem.release()
