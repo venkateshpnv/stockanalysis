@@ -3052,7 +3052,7 @@ def update_US_all_stock_fin_information():
         print("%d: %r" %(i, stk['bscs']['symbol']))
         sem.acquire()
         #update_US_stock_fin_information(stk, 0, sem)
-        processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, j%num_cores, sem))
+        processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, i%num_cores, sem))
         processes[j%num_processes].start()
         j = j + 1
 
@@ -3062,67 +3062,72 @@ def update_US_all_stock_fin_information():
  
     close_db_client(c)
 
-def update_splits_dividends_short_interests(stk, core, sem):
+def update_short_interests(stk, core, sem):
 
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
 
+    update = True
+    df  = pd.DataFrame()
+    rdf = pd.DataFrame()
     try:
-        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Short_Interests')
         c  = open_db_client()
         db = c['Stocks']
 
-        table_name = 'Dividends_History' 
-        if mysql_exists_table(mysql_engine, table_name):
-            query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
-            ddf = read_from_sql(query, mysql_engine)
-            if not ddf.empty:
-                return
+        if 'short_interests_pull_date' in stk['dates'].keys() and \
+                stk['dates']['short_interests_pull_date'].date() == dt.now().date():
+            update = False
+            return
 
-        #income statements
-        url='https://eodhistoricaldata.com/api/div/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+        table_name = get_symbol_table_name(stk['bscs']['symbol'])
+
+        if mysql_exists_table(mysql_engine, table_name) and \
+                'Short_Interest_Ratio' in mysql_get_columns_from_engine(mysql_engine, table_name):
+            query = 'select Date, Short_Interest_Ratio from ' + table_name + ' order by Date DESC limit 1'
+            rdf = read_from_sql(query, mysql_engine)
+ 
+        #short_interest
+        url='https://eodhistoricaldata.com/api/shorts/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+
+        if not rdf.empty:
+            url = url + \
+                    '&from='+ \
+                    str(dt.strptime(rdf['Date'][0], "%Y-%m-%d").date() + timedelta(1))
+ 
         try:
             ret = requests.get(url)
             if ret.status_code != 200:
-                print("Failed to get dividends for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                print("Failed to get Short Interest for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                return
         except Exception as E:
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
 
-        fin = ret.json()
-        if isinstance(fin, dict):
-            for stmt_type in fin.keys():
-                if 'currency_symbol' in fin[stmt_type].keys():
-                    del fin[stmt_type]['currency_symbol']
-                for duration in fin[stmt_type].keys():
-                    stmt = pd.DataFrame(fin[stmt_type][duration]).transpose().sort_index()
-                    if not stmt.empty:
-                        if 'currency_symbol' in stmt.keys():
-                            del stmt['currency_symbol']
-                        stmt.insert(loc=0, column='Symbol', value=stk['bscs']['symbol'])
-                        stmt.rename(columns={'date':'Date'}, inplace=True)
+        df = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
 
-                        table_name = stmt_type+'_'+duration
-                        if mysql_exists_table(mysql_engine, table_name):
-                            query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
-                            ddf = read_from_sql(query, mysql_engine)
-
-                            index = stmt.index.difference(ddf.index)
-                            #index = stmt.index.get_loc(ddf['Date'][-1])
-                            stmt = stmt.loc[index]
-
-                        if not stmt.empty:
-                            mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
-
+        df = df.dropna()
+        if not df.empty:
+            df['Short_Interest_Ratio'] = df[df['Volume'] != 0]['Short']/df[df['Volume'] != 0]['Volume']
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=False, primary_key=True, empty_table=False, fin_table=False)
+ 
     finally:
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.short_interests_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.Short_Interest_Ratio', df.iloc[-1]['Short_Interest_Ratio'])
+            elif not rdf.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.Short_Interest_Ratio', rdf.iloc[-1]['Short_Interest_Ratio'])
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.Short_Interest_Ratio', nan)
         if sem:
             sem.release()
         close_sql_connection(mysql_engine)
         close_db_client(c)
 
-def update_all_splits_dividends_short_interests():
+def update_all_short_interests():
     c  = open_db_client()
     db = c['Stocks']
 
@@ -3131,20 +3136,22 @@ def update_all_splits_dividends_short_interests():
     processes = [None]*num_processes
     j=0
  
-    stocks = db.US_Stocks.find({"$and": [{"dates.splits_dividends_short_interests_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"$and": [{"dates.short_interests_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":['NASDAQ']}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
+    stocks = db.US_Stocks.find({"bscs.exchange":'NASDAQ'})
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
         print("%d: %r" %(i, stk['bscs']['symbol']))
         sem.acquire()
-        update_splits_dividends_short_interests(stk, 0, sem)
-        #processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, j%num_cores, sem))
-        #processes[j%num_processes].start()
-        #j = j + 1
+        #update_short_interests(stk, 0, sem)
+        processes[j%num_processes] = multiprocessing.Process(target=update_short_interests, args=(stk, i%num_cores, sem))
+        processes[j%num_processes].start()
+        j = j + 1
 
-    #for j in range(len(processes)):
-    #    if processes[j] is not None:
-    #        processes[j].join()
+    for j in range(len(processes)):
+        if processes[j] is not None:
+            processes[j].join()
  
     close_db_client(c)
 

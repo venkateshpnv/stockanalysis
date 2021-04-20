@@ -420,8 +420,8 @@ treasury_yield_urls = {
                         'month' : 'https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/TextView.aspx?data=yield',
                     }
 
-price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close']
-price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'INT UNSIGNED', 'float']
+price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Short']
+price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'INT UNSIGNED', 'float', 'INT UNSIGNED']
 
 price_change_fields = ['Day Change', 'Week Change', 'Two Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
