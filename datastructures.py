@@ -445,8 +445,8 @@ income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuo
 balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
 cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
 
-generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency', 'currency_symbol', 'filing_date']
-generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)']
+generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency', 'currency_symbol', 'filing_date', 'Stock Splits', 'period', 'paymentDate', 'declarationDate', 'recordDate']
+generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(20)', 'varchar(15)', 'varchar(12)', 'varchar(12)', 'varchar(12)']
 
 #Ticker info fields in the US_Stocks.STKSYMBOL.
 # This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.

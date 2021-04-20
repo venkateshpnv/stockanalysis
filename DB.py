@@ -253,7 +253,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
             #    c_dtype = 'varchar(12)'
             gen_fields = list(map(lambda x: x.lower(), generic_fields))
             if c.lower() in gen_fields:
-                c_dtype = generic_fields_datatypes[gen_fields.index(c)]
+                c_dtype = generic_fields_datatypes[gen_fields.index(c.lower())]
             else:
                 c_dtype = 'float'
             print("%s: other columns: %s: %s" %(table_name, c, c_dtype))
@@ -3155,6 +3155,202 @@ def update_all_short_interests():
  
     close_db_client(c)
 
+def update_splits(stk, core, sem):
+
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+
+    update = True
+    df  = pd.DataFrame()
+    rdf = pd.DataFrame()
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        if 'splits_pull_date' in stk['dates'].keys() and \
+                stk['dates']['splits_pull_date'].date() == dt.now().date():
+            update = False
+            return
+
+        table_name = 'Splits_History'
+
+        if mysql_exists_table(mysql_engine, table_name):
+            query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date DESC limit 1'.format(stk['bscs']['symbol'])
+            rdf = read_from_sql(query, mysql_engine)
+ 
+        url='https://eodhistoricaldata.com/api/splits/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+
+        if not rdf.empty:
+            url = url + \
+                    '&from='+ \
+                    str(dt.strptime(rdf['Date'][0], "%Y-%m-%d").date() + timedelta(1))
+ 
+        try:
+            ret = requests.get(url)
+            if ret.status_code != 200:
+                print("Failed to get Splits data for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                return
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+        df = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+
+        df = df.dropna()
+        if not df.empty:
+            df['Symbol'] = stk['bscs']['symbol']
+            df['Split_Num']=nan
+            df['Split_Denom']=nan
+            for i, d in df.iterrows():
+                df.loc[i, 'Split_Num']   = float(d['Stock Splits'].split('/')[0])
+                df.loc[i, 'Split_Denom'] = float(d['Stock Splits'].split('/')[1])
+
+            del df['Stock Splits']
+
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=False, primary_key=False, empty_table=False, fin_table=True)
+ 
+    finally:
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.splits_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_split_date', df.iloc[-1]['Date'])
+            elif not rdf.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_split_date', dt.strptime(rdf.iloc[-1]['Date'], "%Y-%m-%d"))
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_split_date', dt.min)
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_all_splits():
+    c  = open_db_client()
+    db = c['Stocks']
+
+    num_processes = 6 #* 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    stocks = db.US_Stocks.find({"$and": [{"dates.splits_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
+    #stocks = db.US_Stocks.find({"bscs.exchange":'NASDAQ'})
+    print(stocks.count())
+
+    for i, stk in enumerate(stocks):
+        print("%d: %r" %(i, stk['bscs']['symbol']))
+        sem.acquire()
+        #update_splits(stk, 0, sem)
+        processes[j%num_processes] = multiprocessing.Process(target=update_splits, args=(stk, i%num_cores, sem))
+        processes[j%num_processes].start()
+        j = j + 1
+
+    for j in range(len(processes)):
+        if processes[j] is not None:
+            processes[j].join()
+ 
+    close_db_client(c)
+
+def update_dividends(stk, core, sem):
+
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+
+    update = True
+    df  = pd.DataFrame()
+    rdf = pd.DataFrame()
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        if 'dividends_pull_date' in stk['dates'].keys() and \
+                stk['dates']['dividends_pull_date'].date() == dt.now().date():
+            update = False
+            return
+
+        table_name = 'Dividends_History'
+
+        if mysql_exists_table(mysql_engine, table_name):
+            query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date DESC limit 1'.format(stk['bscs']['symbol'])
+            rdf = read_from_sql(query, mysql_engine)
+ 
+        url='https://eodhistoricaldata.com/api/div/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+
+        if not rdf.empty:
+            url = url + \
+                    '&from='+ \
+                    str(dt.strptime(rdf['Date'][0], "%Y-%m-%d").date() + timedelta(1))
+        url = url + '&fmt=json'
+ 
+        try:
+            ret = requests.get(url)
+            if ret.status_code != 200:
+                print("Failed to get Splits data for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                return
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+        dividends = ret.json()
+        if len(dividends) == 0:
+            return
+
+        df = pd.DataFrame(dividends)
+        if not df.empty:
+            df['Symbol'] = stk['bscs']['symbol']
+            if 'currency' in df.columns:
+                del df['currency']
+            df.rename(columns = {'date': 'Date'}, inplace=True)
+
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='dividends', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True)
+ 
+    finally:
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.dividends_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
+            elif not rdf.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.strptime(rdf.iloc[-1]['Date'], "%Y-%m-%d"))
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.min)
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_all_dividends():
+    c  = open_db_client()
+    db = c['Stocks']
+
+    num_processes = 6 #* 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
+    #stocks = db.US_Stocks.find({"bscs.exchange":{'$in': major_exchanges}})
+    print(stocks.count())
+
+    for i, stk in enumerate(stocks):
+        print("%d: %r" %(i, stk['bscs']['symbol']))
+        sem.acquire()
+        #update_dividends(stk, 0, sem)
+        processes[j%num_processes] = multiprocessing.Process(target=update_dividends, args=(stk, i%num_cores, sem))
+        processes[j%num_processes].start()
+        j = j + 1
+
+    for j in range(len(processes)):
+        if processes[j] is not None:
+            processes[j].join()
+ 
+    close_db_client(c)
 
 # This function is deprecated. Instead use build_US_stock_information2
 def build_US_stock_information(doc, finance=True):
