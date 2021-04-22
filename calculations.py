@@ -332,10 +332,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                     print(row[1])
                     pp_stocks_list.append(row[1])
 
-    for doc in collection.find({'bscs.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
-    #for doc in collection.find({'bscs.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
-    #for doc in collection.find({'bscs.price_date':{'$gte': dt.now()-timedelta(7)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
-    #for doc in collection.find($and: [{'bscs.mysql_price_date':{'$gte': dt.now()-timedelta(7)}}, {'bscs.mysql_price_failcount' : {'$lt': 1}}], no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
+    for doc in collection.find({'failcount.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
+    #for doc in collection.find({'failcount.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
+    #for doc in collection.find({'dates.price_date':{'$gte': dt.now()-timedelta(7)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
+    #for doc in collection.find($and: [{'dates.mysql_price_date':{'$gte': dt.now()-timedelta(7)}}, {'failcount.mysql_price_failcount' : {'$lt': 1}}], no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:

@@ -1450,7 +1450,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             #stocks = db.US_Stocks.find({"$and" : [{'bscs.exchange':{"$in":major_exchanges}, {'dates.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["bscs.quoteType",1]]).allow_disk_use(True)
             #stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
             stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$lt': till_date}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-            #stocks = db.US_Stocks.find({'bscs.symbol':'NEOS'}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+            #stocks = db.US_Stocks.find({'bscs.symbol':'MOG.A'}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
  
             t = None
             for stk in stocks:
