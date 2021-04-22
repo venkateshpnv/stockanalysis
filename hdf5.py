@@ -977,6 +977,31 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
+def bulk_update_price_volume(country, db, sql_engine):
+    url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()
+    ret = requests.get(url)
+    df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+    df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
+    df['Symbol'] = df.index
+    if 'Ex' in df.columns:
+        del df['Ex']
+
+    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.mysql_price_date':{'$lt': till_date}}, {'bscs.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["bscs.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+
+    t = None
+    for stk in stocks:
+        stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
+        if not stk_df.empty:
+            stk_df.index = stk_df['Date']
+            del stk_df['Symbol']
+            DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), stk_df, insert=True, check=True, date_column=False, format_columns=False)
+            DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", 0)
+        else:
+            fail_count = 1
+            if 'mysql_price_failcount' in stk['bscs'].keys():
+                fail_count = stk['bscs']['mysql_price_failcount'] + fail_count
+            DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", fail_count)
+
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
 
     print("%s: Getting price and volume"%(symbol))
@@ -1042,15 +1067,16 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     df.index = df['Date'] #Is it required?
                     #DB.write_to_sql(sql_engine, symbol, df)
                     print("mysql: %s: %s"%(symbol,stk['bscs']['name']))
-                    DB.check_n_write_to_sql(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), list(df.columns))
+                    #DB.check_n_write_to_sql(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), list(df.columns))
+                    DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), insert=True, check=True, date_column=False, format_columns=False)
                     # Update the date on which the price is updated
-                    #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                     # Reset mysql_price_failcount
-                    DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+                    DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
  
                 else:
                     DB.update_field(collection, symbol, "ignore", "YES")
-                    #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                     DB.update_price_failcount(stk, country, df=True)
 
                 #if index:
@@ -1063,7 +1089,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 #if True:
                 #    ##write_to_hdf(country, df, symbol)
                 #    # Update the date on which the price is updated
-                #    DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                #    DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                 #    #DB.update_field(collection, symbol, "ignore", "NO")
         #Updating today's price and volume
         else:
@@ -1146,9 +1172,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         print("mysql get_stock_data(): %s"%(symbol))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True, check=True, date_column=False, format_columns=False)
-                        #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                         # Reset mysql_price_failcount
-                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
@@ -1167,10 +1193,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
                     DB.update_field(collection, symbol, "ignore", "YES")
-                    #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                     DB.update_price_failcount(stk, country, df=True)
 
-        DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+        DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
 
     finally:
         # Update the date on which the price is updated

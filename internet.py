@@ -121,7 +121,7 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                     if write_to_db:
                         DB.check_n_write_to_sql(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), list(df.columns))
                         # Reset mysql_price_failcount
-                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
  
                 else:
                     if write_to_db:
@@ -195,9 +195,9 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                         print("mysql get_stock_data(): %s: %s"%(symbol,stk['bscs']['name']))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True)
-                        #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                         # Reset mysql_price_failcount
-                        DB.update_field(collection, symbol, "bscs.mysql_price_failcount", 0)
+                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
@@ -216,13 +216,13 @@ def get_stock_price_data(country, tick, symbol, symbols, stk, db, sql_engine, pr
                 else:
                     PRINT_ERR("df empty for %r" %(symbol))
                     DB.update_field(collection, symbol, "ignore", "YES")
-                    #DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                     DB.update_price_failcount(stk, country, df=True)
             else:
                 ret = True
 
         if write_to_db:
-            DB.update_field(collection, symbol, "bscs.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+            DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
 
     finally:
         return ret, df
@@ -667,7 +667,7 @@ def fork_hdf5_process(country):
 
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
-    #num_docs = collection.find({"bscs.price_date": {'$ne':today}})
+    #num_docs = collection.find({"dates.price_date": {'$ne':today}})
     if num_docs == 0:
         close_db_client(c)
         close_sql_connection(sql_engine)
@@ -700,7 +700,7 @@ def fork_hdf5_process(country):
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
-        ##            {'$match' : {"bscs.price_date": {'$ne':today}}},
+        ##            {'$match' : {"dates.price_date": {'$ne':today}}},
         ##            #{"$group": {"_id": _id, "count": {"$sum":1}}},
         ##            #{"$group": {"_id": None, "total": {"$sum": 1}, "details":{"$push":{"groupby": "$_id", "count": "$count"}}}}
         ##            ]
