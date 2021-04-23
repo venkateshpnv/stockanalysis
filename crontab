@@ -1,0 +1,36 @@
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+# code auto backup every day morning 9:28 am
+#28 9 * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/code_autocheckin.sh
+#db autoback on 1st of every month morning 9:28 am
+#28 9 1 */3 * /bin/sh /home/vpetla/work/stockanalysis/scripts/db_autocheckin.sh
+# afternoon 1:30 PM every weekday
+#30 13 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/radar_stocks.sh
+
+# Every week day 1:00 PM, look for new IPOs
+00 13 * * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
+
+# Every week day 1:30 PM, update prices
+00 13 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'US'
+
+# Every week day 1:30 PM, update dividends
+00 13 * * 1-5 /usr/bin/python3 /home/vpetla/work/stockanalysis/US_Update_Dividends.py
+
+# Every week day 1:30 PM, update splits
+00 13 * * 1-5 /usr/bin/python3 /home/vpetla/work/stockanalysis/US_Update_Splits.py
+
+# Every week day 1:30 PM, update short interests
+00 13 * * 1-5 /usr/bin/python3 /home/vpetla/work/stockanalysis/US_Update_Short_Interests.py
+
+# Daily night 12:30 AM, Update financial statements
+#30 01 * * 1 /usr/bin/python3 /home/vpetla/work/stockanalysis/US_fin_statements.py
+
+#0 12 * * 1-5 /usr/bin/python3 /home/vpetla/work/stockanalysis/US_symbol_changes.py
+# Every week day 4:00 AM, run the script for India
+#0 4 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'India'
+#*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Stocks.sh
+#*/1 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Price_Surprises.sh
+#Every week Saturday night 12:00 AM
+#0 12 * * * * /bin/sh /home/vpetla/work/stockanalysis/scripts/US_Beta.sh
+
