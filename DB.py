@@ -3346,7 +3346,7 @@ def update_dividends(stk, core, sem):
         c  = open_db_client()
         db = c['Stocks']
 
-        if 'dividends_pull_date' in stk['dates'].keys() and \
+        if 'dates' in stk.keys() and 'dividends_pull_date' in stk['dates'].keys() and \
                 stk['dates']['dividends_pull_date'].date() == dt.now().date():
             update = False
             return
@@ -3495,7 +3495,7 @@ def update_technicals(stk, core, sem):
         c  = open_db_client()
         db = c['Stocks']
 
-        if 'technicals_pull_date' in stk['dates'].keys() and \
+        if 'dates' in stk.keys() and 'technicals_pull_date' in stk['dates'].keys() and \
                 stk['dates']['technicals_pull_date'].date() == dt.now().date():
             update = False
             return
