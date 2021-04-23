@@ -222,42 +222,55 @@ def mysql_add_column(mysql_engine, table_name, col_name, col_dtype, remove_space
 
 def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price', remove_spaces=True):
     unknown_fields = 0
-    if cols_type == 'price':
-        for c in sorted(missing_cols):
-            if c in price_fields:
-                c_dtype = price_fields_datatypes[price_fields.index(c)]
-                #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-            elif c in price_change_fields:
-                c_dtype = price_change_fields_datatypes[price_change_fields.index(c)]
-                #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-            elif c in fin_year_fields:
-                c_dtype = fin_year_fields_datatypes[fin_year_fields.index(c)]
-                #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-            elif c in fin_quarter_fields:
-                c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
-                #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-            elif c.lower() in list(map(lambda x: x.lower(), generic_fields)):
-                c_dtype = generic_fields_datatypes[generic_fields.index(c)]
-            else:
-                c_dtype = 'float'
-            print("%s: Price cols: %s: %s" %(table_name, c, c_dtype))
-            mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
-    elif cols_type == 'text':
+    all_fields = {**price_fields, **price_change_fields,\
+                **fin_year_fields, **fin_quarter_fields, \
+                **income_fields, **balance_fields, **cash_fields,\
+                **generic_fields,}
+    if cols_type == 'text':
         for c in sorted(missing_cols):
             c_dtype = 'text'
             print("%s: Text cols: %s: %s" %(table_name, c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     else:
         for c in sorted(missing_cols):
-            #if 'Symbol'.lower() in c.lower() or 'Date'.lower() in c.lower() or 'SPLIT'.lower() in c.lower():
-            #    c_dtype = 'varchar(12)'
-            gen_fields = list(map(lambda x: x.lower(), generic_fields))
-            if c.lower() in gen_fields:
-                c_dtype = generic_fields_datatypes[gen_fields.index(c.lower())]
+            if c in all_fields.keys():
+                c_dtype = all_fields[c]
             else:
                 c_dtype = 'float'
-            print("%s: other columns: %s: %s" %(table_name, c, c_dtype))
+            print("%s: Column: %s: %s" %(table_name, c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+ 
+    #if cols_type == 'price':
+    #    for c in sorted(missing_cols):
+    #        if c in price_fields:
+    #            c_dtype = price_fields_datatypes[price_fields.index(c)]
+    #            #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+    #        elif c in price_change_fields:
+    #            c_dtype = price_change_fields_datatypes[price_change_fields.index(c)]
+    #            #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+    #        elif c in fin_year_fields:
+    #            c_dtype = fin_year_fields_datatypes[fin_year_fields.index(c)]
+    #            #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+    #        elif c in fin_quarter_fields:
+    #            c_dtype = fin_quarter_fields_datatypes[fin_quarter_fields.index(c)]
+    #            #mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+    #        elif c.lower() in list(map(lambda x: x.lower(), generic_fields)):
+    #            c_dtype = generic_fields_datatypes[generic_fields.index(c)]
+    #        else:
+    #            c_dtype = 'float'
+    #        print("%s: Price cols: %s: %s" %(table_name, c, c_dtype))
+    #        mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
+   #else:
+    #    for c in sorted(missing_cols):
+    #        #if 'Symbol'.lower() in c.lower() or 'Date'.lower() in c.lower() or 'SPLIT'.lower() in c.lower():
+    #        #    c_dtype = 'varchar(12)'
+    #        gen_fields = list(map(lambda x: x.lower(), generic_fields))
+    #        if c.lower() in gen_fields:
+    #            c_dtype = generic_fields_datatypes[gen_fields.index(c.lower())]
+    #        else:
+    #            c_dtype = 'float'
+    #        print("%s: other columns: %s: %s" %(table_name, c, c_dtype))
+    #        mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     return unknown_fields # Use of unknown_fields is deprecated.
 
 def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True, empty_table=False, fin_table=False):
@@ -299,7 +312,8 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
 
             #df_cols_lower = list(map(lambda x: x.lower(), df_cols))
             #table_cols_lower = list(map(lambda x: x.lower(), table_cols))
-            missing_cols = list(set(df_cols)-set(table_cols))
+            #missing_cols = list(set(df_cols)-set(table_cols))
+            missing_cols = list_difference(df_cols,table_cols)
             if len(missing_cols) > 0:
                 print("Adding missing columns")
                 miss = mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type, remove_spaces)
@@ -3466,6 +3480,113 @@ def update_all_dividends():
     finally:
         close_db_client(c)
         close_sql_connection(mysql_engine)
+
+def update_technicals(stk, core, sem):
+
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+
+    update = False
+    df  = pd.DataFrame()
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Technicals')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        if 'technicals_pull_date' in stk['dates'].keys() and \
+                stk['dates']['technicals_pull_date'].date() == dt.now().date():
+            update = False
+            return
+
+        table_name = get_symbol_table_name(stk['bscs']['symbol'])
+
+        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings'
+
+        try:
+            ret = requests.get(url)
+            if ret.status_code == 404:
+                print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                update = True
+                return
+            if ret.status_code != 200:
+                print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+        technicals = ret.json()
+        if len(technicals) == 0 or not isinstance(technicals, dict):
+            update = True
+            return
+
+        df = pd.DataFrame()
+        for k in list(technicals.keys())[1:]: #Exclude General
+            if technicals[k] != 'NA':
+                df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
+                db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {k: technicals[k]}})
+
+        if technicals['General'] != 'NA':
+           db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
+
+        if not df.empty:
+            if 'NumberDividendsByYear' in df.index:
+                df.drop(['NumberDividendsByYear'], inplace=True)
+
+            df = df.transpose()
+            df['Date'] = dt.now().date()
+            df.index = df['Date']
+            # Remove duplicate columns
+            df = df.loc[:,~df.columns.duplicated()]
+
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='general', temp=False, date_column=False, format_columns=False, primary_key=True, empty_table=False, fin_table=False)
+            update = True
+ 
+    finally:
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.technicals_pull_date', dt.combine(dt.now(), dt.min.time()))
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_all_technicals():
+    c  = open_db_client()
+    db = c['Stocks']
+
+    num_processes = 6 #* 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    today = dt.combine(dt.now(), dt.min.time())
+
+    try:
+        # First get dividends for all new stocks
+        #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.technicals_pull_date": {"$lt": today}}, {"dates.technicals_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
+        #stocks = db.US_Stocks.find({"bscs.exchange":{'$in': major_exchanges}})
+        print(stocks.count())
+
+        for i, stk in enumerate(stocks):
+            print("%d: %r" %(i, stk['bscs']['symbol']))
+            sem.acquire()
+            #update_technicals(stk, 0, sem)
+            processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
+            processes[j%num_processes].start()
+            j = j + 1
+
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+
+    finally:
+        close_db_client(c)
 
 # This function is deprecated. Instead use build_US_stock_information2
 def build_US_stock_information(doc, finance=True):

@@ -420,33 +420,115 @@ treasury_yield_urls = {
                         'month' : 'https://www.treasury.gov/resource-center/data-chart-center/interest-rates/pages/TextView.aspx?data=yield',
                     }
 
-price_fields = ['Date', 'High', 'Low', 'Open', 'Close', 'Volume', 'Adj Close', 'Short']
+price_fields = {'Date':'varchar(12)', 
+                'High':'float', 
+                'Low':'float', 
+                'Open':'float', 
+                'Close':'float', 
+                'Volume':'INT UNSIGNED', 
+                'Adj Close':'float', 
+                'Short':'INT UNSIGNED',
+                }
 price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'INT UNSIGNED', 'float', 'INT UNSIGNED']
 
-price_change_fields = ['Day Change', 'Week Change', 'Two Week Change', 'Month Change', 'Quarter Change', 'Half Year Change', 'Year Change', 'Five Year Change', 'Ten Year Change', 'Whole Change']
+price_change_fields = {'Day Change':'float', 
+                        'Week Change':'float',
+                        'Two Week Change':'float',
+                        'Month Change':'float',
+                        'Quarter Change':'float',
+                        'Half Year Change':'float', 
+                        'Year Change':'float', 
+                        'Five Year Change':'float', 
+                        'Ten Year Change':'float', 
+                        'Whole Change':'float',
+                        }
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
 price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(weeks=2), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
-beta_change_fields = ['One_Month', 'Three_Months', 'Six_Months', 'Year', 'Five_Year']
+beta_change_fields = {'One_Month':relativedelta(months=1), 
+                        'Three_Months':relativedelta(months=3), 
+                        'Six_Months':relativedelta(months=6),
+                        'Year':relativedelta(years=1),
+                        'Five_Year':relativedelta(years=5),
+                    }
 #beta_change_fields = ['One_Month_Beta', 'Three_Months_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
 beta_change_durations = [relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5)]
 beta_parameters = ['beta', 'volatility', 'momentum']
 #beta_parameters = ['Start_Price', 'End_Price', 'Start_Date', 'End_Date', 'Index_CAGR', 'Index_Percent_Change', 'CAGR', 'Percent_Change', 'beta', 'alpha', 'alpha_pure', 'r_squared', 'volatility', 'avg_price']
 
-fin_year_fields = ['yoy', 'yo3y', 'yo5y', 'yo10y', 'yowy']
+fin_year_fields = {'yoy':'float', 
+                    'yo3y':'float',
+                    'yo5y':'float',
+                    'yo10y':'float',
+                    'yowy':'float',
+                    }
 fin_year_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_year_price_durations = [relativedelta(years=1), relativedelta(years=3), relativedelta(years=5), relativedelta(years=10)]
 
-fin_quarter_fields = ['qoq', 'qo2q', 'qo4q', 'qo6q', 'qowq']
+fin_quarter_fields = {'qoq':'float',
+                        'qo2q':'float', 
+                        'qo4q':'float', 
+                        'qo6q':'float', 
+                        'qowq':'float',
+                        }
 fin_quarter_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_quarter_price_durations = [relativedelta(months=3), relativedelta(months=6), relativedelta(months=12), relativedelta(months=24)]
 
-income_fields = ['Sales', 'Gross Profit', 'Net Income $M', 'EPS Diluted Continuous Ops']
-balance_fields = ['Cash & Cash Equivalents', 'Total Current Assets', 'Total Non-Current Assets','Total Assets $M', 'Total Current Liabilities', 'Total Non-Current Liabilities', 'Total liabilities', 'Common Shares', 'Total Liabilities And Equity']
-cash_fields = ['Beginning Cash Position', 'End Cash Position', 'Free Cash Flow', 'Change In Cash']
+income_fields = {'Sales':'float', 
+                    'Gross Profit':'float', 
+                    'Net Income $M':'float', 
+                    'EPS Diluted Continuous Ops':'float',
+                    }
+balance_fields = {'Cash & Cash Equivalents':'float', 
+                    'Total Current Assets':'float', 
+                    'Total Non-Current Assets':'float',
+                    'Total Assets $M':'float', 
+                    'Total Current Liabilities':'float', 
+                    'Total Non-Current Liabilities':'float', 
+                    'Total liabilities':'float', 
+                    'Common Shares':'BIG INT', 
+                    'Total Liabilities And Equity':'float',
+                    }
+cash_fields = {'Beginning Cash Position':'float', 
+                'End Cash Position':'float', 
+                'Free Cash Flow':'float', 
+                'Change In Cash':'float',
+                }
 
-generic_fields = ['Symbol', 'Date', 'SPLIT', 'contractSymbol', 'lastTradeDate', 'strike', 'lastPrice', 'bid', 'ask', 'change', 'percentChange', 'volume', 'openInterest', 'impliedVolatility', 'inTheMoney', 'contractSize', 'currency', 'currency_symbol', 'filing_date', 'Stock Splits', 'period', 'paymentDate', 'declarationDate', 'recordDate']
-generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(20)', 'varchar(15)', 'varchar(12)', 'varchar(12)', 'varchar(12)']
+generic_fields = {'Symbol':'varchar(12)', 
+                    'Date':'varchar(12)', 
+                    'SPLIT':'varchar(12)',
+                    'contractSymbol':'varchar(12)', 
+                    'lastTradeDate':'varchar(12)', 
+                    'strike':'float', 
+                    'lastPrice':'float', 
+                    'bid':'float', 
+                    'ask':'float', 
+                    'change':'float', 
+                    'percentChange':'float', 
+                    'volume':'UNSIGNED INT', 
+                    'openInterest':'float', 
+                    'impliedVolatility':'float', 
+                    'inTheMoney':'BOOL', 
+                    'contractSize':'UNSIGNED INT', 
+                    'currency':'varchar(12)', 
+                    'currency_symbol':'varchar(12)', 
+                    'filing_date':'varchar(12)', 
+                    'Stock Splits':'varchar(20)', 
+                    'period':'varchar(15)', 
+                    'paymentDate':'varchar(12)', 
+                    'declarationDate':'varchar(12)', 
+                    'recordDate':'varchar(12)', 
+                    'MostRecentQuarter':'varchar(12)', 
+                    'DividendDate':'varchar(12)', 
+                    'ExDividendDate':'varchar(12)', 
+                    'LastSplitDate':'varchar(12)', 
+                    'dateFormatted':'varchar(12)', 
+                    'sharesMln': 'BIG INT', 
+                    'shares': 'BIG INT', 
+                    'LastSplitFactor':'varchar(20)',
+                    }
+generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(20)', 'varchar(15)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'BIGINT', 'BIGINT', 'varchar(12)']
 
 #Ticker info fields in the US_Stocks.STKSYMBOL.
 # This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.

@@ -163,6 +163,9 @@ def list_difference(l1, l2):
     s = set(l2)
     diff = [x for x in l1 if x not in s]
     return diff
+#Waste. Use the top one.
+def list_difference2(li1, li2):
+    return (list(list(set(li1)-set(li2)) + list(set(li2)-set(li1))))
 
 proxy_lock = multiprocessing.Lock()
 

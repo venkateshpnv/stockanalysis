@@ -986,7 +986,7 @@ def bulk_update_price_volume(country, db, sql_engine):
     if 'Ex' in df.columns:
         del df['Ex']
 
-    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.mysql_price_date':{'$lt': till_date}}, {'bscs.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["bscs.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$lt': till_date}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     t = None
     for stk in stocks:
@@ -999,7 +999,7 @@ def bulk_update_price_volume(country, db, sql_engine):
         else:
             fail_count = 1
             if 'mysql_price_failcount' in stk['bscs'].keys():
-                fail_count = stk['bscs']['mysql_price_failcount'] + fail_count
+                fail_count = stk['failcount']['mysql_price_failcount'] + fail_count
             DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", fail_count)
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
@@ -1102,7 +1102,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             #    DB.check_volume_of_last_record(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']))
             #else:
             #    pass
-            #    #last_updated_date = dt.strptime(stk['bscs']['mysql_price_date'].split(' ')[0], "%Y-%m-%d").date()
+            #    #last_updated_date = dt.strptime(stk['dates']['mysql_price_date'].split(' ')[0], "%Y-%m-%d").date()
             #    #if last_updated_date >= end:
             #    #    return
 
