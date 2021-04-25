@@ -527,6 +527,8 @@ generic_fields = {'Symbol':'varchar(12)',
                     'sharesMln': 'BIG INT', 
                     'shares': 'BIG INT', 
                     'LastSplitFactor':'varchar(20)',
+                    'Holiday':'text',
+                    'Type':'text',
                     }
 generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(20)', 'varchar(15)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'BIGINT', 'BIGINT', 'varchar(12)']
 

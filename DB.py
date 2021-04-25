@@ -2203,16 +2203,25 @@ def get_eod_symbols():
         obj = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
         if obj.count() == 0:
             print("%r: %r: %r: %r" %(d['Symbol'],d['Name'], d['Exchange'], d['Type']))
-            stk_df = df[df['Symbol'] == d['Symbol']]
+            bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
+            stk  = {"bscs" : bscs, "sno": j}
+            db.US_Stocks.insert_one(stk)
+
+            url='https://eodhistoricaldata.com/api/fundamentals/'+d['Symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+            ret = requests.get(url)
+            if ret.status_code == 200:
+                general = ret.json()
+                if len(general) != 0 or isinstance(general, dict):
+                    if general != 'NA':
+                       db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {'General': general}})
+
             entry = []
             entry.append(d['Symbol'])
             entry.append(d['Name'])
             entry.append(d['Exchange'])
             entries.append(entry)
             j+=1
-            bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
-            stk  = {"bscs" : bscs, "sno": j}
-            db.US_Stocks.insert_one(stk)
+            stk_df = df[df['Symbol'] == d['Symbol']]
             mysql_update_table(mysql_engine, table_name, stk_df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
         else:
             db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.exchange": d['Exchange']}})
@@ -3089,7 +3098,7 @@ def update_US_all_stock_fin_information():
  
     close_db_client(c)
 
-def update_short_interests(stk, core, sem):
+def update_short_interests(stk, core, sem=None):
 
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
@@ -3191,7 +3200,7 @@ def update_all_short_interests():
  
     close_db_client(c)
 
-def update_splits(stk, core, sem):
+def update_splits(stk, core, sem=None):
 
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
@@ -3206,7 +3215,7 @@ def update_splits(stk, core, sem):
         c  = open_db_client()
         db = c['Stocks']
 
-        if 'dates' in stk.keys and 'splits_pull_date' in stk['dates'].keys() and \
+        if 'dates' in stk.keys() and 'splits_pull_date' in stk['dates'].keys() and \
                 stk['dates']['splits_pull_date'].date() == dt.now().date():
             update = False
             return
@@ -3295,6 +3304,11 @@ def update_all_splits():
         if processes[j] is not None:
             processes[j].join()
 
+    # Now get the bulk list of stocks with the splits.
+    # For each stock, perform update_splits().
+    # This is required because the bulk pull does not return information like recorded date etc.
+    # It only returns the split factor.
+
     url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=splits'
     ret = requests.get(url)
     df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
@@ -3313,25 +3327,27 @@ def update_all_splits():
         df['Split_Num']=nan
         df['Split_Denom']=nan
         for i, d in df.iterrows():
-            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'bscs.exchange':{"$in":major_exchanges}}]})
+            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'bscs.exchange':{"$in":major_exchanges}}, {"dates.splits_pull_date": {"$lt": today}}]})
             if stocks.count() == 0 or stocks.count() > 1:
                 continue
 
-            df.loc[i, 'Split_Num']   = float(d['Stock Splits'].split('/')[0])
-            df.loc[i, 'Split_Denom'] = float(d['Stock Splits'].split('/')[1])
+            update_splits(stk, 0, sem=None)
 
-            stk_df = df[df['Symbol'] == d['Symbol']]
-            stk_df.index = stk_df['Date']
-            del stk_df['Stock Splits']
-            mysql_update_table(mysql_engine, table_name, stk_df, insert=True, check=True, date_column=False, format_columns=False)
-            update_field(db.US_Stocks, d['Symbol'], 'dates.splits_pull_date', dt.combine(dt.now(), dt.min.time()))
-            update_field(db.US_Stocks, d['Symbol'], 'dates.last_split_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
+            #df.loc[i, 'Split_Num']   = float(d['Stock Splits'].split('/')[0])
+            #df.loc[i, 'Split_Denom'] = float(d['Stock Splits'].split('/')[1])
+
+            #stk_df = df[df['Symbol'] == d['Symbol']]
+            #stk_df.index = stk_df['Date']
+            #del stk_df['Stock Splits']
+            #mysql_update_table(mysql_engine, table_name, stk_df, insert=True, check=True, date_column=False, format_columns=False)
+            #update_field(db.US_Stocks, d['Symbol'], 'dates.splits_pull_date', dt.combine(dt.now(), dt.min.time()))
+            #update_field(db.US_Stocks, d['Symbol'], 'dates.last_split_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
         del df['Stock Splits']
         
     close_db_client(c)
     close_sql_connection(mysql_engine)
 
-def update_dividends(stk, core, sem):
+def update_dividends(stk, core, sem=None):
 
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
@@ -3425,10 +3441,10 @@ def update_all_dividends():
 
     try:
         # First get dividends for all new stocks
-        #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
         #stocks = db.US_Stocks.find({"bscs.exchange":{'$in': major_exchanges}})
         print(stocks.count())
@@ -3445,37 +3461,39 @@ def update_all_dividends():
             if processes[j] is not None:
                 processes[j].join()
 
-        #url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=dividends&fmt=json'
-        #ret = requests.get(url)
-        #if ret.status_code != 200:
-        #    return
+        url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=dividends&fmt=json'
+        ret = requests.get(url)
+        if ret.status_code != 200:
+            return
 
-        #df  = pd.DataFrame(ret.json())
-        #df  = df.dropna()
-        #if not df.empty:
-        #    if 'code' in df.columns:
-        #        df.rename(columns = {'code': 'Symbol'}, inplace=True)
-        #    if 'currency' in df.columns:
-        #        del df['currency']
-        #    if 'Ex' in df.columns:
-        #        del df['Ex']
-        #    if 'exchange' in df.columns:
-        #        del df['exchange']
-        #    if 'date' in df.columns:
-        #        df.rename(columns = {'date': 'Date'}, inplace=True)
-        #    if 'dividend' in df.columns:
-        #        df.rename(columns = {'dividend': 'value'}, inplace=True)
-        #    df.index = df['Date']
+        df  = pd.DataFrame(ret.json())
+        df  = df.dropna()
+        if not df.empty:
+            if 'code' in df.columns:
+                df.rename(columns = {'code': 'Symbol'}, inplace=True)
+            if 'currency' in df.columns:
+                del df['currency']
+            if 'Ex' in df.columns:
+                del df['Ex']
+            if 'exchange' in df.columns:
+                del df['exchange']
+            if 'date' in df.columns:
+                df.rename(columns = {'date': 'Date'}, inplace=True)
+            if 'dividend' in df.columns:
+                df.rename(columns = {'dividend': 'value'}, inplace=True)
+            df.index = df['Date']
 
-        #    for i, d in df.iterrows():
-        #        stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"},{'bscs.exchange':{"$in":major_exchanges}}]})
-        #        if stocks.count() == 0 or stocks.count() > 1:
-        #            continue
+            for i, d in df.iterrows():
+                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'bscs.exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": today}}]})
 
-        #        stk_df = df[df['Symbol'] == d['Symbol']]
-        #        mysql_update_table(mysql_engine, table_name, stk_df, insert=True, check=True, date_column=False, format_columns=False)
-        #        update_field(db.US_Stocks, d['Symbol'], 'dates.dividends_pull_date', dt.combine(dt.now(), dt.min.time()))
-        #        update_field(db.US_Stocks, d['Symbol'], 'dates.last_dividend_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
+                if stocks.count() == 0 or stocks.count() > 1:
+                    continue
+                update_dividends(stk, 0, sem=None)
+
+                #stk_df = df[df['Symbol'] == d['Symbol']]
+                #mysql_update_table(mysql_engine, table_name, stk_df, insert=True, check=True, date_column=False, format_columns=False)
+                #update_field(db.US_Stocks, d['Symbol'], 'dates.dividends_pull_date', dt.combine(dt.now(), dt.min.time()))
+                #update_field(db.US_Stocks, d['Symbol'], 'dates.last_dividend_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
  
     finally:
         close_db_client(c)
@@ -3502,7 +3520,7 @@ def update_technicals(stk, core, sem):
 
         table_name = get_symbol_table_name(stk['bscs']['symbol'])
 
-        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings'
+        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings'
 
         try:
             ret = requests.get(url)
@@ -3523,13 +3541,10 @@ def update_technicals(stk, core, sem):
             return
 
         df = pd.DataFrame()
-        for k in list(technicals.keys())[1:]: #Exclude General
+        for k in list(technicals.keys()):
             if technicals[k] != 'NA':
                 df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
                 db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {k: technicals[k]}})
-
-        if technicals['General'] != 'NA':
-           db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
 
         if not df.empty:
             if 'NumberDividendsByYear' in df.index:
@@ -3587,6 +3602,37 @@ def update_all_technicals():
 
     finally:
         close_db_client(c)
+
+def update_US_holiday_list():
+    start = date(date.today().year, 1, 1)
+    end = date(date.today().year,12,31)
+    url='https://eodhistoricaldata.com/api/exchange-details/US?api_token='+\
+            get_eod_token_id()+\
+            '&from='+str(start)+\
+            '&to='+str(end)
+    try:
+        ret = requests.get(url)
+        if ret.status_code != 200:
+            print("Failed to get the US holiday list")
+            return
+    except Exception as E:
+        print("Failed to get the US holiday list. Error: %r"%(str(E)))
+  
+    try:
+        df = pd.DataFrame(ret.json()['ExchangeHolidays']).transpose()
+        df.index = df['Date']
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+        table_name = 'US_Holiday_List'
+        mysql_check_n_create_table(mysql_engine, table_name)
+        query = 'select * from {}'.format(table_name)
+        ddf = read_from_sql(query, mysql_engine)
+        df = df_difference(df, ddf)
+        if not df.empty:
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='generic', temp=False, date_column=False, format_columns=False, primary_key=True, empty_table=False)
+
+    finally:
+        close_sql_connection(mysql_engine)
+
 
 # This function is deprecated. Instead use build_US_stock_information2
 def build_US_stock_information(doc, finance=True):
