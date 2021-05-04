@@ -910,7 +910,7 @@ def update_field_change(df, nans, field, duration, whole_change=False):
     return df
 
 # Update df daily, weekly etc percent change
-def update_percent_change(df, fields=price_change_fields, durations=price_change_durations):
+def update_percent_change(df, fields=price_change_fields.keys(), durations=price_change_fields.values()):
     write = False
     for f in fields:
         if f not in list(df.keys()):
@@ -948,7 +948,7 @@ def update_percent_change(df, fields=price_change_fields, durations=price_change
 
 # Update day change, week change, month change etc till 10 year and whole percent change in the price of the stock for every day and update it in the df
 def update_percent_change_all(country):
-    fields = price_fields + price_change_fields
+    fields = price_fields + [*price_change_fields]
 
     mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', 3036, 'US_Stocks')
     c = DB.open_db_client()
@@ -978,37 +978,48 @@ def update_percent_change_all(country):
         DB.close_sql_connection(mysql_engine)
 
 def bulk_update_price_volume(country, db, sql_engine):
-    url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()
-    ret = requests.get(url)
-    df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
-    df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
-    df['Symbol'] = df.index
-    if 'Ex' in df.columns:
-        del df['Ex']
+    # The data fetch from this bulk API will only contain today's price data.
+    # Incase if the stock was not updated with the price information for sometime,
+    # you might miss the old data if you only update today's data.
+    # To overcome this issue, check if the stock has up-to-date price data till the 
+    # last trading day and then add today's data. Else don't touch that stock.
+    # They will be taken care in a different execution path.
+    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
-    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$lt': till_date}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    if stocks.count() != 0:
+        url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
+        ret = requests.get(url)
+        df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+        df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
+        df['Symbol'] = df.index
+        if 'Ex' in df.columns:
+            del df['Ex']
 
-    t = None
-    for stk in stocks:
-        stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
-        if not stk_df.empty:
-            stk_df.index = stk_df['Date']
-            del stk_df['Symbol']
-            DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), stk_df, insert=True, check=True, date_column=False, format_columns=False)
-            DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", 0)
-        else:
-            fail_count = 1
-            if 'mysql_price_failcount' in stk['bscs'].keys():
-                fail_count = stk['failcount']['mysql_price_failcount'] + fail_count
-            DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", fail_count)
+
+        t = None
+        #for index, d in df.iterrows():
+        for stk in stocks:
+            stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
+            if not stk_df.empty:
+                stk_df.index = stk_df['Date']
+                del stk_df['Symbol']
+                DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), stk_df, insert=True, check=True, date_column=False, format_columns=False)
+                DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", 0)
+            else:
+                fail_count = 1
+                if 'mysql_price_failcount' in stk['bscs'].keys():
+                    fail_count = stk['failcount']['mysql_price_failcount'] + fail_count
+                DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", fail_count)
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
 
-    print("%s: Getting price and volume"%(symbol))
     aff = 0 | 1 << core
     #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
-    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    data_update = False
+    data_pull = False
 
     local_mdb = False
     local_sql = False
@@ -1037,7 +1048,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
     collection = DB.get_collection(country, db)
     try:
         today=dt.now()
-        end=dt.now().date()# - timedelta(7)
+        #end=dt.now().date()# - timedelta(7)
+        end = DB.get_latest_trading_day().date()
         #Updating the price and volume for the first time
         if stk['bscs']['symbol'] in indices.keys():
             index  = True
@@ -1049,7 +1061,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
         table = DB.get_symbol_table_name(symbol)
 
-        if not index and (len(symbols) == 0 or symbol not in symbols):
+        #if not index and (len(symbols) == 0 or symbol not in symbols):
+        if False:
             # Check if symbol is ending with +, =, -
             # Delete those junk symbols from mongodb
             if re.match(r'.*[\+|\=|\-]$', symbol):
@@ -1060,6 +1073,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
                 print("New symbol: getting data for %r" %(stk['bscs']['symbol']))
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
+                data_pull = True 
                 #df = remove_df_duplicates(df)
                 if not df.empty:
                     #df['Symbol'] = symbol
@@ -1071,13 +1085,16 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), insert=True, check=True, date_column=False, format_columns=False)
                     # Update the date on which the price is updated
                     #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
-                    # Reset mysql_price_failcount
-                    DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
- 
+                    if not index:
+                        # Reset mysql_price_failcount
+                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
+                        DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
+                        data_update = True
                 else:
-                    DB.update_field(collection, symbol, "ignore", "YES")
-                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
-                    DB.update_price_failcount(stk, country, df=True)
+                    if not index:
+                        DB.update_field(collection, symbol, "ignore", "YES")
+                        #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        DB.update_price_failcount(stk, country, df=True)
 
                 #if index:
                 #    df = update_percent_change(df)
@@ -1134,12 +1151,13 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 # Min of week is a safer timespan.
                 # Though you get a week data, insert only the entries that are missing.
                 # Taken care below.
-                if end-start < timedelta(10):
-                    start = end - timedelta(10)
+                #if end-start < timedelta(10):
+                #    start = end - timedelta(10)
 
-                #print("getting data for %r from yahoo" %(stk['bscs']['symbol']))
+                print("getting data for %r , sno: %r" %(stk['bscs']['symbol'], stk['sno']))
                 #s=time.time()
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
+                data_pull = True
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
                 #df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
@@ -1158,8 +1176,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     if not df.empty:
                         try:
                             if not rdf.empty and rdf['Date'][0] in list(df.index):
-                                index = df.index.get_loc(rdf['Date'][0])
-                                df = df[index+1:]
+                                df_index = df.index.get_loc(rdf['Date'][0])
+                                df = df[df_index+1:]
                         except Exception as E:
                             print("hdf5.py: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
                             print("hdf5.py: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
@@ -1174,7 +1192,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         DB.mysql_update_table(sql_engine, table, df, insert=True, check=True, date_column=False, format_columns=False)
                         #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                         # Reset mysql_price_failcount
-                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
+                        if not index:
+                            DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
+                            DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
+                        data_update = True
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
@@ -1191,12 +1212,19 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     # Update the date on which the price is updated
                     #DB.update_field(collection, symbol, "ignore", "NO")
                 else:
-                    PRINT_ERR("df empty for %r" %(symbol))
-                    DB.update_field(collection, symbol, "ignore", "YES")
-                    #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
-                    DB.update_price_failcount(stk, country, df=True)
+                    if not index:
+                        PRINT_ERR("df empty for %r" %(symbol))
+                        DB.update_field(collection, symbol, "ignore", "YES")
+                        #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        DB.update_price_failcount(stk, country, df=True)
 
-        DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                if not index:
+                    if data_pull:
+                        DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    if data_update:
+                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
+                    else:
+                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", False)
 
     finally:
         # Update the date on which the price is updated

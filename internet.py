@@ -454,9 +454,9 @@ def nullify_price_change_error_stk(country, collection, sym, sql_engine):
                 if abs(abs(price_change) - abs(cur_df['Day Change'][-1])) > 0.05: # Atleast 5% difference
                     # Nullify from here to end of the table
                     #query = 'select * from {} where `Date` BETWEEN \'{}\' and  NOW()'.format(table_name, end_date)
-                    query = 'select `Date`, {} from {} where `Date` BETWEEN \'{}\' and  NOW()'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name, end_date)
+                    query = 'select `Date`, {} from {} where `Date` BETWEEN \'{}\' and  NOW()'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name, end_date)
                     df2 = DB.read_from_sql(query, sql_engine)
-                    for field in price_change_fields:
+                    for field in [*price_change_fields]:
                         df2[field] = None
                     print("Updating change: %r" %(cur_df))
                     DB.mysql_update_table(sql_engine, table_name, df2, check=True)
@@ -493,7 +493,7 @@ def update_price_change(country, sym, core, sem=None):
     print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
-    os.system("taskset -p %r %d" %(str(hex(aff)), os.getpid()))
+    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
     
     table_name = DB.get_symbol_table_name(sym)
     change = 0
@@ -503,7 +503,7 @@ def update_price_change(country, sym, core, sem=None):
             print("mysql: percent_change: %s"%(sym))
 
             table_cols = DB.mysql_get_columns_from_engine(sql_engine, table_name)
-            missing_cols = list_difference(price_change_fields, table_cols)
+            missing_cols = list_difference([*price_change_fields], table_cols)
             # Some price change fields are not present in the database.
             # The datatype of the fields is taken from the price fields 
             # mentioned in the datastructures.py 
@@ -515,11 +515,11 @@ def update_price_change(country, sym, core, sem=None):
                     PRINT_ERR("Columns: ",missing_cols)
                     sys.exit(1)
 
-            for i, field in enumerate(price_change_fields[0:-1]):
+            for i, field in enumerate([*price_change_fields][:-1]):
                 query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
                 #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
                 #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
-                #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+                #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name)
                 df = DB.read_from_sql(query, sql_engine)
                 if df.empty:
                     #if sem:
@@ -532,10 +532,11 @@ def update_price_change(country, sym, core, sem=None):
                     cur_date = pd.to_datetime(index).date()
                     cur_date_str = str(cur_date)
                     #wdf.loc[cur_date_str]=nan
-                    wdf.loc[cur_date_str]['Date'] = cur_date_str
+                    #wdf.loc[cur_date_str]['Date'] = cur_date_str
+                    wdf.loc[cur_date_str, 'Date'] = cur_date_str
                     start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
                     change = percent_change(start_price, cur_price)
-                    wdf.loc[cur_date_str][price_change_fields[i]] = change
+                    wdf.loc[cur_date_str][[*price_change_fields][i]] = change
 
                 wdf = wdf.dropna(axis=0)
                 # Write to the database
@@ -544,7 +545,7 @@ def update_price_change(country, sym, core, sem=None):
             # To save time in condition checks, calculate the 
             # whole field seperately outside the loop.
             start_price = df['Adj Close'][0]
-            field = price_change_fields[-1]
+            field = [*price_change_fields][-1]
             query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
             df = DB.read_from_sql(query, sql_engine)
             if not df.empty:
@@ -554,15 +555,17 @@ def update_price_change(country, sym, core, sem=None):
                     cur_date = pd.to_datetime(index).date()
                     cur_date_str = str(cur_date)
                     #wdf.loc[cur_date_str]=nan
-                    wdf.loc[cur_date_str]['Date'] = cur_date_str
+                    #wdf.loc[cur_date_str]['Date'] = cur_date_str
+                    wdf.loc[cur_date_str, 'Date'] = cur_date_str
                     change = percent_change(start_price, cur_price)
-                    wdf.loc[cur_date_str][price_change_fields[-1]] = change
+                    #Ewdf.loc[cur_date_str][[*price_change_fields][-1]] = change
+                    wdf.loc[cur_date_str, [*price_change_fields][-1]] = change
 
             wdf = wdf.dropna(axis=0)
             # Write to the database
             DB.mysql_update_table(sql_engine, table_name, wdf)
 
-            query = 'select `Date`, {} from {} order by Date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in price_change_fields]), table_name)
+            query = 'select `Date`, {} from {} order by Date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name)
             df = DB.read_from_sql(query, sql_engine)
 
             change = get_change(df, 'Day Change')
@@ -644,6 +647,8 @@ def update_price_change(country, sym, core, sem=None):
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
  
+    except Exception as E:
+        print("Error: %r" %(str(E)))
     finally:
         DB.update_field(collection, sym, "price_change.date", dt.now())
         DB.close_sql_connection(sql_engine)
@@ -706,9 +711,10 @@ def fork_hdf5_process(country):
         ##            ]
 
         ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
-        stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
- 
+        print("Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
         for i, stk in enumerate(stocks):
@@ -726,13 +732,10 @@ def fork_hdf5_process(country):
             #    continue
  
             sem.acquire()
+            print("Symbol: %r" %(stk['bscs']['symbol']))
             #update_price_change(country, stk['bscs']['symbol'], i%DB.num_cores, sem)
-            #t = threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,))
-            #t.start()
             processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
             processes[i%num_processes].start()
-            #if i > 10:
-            #    break;
 
     finally:
         # Wait till all threads are completed. You can use join() instead.
@@ -743,8 +746,6 @@ def fork_hdf5_process(country):
         for j in range(len(processes)):
             if processes[j] is not None:
                 processes[j].join()
-        #if t:
-        #    t.join()
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
     print("Percentage Change: Stocks tried :%r"%(i))
@@ -2561,7 +2562,7 @@ def populate_US_EPS(stk, mysql_engine=None, db=None):
         exception_info(E)
     finally:
         print("Killing firefox")
-        os.system('pkill -f firefox')
+        os.system('pkill -f firefox >/dev/null 2>&1')
         stop_thread=True
         if th:
             th.join()

@@ -1130,7 +1130,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         print(str(e))
 
     if country == 'US':
-        Mn = 1
+        Mn = 1000000
         Bn = 1000*Mn
         Tn = 1000*Bn
         try:
@@ -1138,21 +1138,21 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['Radar_Stocks']
             elif pp_stocks:
                 ash = ashs['Portfolio_Stocks']
-            elif stk['bscs']['marketCap'] > 100 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 100 * Bn:
                 ash = ashs['Above_100bn']
-            elif stk['bscs']['marketCap'] > 50 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 50 * Bn:
                 ash = ashs['50bn_100bn']
-            elif stk['bscs']['marketCap'] > 25 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 25 * Bn:
                 ash = ashs['25bn_50bn']
-            elif stk['bscs']['marketCap'] > 10 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 10 * Bn:
                 ash = ashs['10bn_25bn']
-            elif stk['bscs']['marketCap'] > 5 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 5 * Bn:
                 ash = ashs['5bn_10bn']
-            elif stk['bscs']['marketCap'] > 1 * Bn:
+            elif stk['Highlights']['MarketCapitalization'] > 1 * Bn:
                 ash = ashs['1bn_5bn']
-            elif stk['bscs']['marketCap'] > 500 * Mn:
+            elif stk['Highlights']['MarketCapitalization'] > 500 * Mn:
                 ash = ashs['500mn_1bn']
-            elif stk['bscs']['marketCap'] > 250 * Mn:
+            elif stk['Highlights']['MarketCapitalization'] > 250 * Mn:
                 ash = ashs['250mn_500mn']
             else:
                 ash = ashs['Below_250mn']

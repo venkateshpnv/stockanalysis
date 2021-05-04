@@ -332,7 +332,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                     print(row[1])
                     pp_stocks_list.append(row[1])
 
-    for doc in collection.find({'failcount.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
+
+    stocks = collection.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = collection.find({'bscs.symbol':'MTDR'})
+    print("Stocks: %r" %(stocks.count())) 
+    for doc in stocks:
+    #for doc in collection.find({'failcount.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
     #for doc in collection.find({'failcount.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
     #for doc in collection.find({'dates.price_date':{'$gte': dt.now()-timedelta(7)}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
     #for doc in collection.find($and: [{'dates.mysql_price_date':{'$gte': dt.now()-timedelta(7)}}, {'failcount.mysql_price_failcount' : {'$lt': 1}}], no_cursor_timeout=True).batch_size(10).sort([["sno",1]]):
@@ -401,12 +406,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                 stock['num']['inflation'] = inflation
                 stock['num']['discount_rate'] = discount_rate
                 stock['num']['margin_of_safety'] = mos
-                if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only) is False:
-                    #if db_state == 'SYNC_DB':
-                    if True:
-                        DB.update_dummy_dcf_numbers(collection, stock)
-                    del stock
-                    continue
+                #if calculate_dcf(country, stock, years, data_type, criteria, beta, prices_only) is False:
+                #    #if db_state == 'SYNC_DB':
+                #    if True:
+                #        DB.update_dummy_dcf_numbers(collection, stock)
+                #    del stock
+                #    continue
             #conf.COUNT+=1
             count+=1
             #print("count: %r, symb: %r" %(count, stock['bscs']['symbol']))
