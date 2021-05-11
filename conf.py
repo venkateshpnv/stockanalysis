@@ -17,7 +17,6 @@ SYM=0
 SEC=0
 IND=0
 SINCE=0
-EPS=0
 CUR_PR_DT=0
 CUR_PR=0
 F2WK_HG=0
@@ -46,6 +45,7 @@ THREE_PR=0
 THREE_BK=0
 THREE_CSH=0
 FV=0
+WEBSITE_BETA=0
 BETA=0
 ONE_BETA=0
 THREE_BETA=0
@@ -53,7 +53,6 @@ SIX_BETA=0
 YEAR_BETA=0
 FIVE_BETA=0
 PE=0
-F_PE=0
 TTM_PE=0
 NPM=0
 DTOTE=0
@@ -65,8 +64,6 @@ MCAP=0
 REVENUE=0
 FII=0
 DII=0
-DIV=0
-DIV_PAY=0
 R2007_BETA=0
 R2007_ALPHA=0
 R2007_PURE_ALPHA=0
@@ -169,10 +166,7 @@ def init_variables():
     CONF=0
     COMP=0
     SYM=0
-    SEC=0
-    IND=0
     SINCE=0
-    EPS=0
     CUR_PR_DT=0
     CUR_PR=0
     F2WK_HG=0
@@ -201,14 +195,13 @@ def init_variables():
     THREE_BK=0
     THREE_CSH=0
     FV=0
+    WEBSITE_BETA=0
     BETA=0
     ONE_BETA=0
     THREE_BETA=0
     SIX_BETA=0
     YEAR_BETA=0
     FIVE_BETA=0
-    PE=0
-    F_PE=0
     TTM_PE=0
     NPM=0
     DTOTE=0
@@ -221,8 +214,6 @@ def init_variables():
     FII=0
     DII=0
     PRM_S=0
-    DIV=0
-    DIV_PAY=0
     R2007_BETA=0
     R2007_ALPHA=0
     R2007_PURE_ALPHA=0
@@ -258,6 +249,54 @@ def init_variables():
     ONE_MOMENTUM=0
     THREE_MOMENTUM=0
     SIX_MOMENTUM=0
+
+    SEC=0
+    IND=0
+
+    PE=0
+    F_PE=0 # Forward PE
+    PB=0
+    PBMRQ=0 # Price to Book Most Recent Quarter
+    #PS=0
+    PSTTM=0
+    PEG=0
+    BOOK=0
+    
+    FIFTY_DAY_MA=0
+    TWO_HUNDRED_DAY_MA=0
+
+    EPS=0
+    EPS_ESTIMATE_CUR_YR=0
+    EPS_ESTIMATE_NEXT_YR=0
+    RPS_TTM=0 # Revenue per share TTM
+    PPS_TTM=0 # Profit per share TTM
+    GROSS_PROFIT_TTM=0
+    PROFIT_MARGIN=0
+    OPER_MARGIN_TTM=0
+    QUART_REV_GROWTH_YOY=0
+    QUART_EARNINGS_GROWTH_YOY=0
+    DIV=0 # Dividend Rate
+    DIV_PAY=0 # Dividend Payout Ratio
+
+    SHORT_RATIO=0
+    SHARES_FLOAT_PERCENT=0
+    #SHARES_SHORT=0
+    SHORT_PERCENT_FLOAT=0
+    SHORT_PERCENT_OUTSTANDING=0
+    SHORT_PRIOR_MONTH=0
+
+    WALLST_TARGET_PRICE=0 # Wallstreet target price
+    ANALYST_TARGET_PRICE=0
+    ANALYST_RATING=0
+    STRONG_BUY=0
+    #BUY=0
+    #HOLD=0
+    #SELL=0
+    STRONG_SELL=0
+
+    PERCENT_INSIDERS=0
+    PERCENT_INSTITUTIONS=0
+
     
     MAX_Years = 20
     #Sales, PAT, Cash Flow, Book Value

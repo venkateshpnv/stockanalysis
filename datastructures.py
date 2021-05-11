@@ -1,4 +1,5 @@
 from dateutil.relativedelta import relativedelta
+from datetime import datetime as dt
 
 class Basics:
     def __init__(self):
@@ -405,7 +406,7 @@ recessions = {
 major_exchanges = ['NASDAQ', 'NYSE', 'NYSE MKT', 'NYSE ARCA', 'AMEX']
 
 #select DISTINCT Exchange from US_Stocks_Data.US_All_Stocks_List order  by Exchange;
-all_symbols_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE ARCA', 'NYSE MKT', 'OTCBB', 'OTCCE', 'OTCGREY', 'OTCMKTS', 'OTCQB', 'OTCQX', 'PINK', 'US']
+all_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE ARCA', 'NYSE MKT', 'OTCBB', 'OTCCE', 'OTCGREY', 'OTCMKTS', 'OTCQB', 'OTCQX', 'PINK', 'US']
 
 all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
 
@@ -450,6 +451,7 @@ beta_change_fields = {'One_Month':relativedelta(months=1),
                         'Six_Months':relativedelta(months=6),
                         'Year':relativedelta(years=1),
                         'Five_Year':relativedelta(years=5),
+                        'Whole': dt.now().date() - dt.strptime("1970-01-01", "%Y-%m-%d").date(),
                     }
 #beta_change_fields = ['One_Month_Beta', 'Three_Months_Beta', 'Six_Months_Beta', 'Year_Beta', 'Five_Year_Beta', 'Ten_Year_Beta', 'Whole_Beta']
 beta_change_durations = [relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5)]

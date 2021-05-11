@@ -333,7 +333,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                     pp_stocks_list.append(row[1])
 
 
-    stocks = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {'General.IsDelisted':False}, {'failcount.mysql_price_failcount':{'$eq':0}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    stocks = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {'General.IsDelisted':False}, {'failcount.mysql_price_failcount':{'$eq':0}}, {'dates.technicals_pull_date':{'$gte':DB.get_previous_trading_day()}}, {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     #stocks = collection.find({'bscs.symbol':'MTDR'})
     print("Stocks: %r" %(stocks.count())) 
     for doc in stocks:
