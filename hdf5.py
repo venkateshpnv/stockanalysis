@@ -1089,6 +1089,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         # Reset mysql_price_failcount
                         DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                         DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
+                        DB.update_field(collection, symbol, "price_change.volume", df['Volume'][0])
                         data_update = True
                 else:
                     if not index:
@@ -1195,6 +1196,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         if not index:
                             DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                             DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
+                            DB.update_field(collection, symbol, "price_change.volume", df['Volume'][0])
                         data_update = True
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()

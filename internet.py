@@ -650,7 +650,7 @@ def update_price_change(country, sym, core, sem=None):
     except Exception as E:
         print("Error: %r" %(str(E)))
     finally:
-        DB.update_field(collection, sym, "price_change.date", dt.now())
+        DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
         if sem:
@@ -712,7 +712,11 @@ def fork_hdf5_process(country):
 
         ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-        stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}},\
+                                            {'bscs.quoteType':'Common Stock'}, \
+                                            {'price_change.date': {'$lt':DB.get_latest_trading_day()}} \
+                                        ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Stocks: %r" %(stocks.count())) 
         i=0
@@ -841,7 +845,15 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
     entries.append(head)
-    stocks = collection.find({'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
+    today = dt.combine(dt.now(), dt.min.time())
+    if today == DB.get_latest_trading_day():
+        latest_date = DB.get_latest_trading_day()
+    else:
+        latest_date = DB.get_previous_trading_day()
+
+    #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+
+    stocks = collection.find({'$and': [{"dates.mysql_price_date": {"$eq": latest_date}}, {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}}, {'General.IsDelisted': False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
     #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
     for stk in stocks:
@@ -850,29 +862,26 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
 
         bscs  = stk['bscs']
         pchg = stk['price_change']
-        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], bscs['name']))
+        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
         entry = [ ]
         entry.append(bscs['symbol'])
-        entry.append(bscs['name'])
-        if country == 'US':
-            if 'since' in bscs.keys():
-                entry.append(str(bscs['since']))
-            else:
-                entry.append("")
-        else:
-            entry.append(str("-"))
-        if 'sector' in bscs.keys():
-            entry.append(str(bscs['sector']))
+        entry.append(stk['General']['Name'])
+        entry.append(stk['General']['IPODate'])
+        if stk['General']['GicSubIndustry']:
+            entry.append(stk['General']['GicSubIndustry'])
         else:
             entry.append("")
-        entry.append(str(round(bscs['mcap']*factor, 2)))
+        entry.append(str(round(stk['Highlights']['MarketCapitalizationMln']*factor, 2)))
         if 'volume' in bscs.keys():
             entry.append(str(round(bscs['volume']/1000, 2))+'k')
         else:
             entry.append("-")
-        entry.append(str(bscs['price']))
+        if 'price' in stk['price_change'].keys():
+            entry.append(str(stk['price_change']['price']))
+        else:
+            entry.append("")
         #try:
-        if 'betas' in stk['fig'].keys() and stk['fig']['betas']['six_months'] != None:
+        if 'fig' in stk.keys() and 'betas' in stk['fig'].keys() and stk['fig']['betas']['six_months'] != None:
             entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         else:
             entry.append("-")
@@ -956,7 +965,7 @@ highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quart
 def get_price_changes(s, country, duration):
 
     if country == 'US':
-        Mn = 1
+        Mn = 1000000
         Bn = 1000*Mn
         Tn = 1000*Bn
         #s = parse_html.html_set_line(s)
@@ -1028,11 +1037,19 @@ def price_surprises(country, change_percent, criteria, db_type, excel_type):
 
     db = DB.open_db('Stocks')
     if country == 'US':
+        today = dt.combine(dt.now(), dt.min.time())
+
         col = db['US_Stocks']
         #for doc in col.find({"bscs.industry":"Accident &Health Insurance"}):
         #for doc in col.find({}):
         #docs = col.find({"bscs.symbol":"HEXO"}).sort([["sno",1]])
-        docs = col.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #docs = col.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        if today == get_latest_trading_day():
+            latest_date = get_latest_trading_day()
+        else:
+            latest_date = get_previous_trading_day()
+
+        docs = col.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         print("Count: %r" %(docs.count()))
         i=0
         len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0

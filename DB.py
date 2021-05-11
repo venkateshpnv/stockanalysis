@@ -1208,7 +1208,7 @@ def update_db_price_volume(collection, stk):
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.mcap": to_float(stk['bscs']['mcap'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.outstanding_shares": to_int(stk['bscs']['outstanding_shares'])}})
     collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.type": stk['bscs']['type']}})
-    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.exchange": stk['bscs']['exchange']}})
+    collection.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"General.Exchange": stk['bscs']['exchange']}})
     #update_field(collection, stk['bscs']['symbol'], "dates.price_date", dt.now())
 
 j=0
@@ -1384,7 +1384,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
     f = open("/home/vpetla/work/stockanalysis/get_price_fails.txt", "w")
     f.close()
 
-    today=str(dt.now().date())
+    today = dt.combine(dt.now(), dt.min.time())
     num_docs = collection.find({}).count()
     #num_docs = collection.find({"dates.mysql_price_date": {'$ne':today}})
     if num_docs == 0:
@@ -1414,19 +1414,19 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         else:
             order = -1
  
-        #Update Indices First
-        for k in indices.keys():
-            stk = {}
-            stk['bscs']={}
-            stk['bscs']['symbol'] = k
-            stk['bscs']['name'] = indices[k]
-            stk['bscs']['quoteType'] = 'Index'
-            stk['sno'] = i
-            sem.acquire()
-            hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
-            #processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
-            #processes[i%num_processes].start()
-            i = i + 1
+        ###Update Indices First
+        ##for k in indices.keys():
+        ##    stk = {}
+        ##    stk['bscs']={}
+        ##    stk['bscs']['symbol'] = k
+        ##    stk['bscs']['name'] = indices[k]
+        ##    stk['bscs']['quoteType'] = 'Index'
+        ##    stk['sno'] = i
+        ##    sem.acquire()
+        ##    hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+        ##    #processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+        ##    #processes[i%num_processes].start()
+        ##    i = i + 1
 
         # Get the data in bulk mode for all the stocks in a single API call and update the database.
         # This will be much quicker than pulling data for the each stock.
@@ -1438,7 +1438,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         # They include 
         # 1. New stocks
         # 2. Stocks that are not updated for sometime.
-        #stocks = db.US_Stocks.find({"$and":[{"dates.mysql_price_date": {"$exists": False }}, {'bscs.exchange':{"$in":major_exchanges}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and":[{"dates.mysql_price_date": {"$exists": False }}, {'General.Exchange':{"$in":major_exchanges}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #print("Total new stocks: %r" %(stocks.count()))
         ##stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         #for stk in stocks:
@@ -1450,8 +1450,9 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         #    i = i + 1
 
 
-        #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'ADT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total stocks: %r" %(stocks.count()))
         for stk in stocks:
@@ -1930,6 +1931,10 @@ def update_candlesticks(collection, sym, df):
     update_field(collection, sym, "technicals.candlesticks.XSIDEGAP3METHODS",float(talib.CDLXSIDEGAP3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
 
 def update_tech_analysis_params(sym, core, sem=None):
+
+    aff = 0 | 1 << core
+    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
     c  = open_db_client()
     db = c['Stocks']
     collection=db.US_Stocks
@@ -1976,7 +1981,7 @@ def update_tech_analysis_params(sym, core, sem=None):
             update_field(collection, sym, "technicals.mf", mf)
             update_candlesticks(collection, sym, df)
 
-        update_field(collection, sym, "technicals.date", dt.now())
+        update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
     finally:
         close_db_client(c)
         close_sql_connection(mysql_engine)
@@ -1991,18 +1996,19 @@ def update_all_tech_analysis_params(country='US'):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
-    symbols = get_symbols_from_sql(country, mysql_engine)
+    stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}},\
+                                        {'bscs.quoteType':'Common Stock'}, \
+                                        {'technicals.date': {'$lt':get_latest_trading_day()}} \
+                                    ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    edate = dt.now().date()
-    sdate = edate - relativedelta(months=4)
+    print("Tech analysis, total stocks: %r", stocks.count())
+    i=0
     try:
-        for i, sym in enumerate(symbols):
-            if sym == '':
-                continue
-            print("%d: Symbol: %r" %(i, sym))
+        for i, stk in enumerate(stocks):
+            print("%d: Symbol: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #update_tech_analysis_params(sym, 0)
-            processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(sym, i%num_cores, sem,))
+            #update_tech_analysis_params(stk['bscs']['symbol'], 0)
+            processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(stk['bscs']['symbol'], i%num_cores, sem,))
             processes[i%num_processes].start()
     finally:
         for j in range(len(processes)):
@@ -2191,7 +2197,7 @@ def get_iex_symbols():
     close_db_client(c)
     return entries
 
-def get_eod_symbols():
+def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock'):
     url = 'https://eodhistoricaldata.com/api/exchange-symbol-list/US?api_token='+get_eod_token_id()
     ret = requests.get(url)
     df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
@@ -2200,53 +2206,89 @@ def get_eod_symbols():
     # Drop Null
     df = df.dropna()
 
-    # Get only Common Stock
-    df = df[df['Type']=='Common Stock']
+    # Filter based on quoteType
+    df = df[df['Type']==quoteType]
 
+    # Filter based on exchange
+    df = df[df['Exchange'].isin(exchanges)]
+
+    return df
+
+def add_symbol_to_database(d, db=None, mysql_engine=None):
+    local_db    = False
+    local_mysql = False
+
+    if db is None:
+        c  = open_db_client()
+        db = c['Stocks']
+        local_db = True
+
+    if mysql_engine is None:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+        local_mysql = True
+
+    sno = db.US_Stocks.find({}).count()
+    bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
+    stk  = {"bscs" : bscs, "sno": sno}
+    db.US_Stocks.insert_one(stk)
+    
+    update_technicals(stk)
+    
+    stk_df = pd.DataFrame([list(d.values)], columns=list(d.index), index=[d['Symbol']])
+
+    table_name = 'US_All_Stocks_List'
+    mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
+    mysql_update_table(mysql_engine, table_name, stk_df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
+
+    if local_db:
+        close_db_client(c)
+    if local_mysql:
+        close_sql_connection(mysql_engine)
+
+def get_eod_symbols():
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
 
-    table_name = 'US_All_Stocks_List'
-    mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
-    query = 'select * from {}'.format(table_name)
-    ddf = read_from_sql(query, mysql_engine, date=False)
-    if ddf.empty:
-        mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
-        
-    j = db.US_Stocks.find({}).count()
+    df = get_eod_all_trading_symbols()
 
+    #table_name = 'US_All_Stocks_List'
+    #mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
+    #query = 'select * from {}'.format(table_name)
+    #ddf = read_from_sql(query, mysql_engine, date=False)
+    #if ddf.empty:
+    #    mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
+        
     # Exclude all symbols ending with +,=,-
     # TODO: Remove all symbols ending with special characters
     #df = df[df['symbol'].str.match(r'(.*[\=|\+|\-]$)')==False]
     entries = []
 
     for index, d in df.iterrows():
-        if d['Symbol'] == 'OXFD' or d['Symbol'] == 'PRGX' or d['Symbol'] == 'ENRN' or d['Symbol'] == 'AAPL':
-            print("Required symbol")
         obj = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
         if obj.count() == 0:
             print("%r: %r: %r: %r" %(d['Symbol'],d['Name'], d['Exchange'], d['Type']))
-            bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
-            stk  = {"bscs" : bscs, "sno": j}
-            db.US_Stocks.insert_one(stk)
+            add_symbol_to_database(d, db, mysql_engine)
 
-            url='https://eodhistoricaldata.com/api/fundamentals/'+d['Symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
-            ret = requests.get(url)
-            if ret.status_code == 200:
-                general = ret.json()
-                if len(general) != 0 or isinstance(general, dict):
-                    if general != 'NA':
-                       db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {'General': general}})
+            #bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
+            #stk  = {"bscs" : bscs, "sno": j}
+            #db.US_Stocks.insert_one(stk)
 
+            #url='https://eodhistoricaldata.com/api/fundamentals/'+d['Symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+            #ret = requests.get(url)
+            #if ret.status_code == 200:
+            #    general = ret.json()
+            #    if len(general) != 0 or isinstance(general, dict):
+            #        if general != 'NA':
+            #           db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {'General': general}})
+
+            #stk_df = df[df['Symbol'] == d['Symbol']]
+            #mysql_update_table(mysql_engine, table_name, stk_df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
             entry = []
             entry.append(d['Symbol'])
             entry.append(d['Name'])
             entry.append(d['Exchange'])
             entries.append(entry)
-            j+=1
-            stk_df = df[df['Symbol'] == d['Symbol']]
-            mysql_update_table(mysql_engine, table_name, stk_df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
         else:
             db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.exchange": d['Exchange']}})
             db.US_Stocks.update({'bscs.symbol': d['Symbol']}, {'$set': {"bscs.quoteType": d['Type']}})
@@ -2254,6 +2296,7 @@ def get_eod_symbols():
     set_sno('US')
 
     close_db_client(c)
+    close_sql_connection(mysql_engine)
     return entries
  
 def build_US_Stocks_List(excel_file):
@@ -3105,8 +3148,8 @@ def update_US_all_stock_fin_information():
     #syms = {"$nin" : s}
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #stocks = db.US_Stocks.find({'bscs.symbol':'DNI'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-    #stocks = db.US_Stocks.find({'bscs.exchange':{"$in":major_exchanges}}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({"$and": [{"dates.fin_statements_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({'General.Exchange':{"$in":major_exchanges}}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{"dates.fin_statements_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3211,9 +3254,9 @@ def update_all_short_interests():
     today = dt.combine(dt.now(), dt.min.time())
 
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
-    #stocks = db.US_Stocks.find({"bscs.exchange":'NASDAQ'})
-    #stocks = db.US_Stocks.find({"$and": [{"dates.short_interests_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":['NASDAQ']}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.short_interests_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":['NASDAQ']}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
+    #stocks = db.US_Stocks.find({"$and": [{"dates.short_interests_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":['NASDAQ']}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.short_interests_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":['NASDAQ']}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3316,10 +3359,10 @@ def update_all_splits():
     today = dt.combine(dt.now(), dt.min.time())
 
     # First get splits for all new stocks
-    stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
-    #stocks = db.US_Stocks.find({"bscs.exchange":'NASDAQ'})
+    #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3357,7 +3400,7 @@ def update_all_splits():
         df['Split_Num']=nan
         df['Split_Denom']=nan
         for i, d in df.iterrows():
-            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'bscs.exchange':{"$in":major_exchanges}}, {"dates.splits_pull_date": {"$lt": get_latest_trading_day()}}]})
+            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.splits_pull_date": {"$lt": get_latest_trading_day()}}]})
             if stocks.count() == 0 or stocks.count() > 1:
                 continue
 
@@ -3476,12 +3519,12 @@ def update_all_dividends():
 
     try:
         # First get dividends for all new stocks
-        stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
-        #stocks = db.US_Stocks.find({"bscs.exchange":{'$in': major_exchanges}})
+        #stocks = db.US_Stocks.find({"General.Exchange":{'$in': major_exchanges}})
         print(stocks.count())
 
         for i, stk in enumerate(stocks):
@@ -3519,7 +3562,7 @@ def update_all_dividends():
             df.index = df['Date']
 
             for i, d in df.iterrows():
-                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'bscs.exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}]})
+                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}]})
 
                 if stocks.count() == 0 or stocks.count() > 1:
                     continue
@@ -3534,12 +3577,13 @@ def update_all_dividends():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
-def update_technicals(stk, core, sem):
+def update_technicals(stk, core=None, sem=None):
 
-    aff = 0 | 1 << core
-    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
-    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
-    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+    if core:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
 
     update = False
     df  = pd.DataFrame()
@@ -3642,39 +3686,76 @@ def update_all_technicals():
     c  = open_db_client()
     db = c['Stocks']
 
-    num_processes = 6 #* 4
+    num_processes = num_cores * 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     j=0
  
     today = dt.combine(dt.now(), dt.min.time())
 
+    # Get trading symbols from eod
+    df = get_eod_all_trading_symbols(exchanges=major_exchanges, quoteType='Common Stock')
+
+    # Get already updated stocks list
+    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False})
+    syms=[]
+    for stk in stks:
+        syms.append(stk['bscs']['symbol'])
+
+    stk_df=pd.DataFrame(syms, columns=['Symbol'])
+
+    # Get list of symbols to be updated
+    df = df[~df.Symbol.isin(stk_df.Symbol)]
+
     try:
         # First get dividends for all new stocks
-        #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'bscs.exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.technicals_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.technicals_pull_date": {"$exists": False}}]}, {'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and":[{"General":{"$exists":False}}, {'bscs.exchange':{"$in":major_exchanges}}]})
-        stocks = db.US_Stocks.find({"$and":[{"bscs.exchange":{'$in': major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {"dates.technicals_pull_date": {"$lt": get_latest_trading_day()}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.technicals_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.technicals_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and":[{"General":{"$exists":False}}, {'General.Exchange':{"$in":major_exchanges}}]})
+        #stocks = db.US_Stocks.find({"$and":[{"General.Exchange":{'$in': major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {"dates.technicals_pull_date": {"$lt": get_latest_trading_day()}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         #stocks = db.US_Stocks.find({"General":{"$exists":False}})
-        print(stocks.count())
+        #print(stocks.count())
 
-        for i, stk in enumerate(stocks):
-            print("%d: %r" %(i, stk['bscs']['symbol']))
+        #for i, stk in enumerate(stocks):
+        #    print("%d: %r" %(i, stk['bscs']['symbol']))
+        #    sem.acquire()
+        #    #update_technicals(stk, 0, sem)
+        #    processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
+        #    processes[j%num_processes].start()
+        #    j = j + 1
+
+        i = 0
+        skip = 0
+        for sym, d in df.iterrows():
+            stks = db.US_Stocks.find({'bscs.symbol': sym})
+            if stks.count() == 0:
+                add_symbol_to_database(d, db)
+                # Pull the updated data
+                stks = db.US_Stocks.find({'bscs.symbol': sym})
+            stk = stks[0]
+
+            ## Already updated skip
+            #if stk['dates']['technicals_pull_date'] >= get_latest_trading_day():
+            #    print("%r: %r skipping" %(skip, stk['bscs']['symbol']))
+            #    skip = skip+1
+            #    continue
             sem.acquire()
-            #update_technicals(stk, 0, sem)
-            #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General.IsDelisted': True}})
+            print("%d: %r" %(i, stk['bscs']['symbol']))
+            #update_technicals(stk, None, sem)
             processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
             processes[j%num_processes].start()
             j = j + 1
+            i = i + 1
 
+    finally:
         for j in range(len(processes)):
             if processes[j] is not None:
                 processes[j].join()
 
-    finally:
+        print("Skipped: %r, Updated: %r" %(skip, i))
         close_db_client(c)
 
 def update_US_holiday_list():
@@ -3902,9 +3983,15 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
         close_sql_connection(sql_engine)
         return None
 
+    if pd.to_datetime(sdate) < df.index[0]:
+        sdate = df.index[0].date()
+
     if pd.to_datetime(edate) < df.index[0]:
         close_sql_connection(sql_engine)
         return None
+
+    if pd.to_datetime(edate) > df.index[-1]:
+        edate = df.index[-1].date()
 
     if country == 'US':
         bindex = "SP500"
@@ -4278,11 +4365,12 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
             #for index, d in price_df.iloc[1:].iterrows():
                 beta = None
                 en_date = pd.to_datetime(index).date()
-                st_date = en_date - beta_change_durations[i]
-                #if field == 'Whole':
-                #    st_date = dt.strptime("1970-01-01", "%Y-%m-%d").date()
-                #else:
-                #    st_date = en_date - beta_change_durations[i]
+                #st_date = en_date - beta_change_fields[field]
+                if field == 'Whole':
+                    st_date = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+                else:
+                    st_date = en_date - beta_change_fields[field]
+
                 beta = get_beta(country, sym, st_date, en_date)
                 betas.append(beta)
 
@@ -4319,7 +4407,7 @@ def update_all_stock_betas(country):
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #docs = collection.find({}, no_cursor_timeout=True).batch_size(3).sort([["sno",1]]).allow_disk_use(True)
-    docs = collection.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_latest_trading_day()}}]}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
     print("Total Stocks: %r" %(docs.count()))
 
     #max_threads = thread_factor
