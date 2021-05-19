@@ -984,7 +984,7 @@ def bulk_update_price_volume(country, db, sql_engine):
     # To overcome this issue, check if the stock has up-to-date price data till the 
     # last trading day and then add today's data. Else don't touch that stock.
     # They will be taken care in a different execution path.
-    stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType':'Common Stock'}, {'bscs.exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and" : [{'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     if stocks.count() != 0:
         url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())

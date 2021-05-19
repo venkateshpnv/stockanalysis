@@ -333,7 +333,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                     pp_stocks_list.append(row[1])
 
 
-    stocks = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {'General.IsDelisted':False}, {'failcount.mysql_price_failcount':{'$eq':0}}, {'dates.technicals_pull_date':{'$gte':DB.get_previous_trading_day()}}, {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    j = count = 0
+
+    stocks = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}, {'General.IsDelisted':False}, {'failcount.mysql_price_failcount':{'$eq':0}}, {'price_change.date':{'$gte':DB.get_previous_trading_day()}}, {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     #stocks = collection.find({'bscs.symbol':'MTDR'})
     print("Stocks: %r" %(stocks.count())) 
     for doc in stocks:
@@ -344,7 +346,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
     #for doc in collection.find({'bscs.mcap':{'$gte':10000}}, no_cursor_timeout=True).sort([["sno",1]]):
         sno = doc['sno']
         #if sno > 2913:
-        if sno > 0:
+        if sno >= 0:
             doc['id'] = doc.pop('_id')
             #doc['PAT'] = doc.pop('Profit After Taxes')
             stock = doc
@@ -355,8 +357,10 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #obj = json.loads(doc, object_hook=lambda d: namedtuple('Stock', d.keys())(*d.values()))
             #obj = bunchify(doc)
 
-            if stock['bscs']['symbol'] not in symbols:
-                continue
+            #if stock['bscs']['symbol'].replace('_', '.').replace('-', '.') not in symbols:
+            #    no_dcf += 1
+            #    print("Not present %d: %s: %s"%(sno, stock['bscs']['symbol'], stock['General']['Name']))
+            #    continue
 
             if not stock:
                 PRINT_ERR("Stock not present")
@@ -415,10 +419,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             #conf.COUNT+=1
             count+=1
             #print("count: %r, symb: %r" %(count, stock['bscs']['symbol']))
-            if 'name' in stock['bscs'].keys():
-                print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['name']))
-            elif 'longName' in stock['bscs'].keys():
-                print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['bscs']['longName']))
+            print("%d: %s: %s"%(sno, stock['bscs']['symbol'], stock['General']['Name']))
             if excel_state == 'EXCEL':
                 com = xlwt.Workbook()
                 #if write_to_excel(country, com, ash, stock, years, prices_only) != None:
@@ -439,11 +440,12 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             stock=None
             com=None
 
-    print("Stocks Calculated: %r" %(j))
+    print("Stocks Calculated: %r :%r" %(j, count))
     print("No DCF: %r" %(no_dcf))
     now = dt.now().date()
     if prices_only:
-        excel = "%s/DCF_Calc/All_Stocks_Prices_%s.xls" % (path, str(now))
+        excel = "%s/DCF_Calc/All_Stocks_Prices.xls" % (path)
+        #excel = "%s/DCF_Calc/All_Stocks_Prices_%s.xls" % (path, str(now))
     else:
         excel = "%s/DCF_Calc/All_Stocks_DCF_%s.xls" % (path, str(now))
     if excel_state == 'EXCEL':

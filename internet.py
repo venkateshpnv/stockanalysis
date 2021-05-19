@@ -490,7 +490,7 @@ def update_price_change(country, sym, core, sem=None):
     collection = DB.get_collection(country, db)
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
-    print("%s: Core: %r" %(sym, core))
+    #print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
@@ -688,20 +688,20 @@ def fork_hdf5_process(country):
     stk = {}
     stk['bscs']={}
 
-    num_processes = DB.num_cores #* 4
+    num_processes = DB.num_cores * 8
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
     try:
-        ##Indices
-        #for i, k in enumerate(indices.keys()):
-        #    stk['bscs']['symbol'] = k
-        #    stk['bscs']['name'] = indices[k]
-        #    sem.acquire()
-        #    #update_price_change(country, stk['bscs']['symbol'], 1, sem)
-        #    #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-        #    processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
-        #    processes[i%num_processes].start()
+        #Indices
+        for i, k in enumerate(indices.keys()):
+            stk['bscs']['symbol'] = k
+            stk['bscs']['name'] = indices[k]
+            sem.acquire()
+            #update_price_change(country, stk['bscs']['symbol'], 1, sem)
+            #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%num_processes].start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},
@@ -712,11 +712,13 @@ def fork_hdf5_process(country):
 
         ##stocks = db.US_Stocks.aggregate(pipeline, allowDiskUse=True).batch_size(10)
         #stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-        stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}},\
-                                            {'bscs.quoteType':'Common Stock'}, \
-                                            {'price_change.date': {'$lt':DB.get_latest_trading_day()}} \
-                                        ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
+        #                                    {'General.Type':'Common Stock'}, \
+        #                                    {'price_change.date': {'$lt':DB.get_latest_trading_day()}} \
+        #                                ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
+        #stocks = db.US_Stocks.find({"$and" : [{"price_change.date": {"$lt": DB.get_latest_trading_day()}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Stocks: %r" %(stocks.count())) 
         i=0
@@ -736,7 +738,7 @@ def fork_hdf5_process(country):
             #    continue
  
             sem.acquire()
-            print("Symbol: %r" %(stk['bscs']['symbol']))
+            #print("Symbol: %r" %(stk['bscs']['symbol']))
             #update_price_change(country, stk['bscs']['symbol'], i%DB.num_cores, sem)
             processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
             processes[i%num_processes].start()
@@ -851,9 +853,9 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     else:
         latest_date = DB.get_previous_trading_day()
 
-    #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
-    stocks = collection.find({'$and': [{"dates.mysql_price_date": {"$eq": latest_date}}, {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}}, {'General.IsDelisted': False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
+    stocks = collection.find({'$and': [{"$or":[{"dates.mysql_price_date": {"$eq": DB.get_latest_trading_day()}}, {"dates.mysql_price_date": {"$eq": DB.get_previous_trading_day()}}]}, {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}}, {'General.IsDelisted': False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
     #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
     for stk in stocks:
@@ -1049,7 +1051,7 @@ def price_surprises(country, change_percent, criteria, db_type, excel_type):
         else:
             latest_date = get_previous_trading_day()
 
-        docs = col.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        docs = col.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         print("Count: %r" %(docs.count()))
         i=0
         len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0

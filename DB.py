@@ -1309,7 +1309,7 @@ def fork_db_process(country, sem, lock, vpn_event=None):
         #stocks = db.US_Stocks.find({"$and" : [{'dates.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$eq': 0}}]}).batch_size(10).sort([["dates.price_date",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({'bscs.price_failcount': {'$lt': 10}}).batch_size(10).sort([["sno",-1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and" : [{'bscs.quoteType' : {'$ne': 'INDEX'}}, {'dates.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["bscs.quoteType",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{'General.Type' : {'$ne': 'INDEX'}}, {'dates.price_date':{'$lt': till_date}}, {'bscs.price_failcount': {'$lt': 10}}]}).batch_size(10).sort([["bscs.price_failcount",1]]).allow_disk_use(True).sort([["General.Type",1]]).allow_disk_use(True)
 
         print("Total stocks: %r" %(stocks.count()))
    
@@ -1414,19 +1414,19 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         else:
             order = -1
  
-        ###Update Indices First
-        ##for k in indices.keys():
-        ##    stk = {}
-        ##    stk['bscs']={}
-        ##    stk['bscs']['symbol'] = k
-        ##    stk['bscs']['name'] = indices[k]
-        ##    stk['bscs']['quoteType'] = 'Index'
-        ##    stk['sno'] = i
-        ##    sem.acquire()
-        ##    hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
-        ##    #processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
-        ##    #processes[i%num_processes].start()
-        ##    i = i + 1
+        #Update Indices First
+        for k in indices.keys():
+            stk = {}
+            stk['bscs']={}
+            stk['bscs']['symbol'] = k
+            stk['bscs']['name'] = indices[k]
+            stk['bscs']['quoteType'] = 'Index'
+            stk['sno'] = i
+            sem.acquire()
+            hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+            #processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+            #processes[i%num_processes].start()
+            i = i + 1
 
         # Get the data in bulk mode for all the stocks in a single API call and update the database.
         # This will be much quicker than pulling data for the each stock.
@@ -1450,9 +1450,9 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         #    i = i + 1
 
 
-        #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'bscs.quoteType':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'ADT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total stocks: %r" %(stocks.count()))
         for stk in stocks:
@@ -1950,6 +1950,12 @@ def update_tech_analysis_params(sym, core, sem=None):
             update_field(collection, sym, "technicals.rsi", {})
             update_field(collection, sym, "technicals.bbands", {})
             update_field(collection, sym, "technicals.candlesticks", {})
+            update_field(collection, sym, "technicals.aroon", {})
+            update_field(collection, sym, "technicals.sar", {})
+            update_field(collection, sym, "technicals.atr", {})
+            update_field(collection, sym, "technicals.chandelier", {})
+            update_field(collection, sym, "technicals.mf", nan)
+            update_field(collection, sym, "technicals.ulcer_index", nan)
         else:
             rsi = ta.rsi(df['Adj Close'])
             if len(rsi.index) == 0:
@@ -1957,25 +1963,156 @@ def update_tech_analysis_params(sym, core, sem=None):
             else:
                 update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
                 idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
-                update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
-                update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
-                update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
-                #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
+                    update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.rsi.60day_min", nan)
+                    update_field(collection, sym, "technicals.rsi.60day_min_price", nan)
+                    update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
+                    #update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
 
                 idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
-                update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
-                update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
-                update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
-                #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
+                    update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.rsi.60day_max", nan)
+                    update_field(collection, sym, "technicals.rsi.60day_max_price", nan)
+                    update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
+                    #update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
 
             # bollinger bands
-            bbands = ta.bbands(df['Adj Close'])
-            if bbands.empty:
+            #bbands = ta.bbands(df['Adj Close'])
+            ub,mb,lb = talib.BBANDS(df['Adj Close'], timeperiod=20)
+            if ub.empty:
                 update_field(collection, sym, "technicals.bbands", {})
             else:
-                update_field(collection, sym, "technicals.bbands.lower", bbands['BBL_5'][-1])
-                update_field(collection, sym, "technicals.bbands.sma_20", bbands['BBM_5'][-1])
-                update_field(collection, sym, "technicals.bbands.upper", bbands['BBU_5'][-1])
+                update_field(collection, sym, "technicals.bbands.lower", lb[-1])
+                update_field(collection, sym, "technicals.bbands.sma_20", mb[-1])
+                update_field(collection, sym, "technicals.bbands.upper", ub[-1])
+                # If the price is close to or above the upper band, its an uptrend and if close to lower band,
+                # its a downtrend.
+                update_field(collection, sym, "technicals.bbands.uptrend", df['Adj Close'][-1]/ub[-1])
+                update_field(collection, sym, "technicals.bbands.downtrend", lb[-1]/df['Adj Close'][-1])
+
+            # AROON Indicator. Its a trend indicator.
+            # The since a high or low are tracked by AROON up and AROON down respectively.
+            aroon_down, aroon_up = talib.AROON(df['High'], df['Low'], timeperiod=25)
+            update_field(collection, sym, "technicals.aroon.down", aroon_down[-1])
+            update_field(collection, sym, "technicals.aroon.up", aroon_up[-1])
+
+            # Parabolic SAR
+            # Exit the position if the SAR is greater than 'Adj Close'
+            # Enter the position if the SAR is less than 'Adj Close'
+            sar = talib.SAR(df['High'], df['Low'])
+            if len(sar.index) == 0:
+                update_field(collection, sym, "technicals.sar", {})
+            else:
+
+                change = percent_change(sar[-1], df['Adj Close'][-1])
+
+                if sar.iloc[-1] < df.iloc[-1]['Adj Close']:
+                    trend = 'UP'
+                else:
+                    trend = 'DOWN'
+                update_field(collection, sym, "technicals.sar.trend", trend)
+                update_field(collection, sym, "technicals.sar.latest", sar.iloc[-1])
+                update_field(collection, sym, "technicals.sar.change", change)
+
+                idx = sar.loc[sar.index[-1]-timedelta(60):].tail(60).idxmin()
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.sar.60day_min", sar[idx])
+                    update_field(collection, sym, "technicals.sar.60day_min_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.sar.60day_min_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.sar.60day_min_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.sar.60day_min", nan)
+                    update_field(collection, sym, "technicals.sar.60day_min_price", nan)
+                    update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
+                    #update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
+
+                idx = sar.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.sar.60day_max", sar[idx])
+                    update_field(collection, sym, "technicals.sar.60day_max_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.sar.60day_max_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.sar.60day_max_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.sar.60day_max", nan)
+                    update_field(collection, sym, "technicals.sar.60day_max_price", nan)
+                    update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
+                    #update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
+
+            # ATR. Average True Range. Its a volatility Indicator.
+            # High and low values represents respective volatility.
+            atr = ta.atr(df['High'], df['Low'], df['Adj Close'])
+            if len(atr.index) == 0:
+                update_field(collection, sym, "technicals.atr", {})
+            else:
+                update_field(collection, sym, "technicals.atr.latest", atr.iloc[-1])
+                idx = atr.loc[atr.index[-1]-timedelta(60):].tail(60).idxmin()
+
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.atr.60day_min", atr[idx])
+                    update_field(collection, sym, "technicals.atr.60day_min_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.atr.60day_min_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.atr.60day_min_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.atr.60day_min", "")
+                    update_field(collection, sym, "technicals.atr.60day_min_price", "")
+                    update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
+                    #update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
+
+                idx = atr.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+                if type(idx) is pd.Timestamp:
+                    update_field(collection, sym, "technicals.atr.60day_max", atr[idx])
+                    update_field(collection, sym, "technicals.atr.60day_max_price", df.loc[idx]['Adj Close'])
+                    update_field(collection, sym, "technicals.atr.60day_max_price_date", idx.to_pydatetime())
+                    #update_field(collection, sym, "technicals.atr.60day_max_price_date", str(idx).split(' ')[0])
+                else:
+                    update_field(collection, sym, "technicals.atr.60day_max", "")
+                    update_field(collection, sym, "technicals.atr.60day_max_price", "")
+                    update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
+                    #update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
+
+            # Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
+            # too early in an uptrend or too late in a downtrend.
+            # http://kaushik316-blog.logdown.com/posts/1964522
+            # https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
+            # Calculated using the ATR
+            if len(atr.index) == 0:
+                update_field(collection, sym, "technicals.chandelier.long", "-")
+                update_field(collection, sym, "technicals.chandelier.short", "-")
+                update_field(collection, sym, "technicals.chandelier.date", "-")
+            else:
+                rolling_low  = df["Low"][-22:].max()
+                rolling_high = df['High'][-22:].max()
+
+                # Chandelier Exit (long) = 22-day High - ATR(22) x 3
+                # Chandelier Exit (short) = 22-day Low + ATR(22) x 3
+
+                chandelier_long  = rolling_high - atr.iloc[-1] * 3
+                chandelier_short = rolling_low  + atr.iloc[-1] * 3
+                update_field(collection, sym, "technicals.chandelier.long", chandelier_long)
+                update_field(collection, sym, "technicals.chandelier.short", chandelier_short)
+                update_field(collection, sym, "technicals.chandelier.date", df.index[-1].to_pydatetime())
+
+            # Ulcer Index. ITs a volatility tracker designed to measure downside risk.
+            # Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
+            # a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
+            # downside risk is zero since the price steadily increases without ever falling.
+            max_close = df['Adj Close'][-14:].max()
+            df['Pct Drawdown'] = ((df['Adj Close'] - max_close)/max_close) * 100
+            df['Pct Drawdown Sq'] = df['Pct Drawdown'].map(lambda x: x ** 2.0)
+
+            square_avg = ((df['Pct Drawdown Sq'].sum())/float(len(df['Pct Drawdown Sq'])))
+            ulcer_index = math.sqrt(square_avg)
+            update_field(collection, sym, "technicals.ulcer_index", ulcer_index)
 
             mf = ((df.iloc[-1]['Low'] + df.iloc[-1]['High'] + df.iloc[-1]['Adj Close'] ) / 3) * df.iloc[-1]['Volume']
             update_field(collection, sym, "technicals.mf", mf)
@@ -1992,20 +2129,24 @@ def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    num_processes = num_cores * 4
+    num_processes = num_cores * 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
-    stocks=db.US_Stocks.find({"$and":[{'bscs.exchange':{"$in":major_exchanges}},\
-                                        {'bscs.quoteType':'Common Stock'}, \
-                                        {'technicals.date': {'$lt':get_latest_trading_day()}} \
-                                    ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
+                                        {'General.Type':'Common Stock'}, \
+                                        {'General.IsDelisted': False}, \
+                                        {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        {'dates.mysql_price_pull_success':True}, \
+                                    ]}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
+                                    #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    print("Tech analysis, total stocks: %r", stocks.count())
+    #stocks=db.US_Stocks.find({'General.Code':'PTOCW'})
+    print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
         for i, stk in enumerate(stocks):
-            print("%d: Symbol: %r" %(i, stk['bscs']['symbol']))
+            print("Tech analysis params: %d: Symbol: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
             #update_tech_analysis_params(stk['bscs']['symbol'], 0)
             processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(stk['bscs']['symbol'], i%num_cores, sem,))
@@ -2204,7 +2345,7 @@ def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock
     df['Symbol'] = df.index
 
     # Drop Null
-    df = df.dropna()
+    #df = df.dropna()
 
     # Filter based on quoteType
     df = df[df['Type']==quoteType]
@@ -2230,9 +2371,15 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     sno = db.US_Stocks.find({}).count()
     bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
     stk  = {"bscs" : bscs, "sno": sno}
+    print("Adding new symbol: %s: %s" %(d['Symbol'], d['Name']))
     db.US_Stocks.insert_one(stk)
     
-    update_technicals(stk)
+    if d['Exchange'] not in major_exchanges:
+        general_only=True
+    else:
+        general_only=False
+
+    update_technicals(stk, general_only=general_only)
     
     stk_df = pd.DataFrame([list(d.values)], columns=list(d.index), index=[d['Symbol']])
 
@@ -3256,7 +3403,7 @@ def update_all_short_interests():
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
     #stocks = db.US_Stocks.find({"$and": [{"dates.short_interests_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":['NASDAQ']}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.short_interests_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":['NASDAQ']}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.short_interests_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":['NASDAQ']}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3359,8 +3506,8 @@ def update_all_splits():
     today = dt.combine(dt.now(), dt.min.time())
 
     # First get splits for all new stocks
-    stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
     print(stocks.count())
@@ -3400,7 +3547,7 @@ def update_all_splits():
         df['Split_Num']=nan
         df['Split_Denom']=nan
         for i, d in df.iterrows():
-            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.splits_pull_date": {"$lt": get_latest_trading_day()}}]})
+            stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"General.Type":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.splits_pull_date": {"$lt": get_latest_trading_day()}}]})
             if stocks.count() == 0 or stocks.count() > 1:
                 continue
 
@@ -3519,10 +3666,10 @@ def update_all_dividends():
 
     try:
         # First get dividends for all new stocks
-        stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
         #stocks = db.US_Stocks.find({"General.Exchange":{'$in': major_exchanges}})
         print(stocks.count())
@@ -3562,7 +3709,7 @@ def update_all_dividends():
             df.index = df['Date']
 
             for i, d in df.iterrows():
-                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"bscs.quoteType":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}]})
+                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"General.Type":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}]})
 
                 if stocks.count() == 0 or stocks.count() > 1:
                     continue
@@ -3577,7 +3724,7 @@ def update_all_dividends():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
-def update_technicals(stk, core=None, sem=None):
+def update_technicals(stk, core=None, sem=None, general_only=False):
 
     if core:
         aff = 0 | 1 << core
@@ -3654,6 +3801,8 @@ def update_technicals(stk, core=None, sem=None):
 
         db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
         del technicals['General']
+        if general_only == True:
+            return
 
         df = pd.DataFrame()
         for k in technicals.keys():
@@ -3696,6 +3845,8 @@ def update_all_technicals():
     # Get trading symbols from eod
     df = get_eod_all_trading_symbols(exchanges=major_exchanges, quoteType='Common Stock')
 
+    print("Total Symbols: %r" %(len(df)))
+
     # Get already updated stocks list
     stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False})
     syms=[]
@@ -3709,12 +3860,12 @@ def update_all_technicals():
 
     try:
         # First get dividends for all new stocks
-        #stocks = db.US_Stocks.find({"$and": [{'bscs.quoteType':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.technicals_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.technicals_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.technicals_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.technicals_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and":[{"General":{"$exists":False}}, {'General.Exchange':{"$in":major_exchanges}}]})
-        #stocks = db.US_Stocks.find({"$and":[{"General.Exchange":{'$in': major_exchanges}}, {'bscs.quoteType':'Common Stock'}, {"dates.technicals_pull_date": {"$lt": get_latest_trading_day()}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"$and":[{"General.Exchange":{'$in': major_exchanges}}, {'General.Type':'Common Stock'}, {"dates.technicals_pull_date": {"$lt": get_latest_trading_day()}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         #stocks = db.US_Stocks.find({"General":{"$exists":False}})
         #print(stocks.count())
@@ -3754,6 +3905,8 @@ def update_all_technicals():
         for j in range(len(processes)):
             if processes[j] is not None:
                 processes[j].join()
+
+        set_sno('US')
 
         print("Skipped: %r, Updated: %r" %(skip, i))
         close_db_client(c)
@@ -4407,7 +4560,7 @@ def update_all_stock_betas(country):
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #docs = collection.find({}, no_cursor_timeout=True).batch_size(3).sort([["sno",1]]).allow_disk_use(True)
-    docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'bscs.quoteType':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
     print("Total Stocks: %r" %(docs.count()))
 
     #max_threads = thread_factor
@@ -4416,11 +4569,12 @@ def update_all_stock_betas(country):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
+    i=0
     try:
         for i, doc in enumerate(docs):
             #if ignore_stock(doc):
             #    continue
-            with open('beta_stop.txt', 'r') as f:
+            with open('/home/vpetla/work/stockanalysis/beta_stop.txt', 'r') as f:
                 data = f.read()
 
             if data == 'yes\n':
@@ -4442,6 +4596,7 @@ def update_all_stock_betas(country):
         print("Betas: Stocks tried :%r"%(i))
  
 def set_sno(country):
+    print("Updating sno for symbols")
     c  = open_db_client()
     db = c['Stocks']
     if country == 'US':

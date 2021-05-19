@@ -67,9 +67,9 @@ def sh_write(exl_sht, row, column, data, style=None, all_sht=None):
             exl_sht.write(row, column, data)
         if all_sht:
             if style:
-                all_sht.write(row, column, data, style)
+                all_sht.write(conf.ALL_COUNT, column, data, style)
             else:
-                all_sht.write(row, column, data)
+                all_sht.write(conf.ALL_COUNT, column, data)
  
     except:
         pass
@@ -455,11 +455,73 @@ def add_basic_header(sheet, i):
     conf.RSI_PRICE_CHANGE_DAYS=i
 
     i+=1
+    sheet.col(i).width = 5*367
+    st = "PSAR Trend"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TREND=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "PSAR Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_CHANGE=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "PSAR"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "CHANDELIER LONG"
+    sheet.write(0, i, st, style_wrap)
+    conf.CHANDELIER_LONG=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "CHANDELIER SHORT"
+    sheet.write(0, i, st, style_wrap)
+    conf.CHANDELIER_SHORT=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "ULCER INDEX"
+    sheet.write(0, i, st, style_wrap)
+    conf.ULCER_INDEX=i
+
+    i+=1
     # BBands 
-    sheet.col(i).width = 8*367
+    sheet.col(i).width = 5*367
     st = "BBands Range"
     sheet.write(0, i, st, style_wrap)
     conf.BBANDS_RANGE=i
+
+    i+=1
+    # BBands 
+    sheet.col(i).width = 6*367
+    st = "BBands Uptrend"
+    sheet.write(0, i, st, style_wrap)
+    conf.BBANDS_UPTREND=i
+
+    i+=1
+    # BBands 
+    sheet.col(i).width = 6*367
+    st = "BBands Downtrend"
+    sheet.write(0, i, st, style_wrap)
+    conf.BBANDS_DOWNTREND=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "Aroon Up"
+    sheet.write(0, i, st, style_wrap)
+    conf.AROON_UP=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "Aroon Down"
+    sheet.write(0, i, st, style_wrap)
+    conf.AROON_DOWN=i
 
     i+=1
     # Morning Star
@@ -684,6 +746,11 @@ def add_ratios_header(sheet, i):
     sheet.col(i).width = 4*367
     sheet.write(0, i, "Fwd P/E", style_wrap)
     conf.F_PE=i
+
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "PB", style_wrap)
+    conf.PB=i
 
     #i+=1
     ## TTM P/E
@@ -920,16 +987,16 @@ def add_technicals(sheet, i):
 
 
 def add_valuation(sheet, i):
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "PE", style_wrap)
-    conf.PE=i
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "PE", style_wrap)
+    #conf.PE=i
 
-    i+=1
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "PB", style_wrap)
-    conf.PB=i
+    #i+=1
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "PB", style_wrap)
+    #conf.PB=i
 
-    i+=1
+    #i+=1
     sheet.col(i).width = 4*367
     sheet.write(0, i, "PBMRQ", style_wrap)
     conf.PBMRQ=i
@@ -949,11 +1016,11 @@ def add_valuation(sheet, i):
     sheet.write(0, i, "Book Value", style_wrap)
     conf.BOOK=i
 
-    i+=1
-    # 2007 Percent Change
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "2007 Percent Change", style_wrap)
-    conf.R2007_PER_CHG=i
+    #i+=1
+    ## 2007 Percent Change
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "2007 Percent Change", style_wrap)
+    #conf.R2007_PER_CHG=i
 
     return i
 
@@ -1165,6 +1232,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
+        sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent)
+        sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent)
     
     if stk['technicals']['candlesticks'] is not None and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
         sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text)
@@ -1211,7 +1280,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
     sh_write(ash, count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
-    sh_write(ash, count, conf.VOL, stk['bscs']['volume'], style_num)
+    sh_write(ash, count, conf.VOL, stk['price_change']['volume'], style_num)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
         sh_write(ash, count, conf.ONE_BETA, stk['fig']['betas']['one_month']['beta'])
         sh_write(ash, count, conf.THREE_BETA, stk['fig']['betas']['three_months']['beta'])
@@ -1262,6 +1331,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, count, conf.GROSS_PROFIT, stk['Highlights']['GrossProfitTTM'], style_decimal)
         sh_write(ash, count, conf.PROFIT_MARGIN, stk['Highlights']['ProfitMargin'], style_decimal)
         sh_write(ash, count, conf.OPER_MARGIN_TTM, stk['Highlights']['OperatingMarginTTM'], style_decimal)
+        sh_write(ash, count, conf.QUART_REV_GROWTH_YOY, stk['Highlights']['QuarterlyRevenueGrowthYOY'], style_decimal)
+        sh_write(ash, count, conf.QUART_EARNINGS_GROWTH_YOY, stk['Highlights']['QuarterlyEarningsGrowthYOY'], style_decimal)
         sh_write(ash, count, conf.DIV, stk['SplitsDividends']['SplitsDividends'], style_percent)
         sh_write(ash, count, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_decimal)
 
@@ -1334,6 +1405,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         Bn = 1000*Mn
         Tn = 1000*Bn
         try:
+            all_sht = ashs['All']
             if radar_stocks:
                 ash = ashs['Radar_Stocks']
             elif pp_stocks:
@@ -1356,10 +1428,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['250mn_500mn']
             else:
                 ash = ashs['Below_250mn']
-            all_sht = ashs['All']
         except Exception as e:
-            print("Mcap exception: %r" %(stk['bscs']['symbol']))
-            return None
+            #print("Mcap exception: %r" %(stk['bscs']['symbol']))
+            ash = ashs['Below_250mn']
+            #return None
 
     #elif country == 'India':
     #    Bn = 100 # crores
@@ -1376,6 +1448,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #        ash = ashs{'Below_1bn'}
 
     conf.COUNT = len(ash.rows)
+    conf.ALL_COUNT = len(all_sht.rows)
     #open a company sheet
     if radar_stocks:
         sheet = com.add_sheet("radar_dummy")
@@ -1443,7 +1516,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #if 'dii_stake' in stk['bscs'].keys():
     #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent, all_sht)
 
-    sh_write(ash, conf.COUNT, conf.DIV, stk['Highlights']['DividendYield'], style_percent, all_sht)
+    sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, all_sht)
     sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_percent, all_sht)
    
     #Betas
@@ -1522,7 +1595,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     sheet.write(i, 3, "Volume")
     #sheet.write(i, 4, stk['price_change']['volume'])
-    #sh_write(ash, conf.COUNT, conf.VOL, stk['price_change']['volume'], all_sht=all_sht)
+    sh_write(ash, conf.COUNT, conf.VOL, stk['price_change']['volume'], all_sht=all_sht)
 
     #i += 1 #row 7
     #sheet.write(i, 0, "Face Value")
@@ -1532,31 +1605,39 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     sh_write(ash, conf.COUNT, conf.PE, stk['Valuation']['TrailingPE'], style_decimal, all_sht=all_sht)
     sh_write(ash, conf.COUNT, conf.F_PE, stk['Valuation']['ForwardPE'], style_decimal, all_sht=all_sht)
-    if stk['Highlights']['BookValue'] != None  and stk['Highlights']['BookValue'] > 0 and 'price' in stk['price_change'].keys():
+    if 'BookValue' in stk['Highlights'].keys() and stk['Highlights']['BookValue'] != None  and stk['Highlights']['BookValue'] > 0 and 'price' in stk['price_change'].keys():
         sh_write(ash, conf.COUNT, conf.PB, stk['price_change']['price']/stk['Highlights']['BookValue'], style_decimal, all_sht=all_sht)
     else:
         sh_write(ash, conf.COUNT, conf.PB, None, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.PBMRQ, stk['Valuation']['PriceBookMRQ'], style_decimal, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.PSTTM, stk['Valuation']['PriceSalesTTM'], style_decimal, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.PEG, stk['Highlights']['PEGRatio'], style_decimal, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.BOOK, stk['Highlights']['BookValue'], style_decimal, all_sht=all_sht)
+    if 'PriceBookMRQ' in stk['Valuation'].keys():
+        sh_write(ash, conf.COUNT, conf.PBMRQ, stk['Valuation']['PriceBookMRQ'], style_decimal, all_sht=all_sht)
+    if 'PriceSalesTTM' in stk['Valuation'].keys():
+        sh_write(ash, conf.COUNT, conf.PSTTM, stk['Valuation']['PriceSalesTTM'], style_decimal, all_sht=all_sht)
+    if 'PEGRatio' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.PEG, stk['Highlights']['PEGRatio'], style_decimal, all_sht=all_sht)
+    if 'BookValue' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.BOOK, stk['Highlights']['BookValue'], style_decimal, all_sht=all_sht)
 
     #sh_write(ash, conf.COUNT, conf.TTM_PE, stk['Ratios']['ttm_PE'], all_sht=all_sht)
 
 
-    sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], style_decimal, all_sht=all_sht)
+    if 'ShortRatio' in stk['SharesStats'].keys():
+        sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], style_decimal, all_sht=all_sht)
 
     try:
         if stk['SharesStats']['SharesOutstanding'] > 0:
             sh_write(ash, conf.COUNT, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'], style_percent, all_sht=all_sht)
             sh_write(ash, conf.COUNT, conf.SHORT_PRIOR_MONTH, stk['SharesStats']['SharesShortPriorMonth']/stk['SharesStats']['SharesOutstanding'], style_percent, all_sht=all_sht)
-        sh_write(ash, conf.COUNT, conf.PPS_TTM, stk['Highlights']['GrossProfitTTM']/ stk['SharesStats']['SharesOutstanding'], style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.PPS_TTM, stk['Highlights']['GrossProfitTTM']/ stk['SharesStats']['SharesOutstanding'], style_decimal, all_sht)
     except Exception as E:
         print(stk['SharesStats'])
 
-    sh_write(ash, conf.COUNT, conf.SHORT_PERCENT_FLOAT, stk['SharesStats']['ShortPercentFloat'], style_percent, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.SHORT_PERCENT_OUTSTANDING, stk['SharesStats']['ShortPercentOutstanding'], style_percent, all_sht=all_sht)
-    sh_write(ash, conf.COUNT, conf.WALLST_TARGET_PRICE, stk['Highlights']['WallStreetTargetPrice'], style_decimal, all_sht=all_sht)
+    if 'ShortPercentFloat' in stk['SharesStats'].keys():
+        sh_write(ash, conf.COUNT, conf.SHORT_PERCENT_FLOAT, stk['SharesStats']['ShortPercentFloat'], style_percent, all_sht=all_sht)
+    if 'ShortPercentOutstanding' in stk['SharesStats'].keys():
+        sh_write(ash, conf.COUNT, conf.SHORT_PERCENT_OUTSTANDING, stk['SharesStats']['ShortPercentOutstanding'], style_percent, all_sht=all_sht)
+    if 'WallStreetTargetPrice' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.WALLST_TARGET_PRICE, stk['Highlights']['WallStreetTargetPrice'], style_decimal, all_sht=all_sht)
 
     if 'AnalystRatings' in stk.keys():
         sh_write(ash, conf.COUNT, conf.ANALYST_TARGET_PRICE, stk['AnalystRatings']['TargetPrice'], style_decimal, all_sht=all_sht)
@@ -1738,15 +1819,28 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     #Fundamentals
 
-    sh_write(ash, conf.COUNT, conf.EPS, stk['Highlights']['EarningsShare'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.EPS_ESTIMATE_CUR_YR, stk['Highlights']['EPSEstimateCurrentYear'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.EPS_ESTIMATE_NEXT_YR, stk['Highlights']['EPSEstimateNextYear'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.RPS_TTM, stk['Highlights']['RevenuePerShareTTM'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.GROSS_PROFIT_TTM, stk['Highlights']['GrossProfitTTM'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.PROFIT_MARGIN, stk['Highlights']['ProfitMargin'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.OPER_MARGIN_TTM, stk['Highlights']['OperatingMarginTTM'], style_decimal, all_sht)
-    sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, all_sht)
-    sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_decimal, all_sht)
+    if 'EarningsShare' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.EPS, stk['Highlights']['EarningsShare'], style_decimal, all_sht)
+    if 'EPSEstimateCurrentYear' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.EPS_ESTIMATE_CUR_YR, stk['Highlights']['EPSEstimateCurrentYear'], style_decimal, all_sht)
+    if 'EPSEstimateNextYear' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.EPS_ESTIMATE_NEXT_YR, stk['Highlights']['EPSEstimateNextYear'], style_decimal, all_sht)
+    if 'RevenuePerShareTTM' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.RPS_TTM, stk['Highlights']['RevenuePerShareTTM'], style_decimal, all_sht)
+    if 'GrossProfitTTM' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.GROSS_PROFIT_TTM, stk['Highlights']['GrossProfitTTM'], style_decimal, all_sht)
+    if 'ProfitMargin' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.PROFIT_MARGIN, stk['Highlights']['ProfitMargin'], style_decimal, all_sht)
+    if 'OperatingMarginTTM' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.OPER_MARGIN_TTM, stk['Highlights']['OperatingMarginTTM'], style_decimal, all_sht)
+    if 'QuarterlyRevenueGrowthYOY' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.QUART_REV_GROWTH_YOY, stk['Highlights']['QuarterlyRevenueGrowthYOY'], style_decimal, all_sht)
+    if 'QuarterlyEarningsGrowthYOY' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.QUART_EARNINGS_GROWTH_YOY, stk['Highlights']['QuarterlyEarningsGrowthYOY'], style_decimal, all_sht)
+    if 'ForwardAnnualDividendYield' in stk['SplitsDividends'].keys():
+        sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, all_sht)
+    if 'PayoutRatio' in stk['SplitsDividends'].keys():
+        sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_decimal, all_sht)
 
 
     #Ratios
@@ -1762,26 +1856,51 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     ###sh_write(ash, conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1], all_sht=all_sht)
     #if 'PAT_M' in stk['fig'].keys():
     #    check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
-    sh_write(ash, conf.COUNT, conf.MCAP, stk['Highlights']['MarketCapitalizationMln'], style_num, all_sht)
+    if 'MarketCapitalizationMln' in stk['Highlights'].keys():
+        sh_write(ash, conf.COUNT, conf.MCAP, stk['Highlights']['MarketCapitalizationMln'], style_num, all_sht)
     #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num, all_sht=all_sht)
 
-    if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
+    if 'technicals' not in stk.keys():
+        print('%s: %s: No technicals' %(stk['bscs']['symbol'], stk['General']['Name']))
+    elif stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, all_sht)
         if '60day_min' in stk['technicals']['rsi'].keys():
             sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal, all_sht)
             sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal, all_sht)
             sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text, all_sht)
             sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal, all_sht)
-            if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
-                rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
-            else:
-                rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
-            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent, all_sht)
-            days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
-            sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight, all_sht)
+            if type(stk['technicals']['rsi']['60day_max_price_date']) is pd.datetime and type(stk['technicals']['rsi']['60day_min_price_date']) is pd.datetime:
+                if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
+                    rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
+                else:
+                    rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
+                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent, all_sht)
+                days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
+                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight, all_sht)
 
     if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text, all_sht)
+        sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent, all_sht)
+
+    if 'up' in stk['technicals']['aroon'].keys():
+        sh_write(ash, conf.COUNT, conf.AROON_UP, stk['technicals']['aroon']['up'], style_decimal, all_sht)
+    if 'down' in stk['technicals']['aroon'].keys():
+        sh_write(ash, conf.COUNT, conf.AROON_DOWN, stk['technicals']['aroon']['down'], style_decimal, all_sht)
+
+    if 'trend' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], style_text, all_sht)
+    if 'latest' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, all_sht)
+    if 'change' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], style_percent, all_sht)
+
+    if 'long' in stk['technicals']['chandelier'].keys():
+        sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, all_sht)
+    if 'short' in stk['technicals']['chandelier'].keys():
+        sh_write(ash, conf.COUNT, conf.CHANDELIER_SHORT, stk['technicals']['chandelier']['short'], style_decimal, all_sht)
+
+    sh_write(ash, conf.COUNT, conf.ULCER_INDEX, stk['technicals']['ulcer_index'], style_decimal, all_sht)
 
     if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
         sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, all_sht)
@@ -1807,8 +1926,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
             sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, all_sht)
             sh_write(ash, conf.COUNT, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
-            sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
-            sh_write(ash, conf.COUNT, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
+            sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent, all_sht)
+            sh_write(ash, conf.COUNT, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent, all_sht)
  
         if 'price_growth' in stk['fig'].keys():
             sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent, all_sht)
