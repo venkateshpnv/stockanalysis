@@ -718,7 +718,13 @@ def fork_hdf5_process(country):
         #                                ]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         #stocks = db.US_Stocks.find({"$and" : [{"price_change.date": {"$lt": DB.get_latest_trading_day()}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-        stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        stocks=db.US_Stocks.find({"$and":[\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.IsDelisted': False},\
+                                            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                            {'dates.mysql_price_pull_success': True},\
+                                        ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Stocks: %r" %(stocks.count())) 
         i=0
@@ -855,7 +861,15 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
 
     #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
-    stocks = collection.find({'$and': [{"$or":[{"dates.mysql_price_date": {"$eq": DB.get_latest_trading_day()}}, {"dates.mysql_price_date": {"$eq": DB.get_previous_trading_day()}}]}, {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}}, {'General.IsDelisted': False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {price_change:{cond:change}}]}).sort([[price_change,-direction]])
+    stocks = collection.find({'$and':[\
+                                        {"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+                                        {"dates.mysql_price_pull_success": True},\
+                                        {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+                                        {'General.IsDelisted': False},\
+                                        {'General.Type':'Common Stock'},\
+                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                        {price_change:{cond:change}},\
+                                        ]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
     #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
     for stk in stocks:

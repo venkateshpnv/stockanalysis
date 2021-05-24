@@ -70,7 +70,22 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     url = construct_price_data_url(symbol, start, end, index=True)
                 else:
                     url = construct_price_data_url(symbol, start, end, index=False)
-                ret = requests.get(url)
+                try:
+                    ret = requests.get(url)
+                    if ret.status_code == 402:
+                        print("%r" %(ret.text))
+                        sys.exit(1)
+                    if ret.status_code == 404:
+                        print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                        update = True
+                        return df
+                    if ret.status_code != 200:
+                        print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                        return df
+                except Exception as E:
+                    print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+                    return
+
                 df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
                 df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
 
@@ -1088,9 +1103,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     if not index:
                         # Reset mysql_price_failcount
                         DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
-                        DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
-                        DB.update_field(collection, symbol, "price_change.volume", df['Volume'][0])
+                        DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
+                        DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
                         data_update = True
+                    multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
                 else:
                     if not index:
                         DB.update_field(collection, symbol, "ignore", "YES")
@@ -1123,6 +1139,14 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             #    #last_updated_date = dt.strptime(stk['dates']['mysql_price_date'].split(' ')[0], "%Y-%m-%d").date()
             #    #if last_updated_date >= end:
             #    #    return
+
+            failcount = 0
+            if 'failcount' in stk.keys() and \
+                    'mysql_price_failcount' in stk['failcount'].keys():
+
+                    failcount = stk['failcount']['mysql_price_failcount']
+                    if stk['failcount']['mysql_price_failcount'] > 10:
+                        return
 
             if not DB.mysql_exists_table(sql_engine, table):
                 rdf = pd.DataFrame()
@@ -1195,9 +1219,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         # Reset mysql_price_failcount
                         if not index:
                             DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
-                            DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][0])
-                            DB.update_field(collection, symbol, "price_change.volume", df['Volume'][0])
+                            DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
+                            DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
                         data_update = True
+                        multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
@@ -1226,7 +1251,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     if data_update:
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
                     else:
+                        failcount = failcount + 1
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_success", False)
+                        print("%s: Updating %r for field failcount.mysql_price_failcount" %(stk['bscs']['symbol'], failcount))
+                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", failcount)
 
     finally:
         # Update the date on which the price is updated

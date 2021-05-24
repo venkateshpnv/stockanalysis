@@ -1392,7 +1392,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         close_sql_connection(sql_engine)
         return
 
-    num_processes = num_cores * 6
+    num_processes = num_cores * 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     eod_token = True
@@ -1451,9 +1451,17 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
 
 
         #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [{"dates.mysql_price_date": {"$exists": False }}, \
+                                            #            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
+                                            #]},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}\
+                                    ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'ADT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CRHM'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total stocks: %r" %(stocks.count()))
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
@@ -1468,6 +1476,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             if processes[j] is not None:
                 processes[j].join()
  
+        time.sleep(15)
         close_db_client(c)
         close_sql_connection(sql_engine)
     print("HDF5 Stocks tried :%r"%(i))
@@ -2137,6 +2146,7 @@ def update_all_tech_analysis_params(country='US'):
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
                                         {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        {'technicals.date':{'$lt': get_latest_trading_day()}},\
                                         {'dates.mysql_price_pull_success':True}, \
                                     ]}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
@@ -3219,40 +3229,11 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         break
 
-def update_US_stock_fin_information(stk, core, sem):
-
-    aff = 0 | 1 << core
-    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
-    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
-    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+def update_US_stock_fin_information_data(db, mysql_engine, fin, stk):
+    if not isinstance(fin, dict):
+        return
 
     try:
-        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
-        c  = open_db_client()
-        db = c['Stocks']
-
-        table_name = 'Balance_Sheet_quarterly' 
-        if mysql_exists_table(mysql_engine, table_name):
-            query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
-            ddf = read_from_sql(query, mysql_engine)
-            if not ddf.empty:
-                return
-
-        #income statements
-        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()+'&filter=Financials'
-        try:
-            ret = requests.get(url)
-            if ret.status_code != 200:
-                print("Failed to get financial statements for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
-                return
-        except Exception as E:
-            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
-            return
-
-        fin = ret.json()
-        if not isinstance(fin, dict):
-            return
-
         for stmt_type in fin.keys():
             if 'currency_symbol' in fin[stmt_type].keys():
                 del fin[stmt_type]['currency_symbol']
@@ -3269,15 +3250,79 @@ def update_US_stock_fin_information(stk, core, sem):
                         query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
                         ddf = read_from_sql(query, mysql_engine)
 
-                        index = stmt.index.difference(ddf.index)
+                        #index = stmt.index.difference(ddf.index)
                         #index = stmt.index.get_loc(ddf['Date'][-1])
+                        index = stmt.index.difference(ddf['Date'])
                         stmt = stmt.loc[index]
 
                     if not stmt.empty:
+                        print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(stmt.index.tolist())))
                         mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
 
     finally:
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
+ 
+def update_US_stock_fin_information(stk, core, sem):
+
+    aff = 0 | 1 << core
+    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        #table_name = 'Balance_Sheet_quarterly' 
+        #if mysql_exists_table(mysql_engine, table_name):
+        #    query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        #    ddf = read_from_sql(query, mysql_engine)
+        #    if not ddf.empty:
+        #        return
+
+        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()+'&filter=Financials'
+        try:
+            ret = requests.get(url)
+            if ret.status_code != 200:
+                print("Failed to get financial statements for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                return
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+        fin = ret.json()
+        update_US_stock_fin_information_data(db, mysql_engine, fin, stk)
+
+        #if not isinstance(fin, dict):
+        #    return
+
+        #for stmt_type in fin.keys():
+        #    if 'currency_symbol' in fin[stmt_type].keys():
+        #        del fin[stmt_type]['currency_symbol']
+        #    for duration in fin[stmt_type].keys():
+        #        stmt = pd.DataFrame(fin[stmt_type][duration]).transpose().sort_index()
+        #        if not stmt.empty:
+        #            if 'currency_symbol' in stmt.keys():
+        #                del stmt['currency_symbol']
+        #            stmt.insert(loc=0, column='Symbol', value=stk['bscs']['symbol'])
+        #            stmt.rename(columns={'date':'Date'}, inplace=True)
+
+        #            table_name = stmt_type+'_'+duration
+        #            if mysql_exists_table(mysql_engine, table_name):
+        #                query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        #                ddf = read_from_sql(query, mysql_engine)
+
+        #                #index = stmt.index.difference(ddf.index)
+        #                #index = stmt.index.get_loc(ddf['Date'][-1])
+        #                index = stmt.index.difference(ddf['Date'])
+        #                stmt = stmt.loc[index]
+
+        #            if not stmt.empty:
+        #                print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(stmt.index.tolist())))
+        #                mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+
+    finally:
         if sem:
             sem.release()
         close_sql_connection(mysql_engine)
@@ -3296,7 +3341,14 @@ def update_US_all_stock_fin_information():
     #stocks_list = db.US_Stocks_List.find({"symbol":syms}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #stocks = db.US_Stocks.find({'bscs.symbol':'DNI'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #stocks = db.US_Stocks.find({'General.Exchange':{"$in":major_exchanges}}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({"$and": [{"dates.fin_statements_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({\
+                                "$and": [\
+                                        #{"dates.fin_statements_pull_date": {"$exists": False}},\
+                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                        {"General.IsDelisted": False},\
+                                        {'General.Type':'Common Stock'},\
+                                        ]\
+                                }, no_cursor_timeout=True).sort([["General.Code",-1]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3774,7 +3826,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False):
 
         #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals}})
  
-        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings'
+        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
 
         try:
             ret = requests.get(url)
@@ -3799,8 +3851,16 @@ def update_technicals(stk, core=None, sem=None, general_only=False):
             update = True
             return
 
-        db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
-        del technicals['General']
+        # Update general information
+        if 'General' in technicals.keys():
+            db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
+            del technicals['General']
+        
+        # Update financial sheets
+        if 'Financials' in technicals.keys():
+            update_US_stock_fin_information_data(db, mysql_engine, technicals['Financials'], stk)
+            del technicals['Financials']
+
         if general_only == True:
             return
 
@@ -3835,7 +3895,7 @@ def update_all_technicals():
     c  = open_db_client()
     db = c['Stocks']
 
-    num_processes = num_cores * 4
+    num_processes = num_cores #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     j=0
@@ -3848,7 +3908,7 @@ def update_all_technicals():
     print("Total Symbols: %r" %(len(df)))
 
     # Get already updated stocks list
-    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False})
+    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
     syms=[]
     for stk in stks:
         syms.append(stk['bscs']['symbol'])
@@ -5069,7 +5129,7 @@ def same_calculations(df, fig):
         print(df[[f1,f2]])
     return ret
 
-def update_US_fin_percent_change(mysql_engine, stk, fig):
+def update_US_fin_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig):
     if fig == 'fig':
         income_table = 'income_table'
         balance_table = 'balance_table'
@@ -5118,7 +5178,8 @@ def US_fin_percent_per_process(stk, sem, core):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
-    US_fin_percent_change(mysql_engine, db, stk)
+    mysql_fin_change_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin_Change')
+    US_fin_percent_change(mysql_engine, mysql_fin_change_engine, db, stk)
 
     close_db_client(c)
     close_sql_connection(mysql_engine)
@@ -5142,7 +5203,6 @@ def update_all_US_fin_percent_change():
         #    break
         sem.acquire()
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        #threading.Thread(target=US_fin_percent_change, args=(mysql_engine, db, copy.deepcopy(stk), sem)).start()
         #US_fin_percent_change(mysql_engine, db, stk, sem)
         #US_fin_percent_per_process(stk, sem)
         multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,)).start()
