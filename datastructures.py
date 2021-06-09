@@ -476,27 +476,43 @@ fin_quarter_fields = {'qoq':'float',
 fin_quarter_fields_datatypes = ['float', 'float', 'float', 'float', 'float']
 fin_quarter_price_durations = [relativedelta(months=3), relativedelta(months=6), relativedelta(months=12), relativedelta(months=24)]
 
-income_fields = {'Sales':'float', 
-                    'Gross Profit':'float', 
-                    'Net Income $M':'float', 
-                    'EPS Diluted Continuous Ops':'float',
-                    }
-balance_fields = {'Cash & Cash Equivalents':'float', 
-                    'Total Current Assets':'float', 
-                    'Total Non-Current Assets':'float',
-                    'Total Assets $M':'float', 
-                    'Total Current Liabilities':'float', 
-                    'Total Non-Current Liabilities':'float', 
-                    'Total liabilities':'float', 
-                    'Common Shares':'BIG INT', 
-                    'Total Liabilities And Equity':'float',
-                    }
-cash_fields = {'Beginning Cash Position':'float', 
-                'End Cash Position':'float', 
-                'Free Cash Flow':'float', 
-                'Change In Cash':'float',
-                }
+#income_fields = {'Sales':'float', 
+#                    'Gross Profit':'float', 
+#                    'Net Income $M':'float', 
+#                    'EPS Diluted Continuous Ops':'float',
+#                    }
+#balance_fields = {'Cash & Cash Equivalents':'float', 
+#                    'Total Current Assets':'float', 
+#                    'Total Non-Current Assets':'float',
+#                    'Total Assets $M':'float', 
+#                    'Total Current Liabilities':'float', 
+#                    'Total Non-Current Liabilities':'float', 
+#                    'Total liabilities':'float', 
+#                    'Common Shares':'BIG INT', 
+#                    'Total Liabilities And Equity':'float',
+#                    }
+#cash_fields = {'Beginning Cash Position':'float', 
+#                'End Cash Position':'float', 
+#                'Free Cash Flow':'float', 
+#                'Change In Cash':'float',
+#                }
 
+income_fields = {'costOfRevenue':'float',
+                    'grossProfit':'float',
+                    'netIncome':'float',
+                    'totalRevenue':'float',
+                }
+balance_fields = {'totalAssets':'float',
+                    'totalCurrentAssets':'float',
+                    'totalLiab':'float',
+                    'totalCurrentLiabilities':'float',
+                    'longTermDebtTotal':'float',
+                }
+cash_fields = {'freeCashFlow':'float',
+                'endPeriodCashFlow':'float',
+                'changeInCash':'float',
+                'totalCashflowsFromInvestingActivities':'float',
+                }
 generic_fields = {'Symbol':'varchar(12)', 
                     'Date':'varchar(12)', 
                     'SPLIT':'varchar(12)',

@@ -1,6 +1,5 @@
 import sys
 import os
-import sys
 # Excel operations
 import xlrd
 import csv
@@ -61,6 +60,7 @@ import random
 num_cores = multiprocessing.cpu_count()
 thread_factor = num_cores
 #thread_factor=multiprocessing.cpu_count() * 8
+technicals_ratelimit_reset_time = None
 
 db_ips=['10.89.45.223', '10.89.45.152', '10.89.45.4']
 def get_db_ip():
@@ -570,7 +570,7 @@ def get_cassandra_session(cluster):
 #########################################################################
 
 client=None
-mongodb_ip='10.89.45.187'
+mongodb_ip='10.89.45.49'
 mongodb_port='27017'
 def get_mongodb_connection_phrase():
     return 'mongodb://'+mongodb_ip+':'+mongodb_port
@@ -1383,6 +1383,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
 
     f = open("/home/vpetla/work/stockanalysis/get_price_fails.txt", "w")
     f.close()
+    sort = [1, -1][dt.now().day % 2 == 0]
 
     today = dt.combine(dt.now(), dt.min.time())
     num_docs = collection.find({}).count()
@@ -1452,14 +1453,18 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
 
         #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         stocks = db.US_Stocks.find({"$and" : [ \
-                                            #{"$or": [{"dates.mysql_price_date": {"$exists": False }}, \
-                                            #            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
-                                            #]},\
-                                            {"General.IsDelisted": False},\
-                                            {'General.Type':'Common Stock'},\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}]}\
-                                    ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+                                                {"$or": [\
+                                                            {"dates.mysql_price_date": {"$exists": False }},\
+                                                            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
+                                                        ]\
+                                                },\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Type':'Common Stock'},\
+                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            ]\
+                                    }\
+                                    ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'CRHM'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total stocks: %r" %(stocks.count()))
@@ -1939,6 +1944,351 @@ def update_candlesticks(collection, sym, df):
     update_field(collection, sym, "technicals.candlesticks.UPSIDEGAP2CROWS",float(talib.CDLUPSIDEGAP2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
     update_field(collection, sym, "technicals.candlesticks.XSIDEGAP3METHODS",float(talib.CDLXSIDEGAP3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
 
+# Calculates estimated profit and returns the df back
+def calculate_ep(df, val):
+    ep0 = val
+    def ep(row):
+        nonlocal ep0
+        epn = ep0 * (1 + row['pct_change'])
+        ep0 = epn
+        return epn
+    df['ep'] = df.apply(ep, axis=1)
+    return df
+
+def calc_psar(df, duration=None):
+    if duration:
+        df = df.loc[df.index[-1]-duration:]
+
+    psar = ta.psar(df['High'], df['Low'], df['Adj Close'],af=0.02)
+    
+    # Add price column to the psar
+    psar['Adj Close'] = df['Adj Close']
+    
+    # Rename columns to simple names for easy reading
+    new_cols={}
+    new_cols['PSARl_0.02_0.2']='long';new_cols['PSARs_0.02_0.2']='short';new_cols['PSARaf_0.02_0.2']='af';new_cols['PSARr_0.02_0.2']='r'
+    psar.rename(columns=new_cols, inplace=True)
+    
+    # Get the dates of switch between long and short positions of the stock
+    # For example,
+    #               long  short  Adj Close     af     r 
+    #Date                                               
+    #2020-10-02      NaN  11.41       9.20   0.02  True 
+    #2020-10-26    8.900    NaN       9.95   0.06  True 
+    #2020-12-01      NaN  33.50      25.67   0.20  True 
+    #2020-12-22   21.150    NaN      28.04   0.04  True 
+    #2021-02-02      NaN  45.00      31.02   0.08  True 
+    #2021-03-10   20.180    NaN      24.75   0.16  True 
+    #2021-03-23      NaN  27.47      23.26   0.08  True 
+    #2021-04-09   20.860    NaN      24.04   0.08  True 
+    #2021-04-19      NaN  26.20      21.94   0.08  True 
+    #2021-05-18   17.055    NaN      21.24   0.12  True
+    sw = psar[psar['r'] == True]
+    
+    # Start from first long position date
+    sw = sw.loc[sw['long'].first_valid_index():]
+    
+    # Get the price percetange change during these dates
+    sw.insert(loc=4, column='pct_change', value=sw['Adj Close'].pct_change())
+    
+    # Filter only the dates to sell and make profit
+    sw = sw.loc[sw.short.notnull()]
+    
+    # Now we have dates and percentage changes where its ideal
+    # to sell the stock and make profit.
+    # Calculate profit achieved in the whole period.
+    # Assume you start with an investment of $1
+    start = 1
+    sw['ep']=np.nan
+    sw = calculate_ep(sw, 1) # Initial investment is $1
+    return sw
+
+def update_SAR_params(collection, sym, df):
+    # Parabolic SAR
+    # Exit the position if the SAR is greater than 'Adj Close'
+    # Enter the position if the SAR is less than 'Adj Close'
+    sar  = talib.SAR(df['High'], df['Low'])
+    if len(sar.index) == 0:
+        update_field(collection, sym, "technicals.sar", {})
+    else:
+        # Get the daily up/down SAR to Price trend information
+        sar_trend = pd.DataFrame(np.where(sar < df['Adj Close'], "UP", "DOWN"), index=sar.index)
+
+        # Take the today's trend
+        # Findout the length of the trend.
+        # For example if today's trend is UP, find out
+        # the number of days since the UP trend in the price.
+        trend = sar_trend.iloc[-1][0]
+        days = 1
+        for i, d in sar_trend.iloc[0:-1][::-1].iterrows():
+            if trend == d[0]:
+                days = days + 1
+            else:
+                break
+
+        if trend == 'DOWN':
+            days = -days
+
+        update_field(collection, sym, "technicals.sar.trend", days)
+        update_field(collection, sym, "technicals.sar.latest", sar.iloc[-1])
+
+        #ep: estimated profit
+        duration=relativedelta(years=1)
+        sw = calc_psar(copy.deepcopy(df), duration)
+        i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
+        change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
+        ep = np.nan
+        alpha = np.nan
+        if not sw['ep'].empty:
+            ep = sw.ep[-1] - 1
+            alpha = percent_change(change, ep)
+        update_field(collection, sym, "technicals.sar.ep.one_year.ep", ep)
+        update_field(collection, sym, "technicals.sar.ep.one_year.num_trades", len(sw))
+        update_field(collection, sym, "technicals.sar.ep.one_year.price_change", change)
+        update_field(collection, sym, "technicals.sar.ep.one_year.alpha", alpha)
+
+        duration=relativedelta(months=6)
+        sw = calc_psar(copy.deepcopy(df), duration)
+        i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
+        change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
+        ep = np.nan
+        alpha = np.nan
+        if not sw['ep'].empty:
+            ep = sw.ep[-1] - 1
+            alpha = percent_change(change, ep)
+        update_field(collection, sym, "technicals.sar.ep.six_months.ep", ep)
+        update_field(collection, sym, "technicals.sar.ep.six_months.num_trades", len(sw))
+        update_field(collection, sym, "technicals.sar.ep.six_months.price_change", change)
+        update_field(collection, sym, "technicals.sar.ep.six_months.alpha", alpha)
+
+        duration=relativedelta(months=3)
+        sw = calc_psar(copy.deepcopy(df), duration)
+        i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
+        change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
+        ep = np.nan
+        alpha = np.nan
+        if not sw['ep'].empty:
+            ep = sw.ep[-1] - 1
+            alpha = percent_change(change, ep)
+        update_field(collection, sym, "technicals.sar.ep.three_months.ep", ep)
+        update_field(collection, sym, "technicals.sar.ep.three_months.num_trades", len(sw))
+        update_field(collection, sym, "technicals.sar.ep.three_months.price_change", change)
+        update_field(collection, sym, "technicals.sar.ep.three_months.alpha", alpha)
+
+        duration=relativedelta(months=1)
+        sw = calc_psar(copy.deepcopy(df), duration)
+        i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
+        change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
+        ep = np.nan
+        alpha = np.nan
+        if not sw['ep'].empty:
+            ep = sw.ep[-1] - 1
+            alpha = percent_change(change, ep)
+        update_field(collection, sym, "technicals.sar.ep.one_month.ep", ep)
+        update_field(collection, sym, "technicals.sar.ep.one_month.num_trades", len(sw))
+        update_field(collection, sym, "technicals.sar.ep.one_month.price_change", change)
+        update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
+
+        change = percent_change(sar[-1], df['Adj Close'][-1])
+        update_field(collection, sym, "technicals.sar.change", change)
+    
+        idx = sar.loc[sar.index[-1]-timedelta(60):].tail(60).idxmin()
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.sar.60day_min", sar[idx])
+            update_field(collection, sym, "technicals.sar.60day_min_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.sar.60day_min_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.sar.60day_min_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.sar.60day_min", nan)
+            update_field(collection, sym, "technicals.sar.60day_min_price", nan)
+            update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
+            #update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
+    
+        idx = sar.loc[sar.index[-1]-timedelta(60):].tail(60).idxmax()
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.sar.60day_max", sar[idx])
+            update_field(collection, sym, "technicals.sar.60day_max_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.sar.60day_max_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.sar.60day_max_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.sar.60day_max", nan)
+            update_field(collection, sym, "technicals.sar.60day_max_price", nan)
+            update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
+            #update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
+        update_field(collection, sym, "technicals.sar.date", dt.combine(dt.now(), dt.min.time()))
+
+def update_RSI_params(collection, sym, df):
+    rsi = ta.rsi(df['Adj Close'])
+    if len(rsi.index) == 0:
+        update_field(collection, sym, "technicals.rsi", {})
+    else:
+        update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
+        idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
+            update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.rsi.60day_min", nan)
+            update_field(collection, sym, "technicals.rsi.60day_min_price", nan)
+            update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
+            #update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
+    
+        idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
+            update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.rsi.60day_max", nan)
+            update_field(collection, sym, "technicals.rsi.60day_max_price", nan)
+            update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
+            #update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
+        return rsi
+
+def update_BB_params(collection, sym, df):
+    #bbands = ta.bbands(df['Adj Close'])
+    ub,mb,lb = talib.BBANDS(df['Adj Close'], timeperiod=20)
+    if ub.empty:
+        update_field(collection, sym, "technicals.bbands", {})
+    else:
+        update_field(collection, sym, "technicals.bbands.lower", lb[-1])
+        update_field(collection, sym, "technicals.bbands.sma_20", mb[-1])
+        update_field(collection, sym, "technicals.bbands.upper", ub[-1])
+        # If the price is close to or above the upper band, its an uptrend and if close to lower band,
+        # its a downtrend.
+        update_field(collection, sym, "technicals.bbands.uptrend", df['Adj Close'][-1]/ub[-1])
+        update_field(collection, sym, "technicals.bbands.downtrend", lb[-1]/df['Adj Close'][-1])
+
+def update_AROON_params(collection, sym, df):
+    # A high or low are tracked by AROON up and AROON down respectively.
+    aroon_down, aroon_up = talib.AROON(df['High'], df['Low'], timeperiod=25)
+    update_field(collection, sym, "technicals.aroon.down", aroon_down[-1])
+    update_field(collection, sym, "technicals.aroon.up", aroon_up[-1])
+
+def update_ATR_params(collection, sym, df, rsi=None):
+    atr = ta.atr(df['High'], df['Low'], df['Adj Close'])
+    if rsi is None:
+        rsi = ta.rsi(df['Adj Close'])
+
+    if len(atr.index) == 0:
+        update_field(collection, sym, "technicals.atr", {})
+    else:
+        update_field(collection, sym, "technicals.atr.latest", atr.iloc[-1])
+        idx = atr.loc[atr.index[-1]-timedelta(60):].tail(60).idxmin()
+    
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.atr.60day_min", atr[idx])
+            update_field(collection, sym, "technicals.atr.60day_min_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.atr.60day_min_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.atr.60day_min_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.atr.60day_min", "")
+            update_field(collection, sym, "technicals.atr.60day_min_price", "")
+            update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
+            #update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
+    
+        idx = atr.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
+        if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.atr.60day_max", atr[idx])
+            update_field(collection, sym, "technicals.atr.60day_max_price", df.loc[idx]['Adj Close'])
+            update_field(collection, sym, "technicals.atr.60day_max_price_date", idx.to_pydatetime())
+            #update_field(collection, sym, "technicals.atr.60day_max_price_date", str(idx).split(' ')[0])
+        else:
+            update_field(collection, sym, "technicals.atr.60day_max", "")
+            update_field(collection, sym, "technicals.atr.60day_max_price", "")
+            update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
+            #update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
+            return atr
+
+def update_chandelier_params(collection, sym, df, atr=None):
+    if atr is None:
+        atr = ta.atr(df['High'], df['Low'], df['Adj Close'])
+
+    # Calculated using the ATR
+    if len(atr.index) == 0:
+        update_field(collection, sym, "technicals.chandelier.long", "-")
+        update_field(collection, sym, "technicals.chandelier.short", "-")
+        update_field(collection, sym, "technicals.chandelier.date", "-")
+    else:
+        rolling_low  = df["Low"][-22:].max()
+        rolling_high = df['High'][-22:].max()
+    
+        # Chandelier Exit (long) = 22-day High - ATR(22) x 3
+        # Chandelier Exit (short) = 22-day Low + ATR(22) x 3
+    
+        chandelier_long  = rolling_high - atr.iloc[-1] * 3
+        chandelier_short = rolling_low  + atr.iloc[-1] * 3
+        update_field(collection, sym, "technicals.chandelier.long", chandelier_long)
+        update_field(collection, sym, "technicals.chandelier.short", chandelier_short)
+        update_field(collection, sym, "technicals.chandelier.date", df.index[-1].to_pydatetime())
+
+def update_ulcer_index_params(collection, sym, df):
+    max_close = df['Adj Close'][-14:].max()
+    df['Pct Drawdown'] = ((df['Adj Close'] - max_close)/max_close) * 100
+    df['Pct Drawdown Sq'] = df['Pct Drawdown'].map(lambda x: x ** 2.0)
+    
+    square_avg = ((df['Pct Drawdown Sq'].sum())/float(len(df['Pct Drawdown Sq'])))
+    ulcer_index = math.sqrt(square_avg)
+    update_field(collection, sym, "technicals.ulcer_index", ulcer_index)
+
+def update_money_flow_index_params(collection, sym, df):
+    mf = ((df.iloc[-1]['Low'] + df.iloc[-1]['High'] + df.iloc[-1]['Adj Close'] ) / 3) * df.iloc[-1]['Volume']
+    update_field(collection, sym, "technicals.mf", mf)
+    update_candlesticks(collection, sym, df)
+
+def update_price_trend(collection, sym, df, end, duration, duration_text):
+    eindex = get_nearest_index(df, end)
+    sindex = get_nearest_index(df, end-duration)
+    cur_df = df.iloc[sindex:eindex]['Adj Close']
+
+    if not cur_df.empty:
+        # Calculate trend for that particular period
+        coefficients, residuals, _, _, _ = np.polyfit(range(len(cur_df.index)), cur_df, 1, full=True)
+
+        # Slope indicates the trend.
+        # The slope is 
+        # - positive if the price is going up.
+        # - negative if the price is moving down.
+        # - 0 if the price is constant.
+        # The slope value closer to 0 indicates that the 
+        # price didn't change much during that period.
+        # The other values indicates the strength of the trend
+        # in their respective directions.
+        slope = coefficients[0]
+        # Mean Square Error
+        mse = residuals[0]/(len(cur_df.index))
+        # Normalised Mean Square Error
+        nrmse = np.sqrt(mse)/(cur_df.max() - cur_df.min())
+
+        update_field(collection, sym, "technicals.price_trend."+duration_text+".slope", slope)
+        update_field(collection, sym, "technicals.price_trend."+duration_text+".error", nrmse)
+
+def update_price_trend_params(collection, sym, df):
+
+    end = df.index[-1].date()
+    # Ten Year trend
+    update_price_trend(collection, sym, df, end, relativedelta(years=10), 'ten_year')
+    # Five Year trend
+    update_price_trend(collection, sym, df, end, relativedelta(years=5), 'five_year')
+    # Two Year trend
+    update_price_trend(collection, sym, df, end, relativedelta(years=2), 'two_year')
+    # Yearly trend
+    update_price_trend(collection, sym, df, end, relativedelta(years=1), 'year')
+    # Half-Yearly trend
+    update_price_trend(collection, sym, df, end, relativedelta(months=6), 'half_year')
+    # Quarterly trend 
+    update_price_trend(collection, sym, df, end, relativedelta(months=3), 'quarter')
+    # Monthly trend
+    update_price_trend(collection, sym, df, end, relativedelta(months=1), 'month')
+    # Bi-Weekly trend
+    update_price_trend(collection, sym, df, end, relativedelta(weeks=2), 'two_week')
+    # Weekly trend
+    update_price_trend(collection, sym, df, end, relativedelta(weeks=1), 'week')
+    
+
 def update_tech_analysis_params(sym, core, sem=None):
 
     aff = 0 | 1 << core
@@ -1965,167 +2315,42 @@ def update_tech_analysis_params(sym, core, sem=None):
             update_field(collection, sym, "technicals.chandelier", {})
             update_field(collection, sym, "technicals.mf", nan)
             update_field(collection, sym, "technicals.ulcer_index", nan)
+            update_field(collection, sym, "technicals.price_trend", {})
         else:
-            rsi = ta.rsi(df['Adj Close'])
-            if len(rsi.index) == 0:
-                update_field(collection, sym, "technicals.rsi", {})
-            else:
-                update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
-                idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
-                    update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.rsi.60day_min_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.rsi.60day_min", nan)
-                    update_field(collection, sym, "technicals.rsi.60day_min_price", nan)
-                    update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
-                    #update_field(collection, sym, "technicals.rsi.60day_min_price_date", nan)
-
-                idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
-                    update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.rsi.60day_max", nan)
-                    update_field(collection, sym, "technicals.rsi.60day_max_price", nan)
-                    update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
-                    #update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
-
             # bollinger bands
-            #bbands = ta.bbands(df['Adj Close'])
-            ub,mb,lb = talib.BBANDS(df['Adj Close'], timeperiod=20)
-            if ub.empty:
-                update_field(collection, sym, "technicals.bbands", {})
-            else:
-                update_field(collection, sym, "technicals.bbands.lower", lb[-1])
-                update_field(collection, sym, "technicals.bbands.sma_20", mb[-1])
-                update_field(collection, sym, "technicals.bbands.upper", ub[-1])
-                # If the price is close to or above the upper band, its an uptrend and if close to lower band,
-                # its a downtrend.
-                update_field(collection, sym, "technicals.bbands.uptrend", df['Adj Close'][-1]/ub[-1])
-                update_field(collection, sym, "technicals.bbands.downtrend", lb[-1]/df['Adj Close'][-1])
+            update_BB_params(collection, sym, df)
 
             # AROON Indicator. Its a trend indicator.
-            # The since a high or low are tracked by AROON up and AROON down respectively.
-            aroon_down, aroon_up = talib.AROON(df['High'], df['Low'], timeperiod=25)
-            update_field(collection, sym, "technicals.aroon.down", aroon_down[-1])
-            update_field(collection, sym, "technicals.aroon.up", aroon_up[-1])
+            # A high or low are tracked by AROON up and AROON down respectively.
+            update_AROON_params(collection, sym, df)
 
-            # Parabolic SAR
-            # Exit the position if the SAR is greater than 'Adj Close'
-            # Enter the position if the SAR is less than 'Adj Close'
-            sar = talib.SAR(df['High'], df['Low'])
-            if len(sar.index) == 0:
-                update_field(collection, sym, "technicals.sar", {})
-            else:
+            # SAR Calculation
+            update_SAR_params(collection, sym, df)
 
-                change = percent_change(sar[-1], df['Adj Close'][-1])
-
-                if sar.iloc[-1] < df.iloc[-1]['Adj Close']:
-                    trend = 'UP'
-                else:
-                    trend = 'DOWN'
-                update_field(collection, sym, "technicals.sar.trend", trend)
-                update_field(collection, sym, "technicals.sar.latest", sar.iloc[-1])
-                update_field(collection, sym, "technicals.sar.change", change)
-
-                idx = sar.loc[sar.index[-1]-timedelta(60):].tail(60).idxmin()
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.sar.60day_min", sar[idx])
-                    update_field(collection, sym, "technicals.sar.60day_min_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.sar.60day_min_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.sar.60day_min_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.sar.60day_min", nan)
-                    update_field(collection, sym, "technicals.sar.60day_min_price", nan)
-                    update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
-                    #update_field(collection, sym, "technicals.sar.60day_min_price_date", nan)
-
-                idx = sar.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.sar.60day_max", sar[idx])
-                    update_field(collection, sym, "technicals.sar.60day_max_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.sar.60day_max_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.sar.60day_max_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.sar.60day_max", nan)
-                    update_field(collection, sym, "technicals.sar.60day_max_price", nan)
-                    update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
-                    #update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
+            # RSI Calculation
+            rsi = update_RSI_params(collection, sym, df)
 
             # ATR. Average True Range. Its a volatility Indicator.
             # High and low values represents respective volatility.
-            atr = ta.atr(df['High'], df['Low'], df['Adj Close'])
-            if len(atr.index) == 0:
-                update_field(collection, sym, "technicals.atr", {})
-            else:
-                update_field(collection, sym, "technicals.atr.latest", atr.iloc[-1])
-                idx = atr.loc[atr.index[-1]-timedelta(60):].tail(60).idxmin()
-
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.atr.60day_min", atr[idx])
-                    update_field(collection, sym, "technicals.atr.60day_min_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.atr.60day_min_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.atr.60day_min_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.atr.60day_min", "")
-                    update_field(collection, sym, "technicals.atr.60day_min_price", "")
-                    update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
-                    #update_field(collection, sym, "technicals.atr.60day_min_price_date", "")
-
-                idx = atr.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
-                if type(idx) is pd.Timestamp:
-                    update_field(collection, sym, "technicals.atr.60day_max", atr[idx])
-                    update_field(collection, sym, "technicals.atr.60day_max_price", df.loc[idx]['Adj Close'])
-                    update_field(collection, sym, "technicals.atr.60day_max_price_date", idx.to_pydatetime())
-                    #update_field(collection, sym, "technicals.atr.60day_max_price_date", str(idx).split(' ')[0])
-                else:
-                    update_field(collection, sym, "technicals.atr.60day_max", "")
-                    update_field(collection, sym, "technicals.atr.60day_max_price", "")
-                    update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
-                    #update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
+            atr = update_ATR_params(collection, sym, df, rsi)
 
             # Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
             # too early in an uptrend or too late in a downtrend.
             # http://kaushik316-blog.logdown.com/posts/1964522
             # https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
-            # Calculated using the ATR
-            if len(atr.index) == 0:
-                update_field(collection, sym, "technicals.chandelier.long", "-")
-                update_field(collection, sym, "technicals.chandelier.short", "-")
-                update_field(collection, sym, "technicals.chandelier.date", "-")
-            else:
-                rolling_low  = df["Low"][-22:].max()
-                rolling_high = df['High'][-22:].max()
-
-                # Chandelier Exit (long) = 22-day High - ATR(22) x 3
-                # Chandelier Exit (short) = 22-day Low + ATR(22) x 3
-
-                chandelier_long  = rolling_high - atr.iloc[-1] * 3
-                chandelier_short = rolling_low  + atr.iloc[-1] * 3
-                update_field(collection, sym, "technicals.chandelier.long", chandelier_long)
-                update_field(collection, sym, "technicals.chandelier.short", chandelier_short)
-                update_field(collection, sym, "technicals.chandelier.date", df.index[-1].to_pydatetime())
+            update_chandelier_params(collection, sym, df, atr)
 
             # Ulcer Index. ITs a volatility tracker designed to measure downside risk.
             # Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
             # a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
             # downside risk is zero since the price steadily increases without ever falling.
-            max_close = df['Adj Close'][-14:].max()
-            df['Pct Drawdown'] = ((df['Adj Close'] - max_close)/max_close) * 100
-            df['Pct Drawdown Sq'] = df['Pct Drawdown'].map(lambda x: x ** 2.0)
+            update_ulcer_index_params(collection, sym, df)
 
-            square_avg = ((df['Pct Drawdown Sq'].sum())/float(len(df['Pct Drawdown Sq'])))
-            ulcer_index = math.sqrt(square_avg)
-            update_field(collection, sym, "technicals.ulcer_index", ulcer_index)
+            # Money Flow index
+            update_money_flow_index_params(collection, sym, df)
 
-            mf = ((df.iloc[-1]['Low'] + df.iloc[-1]['High'] + df.iloc[-1]['Adj Close'] ) / 3) * df.iloc[-1]['Volume']
-            update_field(collection, sym, "technicals.mf", mf)
-            update_candlesticks(collection, sym, df)
+            # Calculate trend
+            update_price_trend_params(collection, sym, df)
 
         update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
     finally:
@@ -2142,16 +2367,21 @@ def update_all_tech_analysis_params(country='US'):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
+    sort = [-1, 1][dt.now().day % 2 == 0]
     stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
                                         {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
-                                        {'technicals.date':{'$lt': get_latest_trading_day()}},\
+                                        #{'$or':[\
+                                        #        {'technicals.date': {"$exists": False}},\
+                                        #        {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                        #        ]\
+                                        #},\
                                         {'dates.mysql_price_pull_success':True}, \
-                                    ]}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
+                                    ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'PTOCW'})
+    #stocks=db.US_Stocks.find({'General.Code':'AFCG'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -3335,6 +3565,7 @@ def update_US_all_stock_fin_information():
     num_processes = 6 #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
+    sort = [1, -1][dt.now().day % 2 == 0]
     j=0
  
     #syms = {"$nin" : s}
@@ -3348,7 +3579,7 @@ def update_US_all_stock_fin_information():
                                         {"General.IsDelisted": False},\
                                         {'General.Type':'Common Stock'},\
                                         ]\
-                                }, no_cursor_timeout=True).sort([["General.Code",-1]]).allow_disk_use(True)
+                                }, no_cursor_timeout=True).sort([["General.Code",sort]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3448,6 +3679,7 @@ def update_all_short_interests():
     num_processes = 6 #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
+    sort = [1, -1][dt.now().day % 2 == 0]
     j=0
  
     today = dt.combine(dt.now(), dt.min.time())
@@ -3455,7 +3687,17 @@ def update_all_short_interests():
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
     #stocks = db.US_Stocks.find({"$and": [{"dates.short_interests_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":['NASDAQ']}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}}, {"dates.short_interests_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":['NASDAQ']}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({\
+                                "$and": [\
+                                            {'General.Exchange':{"$in":['NASDAQ']}},\
+                                            {'General.Type':'Common Stock'},\
+                                            {"$or":[\
+                                                    {"dates.short_interests_pull_date": {"$exists": False}},\
+                                                    {"dates.short_interests_pull_date": {"$lte": get_previous_trading_day()}},\
+                                                    ]\
+                                            },\
+                                        ]\
+                                }, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -3553,12 +3795,13 @@ def update_all_splits():
     num_processes = 6 #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
+    sort = [1, -1][dt.now().day % 2 == 0]
     j=0
 
     today = dt.combine(dt.now(), dt.min.time())
 
     # First get splits for all new stocks
-    stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
@@ -3708,6 +3951,7 @@ def update_all_dividends():
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
     table_name = 'Dividends_History'
+    sort = [1, -1][dt.now().day % 2 == 0]
 
     num_processes = 6 #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
@@ -3718,7 +3962,7 @@ def update_all_dividends():
 
     try:
         # First get dividends for all new stocks
-        stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
+        stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
@@ -3776,13 +4020,21 @@ def update_all_dividends():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
-def update_technicals(stk, core=None, sem=None, general_only=False):
+def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None):
+    global technicals_ratelimit_reset_time
 
     if core:
         aff = 0 | 1 << core
         #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
         #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
         os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    # Reached max number of APIs per minute.
+    # Wait till 60 sec and try.
+    if ratelimit_event and ratelimit_event.is_set() is False:
+        print("%s: ratelimit_event set, waiting "%(stk['bscs']['symbol']))
+        ratelimit_event.wait()
+        print("%s: ratelimit_event cleared, waking up "%(stk['bscs']['symbol']))
 
     update = False
     df  = pd.DataFrame()
@@ -3826,22 +4078,67 @@ def update_technicals(stk, core=None, sem=None, general_only=False):
 
         #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals}})
  
-        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
+        if general_only == True:
+            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+        else:
+            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
 
         try:
-            ret = requests.get(url)
-            if ret.status_code == 402:
-                print("%r" %(ret.text))
-                close_sql_connection(mysql_engine)
-                close_db_client(c)
-                sys.exit(1)
-            if ret.status_code == 404:
-                print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                update = True
-                return
-            if ret.status_code != 200:
-                print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                return
+            while True:
+                ret = requests.get(url)
+                if ret.status_code == 402:
+                    print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    close_sql_connection(mysql_engine)
+                    close_db_client(c)
+                    sys.exit(1)
+                elif ret.status_code == 404:
+                    print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    update = True
+                    return
+                elif ret.status_code != 200:
+                    print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    return
+                elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
+                    now = dt.now()
+                    # If the ratelimit was not yet reset,
+                    # wait for 60 secs
+                    if technicals_ratelimit_reset_time is None: 
+                        secs = 60
+                    else:
+                        # Because the ratelimit is restricted 
+                        # 1000 requests per minute, wait for 
+                        # 60 - number of seconds elapsed since the 
+                        # ratelimit was reset. We don't need to wait
+                        # again for 60 secs.
+                        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
+
+                    lock_acquired = unblocked_lock(lock)
+                    # I am the first process to know that ratelimit has reached.
+                    # Tell the other processes to wait and not send any further API requests.
+                    # Sleep for the remaining time.
+                    # Reset the ratelimit time to now.
+                    # Wakeup and inform the other processes to resume.
+                    if lock_acquired:
+                        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
+                        ratelimit_event.clear()
+                        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
+                        time.sleep(secs)
+                        technicals_ratelimit_reset_time = dt.now()
+                        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
+                        ratelimit_event.set()
+                        lock.release()
+                    else:
+                        # I am not the first one to know that the ratelimit has reached.
+                        # The first guy has already informed the other processes
+                        # who have not yet sent the API requests to wait.
+                        # Unfortunately I came to know a bit late.
+                        # I will simply wait for the remaining time.
+                        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
+                        time.sleep(secs)
+                    # Now retry the API request again.
+                    continue
+                else:
+                    break
         except Exception as E:
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
@@ -3875,7 +4172,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False):
                 df.drop(['NumberDividendsByYear'], inplace=True)
 
             df = df.transpose()
-            df['Date'] = dt.now().date()
+            df['Date'] = get_latest_trading_day().date()
             df.index = df['Date']
             # Remove duplicate columns
             df = df.loc[:,~df.columns.duplicated()]
@@ -3892,12 +4189,18 @@ def update_technicals(stk, core=None, sem=None, general_only=False):
         close_db_client(c)
 
 def update_all_technicals():
+
     c  = open_db_client()
     db = c['Stocks']
+    ratelimit_event = multiprocessing.Event()
+    ratelimit_event.set()
+    lock = multiprocessing.Lock()
+    general_only=False
 
     num_processes = num_cores #* 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
+    sort = [1, -1][dt.now().day % 2 == 0]
     j=0
  
     today = dt.combine(dt.now(), dt.min.time())
@@ -3905,10 +4208,8 @@ def update_all_technicals():
     # Get trading symbols from eod
     df = get_eod_all_trading_symbols(exchanges=major_exchanges, quoteType='Common Stock')
 
-    print("Total Symbols: %r" %(len(df)))
-
     # Get already updated stocks list
-    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
+    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,{"bscs.symbol":1, '_id':False}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
     syms=[]
     for stk in stks:
         syms.append(stk['bscs']['symbol'])
@@ -3917,6 +4218,7 @@ def update_all_technicals():
 
     # Get list of symbols to be updated
     df = df[~df.Symbol.isin(stk_df.Symbol)]
+    print("Total Symbols: %r" %(len(df)))
 
     try:
         # First get dividends for all new stocks
@@ -3956,7 +4258,7 @@ def update_all_technicals():
             sem.acquire()
             print("%d: %r" %(i, stk['bscs']['symbol']))
             #update_technicals(stk, None, sem)
-            processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
+            processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem, general_only, ratelimit_event, lock))
             processes[j%num_processes].start()
             j = j + 1
             i = i + 1

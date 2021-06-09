@@ -34,7 +34,10 @@ def html_text(s, lol, col=None):
         if col:
             val= '<mark> ' + sublist[col] + ' </mark>'
             sublist[col] = val
-        s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
+        try:
+            s += "%s\n" %('    </td><td class="tg-0lax">'.join(sublist))
+        except Exception as E:
+            print(sublist)
         s += "%s\n" %('  </tr>')
     s += "%s\n" %('</table>')
     return s

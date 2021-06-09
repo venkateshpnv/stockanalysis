@@ -92,6 +92,8 @@ def get_usd_to_inr():
 
 def get_symbol_prices(sym, name, country, index, shortlist_price):
     entry = []
+    if sym == 'INS':
+        print("Symbol")
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if not index:
         entry.append(sym)
@@ -455,13 +457,37 @@ def add_basic_header(sheet, i):
     conf.RSI_PRICE_CHANGE_DAYS=i
 
     i+=1
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 6*367
+    st = "PSAR EP 1Yr"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_EP_1YR=i
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "PSAR EP 1Yr Price Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_EP_1YR_PR_CHANGE=i
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "PSAR EP 1Yr Alpha"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_EP_1YR_ALPHA=i
+
+    i+=1
+    sheet.col(i).width = 4*367
+    st = "PSAR EP 1Yr Num Trades"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_EP_1YR_TRADES=i
+
+    i+=1
+    sheet.col(i).width = 3*367
     st = "PSAR Trend"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TREND=i
 
     i+=1
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 6*367
     st = "PSAR Change"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_CHANGE=i
@@ -1888,8 +1914,14 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'down' in stk['technicals']['aroon'].keys():
         sh_write(ash, conf.COUNT, conf.AROON_DOWN, stk['technicals']['aroon']['down'], style_decimal, all_sht)
 
+    if 'ep' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR, stk['technicals']['sar']['ep']['one_year']['ep'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_TRADES, stk['technicals']['sar']['ep']['one_year']['num_trades'], style_num, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_PR_CHANGE, stk['technicals']['sar']['ep']['one_year']['price_change'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_ALPHA, stk['technicals']['sar']['ep']['one_year']['alpha'], style_percent, all_sht)
+
     if 'trend' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], style_text, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], style_num, all_sht)
     if 'latest' in stk['technicals']['sar'].keys():
         sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, all_sht)
     if 'change' in stk['technicals']['sar'].keys():

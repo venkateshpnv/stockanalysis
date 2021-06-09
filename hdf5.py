@@ -2,25 +2,24 @@ import pandas as pd
 import pandas_datareader as pdr
 import h5py
 from datetime import date, timedelta, datetime as dt
-from common import *
-from datastructures import *
 import time
 from dateutil.relativedelta import relativedelta
 from pandas.tseries.holiday import get_calendar
 import sqlalchemy
-
-import DB
 import os
-from arctic import Arctic
+#from arctic import Arctic
 import threading
 from math import nan, isnan
 import numpy as np
 import copy
 from io import StringIO
-
 import time
 
+
 import internet
+from common import *
+from datastructures import *
+import DB
 
 #hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/US_price_data.hd5'
 hdf_path='/home/vpetla/work/stockanalysis/US_Stocks/DCF_Calc/test.h5'
@@ -73,7 +72,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 try:
                     ret = requests.get(url)
                     if ret.status_code == 402:
-                        print("%r" %(ret.text))
+                        print("%s: Ratelimit: %r %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
                         sys.exit(1)
                     if ret.status_code == 404:
                         print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
@@ -86,6 +85,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
                     return
 
+                #print("%s: Ratelimit: %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining'])))
                 df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
                 df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
 
@@ -1212,7 +1212,6 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         #print("Writing to sql prices for %r" %(symbol))
                         #print("writing data for %r to mysql" %(stk['bscs']['symbol']))
                         #s=time.time()
-                        print("mysql get_stock_data(): %s"%(symbol))
                         #DB.write_to_sql(sql_engine, table, df)
                         DB.mysql_update_table(sql_engine, table, df, insert=True, check=True, date_column=False, format_columns=False)
                         #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
@@ -1248,13 +1247,13 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 if not index:
                     if data_pull:
                         DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
-                    if data_update:
-                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
                     else:
                         failcount = failcount + 1
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_success", False)
                         print("%s: Updating %r for field failcount.mysql_price_failcount" %(stk['bscs']['symbol'], failcount))
                         DB.update_field(collection, symbol, "failcount.mysql_price_failcount", failcount)
+                    if data_update:
+                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
 
     finally:
         # Update the date on which the price is updated

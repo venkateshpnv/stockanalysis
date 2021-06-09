@@ -140,6 +140,13 @@ def lowest_3(a, b, c):
         return b
     return c
 
+# Lock without blocking
+# Return False if lock is not available
+# Acquire lock and return True if the lock is available.
+# https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Lock.acquire
+def unblocked_lock(lock):
+    return lock.acquire(block=False)
+
 def exception_info(E):
     exc_type, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]

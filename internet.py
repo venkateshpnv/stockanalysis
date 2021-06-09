@@ -724,6 +724,11 @@ def fork_hdf5_process(country):
                                             {'General.IsDelisted': False},\
                                             {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_pull_success': True},\
+                                            {"$or":[\
+                                                    {'price_change.date': {"lt":DB.get_latest_trading_day()}},\
+                                                    {'price_change': {"$exists": False}}\
+                                                    ]\
+                                            },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Stocks: %r" %(stocks.count())) 
@@ -754,7 +759,7 @@ def fork_hdf5_process(country):
         # But need to track threads and update variables.
         # Simplest way is to wait for tentative time taken for the end threads to complete
         # Randomly estimated it to be 10 sec and it perfectly works.
-        #time.sleep(30)
+        time.sleep(30)
         for j in range(len(processes)):
             if processes[j] is not None:
                 processes[j].join()
