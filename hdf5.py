@@ -1246,14 +1246,17 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
                 if not index:
                     if data_pull:
-                        DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                        if not df.empty:
+                            DB.update_field(collection, symbol, "dates.mysql_price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
+                        DB.update_field(collection, symbol, "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
                     else:
                         failcount = failcount + 1
-                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", False)
                         print("%s: Updating %r for field failcount.mysql_price_failcount" %(stk['bscs']['symbol'], failcount))
                         DB.update_field(collection, symbol, "failcount.mysql_price_failcount", failcount)
                     if data_update:
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
+                    else:
+                        DB.update_field(collection, symbol, "dates.mysql_price_pull_success", False)
 
     finally:
         # Update the date on which the price is updated

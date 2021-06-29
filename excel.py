@@ -22,9 +22,17 @@ from common import *
 import  hdf5
 from datastructures import *
 
-pattern = xlwt.Pattern()
-pattern.pattern = xlwt.Pattern.SOLID_PATTERN
-pattern.pattern_fore_colour = xlwt.Style.colour_map['yellow']
+def get_pattern(color):
+    pattern = xlwt.Pattern()
+    pattern.pattern = xlwt.Pattern.SOLID_PATTERN
+    pattern.pattern_fore_colour = xlwt.Style.colour_map[color]
+    return pattern
+
+# List of num_format_str types
+#https://github.com/python-excel/xlwt/blob/master/examples/num_formats.py
+def get_style(color, num_format_str='general'):
+    pattern = 'pattern: pattern solid, fore_colour {};'.format(color)
+    return xlwt.Style.easyxf(pattern, num_format_str=num_format_str)
 
 style_bold = xlwt.Style.easyxf("font: bold 1;")
 #style2 = xlwt.Style.easyxf("font: bold 1, fore_colour green;")
@@ -57,7 +65,14 @@ style_num.alignment.horz = xlwt.Alignment.HORZ_RIGHT
 style_num.font.height = 10 * 20 #(10 pt)
 
 style_highlight = xlwt.XFStyle()
-style_highlight.pattern = pattern
+style_highlight.pattern = get_pattern('yellow')
+
+styles = {}
+#colors = list(xlwt.Style.colour_map.keys())
+#del colors[0]
+#del colors[0]
+#del colors[4]
+colors = ['blue_grey', 'coral', 'gold', 'ice_blue', 'ivory', 'lavender', 'light_blue', 'light_green', 'light_orange', 'light_turquoise', 'light_yellow', 'lime', 'olive_ega', 'pale_blue', 'rose', 'silver_ega', 'sky_blue', 'teal', 'teal_ega', 'turquoise']
 
 def sh_write(exl_sht, row, column, data, style=None, all_sht=None):
     try:
@@ -420,6 +435,7 @@ def add_basic_header(sheet, i):
     st = "RSI Min Diff"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_MIN_DIFF=i
+    styles['RSI_MIN_DIFF'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # difference between 60 day min RSI and latest RSI
@@ -427,6 +443,7 @@ def add_basic_header(sheet, i):
     st = "RSI Max Diff"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_MAX_DIFF=i
+    styles['RSI_MAX_DIFF'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # 60 day max RSI
@@ -434,6 +451,7 @@ def add_basic_header(sheet, i):
     st = "RSI Max Min Diff"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_DIFF=i
+    styles['RSI_DIFF'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # 60 day max RSI
@@ -441,6 +459,7 @@ def add_basic_header(sheet, i):
     st = "RSI Range"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_60_MAX=i
+    styles['RSI_60_MAX'] = get_style(colors[i%len(colors)], num_format_str="general")
 
     i+=1
     # RSI min max price change
@@ -448,6 +467,7 @@ def add_basic_header(sheet, i):
     st = "RSI price change"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_PRICE_CHANGE=i
+    styles['RSI_PRICE_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     # RSI min max price change
@@ -455,6 +475,7 @@ def add_basic_header(sheet, i):
     st = "RSI price change days"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_PRICE_CHANGE_DAYS=i
+    styles['RSI_PRICE_CHANGE_DAYS'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 6*367
@@ -479,6 +500,7 @@ def add_basic_header(sheet, i):
     st = "PSAR EP 1Yr Num Trades"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_EP_1YR_TRADES=i
+    styles['PSAR_EP_1YR_TRADES'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 3*367
@@ -487,16 +509,94 @@ def add_basic_header(sheet, i):
     conf.PSAR_TREND=i
 
     i+=1
+    sheet.col(i).width = 4*367
+    st = "PSAR TA lib Trend"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TA_TREND=i
+    styles['PSAR_TA_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 7*367
+    st = "PSAR TA lib Cur Trend Price Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TA_CUR_TREND_PR_CHANGE=i
+    styles['PSAR_TA_CUR_TREND_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 4*367
+    st = "PSAR TA lib Prev Trend"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TA_PREV_TREND=i
+    styles['PSAR_TA_PREV_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 7*367
+    st = "PSAR TA lib Prev Trend Price Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TA_PREV_TREND_PR_CHANGE=i
+    styles['PSAR_TA_PREV_TREND_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 10*367
+    st = "PSAR TA lib Trend Sequence"
+    sheet.write(0, i, st, style_wrap)
+    conf.PSAR_TA_TREND_SEQUENCE=i
+
+
+    i+=1
     sheet.col(i).width = 6*367
     st = "PSAR Change"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_CHANGE=i
+    styles['PSAR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 5*367
     st = "PSAR"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR=i
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Put Call Ratio"
+    sheet.write(0, i, st, style_wrap)
+    conf.PUT_CALL_RATIO=i
+    styles['PUT_CALL_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Put Call Open Interest Ratio"
+    sheet.write(0, i, st, style_wrap)
+    conf.PUT_CALL_OPEN_RATIO=i
+    styles['PUT_CALL_OPEN_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Puts Volume"
+    sheet.write(0, i, st, style_wrap)
+    conf.PUTS_VOLUME=i
+    styles['PUTS_VOLUME'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Calls Volume"
+    sheet.write(0, i, st, style_wrap)
+    conf.CALLS_VOLUME=i
+    styles['CALLS_VOLUME'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Puts Open Interest Volume"
+    sheet.write(0, i, st, style_wrap)
+    conf.PUTS_OPEN_VOLUME=i
+    styles['PUTS_OPEN_VOLUME'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    st = "Calls Open Interest Volume"
+    sheet.write(0, i, st, style_wrap)
+    conf.CALLS_OPEN_VOLUME=i
+    styles['CALLS_OPEN_VOLUME'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 5*367
@@ -515,6 +615,14 @@ def add_basic_header(sheet, i):
     st = "ULCER INDEX"
     sheet.write(0, i, st, style_wrap)
     conf.ULCER_INDEX=i
+
+    i+=1
+    # BBands 
+    sheet.col(i).width = 5*367
+    st = "Price > BBands"
+    sheet.write(0, i, st, style_wrap)
+    conf.BBANDS_PRICE=i
+    styles['BBANDS_PRICE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     # BBands 
@@ -963,11 +1071,13 @@ def add_technicals(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Short Ratio", style_wrap)
     conf.SHORT_RATIO=i
+    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Shares Float", style_wrap)
     conf.SHARES_FLOAT_PERCENT=i
+    styles['SHARES_FLOAT_PERCENT'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 5*367
@@ -1078,60 +1188,68 @@ def add_price_change_header(sheet, i, sheet_type):
     sheet.write(0, i, "One Month Volatility", style_wrap)
     conf.VOLATILITY=i
 
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "One Month Momentum", style_wrap)
-    conf.ONE_MOMENTUM=i
+    #i = i + 1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "One Month Momentum", style_wrap)
+    #conf.ONE_MOMENTUM=i
 
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Three Months Momentum", style_wrap)
-    conf.THREE_MOMENTUM=i
+    #i = i + 1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Three Months Momentum", style_wrap)
+    #conf.THREE_MOMENTUM=i
 
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Six Months Momentum", style_wrap)
-    conf.SIX_MOMENTUM=i
+    #i = i + 1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Six Months Momentum", style_wrap)
+    #conf.SIX_MOMENTUM=i
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Day Price Change", style_wrap)
     conf.DAY_PR_CHANGE=i
+    styles['DAY_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Week Price Change", style_wrap)
     conf.WEEK_PR_CHANGE=i
+    styles['WEEK_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Two Week Price Change", style_wrap)
     conf.TWO_WEEK_PR_CHANGE=i
+    styles['TWO_WEEK_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Mon Price Change", style_wrap)
     conf.MON_PR_CHANGE=i
+    styles['MON_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Qr Price Change", style_wrap)
     conf.QR_PR_CHANGE=i
+    styles['QR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Half Yr Price Change", style_wrap)
     conf.HF_YR_PR_CHANGE=i
+    styles['HF_YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Yr Price Change", style_wrap)
     conf.YR_PR_CHANGE=i
+    styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
  
     i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Whole Price Change", style_wrap)
     conf.WH_PR_CHANGE=i
+    styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     return i
 
@@ -1244,17 +1362,17 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal)
-        sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal)
-        sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal)
-        sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text)
-        sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal)
+        sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), styles['RSI_MIN_DIFF'])
+        sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), styles['RSI_MAX_DIFF'])
+        sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), styles['RSI_60_MAX'])
+        sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), styles['RSI_DIFF'])
         if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
         else:
             rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
-        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent)
+        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'])
         days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
-        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight)
+        sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'])
 
     if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
@@ -1275,9 +1393,9 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
-        sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
-        sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
-        sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
+        #sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
+        #sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
+        #sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
     #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
@@ -1648,11 +1766,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
 
     if 'ShortRatio' in stk['SharesStats'].keys():
-        sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], style_decimal, all_sht=all_sht)
+        sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], styles['SHORT_RATIO'], all_sht=all_sht)
 
     try:
         if stk['SharesStats']['SharesOutstanding'] > 0:
-            sh_write(ash, conf.COUNT, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'], style_percent, all_sht=all_sht)
+            sh_write(ash, conf.COUNT, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'], styles['SHARES_FLOAT_PERCENT'], all_sht=all_sht)
             sh_write(ash, conf.COUNT, conf.SHORT_PRIOR_MONTH, stk['SharesStats']['SharesShortPriorMonth']/stk['SharesStats']['SharesOutstanding'], style_percent, all_sht=all_sht)
             sh_write(ash, conf.COUNT, conf.PPS_TTM, stk['Highlights']['GrossProfitTTM']/ stk['SharesStats']['SharesOutstanding'], style_decimal, all_sht)
     except Exception as E:
@@ -1891,20 +2009,21 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     elif stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, all_sht)
         if '60day_min' in stk['technicals']['rsi'].keys():
-            sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), style_decimal, all_sht)
-            sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), style_decimal, all_sht)
-            sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), style_text, all_sht)
-            sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), style_decimal, all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), styles['RSI_MIN_DIFF'], all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), styles['RSI_MAX_DIFF'], all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), styles['RSI_60_MAX'], all_sht)
+            sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), styles['RSI_DIFF'], all_sht)
             if type(stk['technicals']['rsi']['60day_max_price_date']) is pd.datetime and type(stk['technicals']['rsi']['60day_min_price_date']) is pd.datetime:
                 if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
                     rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
                 else:
                     rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
-                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, style_percent, all_sht)
+                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'], all_sht)
                 days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
-                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, style_highlight, all_sht)
+                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'], all_sht)
 
     if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
+        sh_write(ash, conf.COUNT, conf.BBANDS_PRICE, round(percent_change(stk['technicals']['bbands']['upper'], stk['price_change']['price']),2), styles['BBANDS_PRICE'], all_sht)
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text, all_sht)
         sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent, all_sht)
         sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent, all_sht)
@@ -1916,16 +2035,35 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     if 'ep' in stk['technicals']['sar'].keys():
         sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR, stk['technicals']['sar']['ep']['one_year']['ep'], style_percent, all_sht)
-        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_TRADES, stk['technicals']['sar']['ep']['one_year']['num_trades'], style_num, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_TRADES, stk['technicals']['sar']['ep']['one_year']['num_trades'], styles['PSAR_EP_1YR_TRADES'], all_sht)
         sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_PR_CHANGE, stk['technicals']['sar']['ep']['one_year']['price_change'], style_percent, all_sht)
         sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_ALPHA, stk['technicals']['sar']['ep']['one_year']['alpha'], style_percent, all_sht)
 
     if 'trend' in stk['technicals']['sar'].keys():
         sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], style_num, all_sht)
+    if 'ta_psar_trend' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], styles['PSAR_TA_TREND'], all_sht)
+    if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TA_CUR_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_cur_trend_price_change'], styles['PSAR_TA_CUR_TREND_PR_CHANGE'], all_sht)
+    if 'ta_psar_prev_trend' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND, stk['technicals']['sar']['ta_psar_prev_trend'], styles['PSAR_TA_PREV_TREND'], all_sht)
+    if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_prev_trend_price_change'], styles['PSAR_TA_PREV_TREND_PR_CHANGE'], all_sht)
+    if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
+        sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND_SEQUENCE, stk['technicals']['sar']['ta_psar_trend_sequence'], style_num, all_sht)
+
     if 'latest' in stk['technicals']['sar'].keys():
         sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, all_sht)
     if 'change' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], styles['PSAR_CHANGE'], all_sht)
+
+    if 'options' in stk.keys():
+        sh_write(ash, conf.COUNT, conf.PUT_CALL_RATIO, round(stk['options']['putCallRatio'],2), styles['PUT_CALL_RATIO'], all_sht)
+        sh_write(ash, conf.COUNT, conf.PUT_CALL_OPEN_RATIO, round(stk['options']['putCallOpenInterestRatio'],2), styles['PUT_CALL_OPEN_RATIO'], all_sht)
+        sh_write(ash, conf.COUNT, conf.PUTS_VOLUME, stk['options']['putVolume'], styles['PUTS_VOLUME'], all_sht)
+        sh_write(ash, conf.COUNT, conf.CALLS_VOLUME, stk['options']['callVolume'], styles['CALLS_VOLUME'], all_sht)
+        sh_write(ash, conf.COUNT, conf.PUTS_OPEN_VOLUME, stk['options']['putOpenInterest'], styles['PUTS_OPEN_VOLUME'], all_sht)
+        sh_write(ash, conf.COUNT, conf.CALLS_OPEN_VOLUME, stk['options']['callOpenInterest'], styles['CALLS_OPEN_VOLUME'], all_sht)
 
     if 'long' in stk['technicals']['chandelier'].keys():
         sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, all_sht)
@@ -1938,28 +2076,28 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, all_sht)
 
     if 'whole' in stk['price_change'].keys() and stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
-        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, styles['WH_PR_CHANGE'], all_sht)
     if 'year' in stk['price_change'].keys() and stk['price_change']['year'] is not None and stk['price_change']['year'] != 0:
-        sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], styles['YR_PR_CHANGE'], all_sht)
     if 'half_year' in stk['price_change'].keys() and stk['price_change']['half_year'] is not None and stk['price_change']['half_year'] != 0:
-        sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], styles['HF_YR_PR_CHANGE'], all_sht)
     if 'quarter' in stk['price_change'].keys() and stk['price_change']['quarter'] is not None and stk['price_change']['quarter'] != 0:
-        sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.QR_PR_CHANGE, stk['price_change']['quarter'], styles['QR_PR_CHANGE'], all_sht)
     if 'month' in stk['price_change'].keys() and stk['price_change']['month'] is not None and stk['price_change']['month'] != 0:
-        sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.MON_PR_CHANGE, stk['price_change']['month'], styles['MON_PR_CHANGE'], all_sht)
     if 'week' in stk['price_change'].keys() and stk['price_change']['week'] is not None and stk['price_change']['week'] != 0:
-        sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.WEEK_PR_CHANGE, stk['price_change']['week'], styles['WEEK_PR_CHANGE'], all_sht)
     if 'two_week' in stk['price_change'].keys() and stk['price_change']['two_week'] is not None and stk['price_change']['two_week'] != 0:
-        sh_write(ash, conf.COUNT, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], styles['TWO_WEEK_PR_CHANGE'], all_sht)
     if 'day' in stk['price_change'].keys() and stk['price_change']['day'] is not None and stk['price_change']['day'] != 0:
-        sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent, all_sht)
+        sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], styles['DAY_PR_CHANGE'], all_sht)
 
     if 'fig' in stk.keys():
         if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
             sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, all_sht)
-            sh_write(ash, conf.COUNT, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
-            sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent, all_sht)
-            sh_write(ash, conf.COUNT, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent, all_sht)
+            #sh_write(ash, conf.COUNT, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, all_sht)
+            #sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent, all_sht)
+            #sh_write(ash, conf.COUNT, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent, all_sht)
  
         if 'price_growth' in stk['fig'].keys():
             sh_write(ash, conf.COUNT, conf.TEN_PRICE, stk['fig']['price_growth'], style_percent, all_sht)

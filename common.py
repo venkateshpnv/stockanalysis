@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 from datetime import date
 import re
 import pandas as pd
+import numpy as np
 import requests
 
 from itertools import cycle
@@ -19,6 +20,7 @@ import secrets
 import multiprocessing
 
 import internet
+import DB
 
 from datastructures import eod_token_file
 
@@ -151,6 +153,23 @@ def exception_info(E):
     exc_type, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
     print("Exception: %s, filename: %r, line no: %d" %(exc_type, fname, exc_tb.tb_lineno))
+
+def get_holiday_list(start=None, end=None, datetime_format=True):
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+    query = 'select Date from {} where Date between \'{}\' and \'{}\''.format('US_Holiday_List', str(start), str(end))
+    df = pd.read_sql_query(query, mysql_engine)
+    DB.close_sql_connection(mysql_engine)
+
+    if datetime_format:
+        return [dt.strptime(x, "%Y-%m-%d").date() for x in list(df['Date'])]
+    return list(df['Date'])
+
+# Returns number of days between two days excluding weekends
+# and holidays(if provided)
+# start and end should be of type datetime.date()
+# holidays should be a list of datetime.date objects
+def date_difference(start, end, holidays=None):
+    return np.busday_count(start, end, holidays=holidays)
 
 # Compare two dataframes and return the difference rows (df1-df2)
 # Return entries present in df1 but not in df2

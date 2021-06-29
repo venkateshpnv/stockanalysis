@@ -9,6 +9,7 @@ import time
 import requests
 import math
 from math import nan, isnan
+import json
 
 from datetime import date, timedelta, datetime as dt
 from dateutil.relativedelta import relativedelta
@@ -1213,7 +1214,23 @@ def update_db_price_volume(collection, stk):
 
 j=0
 
-def update_bond_yields(sql_engine):
+def update_bond_yields():
+    sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
+
+    new_cols = {'1 mo': '001_1_mon', 
+            '2 mo': '002_2_mon', 
+            '3 mo': '003_3_mon', 
+            '6 mo' : '004_6_mon', 
+            '1 yr' : '005_1_yr',
+            '2 yr' : '006_2_yr',
+            '3 yr' : '007_3_yr',
+            '5 yr' : '008_5_yr',
+            '7 yr' : '009_7_yr',
+            '10 yr': '010_10_yr',
+            '20 yr': '011_20_yr',
+            '30 yr': '012_30_yr',
+            }
+
     table = 'BOND_YIELDS'
     mysql_check_n_create_table(sql_engine, table)
     query='select Date from ' + table + ' order by Date DESC limit 1'
@@ -1242,10 +1259,13 @@ def update_bond_yields(sql_engine):
         if not rdf.empty and rdf['Date'][0] in list(df.index):
             index = df.index.get_loc(rdf['Date'][0])
             df = df[index+1:]
+        df.rename(columns=new_cols, inplace=True)
 
     #mysql_update_table(sql_engine, table, df, insert=True)
 
     mysql_update_table(sql_engine, table, df, check=True, insert=True, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=True)
+
+    close_sql_connection(sql_engine)
 
 def fork_db_process(country, sem, lock, vpn_event=None):
     c = open_db_client()
@@ -1267,7 +1287,7 @@ def fork_db_process(country, sem, lock, vpn_event=None):
     try:
         symbols = get_symbols_from_sql(country, sql_engine)
 
-        #update_bond_yields(sql_engine)
+        update_bond_yields()
 
         today=str(dt.now().date())
 
@@ -1466,8 +1486,35 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'CRHM'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'PRTY'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total stocks: %r" %(stocks.count()))
+        for stk in stocks:
+            #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
+            sem.acquire()
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+            processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+            processes[i%num_processes].start()
+            i = i + 1
+
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+
+    try:
+        stocks = db.US_Stocks.find({"$and" : [ \
+                                                {'dates.mysql_price_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {'dates.mysql_price_pull_success': False},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Type':'Common Stock'},\
+                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            ]\
+                                    }\
+                                    ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+        #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        #stocks = collection.find({'bscs.symbol':'PRTY'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        print("Total retried failure stocks: %r" %(stocks.count()))
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -1955,12 +2002,17 @@ def calculate_ep(df, val):
     df['ep'] = df.apply(ep, axis=1)
     return df
 
-def calc_psar(df, duration=None):
+def calc_psar(df, duration=None, trend_only=False):
     if duration:
         df = df.loc[df.index[-1]-duration:]
 
     psar = ta.psar(df['High'], df['Low'], df['Adj Close'],af=0.02)
-    
+
+    if psar.empty:
+        if trend_only:
+            return pd.DataFrame(),np.nan, np.nan, np.nan, np.nan, ""
+        return pd.DataFrame()
+
     # Add price column to the psar
     psar['Adj Close'] = df['Adj Close']
     
@@ -1968,7 +2020,82 @@ def calc_psar(df, duration=None):
     new_cols={}
     new_cols['PSARl_0.02_0.2']='long';new_cols['PSARs_0.02_0.2']='short';new_cols['PSARaf_0.02_0.2']='af';new_cols['PSARr_0.02_0.2']='r'
     psar.rename(columns=new_cols, inplace=True)
-    
+   
+    # Calculate the psar long trend.
+    # Find the last non NaN long value date
+    # Count the number of days since then till today.
+    # That will give the number of days since the long trend is
+    if trend_only:
+        nan = np.nan
+        # Find today's trend
+        # Long if psar['long'] is not NaN else its Short
+        position = ('long','short')[isnan(psar.iloc[-1]['long'])]
+
+        # Also you can use the below statement. This returns all non-NaN, non-Null long value rows
+        # psar.query('r == True and long == long')
+        # With variables, the query will be
+        # psar.query("r == True and {} == {}".format(position, position))
+        #start = psar.query("r == True and {} != @nan".format(position)).index[-1]
+
+        # Find the length of this trend
+        # It is calculated by finding the start of the trend and calculating the
+        # number of days from start to today.
+        psar_query_df = psar.query("r == True and {} == {}".format(position, position))
+        if psar_query_df.empty:
+            return pd.DataFrame(),np.nan, np.nan, np.nan, np.nan, ""
+
+        start = psar_query_df.index[-1]
+        end   = psar.index[-1]
+        trend_days = date_difference(start.date(), end.date(), holidays=get_holiday_list(start.date(),end.date()))
+        trend_days = int(trend_days) + 1 #Add 1 for today
+        # If long, return +trend_days, if short return -trend_days
+        trend_days = (-trend_days,trend_days)[position == 'long']
+        # Current trend price change
+        ct_pr_change = percent_change(psar.loc[start]['Adj Close'], psar.iloc[-1]['Adj Close'])
+
+        # Calculate Trend Pattern
+        # Like 5L_6S_4L_12S etc
+        # This indicates % long days, 6 short days of trend etc consecutively.
+        #psar.loc[psar.query("r == True")['long'].first_valid_index():]
+        trend_sequence = ""
+        long_short_df = psar.query("r == True").tail(10) # Get only last 10 trends
+
+        # Create a small dictionary of trends switch
+        # Use this to switch between trends instead of checking every time.
+        # Find the trend start. Assume it is 'L'. So the next trend will be
+        # short. Hence, next_trend = trends_switch['L'] and so on.
+        trends_switch = {}
+        trends_switch['L']='S'
+        trends_switch['S']='L'
+
+        trend = ('L', 'S')[isnan(long_short_df.iloc[0]['long'])]
+        start = long_short_df.index[0]
+        num_days = np.nan
+        for end, d in long_short_df.iloc[1:].iterrows():
+            num_days = date_difference(start.date(),\
+                                        end.date(),\
+                                        holidays=get_holiday_list(start.date(),end.date())\
+                                        )
+            trend_sequence = trend_sequence +\
+                                str(num_days) +\
+                                trend + '-'
+            # Now move to next trend
+            #trend = ('L','S')[isnan(d['long'])]
+            trend = trends_switch[trend]
+            start = end
+
+        if isnan(num_days):
+            prev_trend_days = np.nan
+        else:
+            prev_trend_days = (int(num_days),int(-num_days))[trend == 'L']
+
+        # Calculate prev_trend price percentage change
+        pt_pr_change = long_short_df['Adj Close'][-2:].pct_change()[-1]
+
+        # Add latest on-going trend
+        trend_sequence = trend_sequence + str(trend_days) + ('S','L')[trend_days>0]
+        return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_sequence
+
     # Get the dates of switch between long and short positions of the stock
     # For example,
     #               long  short  Adj Close     af     r 
@@ -2030,7 +2157,6 @@ def update_SAR_params(collection, sym, df):
             days = -days
 
         update_field(collection, sym, "technicals.sar.trend", days)
-        update_field(collection, sym, "technicals.sar.latest", sar.iloc[-1])
 
         #ep: estimated profit
         duration=relativedelta(years=1)
@@ -2089,8 +2215,24 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_month.price_change", change)
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
 
-        change = percent_change(sar[-1], df['Adj Close'][-1])
-        update_field(collection, sym, "technicals.sar.change", change)
+        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_sequence = calc_psar(copy.deepcopy(df), trend_only=True)
+        update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
+        update_field(collection, sym, "technicals.sar.ta_psar_cur_trend_price_change", cur_trend_pr_change)
+        update_field(collection, sym, "technicals.sar.ta_psar_prev_trend", prev_trend_days)
+        update_field(collection, sym, "technicals.sar.ta_psar_prev_trend_price_change", prev_trend_pr_change)
+        update_field(collection, sym, "technicals.sar.ta_psar_trend_sequence", trend_sequence)
+
+        if psar.empty:
+            update_field(collection, sym, "technicals.sar.change", nan)
+            update_field(collection, sym, "technicals.sar.latest", nan)
+        else:
+            if math.isnan(psar.iloc[-1]['long']):
+                sar_latest = psar.iloc[-1]['short']
+            else:
+                sar_latest = psar.iloc[-1]['long']
+            change = percent_change(sar_latest, df['Adj Close'][-1])
+            update_field(collection, sym, "technicals.sar.change", change)
+            update_field(collection, sym, "technicals.sar.latest", sar_latest)
     
         idx = sar.loc[sar.index[-1]-timedelta(60):].tail(60).idxmin()
         if type(idx) is pd.Timestamp:
@@ -2243,26 +2385,30 @@ def update_price_trend(collection, sym, df, end, duration, duration_text):
     eindex = get_nearest_index(df, end)
     sindex = get_nearest_index(df, end-duration)
     cur_df = df.iloc[sindex:eindex]['Adj Close']
+    slope = np.nan
+    nrmse = np.nan
+    try:
+        if not cur_df.empty:
+            # Calculate trend for that particular period
+            coefficients, residuals, _, _, _ = np.polyfit(range(len(cur_df.index)), cur_df, 1, full=True)
 
-    if not cur_df.empty:
-        # Calculate trend for that particular period
-        coefficients, residuals, _, _, _ = np.polyfit(range(len(cur_df.index)), cur_df, 1, full=True)
-
-        # Slope indicates the trend.
-        # The slope is 
-        # - positive if the price is going up.
-        # - negative if the price is moving down.
-        # - 0 if the price is constant.
-        # The slope value closer to 0 indicates that the 
-        # price didn't change much during that period.
-        # The other values indicates the strength of the trend
-        # in their respective directions.
-        slope = coefficients[0]
-        # Mean Square Error
-        mse = residuals[0]/(len(cur_df.index))
-        # Normalised Mean Square Error
-        nrmse = np.sqrt(mse)/(cur_df.max() - cur_df.min())
-
+            # Slope indicates the trend.
+            # The slope is 
+            # - positive if the price is going up.
+            # - negative if the price is moving down.
+            # - 0 if the price is constant.
+            # The slope value closer to 0 indicates that the 
+            # price didn't change much during that period.
+            # The other values indicates the strength of the trend
+            # in their respective directions.
+            slope = coefficients[0]
+            # Mean Square Error
+            mse = residuals[0]/(len(cur_df.index))
+            # Normalised Mean Square Error
+            nrmse = np.sqrt(mse)/(cur_df.max() - cur_df.min())
+    except Exception as E:
+        pass
+    finally:
         update_field(collection, sym, "technicals.price_trend."+duration_text+".slope", slope)
         update_field(collection, sym, "technicals.price_trend."+duration_text+".error", nrmse)
 
@@ -2372,16 +2518,17 @@ def update_all_tech_analysis_params(country='US'):
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
                                         {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
-                                        #{'$or':[\
-                                        #        {'technicals.date': {"$exists": False}},\
-                                        #        {'technicals.date':{'$lt': get_latest_trading_day()}}
-                                        #        ]\
-                                        #},\
+                                        {'$or':[\
+                                                {'technicals.date': {"$exists": False}},\
+                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                                ]\
+                                        },\
                                         {'dates.mysql_price_pull_success':True}, \
+                                        {'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'AFCG'})
+    #stocks=db.US_Stocks.find({'General.Code':'VLATW'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -3756,6 +3903,8 @@ def update_splits(stk, core, sem=None):
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
 
+        print("Ratelimit: %r" %(int(ret.headers['X-RateLimit-Remaining'])))
+
         df = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
 
         update = True
@@ -3786,7 +3935,7 @@ def update_splits(stk, core, sem=None):
         close_sql_connection(mysql_engine)
         close_db_client(c)
 
-def update_all_splits():
+def update_all_splits(all=False):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
@@ -3800,8 +3949,23 @@ def update_all_splits():
 
     today = dt.combine(dt.now(), dt.min.time())
 
-    # First get splits for all new stocks
-    stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.splits_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+    if all:
+        # First get splits for all new stocks
+        stocks = db.US_Stocks.find({"$and": [\
+                                                {'General.Type':'Common Stock'},\
+                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                            ]\
+                                    },\
+                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+    else: 
+        # First get splits for all new stocks
+        stocks = db.US_Stocks.find({"$and": [\
+                                                {'General.Type':'Common Stock'},\
+                                                {"dates.splits_pull_date": {"$exists": False}},\
+                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                            ]\
+                                    },\
+                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
@@ -3914,6 +4078,8 @@ def update_dividends(stk, core, sem=None):
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
 
+        print("Ratelimit: %r" %(int(ret.headers['X-RateLimit-Remaining'])))
+
         dividends = ret.json()
         if len(dividends) == 0:
             update = True
@@ -3946,7 +4112,7 @@ def update_dividends(stk, core, sem=None):
         close_sql_connection(mysql_engine)
         close_db_client(c)
 
-def update_all_dividends():
+def update_all_dividends(all=False):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
@@ -3962,7 +4128,24 @@ def update_all_dividends():
 
     try:
         # First get dividends for all new stocks
-        stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        if all:
+            # First get dividends for all new stocks
+            stocks = db.US_Stocks.find({"$and": [\
+                                                    {'General.Type':'Common Stock'},\
+                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                ]\
+                                        },\
+                                        no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        else: 
+            # First get splits for all new stocks
+            stocks = db.US_Stocks.find({"$and": [\
+                                                    {'General.Type':'Common Stock'},\
+                                                    {"dates.dividends_pull_date": {"$exists": False}},\
+                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                ]\
+                                        },\
+                                        no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+ 
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
@@ -4020,10 +4203,191 @@ def update_all_dividends():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
+def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_event=None):
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    update = False
+    table_name = get_symbol_table_name(stk['bscs']['symbol'])
+
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Options')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        #if 'dates' in stk.keys() and 'options_pull_date' in stk['dates'].keys() and \
+        #        stk['dates']['options_pull_date'].date() == dt.now().date():
+        #    update = False
+        #    query = 'select * from {}'.format(table_name)
+        #    df = read_from_sql(query, mysql_engine)
+        #    if not df.empty:
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putVolume', df.iloc[-1]['putVolume'])
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callVolume', df.iloc[-1]['callVolume'])
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallRatio', df.iloc[-1]['putCallRatio'])
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putOpenInterest', df.iloc[-1]['putOpenInterestVolume'])
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callOpenInterest', df.iloc[-1]['callOpenInterestVolume'])
+        #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallOpenInterestRatio', df.iloc[-1]['putCallOpenInterestRatio'])
+        #    return
+
+        url = 'https://eodhistoricaldata.com/api/options/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+
+        try:
+            while True:
+                ret = requests.get(url)
+                if ret.status_code == 402:
+                    print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    close_sql_connection(mysql_engine)
+                    close_db_client(c)
+                    sys.exit(1)
+                elif ret.status_code == 404:
+                    print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    update = True
+                    return
+                elif ret.status_code != 200:
+                    print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    return
+                elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
+                    now = dt.now()
+                    # If the ratelimit was not yet reset,
+                    # wait for 60 secs
+                    if technicals_ratelimit_reset_time is None: 
+                        secs = 60
+                    else:
+                        # Because the ratelimit is restricted 
+                        # 1000 requests per minute, wait for 
+                        # 60 - number of seconds elapsed since the 
+                        # ratelimit was reset. We don't need to wait
+                        # again for 60 secs.
+                        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
+
+                    lock_acquired = unblocked_lock(lock)
+                    # I am the first process to know that ratelimit has reached.
+                    # Tell the other processes to wait and not send any further API requests.
+                    # Sleep for the remaining time.
+                    # Reset the ratelimit time to now.
+                    # Wakeup and inform the other processes to resume.
+                    if lock_acquired:
+                        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
+                        ratelimit_event.clear()
+                        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
+                        time.sleep(secs)
+                        technicals_ratelimit_reset_time = dt.now()
+                        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
+                        ratelimit_event.set()
+                        lock.release()
+                    else:
+                        # I am not the first one to know that the ratelimit has reached.
+                        # The first guy has already informed the other processes
+                        # who have not yet sent the API requests to wait.
+                        # Unfortunately I came to know a bit late.
+                        # I will simply wait for the remaining time.
+                        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
+                        time.sleep(secs)
+                    # Now retry the API request again.
+                    continue
+                else:
+                    break
+            
+            options = json.loads(ret.text)
+
+            ratios = {}
+            ratios['putVolume'] = 0
+            ratios['callVolume'] = 0
+            ratios['putOpenInterestVolume'] = 0
+            ratios['callOpenInterestVolume'] = 0
+            ratios['putCallRatio'] = 0
+            ratios['putCallOpenInterestRatio'] = 0
+
+            for i in range(len(options['data'])):
+                ratios['putVolume'] += options['data'][i]['putVolume']
+                ratios['callVolume'] += options['data'][i]['callVolume']
+                ratios['putOpenInterestVolume'] += options['data'][i]['putOpenInterest']
+                ratios['callOpenInterestVolume'] += options['data'][i]['callOpenInterest']
+            
+            if ratios['callVolume'] > 0:
+                ratios['putCallRatio'] = ratios['putVolume']/ratios['callVolume']
+            if ratios['callOpenInterestVolume'] > 0:
+                ratios['putCallOpenInterestRatio'] = ratios['putOpenInterestVolume']/ratios['callOpenInterestVolume']
+
+            df = pd.DataFrame(ratios, index=range(1))
+            df['Date'] = get_latest_trading_day().date()
+            df.index = df['Date']
+            table_name = get_symbol_table_name(stk['bscs']['symbol'])
+            if ratios['putVolume'] > 0 or ratios['callVolume'] > 0:
+                mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='general', temp=False, date_column=False, format_columns=False, primary_key=True, empty_table=False, fin_table=False)
+            update = True
+
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+    finally:
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putVolume', ratios['putVolume'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callVolume', ratios['callVolume'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallRatio', ratios['putCallRatio'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putOpenInterest', ratios['putOpenInterestVolume'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callOpenInterest', ratios['callOpenInterestVolume'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallOpenInterestRatio', ratios['putCallOpenInterestRatio'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.options_pull_date', dt.combine(dt.now(), dt.min.time()))
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_all_put_call_ratios(country='US'):
+    c = open_db_client()
+    db = c['Stocks']
+    collection = get_collection(country, db)
+    #sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Options')
+
+    today = dt.combine(dt.now(), dt.min.time())
+    sort = [1, -1][dt.now().day % 2 == 0]
+
+    num_processes = num_cores #* 2
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    eod_token = True
+    i=0
+
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [\
+                                            #            {"dates.options_pull_date": {"$exists": False }},\
+                                            #            {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":['NYSE','NASDAQ', 'NYSE MKT', 'NYSE ARCA']}},\
+                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({'General.Code': 'MTDR'})
+    print("Total stocks: %r" %(stocks.count()))
+    try:
+        for stk in stocks:
+           print("%d: Options: Checking: %r" %(i, stk['bscs']['symbol']))
+           sem.acquire()
+           update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
+           #processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
+           #processes[i%num_processes].start()
+           i = i + 1
+
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        time.sleep(5)
+        close_db_client(c)
+
 def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None):
     global technicals_ratelimit_reset_time
 
-    if core:
+    if core is not None:
         aff = 0 | 1 << core
         #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
         #print("Setting %d's affinity to core: %d" %(os.getpid(), core))

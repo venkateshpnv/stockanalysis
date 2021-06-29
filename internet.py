@@ -670,6 +670,7 @@ def fork_hdf5_process(country):
     collection = DB.get_collection(country, db)
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
+    sort = [1, -1][dt.now().day % 2 == 0]
     today=str(dt.now().date())
     num_docs = collection.find({}).count()
     #num_docs = collection.find({"dates.price_date": {'$ne':today}})
@@ -729,7 +730,7 @@ def fork_hdf5_process(country):
                                                     {'price_change': {"$exists": False}}\
                                                     ]\
                                             },\
-                                        ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',1]]).allow_disk_use(True)
+                                        ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Stocks: %r" %(stocks.count())) 
         i=0

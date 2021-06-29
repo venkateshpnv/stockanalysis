@@ -2,6 +2,12 @@ import DB
 from datetime import datetime as dt
 
 if __name__ == "__main__":
-    print("Date: %r" %(str(dt.now().date())))
-    DB.update_all_splits()
+    today = dt.now().date()
+
+    # On every weekend, get all stocks splits information
+    all = (False,True)[today.isoweekday() > 5]
+    print("Date: %r" %(str(today)))
+    DB.update_all_splits(all=all)
+
+    print("Date: %r" %(str(today)))
  

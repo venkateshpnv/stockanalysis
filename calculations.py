@@ -6,6 +6,7 @@ import time
 import math
 import xlwt
 import xlrd
+from xls2xlsx import XLS2XLSX
 from datetime import date, timedelta, datetime as dt
 from dateutil.relativedelta import relativedelta
 
@@ -335,7 +336,14 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
     j = count = 0
 
-    stocks = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}, {'General.IsDelisted':False}, {'failcount.mysql_price_failcount':{'$eq':0}}, {'price_change.date':{'$gte':DB.get_previous_trading_day()}}, {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+    stocks = collection.find({"$and":[\
+                                        {'General.Exchange':{"$in":major_exchanges}}, \
+                                        {'General.Type':'Common Stock'}, \
+                                        {'General.IsDelisted':False}, \
+                                        {'failcount.mysql_price_failcount':{'$eq':0}}, \
+                                        {'price_change.date':{'$gte':DB.get_previous_trading_day()}}, \
+                                        {'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
+                                        {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     #stocks = collection.find({'bscs.symbol':'MTDR'})
     print("Stocks: %r" %(stocks.count())) 
     for doc in stocks:
@@ -453,5 +461,8 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
             excel = "%s/DCF_Calc/%s.xls" %(path, sys.argv[1])
         print("Saving DCF stocks to %s"%(excel))
         all_stk.save(excel)
+        #xlsx_name = "%s/DCF_Calc/%All_Stocks_Prices.xlsx" %(path)
+        #xlsx=XLS2XLSX(excel)
+        #excel.to_xlsx(xlsx_name)
 
 
