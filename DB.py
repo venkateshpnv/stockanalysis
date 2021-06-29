@@ -1452,13 +1452,14 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         # Get the data in bulk mode for all the stocks in a single API call and update the database.
         # This will be much quicker than pulling data for the each stock.
         # This call does the data update for all the stocks having the price data till the previous trading day.
-        #if eod_token is True:
-        #    hdf5.bulk_update_price_volume(country, db, sql_engine)
- 
+        if eod_token is True:
+            hdf5.bulk_update_price_volume(country, db, sql_engine)
+
         # As the bulk mode would have updated most of the stocks, now update the remaining stocks.
         # They include 
         # 1. New stocks
         # 2. Stocks that are not updated for sometime.
+
         #stocks = db.US_Stocks.find({"$and":[{"dates.mysql_price_date": {"$exists": False }}, {'General.Exchange':{"$in":major_exchanges}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #print("Total new stocks: %r" %(stocks.count()))
         ##stocks = collection.find({},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
@@ -4354,11 +4355,11 @@ def update_all_put_call_ratios(country='US'):
     i=0
 
     stocks = db.US_Stocks.find({"$and" : [ \
-                                            #{"$or": [\
-                                            #            {"dates.options_pull_date": {"$exists": False }},\
-                                            #            {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
-                                            #        ]\
-                                            #},\
+                                            {"$or": [\
+                                                        {"dates.options_pull_date": {"$exists": False }},\
+                                                        {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]\
+                                            },\
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":['NYSE','NASDAQ', 'NYSE MKT', 'NYSE ARCA']}},\

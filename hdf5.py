@@ -992,14 +992,62 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
+def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=None, sem=None):
+    if core is not None:
+        aff = 0 | 1 << core
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    local_mdb = False
+    local_sql = False
+    if not collection:
+        c = DB.open_db_client()
+        db = c['Stocks']
+        collection = db.US_Stocks
+        local_mdb = True
+    if not sql_engine:
+        sql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        local_sql = True
+
+    try:
+        DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']), stk_df, insert=True, check=True, date_column=False, format_columns=False)
+        DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", stk_df['Adj Close'][-1])
+        DB.update_field(collection, stk['bscs']['symbol'], "price_change.volume", int(stk_df['Volume'][-1]))
+        DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", 0)
+        DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_date", DB.get_latest_trading_day())
+        DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
+        DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_success", True)
+        multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
+    finally:
+        if local_mdb:
+            DB.close_db_client(c)
+        if local_sql:
+            DB.close_sql_connection(sql_engine)
+        if sem:
+            sem.release()
+
 def bulk_update_price_volume(country, db, sql_engine):
+    sort = [1, -1][dt.now().day % 2 == 0]
+    num_processes = DB.num_cores * 4
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    i = 0
+    j = 0
+
     # The data fetch from this bulk API will only contain today's price data.
     # Incase if the stock was not updated with the price information for sometime,
     # you might miss the old data if you only update today's data.
     # To overcome this issue, check if the stock has up-to-date price data till the 
     # last trading day and then add today's data. Else don't touch that stock.
     # They will be taken care in a different execution path.
-    stocks = db.US_Stocks.find({"$and" : [{'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}, {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}}, {'failcount.mysql_price_failcount':{"$lt": 10}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and" : [\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
+                                            {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
+                                            {'failcount.mysql_price_failcount':{"$lt": 10}}\
+                                        ]\
+                                }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+    print("Total bulk stock candidates: %r" %(stocks.count()))
 
     if stocks.count() != 0:
         url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
@@ -1012,19 +1060,24 @@ def bulk_update_price_volume(country, db, sql_engine):
 
 
         t = None
-        #for index, d in df.iterrows():
-        for stk in stocks:
-            stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
-            if not stk_df.empty:
-                stk_df.index = stk_df['Date']
-                del stk_df['Symbol']
-                DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), stk_df, insert=True, check=True, date_column=False, format_columns=False)
-                DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", 0)
-            else:
-                fail_count = 1
-                if 'mysql_price_failcount' in stk['bscs'].keys():
-                    fail_count = stk['failcount']['mysql_price_failcount'] + fail_count
-                DB.update_field(collection, stk['bscs']['symbol'], "failcount.mysql_price_failcount", fail_count)
+        try:
+            #for index, d in df.iterrows():
+            for stk in stocks:
+                stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
+                if not stk_df.empty:
+                    print("Bulk Update: %r: %r: %r" %(stk['sno'], stk['General']['Code'], stk['General']['Name']))
+                    stk_df.index = stk_df['Date']
+                    del stk_df['Symbol']
+ 
+                    sem.acquire()
+                    #update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
+                    processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
+                    processes[i%num_processes].start()
+                    i = i + 1
+        finally:
+            for j in range(len(processes)):
+                if processes[j] is not None:
+                    processes[j].join()
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
 
