@@ -2,7 +2,7 @@ import DB
 from datetime import datetime as dt
 
 if __name__ == "__main__":
-    today = dt.now().date()
+    today = dt.now()
 
     # On every weekend, get all stocks splits information
     all = (False,True)[today.isoweekday() > 5]

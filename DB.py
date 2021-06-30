@@ -2436,10 +2436,11 @@ def update_price_trend_params(collection, sym, df):
     update_price_trend(collection, sym, df, end, relativedelta(weeks=1), 'week')
     
 
-def update_tech_analysis_params(sym, core, sem=None):
+def update_tech_analysis_params(sym, core=None, sem=None):
 
-    aff = 0 | 1 << core
-    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+    if core is not None:
+        aff = 0 | 1 << core
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
 
     c  = open_db_client()
     db = c['Stocks']
@@ -3862,6 +3863,84 @@ def update_all_short_interests():
  
     close_db_client(c)
 
+def repopulate_split_stocks(mysql_engine=None, db=None):
+    local_db    = False
+    local_mysql = False
+
+    if db is None:
+        c = open_db_client()
+        db = c['Stocks']
+        collection = get_collection('US', db)
+        local_db = True
+
+    if mysql_engine is None:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        local_mysql = True
+
+    try:
+        fin_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        query = 'select Symbol, Date from Splits_History order by Date;'
+        df = read_from_sql(query, fin_engine)
+        close_sql_connection(fin_engine)
+        if df.empty:
+            return
+
+        del df['Date']
+        count = 0
+        df = df.sort_values(by=['Date', 'Symbol'], ascending=False)
+        for i,d in df.iterrows():
+            # Split date is announced but actual split has not yet happened.
+            if i + timedelta(3) > dt.now():
+                continue
+            # Ignore split updates for data before 2016
+            start = dt.strptime("2016-01-01", "%Y-%m-%d").date()
+            if i < start:
+                break
+            stocks = db.US_Stocks.find({'bscs.symbol':d['Symbol']}, no_cursor_timeout=True)
+            if stocks.count() == 1:
+                stk = stocks[0]
+            else:
+                print("Splits: Stock not found: %r" %(d['Symbol']))
+                continue
+
+            # Split information already updated
+            if 'lastSplitUpdateDate' in stk['bscs'].keys() and \
+                    stk['bscs']['lastSplitUpdateDate'] >= i:
+                    continue
+
+            print("Split Action: %r" %(d['Symbol']))
+            table_name = get_symbol_table_name(d['Symbol'])
+
+            # Truncate the whole table, pull the new prices and recreate the percentage changes.
+            if mysql_exists_table(mysql_engine, table_name):
+                query = "truncate table {}".format(table_name)
+                mysql_engine.execute(query)
+
+            beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+            # Truncate betas.
+            if mysql_exists_table(beta_engine, table_name):
+                query = "truncate table {}".format(table_name)
+                beta_engine.execute(query)
+            close_sql_connection(beta_engine)
+
+            ## Repopulate prices
+            #hdf5.update_dataframe_price_volume('US', None, None, d['Symbol'], None, stk, count%num_cores, None, None, eod_token=True, percent_change=False)
+            ## Calculate price changes
+            #internet.update_price_change('US', d['Symbol'], count%num_cores, None)
+            ## Update Tech analysis params
+            #update_tech_analysis_params(d['Symbol'], 0)
+            ## Update stock betas
+            #update_stock_betas2('US', copy.deepcopy(stk), 0, None)
+
+            update_field(collection, d['Symbol'], "bscs.lastSplitUpdateDate", dt.combine(dt.now(), dt.min.time()))
+            count = count+1
+        print("Total split updates: %r" %(count))
+    finally:
+        if local_db:
+            close_db_client(c)
+        if local_mysql:
+            close_sql_connection(mysql_engine)
+
 def update_splits(stk, core, sem=None):
 
     aff = 0 | 1 << core
@@ -3951,7 +4030,7 @@ def update_all_splits(all=False):
     today = dt.combine(dt.now(), dt.min.time())
 
     if all:
-        # First get splits for all new stocks
+        # Get splits for all stocks
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}}\
@@ -3959,7 +4038,7 @@ def update_all_splits(all=False):
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
     else: 
-        # First get splits for all new stocks
+        # Get splits for only new stocks
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {"dates.splits_pull_date": {"$exists": False}},\
@@ -4023,7 +4102,9 @@ def update_all_splits(all=False):
             #update_field(db.US_Stocks, d['Symbol'], 'dates.splits_pull_date', dt.combine(dt.now(), dt.min.time()))
             #update_field(db.US_Stocks, d['Symbol'], 'dates.last_split_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
         del df['Stock Splits']
-        
+    
+    repopulate_split_stocks()
+
     close_db_client(c)
     close_sql_connection(mysql_engine)
 

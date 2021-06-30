@@ -1079,12 +1079,13 @@ def bulk_update_price_volume(country, db, sql_engine):
                 if processes[j] is not None:
                     processes[j].join()
 
-def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True):
+def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True, percent_change=True):
 
-    aff = 0 | 1 << core
-    #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
-    #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
-    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
 
     data_update = False
     data_pull = False
@@ -1159,7 +1160,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
                         DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
                         data_update = True
-                    multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
+                    if percent_change:
+                        multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
                 else:
                     if not index:
                         DB.update_field(collection, symbol, "ignore", "YES")
@@ -1274,7 +1276,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                             DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
                             DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
                         data_update = True
-                        multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
+
+                        if percent_change:
+                            multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))

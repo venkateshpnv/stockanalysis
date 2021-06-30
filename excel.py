@@ -89,7 +89,7 @@ def sh_write(exl_sht, row, column, data, style=None, all_sht=None):
     except:
         pass
 
-def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=16):
+def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=21):
     sheet = workbook.add_sheet(sheet_name)
     sheet.set_panes_frozen(True) 
     sheet.set_horz_split_pos(horz_pos) 
@@ -507,6 +507,7 @@ def add_basic_header(sheet, i):
     st = "PSAR Trend"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TREND=i
+    styles['PSAR_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 4*367
@@ -1071,7 +1072,7 @@ def add_technicals(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Short Ratio", style_wrap)
     conf.SHORT_RATIO=i
-    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     sheet.col(i).width = 5*367
@@ -2040,7 +2041,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_ALPHA, stk['technicals']['sar']['ep']['one_year']['alpha'], style_percent, all_sht)
 
     if 'trend' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], style_num, all_sht)
+        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], styles['PSAR_TREND'], all_sht)
     if 'ta_psar_trend' in stk['technicals']['sar'].keys():
         sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], styles['PSAR_TA_TREND'], all_sht)
     if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():

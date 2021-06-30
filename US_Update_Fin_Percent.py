@@ -4,5 +4,6 @@ import DB
 from datetime import datetime as dt
 
 if __name__ == "__main__":
-    print("Date: %r" %(str(dt.now().date())))
+    print("Date: %r" %(str(dt.now())))
     DB.update_all_US_fin_percent_change()
+    print("Date: %r" %(str(dt.now())))

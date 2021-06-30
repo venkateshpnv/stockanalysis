@@ -726,7 +726,7 @@ def fork_hdf5_process(country):
                                             {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_pull_success': True},\
                                             {"$or":[\
-                                                    {'price_change.date': {"lt":DB.get_latest_trading_day()}},\
+                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
                                                     {'price_change': {"$exists": False}}\
                                                     ]\
                                             },\
