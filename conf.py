@@ -3,6 +3,7 @@
 #Total Companies
 COUNT=0
 ALL_COUNT=0
+RECENT_IPOS=0
 
 # Price change count in excel
 PR_COUNT=0
@@ -18,6 +19,7 @@ SYM=0
 SEC=0
 IND=0
 SINCE=0
+EARNINGS_DATE=0
 CUR_PR_DT=0
 CUR_PR=0
 F2WK_HG=0
@@ -186,6 +188,7 @@ def init_variables():
     COMP=0
     SYM=0
     SINCE=0
+    EARNINGS_DATE=0
     CUR_PR_DT=0
     CUR_PR=0
     F2WK_HG=0

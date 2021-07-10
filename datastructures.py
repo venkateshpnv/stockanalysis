@@ -406,9 +406,9 @@ recessions = {
 major_exchanges = ['NASDAQ', 'NYSE', 'NYSE MKT', 'NYSE ARCA', 'AMEX']
 
 #select DISTINCT Exchange from US_Stocks_Data.US_All_Stocks_List order  by Exchange;
-all_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE ARCA', 'NYSE MKT', 'OTCBB', 'OTCCE', 'OTCGREY', 'OTCMKTS', 'OTCQB', 'OTCQX', 'PINK', 'US']
+all_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE ARCA', 'NYSE MKT', 'OTC', 'OTCBB', 'OTCCE', 'OTCGREY', 'OTCMKTS', 'OTCQB', 'OTCQX', 'PINK', 'US', 'NasdaqCM', 'NasdaqGM', 'NasdaqGS', 'NYSE American', ]
 
-all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
+#all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
 
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
 US_indices = {'GSPC':'SP500', 'DJI': 'DowJones', 'IXIC': 'Nasdaq', 'RUT': 'Russel2000'} 
@@ -514,7 +514,9 @@ cash_fields = {'freeCashFlow':'float',
                 'totalCashflowsFromInvestingActivities':'float',
                 }
 generic_fields = {'Symbol':'varchar(12)', 
-                    'Date':'varchar(12)', 
+                    'Date':'varchar(12)',
+                    'report_date':'varchar(12)',
+                    'before_after_market':'varchar(25)',
                     'SPLIT':'varchar(12)',
                     'contractSymbol':'varchar(12)', 
                     'lastTradeDate':'varchar(12)', 

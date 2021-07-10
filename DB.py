@@ -30,7 +30,7 @@ import pandas_ta as ta
 from io import StringIO
 
 import sqlalchemy
-from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column
+from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column, text
 from sqlalchemy.orm import sessionmaker
 #from sqlalchemy import *
 #metadata=MetaData()
@@ -274,7 +274,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
     #        mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     return unknown_fields # Use of unknown_fields is deprecated.
 
-def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True, empty_table=False, fin_table=False):
+def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=True, primary_key=True, empty_table=False, fin_table=False, symbol=None):
     if df.empty:
         return
 
@@ -351,18 +351,32 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                     stmt=table.insert().values(items)
                 else:
                     # check if the key exists. If so, update the record,
-                    # else create a new record.
-                    stmt = select([table]).where(table.c.Date == key)
+                    # else create a new record. 
+                    if symbol is not None:
+                        stmt = select([table]).where(table.c.Symbol == symbol).where(table.c.Date == key)
+                    else:
+                        stmt = select([table]).where(table.c.Date == key)
                     records = conn.execute(stmt).fetchall()
                     if len(records) == 0:
                         stmt=table.insert().values(items)
                     else:
-                        if 'Date' in items.keys():
-                            del items['Date']
-                            # No items to insert, go to next row
-                            if len(items) == 0:
-                                continue
-                        stmt=table.update().where(table.c.Date==key).values(items)
+                        #if 'Date' in items.keys():
+                        #    del items['Date']
+                        # Do not update primary key values. It results in error.
+                        # Remove them from the items list
+                        inspector = sqlalchemy.inspect(mysql_engine)
+                        inspector.get_primary_keys(table_name)
+                        primary_keys = inspector.get_primary_keys(table_name)
+                        for k in primary_keys:
+                            del items[k]
+                        # No items to insert, go to next row
+                        if len(items) == 0:
+                            continue
+                        if symbol is not None:
+                            stmt=table.update().where(table.c.Symbol == symbol).where(table.c.Date==key).values(items)
+                            print("%s: mysql_update_table" %(symbol))
+                        else:
+                            stmt=table.update().where(table.c.Date==key).values(items)
                         # table.c.keys() -> prints the list of all columns in the table.
 
                     #stmt=table.update().where(table.c.Date==key).values(items)
@@ -725,16 +739,38 @@ def ignore_stock(stk):
             return True
     return False
 
-def update_since_dataframe(mysql_engine, table_name, collection, stk):
-    #df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
-    #df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
-    query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
-    df = read_from_sql(query, mysql_engine)
-    if not df.empty:
-        stk['bscs']['since'] = str(df.index[0].date())
-        update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
-    else:
-        stk['bscs']['since']=""
+def update_since_dataframe(mysql_engine=None, table_name=None, collection=None, stk=None):
+    local_db    = False
+    local_mysql = False
+
+    if not table_name or not stk:
+        return
+
+    if collection is None:
+        c  = open_db_client()
+        db = c['Stocks']
+        local_db = True
+
+    if mysql_engine is None:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        local_mysql = True
+
+    try:
+        #df = hdf5.get_dataframe(country, stk['bscs']['symbol'])
+        #df = hdf5.read_from_hdf(country, stk['bscs']['symbol'])
+        if mysql_exists_table(mysql_engine, table_name):
+            query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
+            df = read_from_sql(query, mysql_engine)
+            if not df.empty:
+                stk['bscs']['since'] = df.index[0]
+            else:
+                stk['bscs']['since']=dt.min
+            update_field(collection, stk['bscs']['symbol'], 'bscs.since', stk['bscs']['since'])
+    finally:
+        if local_db:
+            close_db_client(c)
+        if local_mysql:
+            close_sql_connection(mysql_engine)
     return stk
 
 def get_since(country, symbol):
@@ -4214,6 +4250,7 @@ def update_all_dividends(all=False):
             # First get dividends for all new stocks
             stocks = db.US_Stocks.find({"$and": [\
                                                     {'General.Type':'Common Stock'},\
+                                                    {"General.IsDelisted": False},\
                                                     {'General.Exchange':{"$in":major_exchanges}}\
                                                 ]\
                                         },\
@@ -4223,6 +4260,7 @@ def update_all_dividends(all=False):
             stocks = db.US_Stocks.find({"$and": [\
                                                     {'General.Type':'Common Stock'},\
                                                     {"dates.dividends_pull_date": {"$exists": False}},\
+                                                    {"General.IsDelisted": False},\
                                                     {'General.Exchange':{"$in":major_exchanges}}\
                                                 ]\
                                         },\
@@ -4466,6 +4504,267 @@ def update_all_put_call_ratios(country='US'):
         time.sleep(5)
         close_db_client(c)
 
+def update_earnings(stk, core, sem=None, all=False):
+    insert = False
+
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    update = False
+    df  = pd.DataFrame()
+    rdf = pd.DataFrame()
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        c  = open_db_client()
+        db = c['Stocks']
+
+        if all is False and 'dates' in stk.keys() and \
+                'earnings_pull_date' in stk['dates'].keys() and \
+                stk['dates']['earnings_pull_date'].date() == dt.now().date():
+            update = False
+            return
+
+        table_name = 'Earnings_History'
+
+        if mysql_exists_table(mysql_engine, table_name):
+            query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date'.format(stk['bscs']['symbol'])
+            rdf = read_from_sql(query, mysql_engine)
+            if not rdf.empty:
+                last_row = rdf.iloc[-1]
+            # The eps values are null. Try to fetch again.
+            if not rdf.empty and (rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual'])):
+                # Temporary fix
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
+                rdf = rdf[rdf['actual'].notna()]
+                insert = False
+ 
+        url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&symbols='+stk['bscs']['symbol']+'.US'
+        if not rdf.empty:
+            url = url + \
+                    '&from='+ \
+                    str(dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d").date() + timedelta(1))
+        else:
+            url = url + '&from=1970-01-01'
+
+        url = url + '&to='+str(dt.now().date()+timedelta(14))
+        url = url + '&fmt=json'
+ 
+        try:
+            ret = requests.get(url)
+            if ret.status_code == 402:
+                print("%r" %(ret.text))
+                close_sql_connection(mysql_engine)
+                close_db_client(c)
+                sys.exit(1)
+            if ret.status_code == 404:
+                print("Failed to get Earnings for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                update = True
+                return
+            if ret.status_code != 200:
+                print("Failed to get Earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+        #print("Ratelimit: %r" %(int(ret.headers['X-RateLimit-Remaining'])))
+
+        earnings = ret.json()
+        if 'earnings' not in earnings.keys() == 0:
+            update = True
+            return
+
+        df = pd.DataFrame(earnings['earnings'])
+        if not df.empty:
+            df['Symbol'] = stk['bscs']['symbol']
+            if 'currency' in df.columns:
+                del df['currency']
+            if 'code' in df.columns:
+                del df['code']
+            if 'Ex' in df.columns:
+                del df['Ex']
+            if 'date' in df.columns:
+                df.rename(columns = {'date': 'Date', 'code':'Symbol'}, inplace=True)
+            df.index=df['Date']
+
+            print("%d: %r" %(stk['sno'], stk['bscs']['symbol']))
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+        update = True
+ 
+    finally:
+        if update:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(df.iloc[-1]['report_date'], "%Y-%m-%d"))
+            elif not rdf.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(last_row['Date'], "%Y-%m-%d"))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(last_row['report_date'], "%Y-%m-%d"))
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.min)
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.min)
+        if sem:
+            sem.release()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_all_earnings(all=False):
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+    table_name = 'Earnings_History'
+    sort = [1, -1][dt.now().day % 2 == 0]
+
+    num_processes = 6
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    today = dt.combine(dt.now(), dt.min.time())
+
+    try:
+        # First get earnings for all new stocks
+        if all:
+            stocks = db.US_Stocks.find({"$and": [\
+                                                    {'General.Type':'Common Stock'},\
+                                                    {"General.IsDelisted": False},\
+                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                ]\
+                                        },\
+                                        no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        else: 
+            stocks = db.US_Stocks.find({"$and": [\
+                                                    {'General.Type':'Common Stock'},\
+                                                    {"dates.earnings_pull_date": {"$exists": False}},\
+                                                    {"General.IsDelisted": False},\
+                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                ]\
+                                        },\
+                                        no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        print(stocks.count())
+
+        for i, stk in enumerate(stocks):
+            print("%d: %r" %(i, stk['bscs']['symbol']))
+            sem.acquire()
+            #update_earnings(stk, 0, sem, all=all)
+            processes[j%num_processes] = multiprocessing.Process(target=update_earnings, args=(stk, i%num_cores, sem, all))
+            processes[j%num_processes].start()
+            j = j + 1
+
+        # Now fetch the bulk earnings
+        url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
+        ret = requests.get(url)
+        if ret.status_code == 402:
+            print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+            close_sql_connection(mysql_engine)
+            close_db_client(c)
+            sys.exit(1)
+        elif ret.status_code == 404:
+            print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
+            update = True
+            return
+        elif ret.status_code != 200:
+            print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
+            return
+
+        earnings = pd.DataFrame(ret.json()['earnings'])
+        if not earnings.empty:
+           if 'code' in earnings.columns:
+               earnings.rename(columns = {'code': 'Symbol'}, inplace=True)
+           if 'currency' in earnings.columns:
+               earnings = earnings[earnings['currency']=='USD']
+               del earnings['currency']
+           if 'Ex' in earnings.columns:
+               del earnings['Ex']
+           if 'exchange' in earnings.columns:
+               del earnings['exchange']
+           if 'date' in earnings.columns:
+               earnings.rename(columns = {'date': 'Date'}, inplace=True)
+        earnings['Symbol']=[e.split('.')[0] for e in earnings['Symbol']]
+       
+        for i, e in earnings.iterrows():
+            query='select * from {} where Symbol=%r and report_date=%r and date=%r'.format(table_name) %(e['Symbol'], e['report_date'], e['Date'])
+            df = read_from_sql(query, mysql_engine)
+            # The entry already exists in the table. No need to add again.
+            if not df.empty:
+                continue
+            stocks = db.US_Stocks.find({"$and": [\
+                                                    {'General.Type':'Common Stock'},\
+                                                    {"General.Code": e['Symbol']},\
+                                                    {"General.IsDelisted": False},\
+                                                    {"$or": [\
+                                                                {"dates.earnings_pull_date": {"$exists": False }},\
+                                                                {"dates.earnings_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                            ]\
+                                                    },\
+                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                ]\
+                                        },\
+                                        no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+            # This stock doesn't exist in our records. Ignore
+            if stocks.count() == 0:
+                continue
+            stk = stocks[0]
+            # Convert series to dataframe
+            df = e.to_frame()
+            df = df.transpose().sort_index()
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbols=stk['bscs']['symbol'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(df.iloc[-1]['report_date'], "%Y-%m-%d"))
+ 
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_ipos():
+    start_date = date(date.today().year, 1, 1)
+    url = 'https://eodhistoricaldata.com/api/calendar/ipos?api_token='+get_eod_token_id()+'&fmt=json'
+    url = url + '&from=' + str(start_date)
+
+    ret = requests.get(url)
+    if ret.status_code == 402:
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+        sys.exit(1)
+    elif ret.status_code == 404:
+        print("Failed to get ipo list data for error code: %r, error: %r" %(ret.status_code, ret.text))
+        update = True
+        return
+    elif ret.status_code != 200:
+        print("Failed to get ipo list data data for error code: %r, error: %r" %(ret.status_code, ret.text))
+        return
+
+    ipos = ret.json()
+    ipo_df = pd.DataFrame(ipos['ipos'])
+    ipo_df = ipo_df[ipo_df['currency'] == 'USD']
+
+    for i, d in ipo_df.iterrows():
+        if d['exchange'].lower() not in [x.lower() for x in all_exchanges]:
+            ipo_df.drop(i, inplace=True)
+
+    if not earnings.empty:
+       if 'code' in earnings.columns:
+           earnings.rename(columns = {'code': 'Symbol'}, inplace=True)
+       if 'currency' in earnings.columns:
+           earnings = earnings[earnings['currency']=='USD']
+           del earnings['currency']
+       if 'Ex' in earnings.columns:
+           del earnings['Ex']
+       if 'exchange' in earnings.columns:
+           del earnings['exchange']
+       if 'date' in earnings.columns:
+           earnings.rename(columns = {'date': 'Date'}, inplace=True)
+    earnings['Symbol']=[e.split('.')[0] for e in earnings['Symbol']]
+       
+ 
 def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None):
     global technicals_ratelimit_reset_time
 
@@ -4489,12 +4788,20 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         c  = open_db_client()
         db = c['Stocks']
 
+        table_name = get_symbol_table_name(stk['bscs']['symbol'])
+
         if 'dates' in stk.keys() and 'technicals_pull_date' in stk['dates'].keys() and \
                 stk['dates']['technicals_pull_date'].date() == dt.now().date():
             update = False
             return
 
-        table_name = get_symbol_table_name(stk['bscs']['symbol'])
+        if 'IPODate' in stk['General'].keys() \
+            and stk['General']['IPODate'] is not None \
+            and len(stk['General']['IPODate']) > 0:
+                db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, \
+                                {'$set': {'bscs.since': dt.strptime(stk['General']['IPODate'], "%Y-%m-%d")}})
+        else:
+            stk  = update_since_dataframe(None, table_name, db.US_Stocks, stk)
 
         #url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
 
@@ -4706,7 +5013,7 @@ def update_all_technicals():
             #update_technicals(stk, None, sem)
             processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem, general_only, ratelimit_event, lock))
             processes[j%num_processes].start()
-            j = j + 1
+            u = j + 1
             i = i + 1
 
     finally:
@@ -5236,7 +5543,8 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         table_name = get_symbol_table_name(sym)
         
         #print("beta: %r: %r" %(stk['sno'], sym))
-        if 'since' not in stk['bscs'].keys():
+        if 'since' not in stk['bscs'].keys() \
+                or stk['bscs']['since'] == dt.min:
             mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
             stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
             close_sql_connection(mysql_engine)

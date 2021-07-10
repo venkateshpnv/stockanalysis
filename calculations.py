@@ -250,6 +250,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         # All Stocks Excel File
         all_stk = xlwt.Workbook()
         ash = {}
+        ash['Recent_IPOs'] = add_wb_sheet(all_stk, "Recent_IPOs")
         if pp and os.path.exists(pp_file):
             ash['Portfolio_Stocks'] = add_wb_sheet(all_stk, "Portfolio_Stocks")
         if radar_stocks:
