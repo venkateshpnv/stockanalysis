@@ -74,7 +74,8 @@ styles = {}
 #del colors[0]
 #del colors[0]
 #del colors[4]
-colors = ['blue_grey', 'coral', 'gold', 'ice_blue', 'ivory', 'lavender', 'light_blue', 'light_green', 'light_orange', 'light_turquoise', 'light_yellow', 'lime', 'olive_ega', 'pale_blue', 'rose', 'silver_ega', 'sky_blue', 'teal', 'teal_ega', 'turquoise']
+#colors = ['blue_grey', 'coral', 'gold', 'ice_blue', 'ivory', 'lavender', 'light_blue', 'light_green', 'light_orange', 'light_turquoise', 'light_yellow', 'lime', 'olive_ega', 'pale_blue', 'rose', 'silver_ega', 'sky_blue', 'teal', 'teal_ega', 'turquoise']
+colors=['grey50', 'gray_ega', 'grey25', 'grey_ega', 'grey40', 'gray25', 'grey50']
 
 def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=False):
     try:
@@ -295,9 +296,14 @@ def add_basic_header(sheet, i):
     conf.SEC=i
 
     i+=1
-    sheet.col(i).width =10*367
+    sheet.col(i).width =7*367
     sheet.write(0, i, "Industry", style_wrap)
     conf.IND=i
+
+    i+=1
+    sheet.col(i).width =7*367
+    sheet.write(0, i, "Description", style_wrap)
+    conf.DESCRIPTION=i
 
     i+=1
     #Since
@@ -306,18 +312,17 @@ def add_basic_header(sheet, i):
     conf.SINCE=i
 
     i+=1
-    #Since
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Earnings Date", style_wrap)
     conf.EARNINGS_DATE=i
     styles['UPCOMING_EARNINGS_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
     styles['DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
 
-    i+=1
-    #Current Price Date
-    sheet.col(i).width = 3*367
-    sheet.write(0, i, "Current Price Date", style_wrap)
-    conf.CUR_PR_DT=i
+    #i+=1
+    ##Current Price Date
+    #sheet.col(i).width = 3*367
+    #sheet.write(0, i, "Current Price Date", style_wrap)
+    #conf.CUR_PR_DT=i
 
     i+=1
     #Current Price
@@ -411,9 +416,11 @@ def add_basic_header(sheet, i):
 
     i+=1
     # Market Cap in Cr
-    sheet.col(i).width = 8*367
-    sheet.write(0, i, "MCap Millions", style_wrap)
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "MCap Billions", style_wrap)
     conf.MCAP=i
+    styles['MCAP'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    styles['MCAP_1BN'] = get_style(color=None, num_format_str="0.0000")
 
     #i+=1
     ## Market Cap in Cr
@@ -440,6 +447,26 @@ def add_basic_header(sheet, i):
     #sheet.write(0, i, "Prom Stake", style_wrap)
     #conf.PRM_S=i
 
+    i+=1
+    # Dividend Yield
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div Yield", style_wrap)
+    conf.DIV=i
+
+    i+=1
+    # Dividend Payout Ratio
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div Payout Ratio", style_wrap)
+    conf.DIV_PAY=i
+
+    i+=1
+    # Dividend Payout Ratio
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div Date", style_wrap)
+    conf.DIV_DATE = i
+    styles['UPCOMING_DIV_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
+    styles['DIV_DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
+ 
     i+=1
     # RSI
     sheet.col(i).width = 5*367
@@ -481,7 +508,7 @@ def add_basic_header(sheet, i):
 
     i+=1
     # RSI min max price change
-    sheet.col(i).width = 7*367
+    sheet.col(i).width = 6*367
     st = "RSI price change"
     sheet.write(0, i, st, style_wrap)
     conf.RSI_PRICE_CHANGE=i
@@ -520,44 +547,44 @@ def add_basic_header(sheet, i):
     conf.PSAR_EP_1YR_TRADES=i
     styles['PSAR_EP_1YR_TRADES'] = get_style(colors[i%len(colors)], num_format_str="0")
 
-    i+=1
-    sheet.col(i).width = 3*367
-    st = "PSAR Trend"
-    sheet.write(0, i, st, style_wrap)
-    conf.PSAR_TREND=i
-    styles['PSAR_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
+    #i+=1
+    #sheet.col(i).width = 3*367
+    #st = "PSAR TA LIB Trend"
+    #sheet.write(0, i, st, style_wrap)
+    #conf.PSAR_TREND=i
+    #styles['PSAR_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 4*367
-    st = "PSAR TA lib Trend"
+    st = "PSAR TA Trend"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TA_TREND=i
     styles['PSAR_TA_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 7*367
-    st = "PSAR TA lib Cur Trend Price Change"
+    st = "PSAR TA Cur Trend Price Change"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TA_CUR_TREND_PR_CHANGE=i
     styles['PSAR_TA_CUR_TREND_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 4*367
-    st = "PSAR TA lib Prev Trend"
+    st = "PSAR TA Prev Trend"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TA_PREV_TREND=i
     styles['PSAR_TA_PREV_TREND'] = get_style(colors[i%len(colors)], num_format_str="0")
 
     i+=1
     sheet.col(i).width = 7*367
-    st = "PSAR TA lib Prev Trend Price Change"
+    st = "PSAR TA Prev Trend Price Change"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TA_PREV_TREND_PR_CHANGE=i
     styles['PSAR_TA_PREV_TREND_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 10*367
-    st = "PSAR TA lib Trend Sequence"
+    st = "PSAR TA Trend Sequence"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR_TA_TREND_SEQUENCE=i
 
@@ -576,14 +603,14 @@ def add_basic_header(sheet, i):
     conf.PSAR=i
 
     i+=1
-    sheet.col(i).width = 6*367
+    sheet.col(i).width = 3*367
     st = "Put Call Ratio"
     sheet.write(0, i, st, style_wrap)
     conf.PUT_CALL_RATIO=i
     styles['PUT_CALL_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
-    sheet.col(i).width = 6*367
+    sheet.col(i).width = 3*367
     st = "Put Call Open Interest Ratio"
     sheet.write(0, i, st, style_wrap)
     conf.PUT_CALL_OPEN_RATIO=i
@@ -617,7 +644,9 @@ def add_basic_header(sheet, i):
     conf.CALLS_OPEN_VOLUME=i
     styles['CALLS_OPEN_VOLUME'] = get_style(colors[i%len(colors)], num_format_str="0")
 
-    i+=1
+    return i
+
+def add_second_tech_indicators(sheet, i):
     sheet.col(i).width = 5*367
     st = "CHANDELIER LONG"
     sheet.write(0, i, st, style_wrap)
@@ -682,7 +711,6 @@ def add_basic_header(sheet, i):
     st = "MStar"
     sheet.write(0, i, st, style_wrap)
     conf.MSTAR=i
-
 
     return i
 
@@ -874,17 +902,6 @@ def add_betas_header(sheet, i):
     #sheet.write(0, i, "RoCE", style_wrap)
     #conf.ROCE=i
 
-    #i+=1
-    ## Dividend Yield
-    #sheet.col(i).width = 4*367
-    #sheet.write(0, i, "Div Yield", style_wrap)
-    #conf.DIV=i
-
-    #i+=1
-    ## Dividend Payout Ratio
-    #sheet.col(i).width = 4*367
-    #sheet.write(0, i, "Div Payout", style_wrap)
-    #conf.DIV_PAY=i
     return i
 
 
@@ -965,7 +982,6 @@ def add_dcf_header(sheets, years, prices_only=False):
         sheet = sheets[k]
         i=0
         i = add_basic_header(sheet, i)
-
         if prices_only is False:
             i+=1
             i = add_calc_header(sheet, i)
@@ -987,6 +1003,12 @@ def add_dcf_header(sheets, years, prices_only=False):
 
         i+=1
         i = add_technicals(sheet, i)
+
+        i+=1
+        i = add_second_price_change_header(sheet, i)
+
+        i+=1
+        i = add_second_tech_indicators(sheet, i)
 
         i+=1
         i = add_fundamentals(sheet, i)
@@ -1073,21 +1095,21 @@ def add_fundamentals(sheet, i):
     sheet.write(0, i, "Quarterly Earnings Growth YoY", style_wrap)
     conf.QUART_EARNINGS_GROWTH_YOY=i
 
-    i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Div Yield", style_wrap)
-    conf.DIV=i
+    #i+=1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Div Yield", style_wrap)
+    #conf.DIV=i
 
-    i+=1
-    # Dividend Payout Ratio
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Div Payout", style_wrap)
-    conf.DIV_PAY=i
+    #i+=1
+    ## Dividend Payout Ratio
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Div Payout", style_wrap)
+    #conf.DIV_PAY=i
  
     return i
 
 def add_technicals(sheet, i):
-    sheet.col(i).width = 5*367
+    sheet.col(i).width = 4*367
     sheet.write(0, i, "Short Ratio", style_wrap)
     conf.SHORT_RATIO=i
     styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
@@ -1181,49 +1203,6 @@ def add_valuation(sheet, i):
 
 def add_price_change_header(sheet, i, sheet_type):
     sheet.col(i).width = 6*367
-    sheet.write(0, i, "Since 2020 Recession", style_wrap)
-    conf.R2020=i
-
-    i+=1
-    # 2007 Percent Change
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "2007 Percent Change", style_wrap)
-    conf.R2007_PER_CHG=i
-
-    i+=1
-    # 2007 Percent Change
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Since Then Till Last Recession", style_wrap)
-    conf.SINCE_LAST_PER_CHG=i
-
-    #i = i + 1
-    ## 2007 Index Percent Change
-    #sheet.col(i).width = 7*367
-    #sheet.write(0, i, "2007 Index Percent Change", style_wrap)
-    #conf.R2007_IPER_CHG=i
-
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "One Month Volatility", style_wrap)
-    conf.VOLATILITY=i
-
-    #i = i + 1
-    #sheet.col(i).width = 6*367
-    #sheet.write(0, i, "One Month Momentum", style_wrap)
-    #conf.ONE_MOMENTUM=i
-
-    #i = i + 1
-    #sheet.col(i).width = 6*367
-    #sheet.write(0, i, "Three Months Momentum", style_wrap)
-    #conf.THREE_MOMENTUM=i
-
-    #i = i + 1
-    #sheet.col(i).width = 6*367
-    #sheet.write(0, i, "Six Months Momentum", style_wrap)
-    #conf.SIX_MOMENTUM=i
-
-    i = i + 1
-    sheet.col(i).width = 6*367
     sheet.write(0, i, "Day Price Change", style_wrap)
     conf.DAY_PR_CHANGE=i
     styles['DAY_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
@@ -1265,7 +1244,7 @@ def add_price_change_header(sheet, i, sheet_type):
     styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
  
     i = i + 1
-    sheet.col(i).width = 6*367
+    sheet.col(i).width = 8*367
     sheet.write(0, i, "Whole Price Change", style_wrap)
     conf.WH_PR_CHANGE=i
     styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
@@ -1307,6 +1286,50 @@ def add_price_change_header(sheet, i, sheet_type):
 #        sheet.write(0, i, "Day Price Change", style_wrap)
 #        conf.DAY_PR_CHANGE=i
 #        return i
+
+def add_second_price_change_header(sheet, i):
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Since 2020 Recession", style_wrap)
+    conf.R2020=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "2007 Percent Change", style_wrap)
+    conf.R2007_PER_CHG=i
+
+    i+=1
+    # 2007 Percent Change
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Since Then Till Last Recession", style_wrap)
+    conf.SINCE_LAST_PER_CHG=i
+
+    #i = i + 1
+    ## 2007 Index Percent Change
+    #sheet.col(i).width = 7*367
+    #sheet.write(0, i, "2007 Index Percent Change", style_wrap)
+    #conf.R2007_IPER_CHG=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "One Month Volatility", style_wrap)
+    conf.VOLATILITY=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "One Month Momentum", style_wrap)
+    conf.ONE_MOMENTUM=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Three Months Momentum", style_wrap)
+    conf.THREE_MOMENTUM=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Six Months Momentum", style_wrap)
+    conf.SIX_MOMENTUM=i
+    return i
 
 def add_price_surprise_header(sheet, sheet_type):
     years=""
@@ -1412,15 +1435,15 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
         sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
-        #sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
-        #sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
-        #sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
+        sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
+        sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
+        sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
 
     sh_write(ash, count, conf.COMP, stk['bscs']['name'], style_text)
     #sh_write(ash, count, conf.PRM_S, stk['bscs']['promoter_stake']/100, style_percent)
     #sh_write(ash, count, conf.FII, stk['bscs']['fii_stake']/100, style_percent)
     #sh_write(ash, count, conf.DII, stk['bscs']['dii_stake']/100, style_percent)
-    sh_write(ash, count, conf.DIV, stk['Dividend']['yld']/100, style_percent)
+    sh_write(ash, count, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent)
     sh_write(ash, count, conf.DIV_PAY, stk['Dividend']['payout_ratio']/100, style_percent)
     sh_write(ash, count, conf.FLT, stk['bscs']['float']/100)
     try:
@@ -1434,7 +1457,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.MCAP, stk['bscs']['marketCap'], style_num)
     #sh_write(ash, count, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num)
     sh_write(ash, count, conf.SINCE, stk['bscs']['since'], style_text)
-    sh_write(ash, count, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0])
+    #sh_write(ash, count, conf.CUR_PR_DT, str(stk['bscs']['price_date']).split(' ')[0])
     sh_write(ash, count, conf.CUR_PR, stk['bscs']['regularMarketPrice'])
     sh_write(ash, count, conf.FIFTY_DAY_MA, stk['Technicals']['50DayMA'])
     sh_write(ash, count, conf.TWO_HUNDRED_DAY_MA, stk['Technicals']['200DayMA'])
@@ -1496,9 +1519,6 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, count, conf.OPER_MARGIN_TTM, stk['Highlights']['OperatingMarginTTM'], style_decimal)
         sh_write(ash, count, conf.QUART_REV_GROWTH_YOY, stk['Highlights']['QuarterlyRevenueGrowthYOY'], style_decimal)
         sh_write(ash, count, conf.QUART_EARNINGS_GROWTH_YOY, stk['Highlights']['QuarterlyEarningsGrowthYOY'], style_decimal)
-        sh_write(ash, count, conf.DIV, stk['SplitsDividends']['SplitsDividends'], style_percent)
-        sh_write(ash, count, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_decimal)
-
 
     if len(stk['fig']['DtoE']) > 0:
         sh_write(ash, count, conf.DTOTE, stk['fig']['DtoE'][-1])
@@ -1570,8 +1590,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         try:
             all_sht = ashs['All']
             recent_ipos = False
+            #if 'since' in stk['bscs'].keys() \
+            #        and date.today().year == stk['bscs']['since'].year:
+            #    recent_ipos = True
             if 'since' in stk['bscs'].keys() \
-                    and date.today().year == stk['bscs']['since'].year:
+                    and (dt.now() - stk['bscs']['since']).days <=365 :
                 recent_ipos = True
 
             if radar_stocks:
@@ -1685,9 +1708,6 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #if 'dii_stake' in stk['bscs'].keys():
     #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent, ashs, recent_ipos=recent_ipos)
 
-    sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, ashs, recent_ipos=recent_ipos)
-    sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_percent, ashs, recent_ipos=recent_ipos)
-   
     #Betas
     if 'fig' in stk.keys() and 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
@@ -1735,7 +1755,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     sh_write(ash, conf.COUNT, conf.SYM, stk['bscs']['symbol'], style_text, ashs=ashs, recent_ipos=recent_ipos)
     sh_write(ash, conf.COUNT, conf.SEC, stk['General']['Sector'], style_text, ashs=ashs, recent_ipos=recent_ipos)
     sh_write(ash, conf.COUNT, conf.IND, stk['General']['GicSubIndustry'], style_text, ashs=ashs, recent_ipos=recent_ipos)
-    sh_write(ash, conf.COUNT, conf.SINCE, stk['bscs']['since'], styles['DATE'], ashs=ashs, recent_ipos=recent_ipos)
+    sh_write(ash, conf.COUNT, conf.DESCRIPTION, stk['General']['Description'], style_text, ashs=ashs, recent_ipos=recent_ipos)
+    if 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
+        sh_write(ash, conf.COUNT, conf.SINCE, stk['bscs']['since'], styles['DATE'], ashs=ashs, recent_ipos=recent_ipos)
     if 'last_earnings_report_date' in stk['dates'].keys():
         if stk['dates']['last_earnings_report_date'] >= dt.now():
             sh_write(ash, conf.COUNT, conf.EARNINGS_DATE, stk['dates']['last_earnings_report_date'], styles['UPCOMING_EARNINGS_DATE'], ashs=ashs, recent_ipos=recent_ipos)
@@ -1752,7 +1774,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     sheet.write(i, 0, "Price")
     if 'price' in stk['price_change'].keys():
         sheet.write(i, 1, stk['price_change']['price'])
-    sh_write(ash, conf.COUNT, conf.CUR_PR_DT, str(stk['price_change']['date']).split(' ')[0], ashs=ashs, recent_ipos=recent_ipos)
+    #sh_write(ash, conf.COUNT, conf.CUR_PR_DT, str(stk['price_change']['date']).split(' ')[0], ashs=ashs, recent_ipos=recent_ipos)
     if 'price' in stk['price_change'].keys():
         sh_write(ash, conf.COUNT, conf.CUR_PR, stk['price_change']['price'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
     sh_write(ash, conf.COUNT, conf.FIFTY_DAY_MA, stk['Technicals']['50DayMA'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
@@ -2011,11 +2033,6 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sh_write(ash, conf.COUNT, conf.QUART_REV_GROWTH_YOY, stk['Highlights']['QuarterlyRevenueGrowthYOY'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
     if 'QuarterlyEarningsGrowthYOY' in stk['Highlights'].keys():
         sh_write(ash, conf.COUNT, conf.QUART_EARNINGS_GROWTH_YOY, stk['Highlights']['QuarterlyEarningsGrowthYOY'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-    if 'ForwardAnnualDividendYield' in stk['SplitsDividends'].keys():
-        sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
-    if 'PayoutRatio' in stk['SplitsDividends'].keys():
-        sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-
 
     #Ratios
     #if 'DtoE' in stk['fig'].keys():
@@ -2030,80 +2047,101 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     ###sh_write(ash, conf.COUNT, conf.ROCE, stk['fig']['ROCE'][-1], ashs=ashs, recent_ipos=recent_ipos)
     #if 'PAT_M' in stk['fig'].keys():
     #    check_and_write(ash, conf.COUNT, conf.PRF_M, stk['fig']['PAT_M'], -1, 1/100, style_percent)
-    if 'MarketCapitalizationMln' in stk['Highlights'].keys():
-        sh_write(ash, conf.COUNT, conf.MCAP, stk['Highlights']['MarketCapitalizationMln'], style_num, ashs=ashs, recent_ipos=recent_ipos)
+    if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
+        if stk['Highlights']['MarketCapitalizationMln'] > 1000:
+            sh_write(ash, conf.COUNT, conf.MCAP, round(stk['Highlights']['MarketCapitalizationMln']/1000,2), styles['MCAP'], ashs=ashs, recent_ipos=recent_ipos)
+        else:
+            sh_write(ash, conf.COUNT, conf.MCAP, round(stk['Highlights']['MarketCapitalizationMln']/1000,4), styles['MCAP_1BN'], ashs=ashs, recent_ipos=recent_ipos)
     #sh_write(ash, conf.COUNT, conf.REVENUE, get_latest_figure(stk, 'income-statement', 'Sales'), style_num, ashs=ashs, recent_ipos=recent_ipos)
+
+    if 'SplitsDividends' in stk.keys():
+        #if stk['SplitsDividends']['ForwardAnnualDividendYield'] != 0:
+        if stk['SplitsDividends']['PayoutRatio'] != 0:
+            if stk['SplitsDividends']['ForwardAnnualDividendYield'] != 0:
+                sh_write(ash, conf.COUNT, conf.DIV, stk['SplitsDividends']['ForwardAnnualDividendYield'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+
+            #if stk['SplitsDividends']['PayoutRatio'] != 0:
+            sh_write(ash, conf.COUNT, conf.DIV_PAY, stk['SplitsDividends']['PayoutRatio'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+            try:
+                if dt.strptime(stk['SplitsDividends']['DividendDate'], "%Y-%m-%d") >= dt.now():
+                    sh_write(ash, conf.COUNT, conf.DIV_DATE, stk['SplitsDividends']['DividendDate'], styles['UPCOMING_DIV_DATE'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.DIV_DATE, stk['SplitsDividends']['DividendDate'], styles['DIV_DATE'], ashs=ashs, recent_ipos=recent_ipos)
+            except:
+                pass
 
     if 'technicals' not in stk.keys():
         print('%s: %s: No technicals' %(stk['bscs']['symbol'], stk['General']['Name']))
-    elif stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
-        sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-        if '60day_min' in stk['technicals']['rsi'].keys():
-            sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), styles['RSI_MIN_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), styles['RSI_MAX_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), styles['RSI_60_MAX'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), styles['RSI_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
-            if type(stk['technicals']['rsi']['60day_max_price_date']) is pd.datetime and type(stk['technicals']['rsi']['60day_min_price_date']) is pd.datetime:
-                if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
-                    rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
-                else:
-                    rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
-                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-                days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
-                sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'], ashs=ashs, recent_ipos=recent_ipos)
+    else:
+        if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
+            sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+            if '60day_min' in stk['technicals']['rsi'].keys():
+                sh_write(ash, conf.COUNT, conf.RSI_MIN_DIFF, (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']), styles['RSI_MIN_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.RSI_MAX_DIFF, (stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']), styles['RSI_MAX_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.RSI_60_MAX, "{}-{}".format(round(stk['technicals']['rsi']['60day_min'],2), round(stk['technicals']['rsi']['60day_max'],2)), styles['RSI_60_MAX'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.RSI_DIFF, round(stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['60day_min'],2), styles['RSI_DIFF'], ashs=ashs, recent_ipos=recent_ipos)
+                if type(stk['technicals']['rsi']['60day_max_price_date']) is pd.datetime and type(stk['technicals']['rsi']['60day_min_price_date']) is pd.datetime:
+                    if stk['technicals']['rsi']['60day_min_price_date'] < stk['technicals']['rsi']['60day_max_price_date']:
+                        rsi_price_change = percent_change(stk['technicals']['rsi']['60day_min_price'], stk['technicals']['rsi']['60day_max_price'])
+                    else:
+                        rsi_price_change = percent_change(stk['technicals']['rsi']['60day_max_price'], stk['technicals']['rsi']['60day_min_price'])
+                    sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+                    days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
+                    sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'], ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
-        sh_write(ash, conf.COUNT, conf.BBANDS_PRICE, round(percent_change(stk['technicals']['bbands']['upper'], stk['price_change']['price']),2), styles['BBANDS_PRICE'], ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text, ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+        if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
+            sh_write(ash, conf.COUNT, conf.BBANDS_PRICE, round(percent_change(stk['technicals']['bbands']['upper'], stk['price_change']['price']),2), styles['BBANDS_PRICE'], ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text, ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'up' in stk['technicals']['aroon'].keys():
-        sh_write(ash, conf.COUNT, conf.AROON_UP, stk['technicals']['aroon']['up'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-    if 'down' in stk['technicals']['aroon'].keys():
-        sh_write(ash, conf.COUNT, conf.AROON_DOWN, stk['technicals']['aroon']['down'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        if 'up' in stk['technicals']['aroon'].keys():
+            sh_write(ash, conf.COUNT, conf.AROON_UP, stk['technicals']['aroon']['up'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        if 'down' in stk['technicals']['aroon'].keys():
+            sh_write(ash, conf.COUNT, conf.AROON_DOWN, stk['technicals']['aroon']['down'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'ep' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR, stk['technicals']['sar']['ep']['one_year']['ep'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_TRADES, stk['technicals']['sar']['ep']['one_year']['num_trades'], styles['PSAR_EP_1YR_TRADES'], ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_PR_CHANGE, stk['technicals']['sar']['ep']['one_year']['price_change'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_ALPHA, stk['technicals']['sar']['ep']['one_year']['alpha'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+        if 'ep' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR, stk['technicals']['sar']['ep']['one_year']['ep'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_TRADES, stk['technicals']['sar']['ep']['one_year']['num_trades'], styles['PSAR_EP_1YR_TRADES'], ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_PR_CHANGE, stk['technicals']['sar']['ep']['one_year']['price_change'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.PSAR_EP_1YR_ALPHA, stk['technicals']['sar']['ep']['one_year']['alpha'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'trend' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], styles['PSAR_TREND'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'ta_psar_trend' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], styles['PSAR_TA_TREND'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TA_CUR_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_cur_trend_price_change'], styles['PSAR_TA_CUR_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'ta_psar_prev_trend' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND, stk['technicals']['sar']['ta_psar_prev_trend'], styles['PSAR_TA_PREV_TREND'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_prev_trend_price_change'], styles['PSAR_TA_PREV_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND_SEQUENCE, stk['technicals']['sar']['ta_psar_trend_sequence'], style_num, ashs=ashs, recent_ipos=recent_ipos)
+        #if 'trend' in stk['technicals']['sar'].keys():
+        #    sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], styles['PSAR_TREND'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'ta_psar_trend' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], styles['PSAR_TA_TREND'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_TA_CUR_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_cur_trend_price_change'], styles['PSAR_TA_CUR_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'ta_psar_prev_trend' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND, stk['technicals']['sar']['ta_psar_prev_trend'], styles['PSAR_TA_PREV_TREND'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_prev_trend_price_change'], styles['PSAR_TA_PREV_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND_SEQUENCE, stk['technicals']['sar']['ta_psar_trend_sequence'], style_num, ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'latest' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-    if 'change' in stk['technicals']['sar'].keys():
-        sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], styles['PSAR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'latest' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        if 'change' in stk['technicals']['sar'].keys():
+            sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], styles['PSAR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'long' in stk['technicals']['chandelier'].keys():
+            sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        if 'short' in stk['technicals']['chandelier'].keys():
+            sh_write(ash, conf.COUNT, conf.CHANDELIER_SHORT, stk['technicals']['chandelier']['short'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+    
+            sh_write(ash, conf.COUNT, conf.ULCER_INDEX, stk['technicals']['ulcer_index'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+    
+        if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
+            sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, ashs=ashs, recent_ipos=recent_ipos)
 
     if 'options' in stk.keys():
-        sh_write(ash, conf.COUNT, conf.PUT_CALL_RATIO, round(stk['options']['putCallRatio'],2), styles['PUT_CALL_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.PUT_CALL_OPEN_RATIO, round(stk['options']['putCallOpenInterestRatio'],2), styles['PUT_CALL_OPEN_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
+        if stk['options']['putCallRatio'] > 0:
+            sh_write(ash, conf.COUNT, conf.PUT_CALL_RATIO, round(stk['options']['putCallRatio'],2), styles['PUT_CALL_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
+        if stk['options']['putCallOpenInterestRatio'] > 0:
+            sh_write(ash, conf.COUNT, conf.PUT_CALL_OPEN_RATIO, round(stk['options']['putCallOpenInterestRatio'],2), styles['PUT_CALL_OPEN_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.PUTS_VOLUME, stk['options']['putVolume'], styles['PUTS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.CALLS_VOLUME, stk['options']['callVolume'], styles['CALLS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.PUTS_OPEN_VOLUME, stk['options']['putOpenInterest'], styles['PUTS_OPEN_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.CALLS_OPEN_VOLUME, stk['options']['callOpenInterest'], styles['CALLS_OPEN_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
-
-    if 'long' in stk['technicals']['chandelier'].keys():
-        sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-    if 'short' in stk['technicals']['chandelier'].keys():
-        sh_write(ash, conf.COUNT, conf.CHANDELIER_SHORT, stk['technicals']['chandelier']['short'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-
-    sh_write(ash, conf.COUNT, conf.ULCER_INDEX, stk['technicals']['ulcer_index'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-
-    if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
-        sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, ashs=ashs, recent_ipos=recent_ipos)
 
     if 'whole' in stk['price_change'].keys() and stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, styles['WH_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)

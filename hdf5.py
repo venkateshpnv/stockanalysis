@@ -75,11 +75,11 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                         print("%s: Ratelimit: %r %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
                         sys.exit(1)
                     if ret.status_code == 404:
-                        print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                        print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                         update = True
                         return df
                     if ret.status_code != 200:
-                        print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                        print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                         return df
                 except Exception as E:
                     print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
@@ -1016,7 +1016,7 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_date", DB.get_latest_trading_day())
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_success", True)
-        multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
+        multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk), core, None, False)).start()
     finally:
         if local_mdb:
             DB.close_db_client(c)
@@ -1044,6 +1044,12 @@ def bulk_update_price_volume(country, db, sql_engine):
                                             {'General.Exchange':{"$in":major_exchanges}},\
                                             {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
+                                            {"$or": [\
+                                                        {"bscs.lastSplitUpdateDate": {"$exists": False}},\
+                                                        {"bscs.lastSplitUpdateDate":{"$lte": dt.now()-timedelta(7)}}\
+                                                    ]\
+                                            },\
+ 
                                             {'failcount.mysql_price_failcount':{"$lt": 10}}\
                                         ]\
                                 }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -1079,7 +1085,7 @@ def bulk_update_price_volume(country, db, sql_engine):
                 if processes[j] is not None:
                     processes[j].join()
 
-def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True, percent_change=True):
+def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True, percent_change=True, check_since_ipo_date=False):
 
     if core is not None:
         aff = 0 | 1 << core
@@ -1143,6 +1149,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 print("New symbol: getting data for %r" %(stk['bscs']['symbol']))
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 data_pull = True 
+                # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
+                df.drop(df[df['Volume']==0].index, inplace=True)
                 #df = remove_df_duplicates(df)
                 if not df.empty:
                     #df['Symbol'] = symbol
@@ -1206,6 +1214,43 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             if not DB.mysql_exists_table(sql_engine, table):
                 rdf = pd.DataFrame()
             else:
+                # The tables with the same symbol name might have been
+                # pre-existing and the new entries are appended to the old entries.
+                # Or might have wrong data due to code errors.
+                # So, truncate the whole table and repopulate the entries.
+                # From now for all the new symbols that are added, this step is added
+                # in add_symbol_to_database(d, db)
+                if True:
+                #if check_since_ipo_date:
+                    if 'since' in stk['bscs'].keys() \
+                            and stk['bscs']['since'] is not None:
+                            #and date.today().year == stk['bscs']['since'].year:
+                        # Truncate the whole table, pull the new prices and recreate the percentage changes.
+                        table_name = DB.get_symbol_table_name(stk['bscs']['symbol'])
+                        if DB.mysql_exists_table(sql_engine, table_name):
+                            query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
+                            df = DB.read_from_sql(query, sql_engine)
+                            # The table has old entries. Remove those entries
+                            if not df.empty and\
+                                stk['bscs']['since'] and\
+                                abs((stk['bscs']['since'] - df.index[0]).days) >= 7: # If atleast there's a time difference of 7 days between the IPO date and the start index date, truncate them and repopulate again.
+                                print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
+                                if stk['bscs']['since'] > df.index[0]:
+                                    query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
+                                    sql_engine.execute(query)
+                                    query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
+                                    sql_engine.execute(query)
+                                else:
+                                    query = "truncate table {}".format(table_name)
+                                    sql_engine.execute(query)
+        
+                                beta_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+                                # Truncate betas.
+                                if DB.mysql_exists_table(beta_engine, table_name):
+                                    query = "truncate table {}".format(table_name)
+                                    beta_engine.execute(query)
+                                DB.close_sql_connection(beta_engine)
+        
                 query = 'select Date from ' + table + ' order by Date DESC limit 1'
                 #rdf = read_from_hdf(country, symbol)
                 rdf = DB.read_from_sql(query, sql_engine)
@@ -1215,7 +1260,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
             #rdf = read_from_hdf(country, symbol)
             #rdf = read_from_hdf_store(country, stk['bscs']['symbol'])
             if rdf.empty:
-                PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
+                #PRINT_ERR("update_dataframe_price_volume: Couldnt read %r" %(stk['bscs']['symbol']))
                 start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
             else:
                 #get timestamp of the last entry
@@ -1239,7 +1284,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 data_pull = True
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
-                #df.drop(df[df['Volume']==0].index, inplace=True)
+                df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
                 #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))

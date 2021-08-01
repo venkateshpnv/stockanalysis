@@ -18,6 +18,7 @@ COMP=0
 SYM=0
 SEC=0
 IND=0
+DESCRIPTION=0
 SINCE=0
 EARNINGS_DATE=0
 CUR_PR_DT=0
@@ -122,6 +123,9 @@ ONE_MOMENTUM=0
 THREE_MOMENTUM=0
 SIX_MOMENTUM=0
 
+DIV=0 # Dividend Rate
+DIV_PAY=0 # Dividend Payout Ratio
+DIV_DATE=0
 MAX_Years = 20
 
 #Sales, PAT, Cash Flow, Book Value
@@ -294,6 +298,7 @@ def init_variables():
 
     SEC=0
     IND=0
+    DESCRIPTION=0
 
     PE=0
     F_PE=0 # Forward PE
@@ -319,6 +324,7 @@ def init_variables():
     QUART_EARNINGS_GROWTH_YOY=0
     DIV=0 # Dividend Rate
     DIV_PAY=0 # Dividend Payout Ratio
+    DIV_DATE=0
 
     SHORT_RATIO=0
     SHARES_FLOAT_PERCENT=0

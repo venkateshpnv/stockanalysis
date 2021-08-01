@@ -481,10 +481,11 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
-def update_price_change(country, sym, core, sem=None):
+def update_price_change(country, stk, core, sem=None, index=False):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
 
+    sym = stk['bscs']['symbol']
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
@@ -544,7 +545,21 @@ def update_price_change(country, sym, core, sem=None):
 
             # To save time in condition checks, calculate the 
             # whole field seperately outside the loop.
-            start_price = df['Adj Close'][0]
+            if index is False and 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
+                start_date = str(stk['bscs']['since'].date())
+                query = 'select `Date`, `Adj Close` from {} where Date={} limit 1'.format(table_name, start_date)
+                df = DB.read_from_sql(query, sql_engine)
+                if not df.empty:
+                    start_price = df['Adj Close'][0]
+                else:
+                    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+                    df = DB.read_from_sql(query, sql_engine)
+                    start_price = df['Adj Close'][0]
+            else:
+                query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+                df = DB.read_from_sql(query, sql_engine)
+                start_price = df['Adj Close'][0]
+
             field = [*price_change_fields][-1]
             query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
             df = DB.read_from_sql(query, sql_engine)
@@ -699,9 +714,9 @@ def fork_hdf5_process(country):
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
             sem.acquire()
-            #update_price_change(country, stk['bscs']['symbol'], 1, sem)
+            #update_price_change(country, stk, 1, sem, index=True)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, True))
             processes[i%num_processes].start()
 
         ## Randomly get all records whose price is not updated till today
@@ -731,8 +746,8 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'BRK.A'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        print("Stocks: %r" %(stocks.count())) 
+        #stocks = collection.find({'bscs.symbol':'SONY'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
         for i, stk in enumerate(stocks):
@@ -751,8 +766,8 @@ def fork_hdf5_process(country):
  
             sem.acquire()
             #print("Symbol: %r" %(stk['bscs']['symbol']))
-            #update_price_change(country, stk['bscs']['symbol'], i%DB.num_cores, sem)
-            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), i%DB.num_cores, sem))
+            #update_price_change(country, stk, i%DB.num_cores, sem, index=False)
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, False))
             processes[i%num_processes].start()
 
     finally:

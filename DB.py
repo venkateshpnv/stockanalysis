@@ -1453,6 +1453,8 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     eod_token = True
+    percent_change = True
+    check_since_ipo_date = True
     i=0
  
     #symbols = hdf5.get_symbols_hdf_store(country)
@@ -1488,8 +1490,8 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         # Get the data in bulk mode for all the stocks in a single API call and update the database.
         # This will be much quicker than pulling data for the each stock.
         # This call does the data update for all the stocks having the price data till the previous trading day.
-        if eod_token is True:
-            hdf5.bulk_update_price_volume(country, db, sql_engine)
+        #if eod_token is True:
+        #    hdf5.bulk_update_price_volume(country, db, sql_engine)
 
         # As the bulk mode would have updated most of the stocks, now update the remaining stocks.
         # They include 
@@ -1523,13 +1525,13 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'PRTY'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
-        print("Total stocks: %r" %(stocks.count()))
+        #stocks = collection.find({'bscs.symbol':'AHT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        print("Total non-bulk stocks: %r" %(stocks.count()))
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
-            processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+            #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=eod_token, percent_change=percent_change, check_since_ipo_date=check_since_ipo_date)
+            processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token, percent_change, check_since_ipo_date))
             processes[i%num_processes].start()
             i = i + 1
 
@@ -1538,6 +1540,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             if processes[j] is not None:
                 processes[j].join()
 
+    return
     try:
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {'dates.mysql_price_pull_date': {'$gte':get_latest_trading_day()}},\
@@ -2267,7 +2270,17 @@ def update_SAR_params(collection, sym, df):
                 sar_latest = psar.iloc[-1]['short']
             else:
                 sar_latest = psar.iloc[-1]['long']
-            change = percent_change(sar_latest, df['Adj Close'][-1])
+            if trend_days > 0:
+                # Currently in positive trend
+                # Negative percent close to zero means there is a chance of
+                # trend reversal. Time to sell the stock.
+                change = percent_change(sar_latest, df['Low'][-1])
+            else:
+                # Currently in negative trend
+                # Positive percentage close to zero means there is a chance of 
+                # trend reversal. Can buy the stock.
+                change = percent_change(sar_latest, df['High'][-1])
+            #change = percent_change(sar_latest, df['Adj Close'][-1])
             update_field(collection, sym, "technicals.sar.change", change)
             update_field(collection, sym, "technicals.sar.latest", sar_latest)
     
@@ -2566,7 +2579,7 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'VLATW'})
+    #stocks=db.US_Stocks.find({'General.Code':'IVR'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -2794,10 +2807,11 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
         local_mysql = True
 
     sno = db.US_Stocks.find({}).count()
-    bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type']}
+    bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type'], "since": dt.combine(dt.now(), dt.min.time())}
     stk  = {"bscs" : bscs, "sno": sno}
     print("Adding new symbol: %s: %s" %(d['Symbol'], d['Name']))
     db.US_Stocks.insert_one(stk)
+    db.US_Stocks_Added.insert_one(stk)
     
     if d['Exchange'] not in major_exchanges:
         general_only=True
@@ -2811,6 +2825,48 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     table_name = 'US_All_Stocks_List'
     mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
     mysql_update_table(mysql_engine, table_name, stk_df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
+
+    # Truncate the whole table, pull the new prices and recreate the percentage changes.
+    price_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+    table_name = get_symbol_table_name(d['Symbol'])
+    if mysql_exists_table(mysql_engine, table_name):
+        print("%s: symbol price table already exists, truncating" %(d['Symbol']))
+        query = "truncate table {}".format(table_name)
+        price_engine.execute(query)
+    close_sql_connection(price_engine)
+
+    # Truncate the whole table, pull the new prices and recreate the percentage changes.
+    tech_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Technicals')
+    table_name = get_symbol_table_name(d['Symbol'])
+    if mysql_exists_table(tech_engine, table_name):
+        print("%s: symbol price table already exists, truncating" %(d['Symbol']))
+        query = "truncate table {}".format(table_name)
+        tech_engine.execute(query)
+    close_sql_connection(tech_engine)
+
+    options_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Options')
+    table_name = get_symbol_table_name(d['Symbol'])
+    if mysql_exists_table(mysql_engine, table_name):
+        print("%s: symbol price table already exists, truncating" %(d['Symbol']))
+        query = "truncate table {}".format(table_name)
+        options_engine.execute(query)
+    close_sql_connection(options_engine)
+
+    beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+    # Truncate betas.
+    if mysql_exists_table(beta_engine, table_name):
+        print("%s: symbol beta table already exists, truncating" %(d['Symbol']))
+        query = "truncate table {}".format(table_name)
+        beta_engine.execute(query)
+    close_sql_connection(beta_engine)
+
+    fin_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+    tables = ['Balance_Sheet_quarterly', 'Balance_Sheet_yearly', 'Cash_Flow_quarterly', 'Cash_Flow_yearly', 'Dividends_History', 'Earnings_History', 'Income_Statement_quarterly', 'Income_Statement_yearly', 'Splits_History']
+    for table_name in tables:
+        if mysql_exists_table(fin_engine, table_name):
+            query = "delete from {} where Symbol=\'{}\'".format(table_name, d['Symbol'])
+            fin_engine.execute(query)
+    close_sql_connection(fin_engine)
 
     if local_db:
         close_db_client(c)
@@ -3644,9 +3700,14 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         break
 
-def update_US_stock_fin_information_data(db, mysql_engine, fin, stk):
+def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
+    local_mysql = False
     if not isinstance(fin, dict):
         return
+
+    if mysql_engine is None:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        local_mysql = True
 
     try:
         for stmt_type in fin.keys():
@@ -3661,14 +3722,14 @@ def update_US_stock_fin_information_data(db, mysql_engine, fin, stk):
                     stmt.rename(columns={'date':'Date'}, inplace=True)
 
                     table_name = stmt_type+'_'+duration
-                    if mysql_exists_table(mysql_engine, table_name):
-                        query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
-                        ddf = read_from_sql(query, mysql_engine)
+                    mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=True)
+                    query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+                    ddf = read_from_sql(query, mysql_engine)
 
-                        #index = stmt.index.difference(ddf.index)
-                        #index = stmt.index.get_loc(ddf['Date'][-1])
-                        index = stmt.index.difference(ddf['Date'])
-                        stmt = stmt.loc[index]
+                    #index = stmt.index.difference(ddf.index)
+                    #index = stmt.index.get_loc(ddf['Date'][-1])
+                    index = stmt.index.difference(ddf['Date'])
+                    stmt = stmt.loc[index]
 
                     if not stmt.empty:
                         print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(stmt.index.tolist())))
@@ -3676,6 +3737,8 @@ def update_US_stock_fin_information_data(db, mysql_engine, fin, stk):
 
     finally:
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
+        if local_mysql:
+            close_sql_connection(mysql_engine)
  
 def update_US_stock_fin_information(stk, core, sem):
 
@@ -3707,7 +3770,7 @@ def update_US_stock_fin_information(stk, core, sem):
             return
 
         fin = ret.json()
-        update_US_stock_fin_information_data(db, mysql_engine, fin, stk)
+        update_US_stock_fin_information_data(db, fin, stk, mysql_engine)
 
         #if not isinstance(fin, dict):
         #    return
@@ -3925,13 +3988,18 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
         count = 0
         df = df.sort_values(by=['Date', 'Symbol'], ascending=False)
         for i,d in df.iterrows():
-            # Split date is announced but actual split has not yet happened.
-            if i + timedelta(3) > dt.now():
-                continue
             # Ignore split updates for data before 2016
             start = dt.strptime("2016-01-01", "%Y-%m-%d").date()
             if i < start:
                 break
+ 
+            # Split date is announced but actual split has not yet happened.
+            # Wait atleast 3 working days to get the data updated.
+            #if i + timedelta(3) > dt.now():
+            if date_difference(dt.now().date(), i,\
+                    holidays=get_holiday_list(dt.now().date(), i)) < 3:
+                continue
+
             stocks = db.US_Stocks.find({'bscs.symbol':d['Symbol']}, no_cursor_timeout=True)
             if stocks.count() == 1:
                 stk = stocks[0]
@@ -4492,9 +4560,9 @@ def update_all_put_call_ratios(country='US'):
         for stk in stocks:
            print("%d: Options: Checking: %r" %(i, stk['bscs']['symbol']))
            sem.acquire()
-           update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
-           #processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
-           #processes[i%num_processes].start()
+           #update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
+           processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
+           processes[i%num_processes].start()
            i = i + 1
 
     finally:
@@ -4503,6 +4571,112 @@ def update_all_put_call_ratios(country='US'):
                 processes[j].join()
         time.sleep(5)
         close_db_client(c)
+
+def clear_zero_volume_rows(stk, core=None, sem=None):
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+
+        table = get_symbol_table_name(stk['bscs']['symbol'])
+        if mysql_exists_table(mysql_engine, table):
+            query = 'select Date, Volume from ' + table # + ' where Volume=0'
+            df = read_from_sql(query, mysql_engine)
+            index = []
+            if not df.empty:
+                # Find consecutive zero volume rows from the top and delete them
+                for i, d in df.iterrows():
+                    if d['Volume'] == 0:
+                        index.append(i)
+                    else:
+                        break
+                if len(index) > 0:
+                    print("%s: %s number of zero volume rows, deleting them" %(stk['bscs']['symbol'], len(index)))
+                    for i in index:
+                        query = 'delete from ' + table + ' where Date=\'{}\''.format(df.loc[i]['Date'])
+                        mysql_engine.execute(query)
+
+    finally:
+        close_sql_connection(mysql_engine)
+        if sem:
+            sem.release()
+
+def clear_all_zero_volume_rows():
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+    sort = [1, -1][dt.now().day % 2 == 0]
+
+    num_processes = num_cores * 2
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    today = dt.combine(dt.now(), dt.min.time())
+
+    try:
+        stocks = db.US_Stocks.find({"$and": [\
+                                                {'General.Type':'Common Stock'},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                            ]\
+                                    },\
+                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"bscs.symbol":"ABEO"})
+        print(stocks.count())
+
+        for i, stk in enumerate(stocks):
+            #print("%d: %r" %(i, stk['bscs']['symbol']))
+            sem.acquire()
+            #clear_zero_volume_rows(stk, 0, sem)
+            processes[j%num_processes] = multiprocessing.Process(target=clear_zero_volume_rows, args=(stk, i%num_cores, sem))
+            processes[j%num_processes].start()
+            j = j + 1
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
+
+def update_since(stk, db, mysql_engine=None):
+    if 'General' in stk.keys()\
+        and 'IPODate' in stk['General'].keys() \
+        and stk['General']['IPODate'] is not None \
+        and len(stk['General']['IPODate']) > 0:
+            db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, \
+                            {'$set': {'bscs.since': dt.strptime(stk['General']['IPODate'], "%Y-%m-%d")}})
+    else:
+        stk  = update_since_dataframe(mysql_engine, get_symbol_table_name(stk['bscs']['symbol']), db.US_Stocks, stk)
+
+
+def update_all_since():
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+    sort = [1, -1][dt.now().day % 2 == 0]
+
+    try:
+        stocks = db.US_Stocks.find({"$and": [\
+                                                {'General.Type':'Common Stock'},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                            ]\
+                                    },\
+                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        #stocks = db.US_Stocks.find({"bscs.symbol":"HOOD"})
+        print(stocks.count())
+
+        for i, stk in enumerate(stocks):
+            print("%d: %r" %(i, stk['bscs']['symbol']))
+            update_since(stk, db)
+    finally:
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
 
 def update_earnings(stk, core, sem=None, all=False):
     insert = False
@@ -4765,7 +4939,7 @@ def update_ipos():
     earnings['Symbol']=[e.split('.')[0] for e in earnings['Symbol']]
        
  
-def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None):
+def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None, check_since_ipo_date=False):
     global technicals_ratelimit_reset_time
 
     if core is not None:
@@ -4790,18 +4964,60 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
 
         table_name = get_symbol_table_name(stk['bscs']['symbol'])
 
-        if 'dates' in stk.keys() and 'technicals_pull_date' in stk['dates'].keys() and \
-                stk['dates']['technicals_pull_date'].date() == dt.now().date():
-            update = False
-            return
-
-        if 'IPODate' in stk['General'].keys() \
+        if 'General' in stk.keys()\
+            and 'IPODate' in stk['General'].keys() \
             and stk['General']['IPODate'] is not None \
             and len(stk['General']['IPODate']) > 0:
                 db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, \
                                 {'$set': {'bscs.since': dt.strptime(stk['General']['IPODate'], "%Y-%m-%d")}})
         else:
             stk  = update_since_dataframe(None, table_name, db.US_Stocks, stk)
+
+        # Temporary fix for all IPOs in the current year.
+        # The tables with the same symbol name might have been
+        # pre-existing and the new entries are appended to the old entries.
+        # So, truncate the whole table and repopulate the entries.
+        # From now for all the new symbols that are added, this step is added
+        # in add_symbol_to_database(d, db)
+        if check_since_ipo_date:
+            if 'since' in stk['bscs'].keys() \
+                    and stk['bscs']['since'] is not None:
+                    #and date.today().year == stk['bscs']['since'].year:
+                # Truncate the whole table, pull the new prices and recreate the percentage changes.
+                price_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+                table_name = get_symbol_table_name(stk['bscs']['symbol'])
+                if mysql_exists_table(price_engine, table_name):
+                    query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
+                    df = read_from_sql(query, price_engine)
+                    # The table has old entries. Remove those entries
+                    if not df.empty \
+                            and stk['bscs']['since'] != df.index[0] \
+                            and abs(date_difference(df.index[0], stk['bscs']['since'])) > 30 :
+                        print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
+                        if stk['bscs']['since'] > df.index[0]:
+                            query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
+                            price_engine.execute(query)
+                            query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
+                            price_engine.execute(query)
+                        else:
+                            query = "truncate table {}".format(table_name)
+                            price_engine.execute(query)
+
+                        beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+                        # Truncate betas.
+                        if mysql_exists_table(beta_engine, table_name):
+                            query = "truncate table {}".format(table_name)
+                            beta_engine.execute(query)
+                        close_sql_connection(beta_engine)
+
+            close_sql_connection(price_engine)
+
+        if (dt.now().isoweekday() > 5) \
+                or ('dates' in stk.keys() \
+                        and 'technicals_pull_date' in stk['dates'].keys() \
+                        and  stk['dates']['technicals_pull_date'].date() == dt.now().date()):
+            update = False
+            return
 
         #url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
 
@@ -4908,7 +5124,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         
         # Update financial sheets
         if 'Financials' in technicals.keys():
-            update_US_stock_fin_information_data(db, mysql_engine, technicals['Financials'], stk)
+            update_US_stock_fin_information_data(db,technicals['Financials'], stk, None)
             del technicals['Financials']
 
         if general_only == True:
@@ -4919,6 +5135,13 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
             if technicals[k] != 'NA':
                 df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
                 db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {k: technicals[k]}})
+
+        #query = 'select * from Dividends_History where Symbol={} order by Date desc limit 1;'.format(stk['bscs']['symbol'])
+        #fin_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+        #dividend_df = read_from_sql(query, fin_engine)
+        #if not dividend_df.empty:
+        #    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'SplitsDividends.recordDate' : dt.strptime(df['recordDate'][0], "%Y-%m-%d").date()}})
+        #close_sql_connection(fin_engine)
 
         if not df.empty:
             if 'NumberDividendsByYear' in df.index:
@@ -4971,7 +5194,7 @@ def update_all_technicals():
 
     # Get list of symbols to be updated
     df = df[~df.Symbol.isin(stk_df.Symbol)]
-    print("Total Symbols: %r" %(len(df)))
+    print("Update Technicals: Total Symbols: %r" %(len(df)))
 
     try:
         # First get dividends for all new stocks
@@ -4983,15 +5206,16 @@ def update_all_technicals():
         #stocks = db.US_Stocks.find({"$and":[{"General.Exchange":{'$in': major_exchanges}}, {'General.Type':'Common Stock'}, {"dates.technicals_pull_date": {"$lt": get_latest_trading_day()}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
         #stocks = db.US_Stocks.find({"General":{"$exists":False}})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"S"})
         #print(stocks.count())
 
         #for i, stk in enumerate(stocks):
         #    print("%d: %r" %(i, stk['bscs']['symbol']))
         #    sem.acquire()
-        #    #update_technicals(stk, 0, sem)
-        #    processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
-        #    processes[j%num_processes].start()
-        #    j = j + 1
+        #    update_technicals(stk, 0, sem)
+        #    #processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem))
+        #    #processes[j%num_processes].start()
+        #    #j = j + 1
 
         i = 0
         skip = 0
@@ -5011,7 +5235,7 @@ def update_all_technicals():
             sem.acquire()
             print("%d: %r" %(i, stk['bscs']['symbol']))
             #update_technicals(stk, None, sem)
-            processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem, general_only, ratelimit_event, lock))
+            processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem, general_only, ratelimit_event, lock, False))
             processes[j%num_processes].start()
             u = j + 1
             i = i + 1
@@ -5468,8 +5692,12 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
 def update_stock_recession_betas(country, collection, doc, sym, df=None):
     years = recessions.keys()
     since = doc['bscs']['since']
-    since_start = dt.strptime(since, "%Y-%m-%d").date()
- 
+    if since is None:
+        return
+    if type(since) is str:
+        since_start = dt.strptime(since, "%Y-%m-%d").date()
+    else:
+        since_start = since.date()
     for year in years:
         try:
             #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
@@ -5554,8 +5782,11 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         #sno = int(read_from_file("beta.txt"))
         #if sno > stk['sno']:
         #    continue
-        since_start = dt.strptime(since, "%Y-%m-%d").date()
-        
+        if type(since) is str:
+            since_start = dt.strptime(since, "%Y-%m-%d").date()
+        else:
+            since_start = since.date()
+
         update_stock_recession_betas(country, collection, stk, sym, df=df)
        
         #if ('since_last_recession' in stk['fig']['betas'].keys() and 
@@ -5668,6 +5899,7 @@ def update_all_stock_betas(country):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
+    sort = [1, -1][dt.now().day % 2 == 0]
     #sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     #docs = db.find({"$or": [{"fig.betas.recession": {"$fig.betas.since_last_recession": {"$exists": False}}, {"fig.betas.whole": {"$exists": False}}, {"fig.betas.five_year": {"$exists": False}}, {"fig.betas.one_year": {"$exists": False}}, {"fig.betas.six_months": {"$exists": False}}]}, no_cursor_timeout=True).sort([["sno",1]])
@@ -5676,8 +5908,23 @@ def update_all_stock_betas(country):
     #docs = db.find({"bscs.symbol":{"$in" : ["MKTX"]}}, no_cursor_timeout=True).sort([["sno",1]])
     #docs = db.find({"bscs.symbol":{"$nin" : ["LABL", "LEXEB", "HF", "AMBR", "AAN", "SFS", "HRS", "LLL", "CZFC", "LION", "JSYN", "LGCY", "PYDS"]}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     #docs = collection.find({}, no_cursor_timeout=True).batch_size(3).sort([["sno",1]]).allow_disk_use(True)
-    docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-    print("Total Stocks: %r" %(docs.count()))
+    #docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+
+    docs = db.US_Stocks.find({"$and" : [ \
+                                            {"$or": [\
+                                                        {"dates.betas_calc_date": {"$exists": False }},\
+                                                        {"dates.betas_calc_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]\
+                                            },\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+ 
+    print("Update Betas: Total Stocks: %r" %(docs.count()))
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
@@ -5723,7 +5970,7 @@ def set_sno(country):
         return
 
     i = 1
-    for doc in col.find({}).sort([["_id",1]]):
+    for doc in col.find({}).sort([["General.Code",1]]).allow_disk_use(True):
         update_field(col, doc['bscs']['symbol'], "sno", i)
         i += 1
 
