@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import pandas_datareader as pdr
 import pandas_datareader.data as data
+from pandas.api.types import is_numeric_dtype
 
 import internet
 import parse_html
@@ -963,9 +964,9 @@ def build_US_stock_complete_info(db, mysql_fin_engine, mysql_engine, symbol, sym
         #html_text=internet.get_webpage(url)
         #update_US_stk_profile(html_text, db.US_Stocks)
  
-    ## Update financial data percent change
-    update_US_fin_percent_change(mysql_fin_engine, stk, 'fig')
-    update_US_fin_percent_change(mysql_fin_engine, stk, 'quart_fig')
+    ### Update financial data percent change
+    #update_US_fin_percent_change(mysql_fin_engine, stk, 'fig')
+    #update_US_fin_percent_change(mysql_fin_engine, stk, 'quart_fig')
 
     if symbols is None:
         symbols = get_symbols_from_sql('US', mysql_engine)
@@ -1453,7 +1454,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     eod_token = True
-    percent_change = True
+    percent_change = False
     check_since_ipo_date = True
     i=0
  
@@ -3996,8 +3997,15 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
             # Split date is announced but actual split has not yet happened.
             # Wait atleast 3 working days to get the data updated.
             #if i + timedelta(3) > dt.now():
-            if date_difference(dt.now().date(), i,\
-                    holidays=get_holiday_list(dt.now().date(), i)) < 3:
+            start = i.date()
+            end = dt.now().date()
+            if start > end:
+                temp = end
+                end = start
+                start = temp
+ 
+            if date_difference(start, end,\
+                    holidays=get_holiday_list(start, end)) < 3:
                 continue
 
             stocks = db.US_Stocks.find({'bscs.symbol':d['Symbol']}, no_cursor_timeout=True)
@@ -4227,16 +4235,18 @@ def update_dividends(stk, core, sem=None):
         c  = open_db_client()
         db = c['Stocks']
 
-        if 'dates' in stk.keys() and 'dividends_pull_date' in stk['dates'].keys() and \
-                stk['dates']['dividends_pull_date'].date() == dt.now().date():
-            update = False
-            return
+        #if 'dates' in stk.keys() and 'dividends_pull_date' in stk['dates'].keys() and \
+        #        stk['dates']['dividends_pull_date'].date() == dt.now().date():
+        #    update = False
+        #    return
 
         table_name = 'Dividends_History'
 
         if mysql_exists_table(mysql_engine, table_name):
             query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date DESC limit 1'.format(stk['bscs']['symbol'])
             rdf = read_from_sql(query, mysql_engine)
+            if not rdf.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'SplitsDividends.DividendsRecentAmount', rdf.iloc[-1]['value'])
  
         url='https://eodhistoricaldata.com/api/div/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
 
@@ -4289,8 +4299,10 @@ def update_dividends(stk, core, sem=None):
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.dividends_pull_date', dt.combine(dt.now(), dt.min.time()))
             if not df.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'SplitsDividends.DividendsRecentAmount', df.iloc[-1]['value'])
             elif not rdf.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.strptime(rdf.iloc[-1]['Date'], "%Y-%m-%d"))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'SplitsDividends.DividendsRecentAmount', rdf.iloc[-1]['value'])
             else:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_dividend_date', dt.min)
         if sem:
@@ -4337,7 +4349,7 @@ def update_all_dividends(all=False):
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = db.US_Stocks.find({"bscs.symbol":'ATCO'})
+        #stocks = db.US_Stocks.find({"bscs.symbol":'AAPL'})
         #stocks = db.US_Stocks.find({"General.Exchange":{'$in': major_exchanges}})
         print(stocks.count())
 
@@ -4400,6 +4412,8 @@ def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_ev
 
     update = False
     table_name = get_symbol_table_name(stk['bscs']['symbol'])
+    ratios = {}
+    df = pd.DataFrame()
 
     try:
         mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Options')
@@ -4514,13 +4528,17 @@ def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_ev
 
     finally:
         if update:
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putVolume', ratios['putVolume'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callVolume', ratios['callVolume'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallRatio', ratios['putCallRatio'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putOpenInterest', ratios['putOpenInterestVolume'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callOpenInterest', ratios['callOpenInterestVolume'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallOpenInterestRatio', ratios['putCallOpenInterestRatio'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.options_pull_date', dt.combine(dt.now(), dt.min.time()))
+            if len(ratios.keys()) > 0:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putVolume', ratios['putVolume'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callVolume', ratios['callVolume'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallRatio', ratios['putCallRatio'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putOpenInterest', ratios['putOpenInterestVolume'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.callOpenInterest', ratios['callOpenInterestVolume'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallOpenInterestRatio', ratios['putCallOpenInterestRatio'])
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options', {})
+            if not df.empty:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.options_pull_date', dt.combine(df.index[-1], dt.min.time()))
         if sem:
             sem.release()
         close_sql_connection(mysql_engine)
@@ -4535,7 +4553,7 @@ def update_all_put_call_ratios(country='US'):
     today = dt.combine(dt.now(), dt.min.time())
     sort = [1, -1][dt.now().day % 2 == 0]
 
-    num_processes = num_cores #* 2
+    num_processes = int(num_cores/2) #* 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     eod_token = True
@@ -4550,7 +4568,7 @@ def update_all_put_call_ratios(country='US'):
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":['NYSE','NASDAQ', 'NYSE MKT', 'NYSE ARCA']}},\
-                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -4695,11 +4713,11 @@ def update_earnings(stk, core, sem=None, all=False):
         c  = open_db_client()
         db = c['Stocks']
 
-        if all is False and 'dates' in stk.keys() and \
-                'earnings_pull_date' in stk['dates'].keys() and \
-                stk['dates']['earnings_pull_date'].date() == dt.now().date():
-            update = False
-            return
+        #if all is False and 'dates' in stk.keys() and \
+        #        'earnings_pull_date' in stk['dates'].keys() and \
+        #        stk['dates']['earnings_pull_date'].date() == dt.now().date():
+        #    update = False
+        #    return
 
         table_name = 'Earnings_History'
 
@@ -4712,6 +4730,8 @@ def update_earnings(stk, core, sem=None, all=False):
             if not rdf.empty and (rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual'])):
                 # Temporary fix
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
+                # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
+                # So, repull the data for such entries and update accordingly.
                 rdf = rdf[rdf['actual'].notna()]
                 insert = False
  
@@ -4820,6 +4840,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print(stocks.count())
 
+        #stocks = db.US_Stocks.find({"bscs.symbol":"MAV"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -4885,7 +4906,7 @@ def update_all_earnings(all=False):
             # Convert series to dataframe
             df = e.to_frame()
             df = df.transpose().sort_index()
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbols=stk['bscs']['symbol'])
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
             if not df.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
@@ -5774,7 +5795,7 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         if 'since' not in stk['bscs'].keys() \
                 or stk['bscs']['since'] == dt.min:
             mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
-            stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
+            #stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
             close_sql_connection(mysql_engine)
 
         since = stk['bscs']['since']
@@ -6118,22 +6139,22 @@ def fin_percent_change_row(key, index, c, d, df, duration=None):
     #df[key][index] = change
     return df
 
-def fin_change(df, fig, items=None):
+def fin_change(stk, df, fig, cols, table, items=None):
     #st_price = read.iat[0, read.columns.get_loc('close')]
     #en_price = read.iat[-1, read.columns.get_loc('close')]
 
     #df.index= pd.to_datetime(df.index)
     if fig == 'fig':
-        fields    = fin_year_fields
-        datatypes = fin_year_fields_datatypes
+        fields    = list(fin_year_fields.keys())
+        datatypes = list(fin_year_fields.values())
         durations = fin_year_price_durations
-        ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m")
+        #ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m")
         reg_exp   = r'yo\S+'
     else:
         fields    = fin_quarter_fields
         datatypes = fin_quarter_fields_datatypes
         durations = fin_quarter_price_durations
-        ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
+        #ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
         reg_exp   = r'qo\S+'
     
     #print("%r: %r" %(df.iloc[0]['Symbol'], fig))
@@ -6142,7 +6163,13 @@ def fin_change(df, fig, items=None):
         items = df.iloc[1:].index
 
     # Create new fields
-    cols = list(df.columns)
+    # Get the list of all numeric columns
+    #cols = []
+    ##cols = list(df.columns)
+    #for c in list(df.columns):
+    #    if is_numeric_dtype(df[c]):
+    #        cols.append(c)
+
     # Populate the list of columns the percentage changes are already computed.
     # This list can be used to avoid recalculation of the same columns.
     computed_list = []
@@ -6176,7 +6203,7 @@ def fin_change(df, fig, items=None):
             #    df = fin_percent_change_row(key, index, c, d, df, duration)
             for index in items:
                 df = fin_percent_change_row(key, index, c, df.loc[index], df, duration)
-
+ 
         # Whole Change Case
         match = re.search(reg_exp, c)
         if match is not None:
@@ -6199,7 +6226,141 @@ def fin_change(df, fig, items=None):
         for index in items:
             df = fin_percent_change_row(key, index, c, df.loc[index], df)
 
-    df.index = ret_index
+        for index in items:
+            # For income statements, calculate gross, net, operating profit margins and other params
+            if 'income' in table.lower():
+                #df.loc[index, column_name] = new_value
+                if is_number(df.loc[index, 'grossProfit']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'grossMargin'] = df.loc[index, 'grossProfit'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'grossMargin'] = nan
+                
+                if is_number(df.loc[index, 'netIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'netMargin'] = df.loc[index, 'netIncome'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'netMargin'] = nan
+                
+                if is_number(df.loc[index, 'operatingIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'operatingMargin'] = df.loc[index, 'operatingIncome'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'operatingMargin'] = nan
+                
+                if is_number(df.loc[index, 'researchDevelopment']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'researchDevelopmentPercent'] = df.loc[index, 'researchDevelopment'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'researchDevelopmentPercent'] = nan
+
+                if is_number(df.loc[index, 'sellingAndMarketingExpenses']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'sellingAndMarketingExpensesPercent'] = df.loc[index, 'sellingAndMarketingExpenses'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'sellingAndMarketingExpensesPercent'] = nan
+ 
+                if is_number(df.loc[index, 'interestExpense']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'interestExpensePercent'] = df.loc[index, 'interestExpense'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'interestExpensePercent'] = nan
+
+                if is_number(df.loc[index, 'interestIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                    df.loc[index, 'interestIncomePercent'] = df.loc[index, 'interestIncome'] / df.loc[index, 'totalRevenue']
+                else:
+                    df.loc[index, 'interestIncomePercent'] = nan
+
+                if is_number(df.loc[index, 'ebit']) and is_number(df.loc[index, 'interestExpense'], check_non_zero=True):
+                    df.loc[index, 'interestCoverage'] = df.loc[index, 'ebit'] / df.loc[index, 'interestExpense']
+                else:
+                    df.loc[index, 'interestCoverage'] = nan
+
+            # For balance sheets, calculate long term debt to equity, short term debt to equity etc.
+            elif 'balance' in table.lower():
+                #df.loc[index, column_name] = new_value
+                # longTermDebt, shortTermDebt, totalStockholderEquity, commonStock, commonStockSharesOutstanding, totalAssets, totalLiab, nonCurrentAssetsTotal, nonCurrentLiabilitiesTotal
+                # 1. lDtoE = longTermDebt/totalStockholderEquity
+                # 2. sDtoE = shortTermDebt/totalStockholderEquity
+                # 3. lDtocS = longTermDebt/commonStock
+                # 4. sDtocS = shortTermDebt/commonStock
+                # 5. currentRatio = totalCurrentAssets/totalCurrentLiabilities
+                # 6. quickRatio = (totalCurrentAssets - inventory)/totalCurrentLiabilities
+                # 7. RoA = netIncome/totalAssets (netIncome has to be taken from the Income Statement)
+                # 8. RoE = netIncome/totalStockholderEquity (netIncome has to be taken from the Income Statement)
+                # 9. RoI = Return on Investment. Need to find the calculation or else skip this param.
+                # 10. RoIC = https://www.fe.training/free-resources/valuation/return-on-invested-capital-roic/
+                # 11. 
+                if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                    df.loc[index, 'lDtoE'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'totalStockholderEquity']
+                else:
+                    df.loc[index, 'lDtoE'] = nan
+
+                if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                    df.loc[index, 'sDtoE'] = df.loc[index, 'shortTermDebt'] / df.loc[index, 'totalStockholderEquity']
+                else:
+                    df.loc[index, 'sDtoE'] = nan
+
+                if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
+                    df.loc[index, 'lDtocS'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'commonStock']
+                else:
+                    df.loc[index, 'lDtocS'] = nan
+
+                if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
+                    df.loc[index, 'sDtocS'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'commonStock']
+                else:
+                    df.loc[index, 'sDtocS'] = nan
+
+                if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
+                    df.loc[index, 'currentRatio'] = df.loc[index, 'totalCurrentAssets'] / df.loc[index, 'totalCurrentLiabilities']
+                else:
+                    df.loc[index, 'currentRatio'] = nan
+
+                if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'inventory']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
+                    df.loc[index, 'quickRatio'] = (df.loc[index, 'totalCurrentAssets'] - df.loc[index, 'inventory']) / df.loc[index, 'totalCurrentLiabilities']
+                else:
+                    df.loc[index, 'quickRatio'] = nan
+             
+                if 'yearly' in table.lower():
+                    table = 'Income_Statement_yearly'
+                else:
+                    table = 'Income_Statement_quarterly'
+                fin_sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+                query = 'select Date, netIncome from {} where Symbol=\'{}\' and Date=\'{}\''.format(table, stk['bscs']['symbol'], index)
+                edf = read_from_sql(query, fin_sql_engine)
+                close_sql_connection(fin_sql_engine)
+                if not edf.empty and is_number(edf.loc[-1, 'netIncome']) and is_number(df.loc[index, 'totalAssets'], check_non_zero=True):
+                    df.loc[index, 'RoA'] = edf.loc[-1, 'netIncome'] / df.loc[index, 'totalAssets']
+                else:
+                    df.loc[index, 'RoA'] = nan
+
+                if not edf.empty and is_number(edf.loc[-1, 'netIncome']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                    df.loc[index, 'RoE'] = edf.loc[-1, 'netIncome'] / df.loc[index, 'totalStockholderEquity']
+                else:
+                    df.loc[index, 'RoE'] = nan
+
+        if 'income' in table.lower():
+            if 'year' in table.lower():
+                duration = 'year'
+            else:
+                duration = 'quarter'
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.grossMargin', (df.loc[-1, 'grossMargin'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.netMargin', (df.loc[-1, 'netMargin'],nan)[df.empty]) 
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.operatingMargin', (df.loc[-1, 'operatingMargin'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.researchDevelopmentPercent', (df.loc[-1, 'researchDevelopmentPercent'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sellingAndMarketingExpensesPercent', (df.loc[-1, 'sellingAndMarketingExpensesPercent'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestExpensePercent', (df.loc[-1, 'interestExpensePercent'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestIncomePercent', (df.loc[-1, 'interestIncomePercent'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestCoverage', (df.loc[-1, 'interestCoverage'],nan)[df.empty])
+        elif 'balance' in table.lower():
+            if 'year' in table.lower():
+                duration = 'year'
+            else:
+                duration = 'quarter'
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.lDtoE', (df.loc[-1, 'lDtoE'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sDtoE', (df.loc[-1, 'sDtoE'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.lDtocS', (df.loc[-1, 'lDtocS'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sDtocS', (df.loc[-1, 'sDtocS'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.currentRatio', (df.loc[-1, 'currentRatio'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.quickRatio', (df.loc[-1, 'quickRatio'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.ROA', (df.loc[-1, 'ROA'],nan)[df.empty])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.ROE', (df.loc[-1, 'ROE'],nan)[df.empty])
+
+    #df.index = ret_index
     return df
 #                wdf.loc[cur_date_str]=nan
 #                wdf.loc[cur_date_str]['date'] = cur_date_str
@@ -6333,72 +6494,104 @@ def fin_change(df, fig, items=None):
 #            sem.release()
 #
 
-def update_US_fin_stmt_percent_change(mysql_engine, stk, fig, stmt_type, table):
-    df = pd.DataFrame()
-    df = form_df(stk[fig]['financial-statements'][stmt_type], stmt_type)
-   
-    # Delete empty columns in balance-sheet
-    if stmt_type == 'balance-sheet':
-        if 'Current Assets' in list(df.columns):
-            del df['Current Assets']
-        if 'Current Liabilities' in list(df.columns):
-            del df['Current Liabilities']
-        if 'Non-Current Assets' in list(df.columns):
-            del df['Non-Current Assets']
-        if 'Non-Current Liabilities' in list(df.columns):
-            del df['Non-Current Liabilities']
+def update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table):
+    if not mysql_exists_table(mysql_engine, table):
+        return
 
-    df['Symbol'] = stk['bscs']['symbol']
-    df['Date'] = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
-    cols = list(df.columns)
-    cols = cols[-2:]+cols[:-2]
-    df = df[cols]
-    #df.index = pd.to_datetime(df['Date'])
-    # Let the columns have spaces or special chars
-    #new_cols = {}
-    #for c in cols:
-    #    new_cols[c] = c.replace('- ','').replace(' ', '_').replace('-','')
-    #df.rename(columns=new_cols, inplace=True)
-    items = df.index
+    mysql_check_n_create_table(mysql_fin_change_engine, table, unknown_table=False, primary_key=False, empty_table=False, fin_table=True)
+
+    #fin_db = db_name(mysql_engine)
+    #fin_change_db  = db_name(mysql_fin_change_engine)
+
+    ##df = form_df(stk[fig]['financial-statements'][stmt_type], stmt_type)
+   
+    ### Delete empty columns in balance-sheet
+    ##if stmt_type == 'balance-sheet':
+    ##    if 'Current Assets' in list(df.columns):
+    ##        del df['Current Assets']
+    ##    if 'Current Liabilities' in list(df.columns):
+    ##        del df['Current Liabilities']
+    ##    if 'Non-Current Assets' in list(df.columns):
+    ##        del df['Non-Current Assets']
+    ##    if 'Non-Current Liabilities' in list(df.columns):
+    ##        del df['Non-Current Liabilities']
+
+    ##df['Symbol'] = stk['bscs']['symbol']
+    ##df['Date'] = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
+    ##cols = list(df.columns)
+    ##cols = cols[-2:]+cols[:-2]
+    ##df = df[cols]
+    ###df.index = pd.to_datetime(df['Date'])
+    ### Let the columns have spaces or special chars
+    ###new_cols = {}
+    ###for c in cols:
+    ###    new_cols[c] = c.replace('- ','').replace(' ', '_').replace('-','')
+    ###df.rename(columns=new_cols, inplace=True)
+    ##items = df.index
+    ##if len(items) == 0:
+    ##    return
+  
+    # Get all financial entries of the stock from the table.
+    query = 'select * from {} where Symbol=\'{}\''.format(table, stk['bscs']['symbol'])
+    df = read_from_sql(query, mysql_engine)
+    if df.empty:
+        return
+
+    # Get the existing percentage calculations of the stock.
+    #query = 'select * from {}.{} where Symbol=\'{}\' and Date not in (select * from {}.{} where Symbol=\'{}\')'.format(fin_db, table, fin_change_db, table, stk['bscs']['symbol'])
+    query = 'select * from {} where Symbol=\'{}\''.format(table, stk['bscs']['symbol'])
+    edf = read_from_sql(query, mysql_fin_change_engine)
+
+    ##query = 'select * from '+table+' where Symbol = \'{}\''.format(stk['bscs']['symbol'])
+    ##edf = read_from_sql(query, mysql_fin_change_engine)
+    ##if not edf.empty:
+    ##    ret = same_calculations(copy.deepcopy(edf), fig)
+    ##    if ret:
+    ##        #Only once due to wrong entries
+    ##        print("Deleting {} entries from {}".format(stk['bscs']['symbol'], table))
+    ##        mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
+    ##        edf = pd.DataFrame()
+
+    # Exclude already existing entries in the database.
+    # Calculate percentage change for the new entries only.
+    items_df  = df[~df.index.isin(edf.index)]
+    # Calculate percentage change only for the below items
+    items = items_df.index
+    # Up-to-date. Return
     if len(items) == 0:
         return
-   
-    if mysql_exists_table(mysql_engine, table):
-        query = 'select * from '+table+' where Symbol = \'{}\''.format(stk['bscs']['symbol'])
-        edf = read_from_sql(query, mysql_engine)
-        if not edf.empty:
-            ret = same_calculations(copy.deepcopy(edf), fig)
-            if ret:
-                #Only once due to wrong entries
-                print("Deleting {} entries from {}".format(stk['bscs']['symbol'], table))
-                mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
-                edf = pd.DataFrame()
 
-        # Exclude already existing entries in the database.
-        # Calculate percentage change for the new entries only.
-        df  = df[~df.index.isin(edf.index)]
-        # Calculate percentage change only for the below items
-        items = df.index
-        # Up-to-date. Return
-        if len(items) == 0:
-            return
-        #print("Total entries to calculate: %r" %(items))
-        df = edf.append(df, sort=True)
-   
-    print("****** {} *******".format(table))
-    df = fin_change(df, fig, items=items)
+    # This is old technique where both the entries and the percentage changes live together.
+    # As we seggreated them into different databases, we don't use this method.
+    #df = edf.append(df, sort=True)
+
+    cols = []
+    #cols = list(df.columns)
+    for c in list(df.columns):
+        if is_numeric_dtype(df[c]):
+            cols.append(c)
+
+    print("%s: %s: Total entries to calculate: %r" %(stk['bscs']['symbol'], table, items))
+
+    # Calculate percentage change for all columns
+    df = fin_change(stk, df, fig, cols, table, items=items)
+
+    # Drop the financial entries. Retain only percentage change items
+    # and write them to the database.
+    df.drop(cols, axis = 1, inplace=True)
+
     # Replace NaN with None
     df = df.where(pd.notnull(df), None)
-    if fig=='fig':
-        items = pd.DatetimeIndex.strftime(items, "%Y-%m")
-    else:
-        items = pd.DatetimeIndex.strftime(items, "%Y-%m-%d")
+    #if fig=='fig':
+    #    items = pd.DatetimeIndex.strftime(items, "%Y-%m")
+    #else:
+    #    items = pd.DatetimeIndex.strftime(items, "%Y-%m-%d")
     #print(df.loc[items])
 
     #Only once due to wrong entries
     #mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
 
-    mysql_update_table(mysql_engine, table, df.loc[items], check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False, format_columns=False)
+    ##mysql_update_table(mysql_fin_change_engine, table, df.loc[items], check=True, insert=True, unknown_table=False, cols_type='fin', temp=True, date_column=False, format_columns=False)
 
 # By error, calculated same values for all yoys and qoqs
 # Check if two columns have the same values
@@ -6434,29 +6627,14 @@ def same_calculations(df, fig):
 
 def update_US_fin_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig):
     if fig == 'fig':
-        income_table = 'income_table'
-        balance_table = 'balance_table'
-        cash_table = 'cash_table'
+        tables = [ 'Income_Statement_yearly', 'Balance_Sheet_yearly', 'Cash_Flow_yearly']
     else:
-        income_table = 'income_quart_table'
-        balance_table = 'balance_quart_table'
-        cash_table = 'cash_quart_table'
+        tables = ['Income_Statement_quarterly', 'Balance_Sheet_quarterly', 'Cash_Flow_quarterly']
 
-    if fig not in stk.keys():
-        print("No financial figures available. Exiting percent calculation")
-        return
-    if 'financial-statements' not in stk[fig].keys():
-        print("No financial figures available. Exiting percent calculation")
-        return
+    for table in tables:
+        update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table)
 
-    if 'income-statement' in stk[fig]['financial-statements'].keys():
-        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'income-statement', income_table)
-    if 'cash-flow' in stk[fig]['financial-statements'].keys():
-        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'cash-flow', cash_table)
-    if 'balance-sheet' in stk[fig]['financial-statements'].keys():
-        update_US_fin_stmt_percent_change(mysql_engine, stk, fig, 'balance-sheet', balance_table)
-
-def US_fin_percent_change(mysql_engine, db, stk, sem=None):
+def US_fin_percent_change(mysql_engine, mysql_fin_engine, db, stk, sem=None):
     t = time.time()
     #print("sem acquire: %r: %r: %r" %(threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
     if 'fin_percent_update_date' in stk['bscs'].keys():
@@ -6466,17 +6644,18 @@ def US_fin_percent_change(mysql_engine, db, stk, sem=None):
                 #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
                 sem.release()
             return
-    update_US_fin_percent_change(mysql_engine, stk, 'fig')
-    update_US_fin_percent_change(mysql_engine, stk, 'quart_fig')
-    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"bscs.fin_percent_update_date": dt.now()}})
+    update_US_fin_percent_change(mysql_engine, mysql_fin_engine, stk, 'fig')
+    update_US_fin_percent_change(mysql_engine, mysql_fin_engine, stk, 'quart_fig')
+    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"dates.fin_percent_update_date": dt.combine(dt.now(), dt.min.time())}})
     if sem:
         #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
 
-def US_fin_percent_per_process(stk, sem, core):
-    # Set process affinity
-    aff = 0 | 1 << core
-    os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+def US_fin_percent_per_process(stk, sem, core=None):
+    if core is not None:
+        # Set process affinity
+        aff = 0 | 1 << core
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
 
     c  = open_db_client()
     db = c['Stocks']
@@ -6498,7 +6677,18 @@ def update_all_US_fin_percent_change():
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
 
-    stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(2).sort([["sno",1]])
+    #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(2).sort([["sno",1]])
+    sort = [1, -1][dt.now().day % 2 == 0]
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+
+    stocks = db.US_Stocks.find({"bscs.symbol":'AAPL'})
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -6507,8 +6697,8 @@ def update_all_US_fin_percent_change():
         sem.acquire()
         print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
         #US_fin_percent_change(mysql_engine, db, stk, sem)
-        #US_fin_percent_per_process(stk, sem)
-        multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,)).start()
+        US_fin_percent_per_process(stk, sem)
+        #multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,)).start()
 
     time.sleep(30)
     close_db_client(c)

@@ -1150,7 +1150,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 data_pull = True 
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
-                df.drop(df[df['Volume']==0].index, inplace=True)
+                if 'Volume' in df.columns:
+                    df.drop(df[df['Volume']==0].index, inplace=True)
                 #df = remove_df_duplicates(df)
                 if not df.empty:
                     #df['Symbol'] = symbol
@@ -1284,7 +1285,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 data_pull = True
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
-                df.drop(df[df['Volume']==0].index, inplace=True)
+                if 'Volume' in df.columns:
+                    df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
                 #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))

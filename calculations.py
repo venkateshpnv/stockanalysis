@@ -342,9 +342,9 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted':False}, \
                                         {'failcount.mysql_price_failcount':{'$eq':0}}, \
-                                        {'price_change.date':{'$gte':DB.get_latest_trading_day()}}, \
-                                        {'dates.mysql_price_date':{'$gte':DB.get_latest_trading_day()}}, \
-                                        #{'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
+                                        #{'price_change.date':{'$gte':DB.get_latest_trading_day()}}, \
+                                        #{'dates.mysql_price_date':{'$gte':DB.get_latest_trading_day()}}, \
+                                        {'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
                                         {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     #stocks = collection.find({'bscs.symbol':'MTDR'})
     print("Stocks: %r" %(stocks.count())) 
