@@ -126,6 +126,10 @@ SIX_MOMENTUM=0
 DIV=0 # Dividend Rate
 DIV_PAY=0 # Dividend Payout Ratio
 DIV_DATE=0
+DIV_PAYMENT_DATE=0
+EX_DIV_DATE=0
+DIV_EXPECTED=0
+
 MAX_Years = 20
 
 #Sales, PAT, Cash Flow, Book Value
@@ -325,6 +329,9 @@ def init_variables():
     DIV=0 # Dividend Rate
     DIV_PAY=0 # Dividend Payout Ratio
     DIV_DATE=0
+    DIV_PAYMENT_DATE=0
+    EX_DIV_DATE=0
+    DIV_EXPECTED=0
 
     SHORT_RATIO=0
     SHARES_FLOAT_PERCENT=0
