@@ -518,6 +518,7 @@ def update_price_change(country, stk, core, sem=None, index=False):
 
             for i, field in enumerate([*price_change_fields][:-1]):
                 query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+                #print(query)
                 #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
                 #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
                 #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name)
@@ -545,20 +546,24 @@ def update_price_change(country, stk, core, sem=None, index=False):
 
             # To save time in condition checks, calculate the 
             # whole field seperately outside the loop.
-            if index is False and 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
-                start_date = str(stk['bscs']['since'].date())
-                query = 'select `Date`, `Adj Close` from {} where Date={} limit 1'.format(table_name, start_date)
-                df = DB.read_from_sql(query, sql_engine)
-                if not df.empty:
-                    start_price = df['Adj Close'][0]
-                else:
-                    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
-                    df = DB.read_from_sql(query, sql_engine)
-                    start_price = df['Adj Close'][0]
-            else:
-                query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
-                df = DB.read_from_sql(query, sql_engine)
-                start_price = df['Adj Close'][0]
+            #if index is False and 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
+            #    #start_date = str(stk['bscs']['since'].date())
+            #    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+            #    df = DB.read_from_sql(query, sql_engine)
+            #    if not df.empty:
+            #        start_price = df['Adj Close'][0]
+            #    else:
+            #        query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+            #        df = DB.read_from_sql(query, sql_engine)
+            #        start_price = df['Adj Close'][0]
+            #else:
+            #    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+            #    df = DB.read_from_sql(query, sql_engine)
+            #    start_price = df['Adj Close'][0]
+            query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
+            #print(query)
+            df = DB.read_from_sql(query, sql_engine)
+            start_price = df['Adj Close'][0]
 
             field = [*price_change_fields][-1]
             query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
@@ -740,13 +745,13 @@ def fork_hdf5_process(country):
                                             {'General.IsDelisted': False},\
                                             {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_pull_success': True},\
-                                            {"$or":[\
-                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                                    {'price_change': {"$exists": False}}\
-                                                    ]\
-                                            },\
+                                            #{"$or":[\
+                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                            #        {'price_change': {"$exists": False}}\
+                                            #        ]\
+                                            #},\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'SONY'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'ZYXI'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

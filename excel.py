@@ -77,9 +77,17 @@ styles = {}
 #del colors[4]
 #colors = ['blue_grey', 'coral', 'gold', 'ice_blue', 'ivory', 'lavender', 'light_blue', 'light_green', 'light_orange', 'light_turquoise', 'light_yellow', 'lime', 'olive_ega', 'pale_blue', 'rose', 'silver_ega', 'sky_blue', 'teal', 'teal_ega', 'turquoise']
 #colors=['grey50', 'gray_ega', 'grey25', 'grey_ega', 'grey40', 'gray25', 'grey50']
-colors=['blue_gray', 'gray_ega', 'gray25', 'gray50', 'gray80']
+colors=['blue_gray', 'gray_ega', 'gray80', 'gray25', 'blue_gray', 'gray50']
 # How these colors look like
 #https://docs.google.com/spreadsheets/d/1ihNaZcUh7961yU7db1-Db0lbws4NT24B7koY8v8GHNQ/pubhtml?gid=1072579560&single=true
+
+styles['PR_GREEN1'] = get_style('light_green', num_format_str="0.00%")
+styles['PR_GREEN2'] = get_style('lime', num_format_str="0.00%")
+styles['PR_GREEN3'] = get_style('green', num_format_str="0.00%")
+styles['PR_RED1'] = get_style('rose', num_format_str="0.00%")
+styles['PR_RED2'] = get_style('coral', num_format_str="0.00%")
+styles['PR_RED3'] = get_style('red', num_format_str="0.00%")
+
 
 def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=False):
     try:
@@ -182,13 +190,13 @@ def get_radar_stocks(country):
     entries = []
     s = parse_html.html_head()
     
-    # USD to INR
-    print("USD to INR")
-    entries.append(get_usd_to_inr())
-    entries.append([""])
-    s = parse_html.html_set_line(s)
-    s = parse_html.html_text(s, entries)
-    s = parse_html.html_set_line(s)
+    ## USD to INR
+    #print("USD to INR")
+    #entries.append(get_usd_to_inr())
+    #entries.append([""])
+    #s = parse_html.html_set_line(s)
+    #s = parse_html.html_text(s, entries)
+    #s = parse_html.html_set_line(s)
     
     ##Indices
     entries = []
@@ -323,6 +331,36 @@ def add_basic_header(sheet, i):
     styles['UPCOMING_EARNINGS_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
     styles['DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
 
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Days To/From Earnings", style_wrap)
+    conf.DAYS_EARNINGS=i
+    styles['DAYS_EARNINGS'] = get_style(colors[i%len(colors)], num_format_str="general")
+
+    i+=1
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Earnings Day Price Change", style_wrap)
+    conf.EARNINGS_DAY_PR_CHANGE=i
+    styles['EARNINGS_DAY_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Earnings Week Price Change", style_wrap)
+    conf.EARNINGS_WEEK_PR_CHANGE=i
+    styles['EARNINGS_WEEK_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Revenue Growth qoq", style_wrap)
+    conf.REV_QOQ=i
+    styles['REV_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Net Profit qoq", style_wrap)
+    conf.NET_PR_QOQ=i
+    styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
     #i+=1
     ##Current Price Date
     #sheet.col(i).width = 3*367
@@ -453,51 +491,25 @@ def add_basic_header(sheet, i):
     #conf.PRM_S=i
 
     i+=1
-    # Dividend Yield
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Div Yield", style_wrap)
-    conf.DIV=i
-
-    i+=1
-    # Dividend Payout Ratio
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Div Payout Ratio", style_wrap)
-    conf.DIV_PAY=i
-
-    i+=1
-    # Ex Dividend Date. Date before which I should have stock in my account.
-    # I can sell it on the same day and get the dividend on the dividend payment date.
-    sheet.col(i).width = 7*367
-    sheet.write(0, i, "Ex Div Date", style_wrap)
-    conf.EX_DIV_DATE = i
-    styles['UPCOMING_EX_DIV_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
-    styles['EX_DIV_DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
-
-    i+=1
-    sheet.col(i).width = 7*367
-    sheet.write(0, i, "Div Payment Date", style_wrap)
-    conf.DIV_PAYMENT_DATE = i
-    styles['UPCOMING_DIV_PAYMENT_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
-    styles['DIV_PAYMENT_DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
-
-    i+=1
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Days to Wait for Dividend", style_wrap)
-    conf.DIV_WAIT_DAYS = i
-    styles['DIV_WAIT_DAYS'] = get_style(color=None, num_format_str="0")
-
-    i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Div expected for $10k", style_wrap)
-    conf.DIV_EXPECTED = i
-    styles['DIV_EXPECTED'] = get_style(color=None, num_format_str='"$"#,##0.00_);("$"#,##')
- 
-    i+=1
     # RSI
     sheet.col(i).width = 5*367
     st = "RSI"
     sheet.write(0, i, st, style_wrap)
     conf.RSI=i
+
+    i+=1
+    # 100 EMA
+    sheet.col(i).width = 7*367
+    st = "EMA Price Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.EMA=i
+    styles['EMA'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Short Ratio", style_wrap)
+    conf.SHORT_RATIO=i
+    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # difference between 60 day min RSI and latest RSI
@@ -628,7 +640,7 @@ def add_basic_header(sheet, i):
     st = "PSAR"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR=i
-
+ 
     i+=1
     sheet.col(i).width = 3*367
     st = "Put Call Ratio"
@@ -1004,6 +1016,47 @@ def add_ratios_header(sheet, i):
     #conf.DIV_PAY=i
     return i
 
+def add_dividend_header(sheet, i):
+    # Dividend Yield
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div Yield", style_wrap)
+    conf.DIV=i
+
+    i+=1
+    # Dividend Payout Ratio
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div Payout Ratio", style_wrap)
+    conf.DIV_PAY=i
+
+    i+=1
+    # Ex Dividend Date. Date before which I should have stock in my account.
+    # I can sell it on the same day and get the dividend on the dividend payment date.
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Ex Div Date", style_wrap)
+    conf.EX_DIV_DATE = i
+    styles['UPCOMING_EX_DIV_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
+    styles['EX_DIV_DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
+
+    i+=1
+    sheet.col(i).width = 7*367
+    sheet.write(0, i, "Div Payment Date", style_wrap)
+    conf.DIV_PAYMENT_DATE = i
+    styles['UPCOMING_DIV_PAYMENT_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
+    styles['DIV_PAYMENT_DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
+
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Days to Wait for Dividend", style_wrap)
+    conf.DIV_WAIT_DAYS = i
+    styles['DIV_WAIT_DAYS'] = get_style(color=None, num_format_str="0")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Div expected for $10k", style_wrap)
+    conf.DIV_EXPECTED = i
+    styles['DIV_EXPECTED'] = get_style(color=None, num_format_str='"$"#,##0.00_);("$"#,##')
+    return i
+
 def add_dcf_header(sheets, years, prices_only=False):
     for k in sheets.keys():
         sheet = sheets[k]
@@ -1030,6 +1083,9 @@ def add_dcf_header(sheets, years, prices_only=False):
 
         i+=1
         i = add_technicals(sheet, i)
+
+        i+=1
+        i = add_dividend_header(sheet, i)
 
         i+=1
         i = add_second_price_change_header(sheet, i)
@@ -1136,12 +1192,6 @@ def add_fundamentals(sheet, i):
     return i
 
 def add_technicals(sheet, i):
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Short Ratio", style_wrap)
-    conf.SHORT_RATIO=i
-    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
-
-    i+=1
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Shares Float", style_wrap)
     conf.SHARES_FLOAT_PERCENT=i
@@ -1234,14 +1284,6 @@ def add_price_change_header(sheet, i, sheet_type):
     conf.DAY_PR_CHANGE=i
     #styles['DAY_PR_CHANGE'] = get_style('blue_gray', num_format_str="0.00%")
     styles['DAY_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
-
-    styles['PR_GREEN1'] = get_style('light_green', num_format_str="0.00%")
-    styles['PR_GREEN2'] = get_style('lime', num_format_str="0.00%")
-    styles['PR_GREEN3'] = get_style('green', num_format_str="0.00%")
-    styles['PR_RED1'] = get_style('rose', num_format_str="0.00%")
-    styles['PR_RED2'] = get_style('coral', num_format_str="0.00%")
-    styles['PR_RED3'] = get_style('red', num_format_str="0.00%")
-
 
     i = i + 1
     sheet.col(i).width = 6*367
@@ -1816,11 +1858,34 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     sh_write(ash, conf.COUNT, conf.DESCRIPTION, stk['General']['Description'], style_text, ashs=ashs, recent_ipos=recent_ipos)
     if 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
         sh_write(ash, conf.COUNT, conf.SINCE, stk['bscs']['since'], styles['DATE'], ashs=ashs, recent_ipos=recent_ipos)
+       
+    if stk['bscs']['symbol'] == 'AGM-PF':
+        print('AGM-PF')
+
     if 'last_earnings_report_date' in stk['dates'].keys():
         if stk['dates']['last_earnings_report_date'] >= dt.combine(dt.now(), dt.min.time()):
             sh_write(ash, conf.COUNT, conf.EARNINGS_DATE, stk['dates']['last_earnings_report_date'], styles['UPCOMING_EARNINGS_DATE'], ashs=ashs, recent_ipos=recent_ipos)
         else:
             sh_write(ash, conf.COUNT, conf.EARNINGS_DATE, stk['dates']['last_earnings_report_date'], styles['DATE'], ashs=ashs, recent_ipos=recent_ipos)
+        days = str((stk['dates']['last_earnings_report_date'] - dt.combine(dt.now(), dt.min.time())).days)
+        sh_write(ash, conf.COUNT, conf.DAYS_EARNINGS, days, styles['DAYS_EARNINGS'], ashs=ashs, recent_ipos=recent_ipos)
+
+    if 'last_earnings_day_price_change' in stk['dates'].keys():
+        sh_write(ash, conf.COUNT, conf.EARNINGS_DAY_PR_CHANGE, stk['dates']['last_earnings_day_price_change'], styles['EARNINGS_DAY_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+
+    if 'last_earnings_day_price_change_that_week' in stk['dates'].keys():
+        sh_write(ash, conf.COUNT, conf.EARNINGS_WEEK_PR_CHANGE, stk['dates']['last_earnings_day_price_change_that_week'], styles['EARNINGS_WEEK_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+
+    if 'FinChange' in stk.keys() and \
+            'Income_Statement' in stk['FinChange'].keys():
+        if 'totalRevenue' in stk['FinChange']['Income_Statement'].keys() and \
+                'qoq' in stk['FinChange']['Income_Statement']['totalRevenue'].keys() and \
+                not isnan(stk['FinChange']['Income_Statement']['totalRevenue']['qoq']):
+            sh_write(ash, conf.COUNT, conf.REV_QOQ, stk['FinChange']['Income_Statement']['totalRevenue']['qoq'], styles['NET_PR_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'netIncome' in stk['FinChange']['Income_Statement'].keys() and \
+                'qoq' in stk['FinChange']['Income_Statement']['netIncome'].keys() and\
+                not isnan(stk['FinChange']['Income_Statement']['netIncome']['qoq']):
+            sh_write(ash, conf.COUNT, conf.NET_PR_QOQ, stk['FinChange']['Income_Statement']['netIncome']['qoq'], styles['NET_PR_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
 
     sheet.write(i, 3, "Public Stake")
     if 'pub_stake' in stk['bscs'].keys():
@@ -2151,6 +2216,12 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'technicals' not in stk.keys():
         print('%s: %s: No technicals' %(stk['bscs']['symbol'], stk['General']['Name']))
     else:
+        if 'ema' in stk['technicals'].keys() and \
+                stk['technicals']['ema'] is not None and \
+                'change_with_price' in stk['technicals']['ema'].keys() and \
+                not isnan(stk['technicals']['ema']['change_with_price']):
+            sh_write(ash, conf.COUNT, conf.EMA, stk['technicals']['ema']['change_with_price'], styles['EMA'], ashs=ashs, recent_ipos=recent_ipos)
+
         if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
             sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
             if '60day_min' in stk['technicals']['rsi'].keys():

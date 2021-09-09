@@ -204,8 +204,15 @@ def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, pr
 
         mysql_engine.execute(query)
 
-def mysql_get_columns(table):
-    c = [i[0] for i in table.columns.items()]
+def mysql_get_columns(table_name, mysql_engine=None):
+    if isinstance(table_name,str):
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+        c = [i[0] for i in table.columns.items()]
+        del metadata
+        del table
+    else:
+        c = [i[0] for i in table_name.columns.items()]
     return c
 
 def mysql_get_columns_from_engine(mysql_engine, table_name):
@@ -1526,7 +1533,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'AHT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'ABVC'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
@@ -1541,7 +1548,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             if processes[j] is not None:
                 processes[j].join()
 
-    return
+ 
     try:
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {'dates.mysql_price_pull_date': {'$gte':get_latest_trading_day()}},\
@@ -2310,6 +2317,35 @@ def update_SAR_params(collection, sym, df):
             #update_field(collection, sym, "technicals.sar.60day_max_price_date", nan)
         update_field(collection, sym, "technicals.sar.date", dt.combine(dt.now(), dt.min.time()))
 
+def update_MACD_params(collection, sym, df):
+    resp = talib.MACD(df['Adj Close'])
+    if not resp.index:
+        update_field(collection, sym, "technicals.macd.macd", nan)
+        update_field(collection, sym, "technicals.macd.signal", nan)
+        update_field(collection, sym, "technicals.macd.histogram", nan)
+    else:
+        macd = resp[0]
+        signal = resp[1]
+        histogram = resp[2]
+        diff = macd.iloc[-1] - signal.iloc[-1]
+
+        update_field(collection, sym, "technicals.macd.macd", macd.iloc[-1])
+        update_field(collection, sym, "technicals.macd.signal", signal.iloc[-1])
+        update_field(collection, sym, "technicals.macd.histogram", histogram.iloc[-1])
+        update_field(collection, sym, "technicals.macd.macd_signal_diff", diff)
+
+def update_EMA_params(collection, sym, df):
+    if len(df.index) < 100:
+        return
+    ema = ta.ema(df['Adj Close'], length=100)
+    if len(ema.index) == 0:
+        update_field(collection, sym, "technicals.ema.latest", nan)
+        update_field(collection, sym, "technicals.ema.change_with_price", nan)
+    else:
+        update_field(collection, sym, "technicals.ema.latest", ema.iloc[-1])
+        change = percent_change(ema.iloc[-1], df['Adj Close'][-1])
+        update_field(collection, sym, "technicals.ema.change_with_price", change)
+
 def update_RSI_params(collection, sym, df):
     rsi = ta.rsi(df['Adj Close'])
     if len(rsi.index) == 0:
@@ -2498,6 +2534,20 @@ def update_tech_analysis_params(sym, core=None, sem=None):
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
 
     try:
+        if not mysql_exists_table(mysql_engine, get_symbol_table_name(sym)):
+            print("Empty df")
+            update_field(collection, sym, "technicals.rsi", {})
+            update_field(collection, sym, "technicals.ema", {})
+            update_field(collection, sym, "technicals.bbands", {})
+            update_field(collection, sym, "technicals.candlesticks", {})
+            update_field(collection, sym, "technicals.aroon", {})
+            update_field(collection, sym, "technicals.sar", {})
+            update_field(collection, sym, "technicals.atr", {})
+            update_field(collection, sym, "technicals.chandelier", {})
+            update_field(collection, sym, "technicals.mf", nan)
+            update_field(collection, sym, "technicals.ulcer_index", nan)
+            update_field(collection, sym, "technicals.price_trend", {})
+            return
         query = 'select Date, Open, High, Low, Volume, `Adj Close` from {}'.format(get_symbol_table_name(sym))
         #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
         df = read_from_sql(query, mysql_engine)
@@ -2505,6 +2555,7 @@ def update_tech_analysis_params(sym, core=None, sem=None):
         if df.empty or len(df.index) == 1:
             print("Empty df")
             update_field(collection, sym, "technicals.rsi", {})
+            update_field(collection, sym, "technicals.ema", {})
             update_field(collection, sym, "technicals.bbands", {})
             update_field(collection, sym, "technicals.candlesticks", {})
             update_field(collection, sym, "technicals.aroon", {})
@@ -2524,6 +2575,12 @@ def update_tech_analysis_params(sym, core=None, sem=None):
 
             # SAR Calculation
             update_SAR_params(collection, sym, df)
+
+            # 100 day Exponential Moving Avegare Calculation
+            update_EMA_params(collection, sym, df)
+
+            # MACD
+            update_MACD_params(collection, sym, df)
 
             # RSI Calculation
             rsi = update_RSI_params(collection, sym, df)
@@ -2551,6 +2608,8 @@ def update_tech_analysis_params(sym, core=None, sem=None):
             update_price_trend_params(collection, sym, df)
 
         update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
+    except Exception as E:
+        print(str(E))
     finally:
         close_db_client(c)
         close_sql_connection(mysql_engine)
@@ -2565,22 +2624,22 @@ def update_all_tech_analysis_params(country='US'):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
-    sort = [-1, 1][dt.now().day % 2 == 0]
+    sort = [1, -1][dt.now().day % 2 == 0]
     stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
-                                        {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
-                                        {'$or':[\
-                                                {'technicals.date': {"$exists": False}},\
-                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
-                                                ]\
-                                        },\
-                                        {'dates.mysql_price_pull_success':True}, \
-                                        {'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
+                                        #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        #{'$or':[\
+                                        #        {'technicals.date': {"$exists": False}},\
+                                        #        {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                        #        ]\
+                                        #},\
+                                        #{'dates.mysql_price_pull_success':True}, \
+                                        #{'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'IVR'})
+    #stocks=db.US_Stocks.find({'General.Code':'CCEL'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -2723,6 +2782,17 @@ def get_previous_trading_day():
     day = trading_day() - timedelta(1)
     return trading_day(day)
 
+# Don't use. Doesn't work
+def get_next_trading_day(date=None):
+    if date is None:
+        day = trading_day(date + timedelta(1))
+    else:
+        if isinstance(date, str):
+            date = dt.strptime(date, "%Y-%m-%d").date()
+        day = dt.combine(date, dt.min.time())
+        day = day + timedelta(1)
+    return trading_day(day)
+
 def trading_day(lt_date=None):
     if lt_date is None:
         lt_date = dt.combine(dt.now().date(), dt.min.time())
@@ -2832,7 +2902,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     table_name = get_symbol_table_name(d['Symbol'])
     if mysql_exists_table(mysql_engine, table_name):
         print("%s: symbol price table already exists, truncating" %(d['Symbol']))
-        query = "truncate table {}".format(table_name)
+        query = "drop table {}".format(table_name)
         price_engine.execute(query)
     close_sql_connection(price_engine)
 
@@ -2841,7 +2911,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     table_name = get_symbol_table_name(d['Symbol'])
     if mysql_exists_table(tech_engine, table_name):
         print("%s: symbol price table already exists, truncating" %(d['Symbol']))
-        query = "truncate table {}".format(table_name)
+        query = "drop table {}".format(table_name)
         tech_engine.execute(query)
     close_sql_connection(tech_engine)
 
@@ -2849,7 +2919,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     table_name = get_symbol_table_name(d['Symbol'])
     if mysql_exists_table(mysql_engine, table_name):
         print("%s: symbol price table already exists, truncating" %(d['Symbol']))
-        query = "truncate table {}".format(table_name)
+        query = "drop table {}".format(table_name)
         options_engine.execute(query)
     close_sql_connection(options_engine)
 
@@ -2857,7 +2927,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     # Truncate betas.
     if mysql_exists_table(beta_engine, table_name):
         print("%s: symbol beta table already exists, truncating" %(d['Symbol']))
-        query = "truncate table {}".format(table_name)
+        query = "drop table {}".format(table_name)
         beta_engine.execute(query)
     close_sql_connection(beta_engine)
 
@@ -4025,13 +4095,13 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
 
             # Truncate the whole table, pull the new prices and recreate the percentage changes.
             if mysql_exists_table(mysql_engine, table_name):
-                query = "truncate table {}".format(table_name)
+                query = "drop table {}".format(table_name)
                 mysql_engine.execute(query)
 
             beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
             # Truncate betas.
             if mysql_exists_table(beta_engine, table_name):
-                query = "truncate table {}".format(table_name)
+                query = "drop table {}".format(table_name)
                 beta_engine.execute(query)
             close_sql_connection(beta_engine)
 
@@ -4727,13 +4797,56 @@ def update_earnings(stk, core, sem=None, all=False):
             if not rdf.empty:
                 last_row = rdf.iloc[-1]
             # The eps values are null. Try to fetch again.
-            if not rdf.empty and (rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual'])):
-                # Temporary fix
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
-                # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
-                # So, repull the data for such entries and update accordingly.
-                rdf = rdf[rdf['actual'].notna()]
-                insert = False
+            if not rdf.empty:
+                try:
+                    # If the latest earnings report date is in future,
+                    # take the previous earnings date and find the price change on that date.
+                    if dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d") >= dt.combine(dt.now(), dt.min.time()) \
+                        and len(rdf.index) >= 2:
+                        earnings_row = rdf.iloc[-2]
+                    else:
+                        earnings_row = rdf.iloc[-1]
+    
+                    price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+                    price_table = DB.get_symbol_table_name(stk['bscs']['symbol'])
+                    # If the results are announced after market. Consider the next day's price change.
+                    if 'AfterMarket' == earnings_row['before_after_market']:
+                        report_date = earnings_row['report_date']
+                        query='select Date, `Day Change` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                        pdf = DB.read_from_sql(query, price_engine)
+                    # Or else consider the price change on the same day
+                    else:
+                        report_date = earnings_row['report_date']
+                        query='select Date, `Day Change` from {} where Date=%r'.format(price_table) %(report_date)
+                        pdf = DB.read_from_sql(query, price_engine)
+                    if not pdf.empty:
+                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change',pdf.iloc[-1]['Day Change'])
+                    # Some times the price might have altered in advace before the earnings date and after the earnings date.
+                    # So take a couple of days before and after the earnings date and calcuate the price change for that duration.
+                    report_date = dt.strptime(report_date, "%Y-%m-%d")
+                    start = report_date - timedelta(7)
+                    end   = report_date + timedelta(7)
+                    dates = list(pd.bdate_range(start=start, end=end))
+                    start = str(dates[dates.index(report_date) - 2].date())
+                    end   = str(dates[dates.index(report_date) + 2].date())
+                    query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(price_table, start, end)
+                    pdf   = DB.read_from_sql(query, price_engine)
+
+                    if not pdf.empty:
+                        change = percent_change(pdf.iloc[0]['Adj Close'], pdf.iloc[-1]['Adj Close'])
+                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change_that_week',change)
+                except Exception as E:
+                    print(str(E))
+                finally:
+                    DB.close_sql_connection(price_engine)
+
+                if rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual']):
+                    # Temporary fix
+                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
+                    # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
+                    # So, repull the data for such entries and update accordingly.
+                    rdf = rdf[rdf['actual'].notna()]
+                    insert = False
  
         url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&symbols='+stk['bscs']['symbol']+'.US'
         if not rdf.empty:
@@ -4743,7 +4856,7 @@ def update_earnings(stk, core, sem=None, all=False):
         else:
             url = url + '&from=1970-01-01'
 
-        url = url + '&to='+str(dt.now().date()+timedelta(14))
+        url = url + '&to='+str(dt.now().date()+timedelta(30))
         url = url + '&fmt=json'
  
         try:
@@ -4840,7 +4953,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print(stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"MAV"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"AAPL"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -4848,6 +4961,9 @@ def update_all_earnings(all=False):
             processes[j%num_processes] = multiprocessing.Process(target=update_earnings, args=(stk, i%num_cores, sem, all))
             processes[j%num_processes].start()
             j = j + 1
+
+        if all:
+            return
 
         # Now fetch the bulk earnings
         url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
@@ -5013,21 +5129,28 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
                     # The table has old entries. Remove those entries
                     if not df.empty \
                             and stk['bscs']['since'] != df.index[0] \
+                            and 'price_truncate_date' not in stk['bscs'].keys() \
                             and abs(date_difference(df.index[0], stk['bscs']['since'])) > 30 :
                         print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
                         if stk['bscs']['since'] > df.index[0]:
-                            query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
-                            price_engine.execute(query)
+
+                            cols = mysql_get_columns(table_name)
+                            if 'Day Change' in cols:
+                                query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
+                                price_engine.execute(query)
                             query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
                             price_engine.execute(query)
+                            update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
                         else:
-                            query = "truncate table {}".format(table_name)
+                            print("%s: since: %r, first row: %r: Deleting whole table" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
+                            query = "drop table {}".format(table_name)
                             price_engine.execute(query)
+                            update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
 
                         beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
                         # Truncate betas.
                         if mysql_exists_table(beta_engine, table_name):
-                            query = "truncate table {}".format(table_name)
+                            query = "drop table {}".format(table_name)
                             beta_engine.execute(query)
                         close_sql_connection(beta_engine)
 
@@ -5076,57 +5199,61 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         try:
             while True:
                 ret = requests.get(url)
-                if ret.status_code == 402:
-                    print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
-                    close_sql_connection(mysql_engine)
-                    close_db_client(c)
-                    sys.exit(1)
+                if ret.status_code == 402 or ret.headers['X-RateLimit-Remaining'] < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue
+                #if ret.status_code == 402:
+                #    print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                #    close_sql_connection(mysql_engine)
+                #    close_db_client(c)
+                #    sys.exit(1)
                 elif ret.status_code == 404:
                     print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                     update = True
                     return
+                #elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
+                #    now = dt.now()
+                #    # If the ratelimit was not yet reset,
+                #    # wait for 60 secs
+                #    if technicals_ratelimit_reset_time is None: 
+                #        secs = 60
+                #    else:
+                #        # Because the ratelimit is restricted 
+                #        # 1000 requests per minute, wait for 
+                #        # 60 - number of seconds elapsed since the 
+                #        # ratelimit was reset. We don't need to wait
+                #        # again for 60 secs.
+                #        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
+
+                #    lock_acquired = unblocked_lock(lock)
+                #    # I am the first process to know that ratelimit has reached.
+                #    # Tell the other processes to wait and not send any further API requests.
+                #    # Sleep for the remaining time.
+                #    # Reset the ratelimit time to now.
+                #    # Wakeup and inform the other processes to resume.
+                #    if lock_acquired:
+                #        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
+                #        ratelimit_event.clear()
+                #        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
+                #        time.sleep(secs)
+                #        technicals_ratelimit_reset_time = dt.now()
+                #        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
+                #        ratelimit_event.set()
+                #        lock.release()
+                #    else:
+                #        # I am not the first one to know that the ratelimit has reached.
+                #        # The first guy has already informed the other processes
+                #        # who have not yet sent the API requests to wait.
+                #        # Unfortunately I came to know a bit late.
+                #        # I will simply wait for the remaining time.
+                #        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
+                #        time.sleep(secs)
+                #    # Now retry the API request again.
+                #    continue
                 elif ret.status_code != 200:
                     print("Failed to get Technical data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                     return
-                elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
-                    now = dt.now()
-                    # If the ratelimit was not yet reset,
-                    # wait for 60 secs
-                    if technicals_ratelimit_reset_time is None: 
-                        secs = 60
-                    else:
-                        # Because the ratelimit is restricted 
-                        # 1000 requests per minute, wait for 
-                        # 60 - number of seconds elapsed since the 
-                        # ratelimit was reset. We don't need to wait
-                        # again for 60 secs.
-                        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
-
-                    lock_acquired = unblocked_lock(lock)
-                    # I am the first process to know that ratelimit has reached.
-                    # Tell the other processes to wait and not send any further API requests.
-                    # Sleep for the remaining time.
-                    # Reset the ratelimit time to now.
-                    # Wakeup and inform the other processes to resume.
-                    if lock_acquired:
-                        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
-                        ratelimit_event.clear()
-                        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
-                        time.sleep(secs)
-                        technicals_ratelimit_reset_time = dt.now()
-                        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
-                        ratelimit_event.set()
-                        lock.release()
-                    else:
-                        # I am not the first one to know that the ratelimit has reached.
-                        # The first guy has already informed the other processes
-                        # who have not yet sent the API requests to wait.
-                        # Unfortunately I came to know a bit late.
-                        # I will simply wait for the remaining time.
-                        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
-                        time.sleep(secs)
-                    # Now retry the API request again.
-                    continue
                 else:
                     break
         except Exception as E:
@@ -5791,12 +5918,12 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         sym = stk['bscs']['symbol']
         table_name = get_symbol_table_name(sym)
         
-        #print("beta: %r: %r" %(stk['sno'], sym))
-        if 'since' not in stk['bscs'].keys() \
-                or stk['bscs']['since'] == dt.min:
-            mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
-            #stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
-            close_sql_connection(mysql_engine)
+        ##print("beta: %r: %r" %(stk['sno'], sym))
+        #if 'since' not in stk['bscs'].keys() \
+        #        or stk['bscs']['since'] == dt.min:
+        #    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        #    #stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
+        #    close_sql_connection(mysql_engine)
 
         since = stk['bscs']['since']
         #print("since: %r" %(since))
@@ -5946,6 +6073,7 @@ def update_all_stock_betas(country):
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
  
     print("Update Betas: Total Stocks: %r" %(docs.count()))
+    #docs = db.US_Stocks.find({"bscs.symbol" : "ZT"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
@@ -6143,6 +6271,9 @@ def fin_change(stk, df, fig, cols, table, items=None):
     #st_price = read.iat[0, read.columns.get_loc('close')]
     #en_price = read.iat[-1, read.columns.get_loc('close')]
 
+    db_client  = open_db_client()
+    db = db_client['Stocks']
+
     #df.index= pd.to_datetime(df.index)
     if fig == 'fig':
         fields    = list(fin_year_fields.keys())
@@ -6151,8 +6282,8 @@ def fin_change(stk, df, fig, cols, table, items=None):
         #ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m")
         reg_exp   = r'yo\S+'
     else:
-        fields    = fin_quarter_fields
-        datatypes = fin_quarter_fields_datatypes
+        fields    = list(fin_quarter_fields.keys())
+        datatypes = list(fin_quarter_fields.values())
         durations = fin_quarter_price_durations
         #ret_index = pd.DatetimeIndex.strftime(df.index, "%Y-%m-%d")
         reg_exp   = r'qo\S+'
@@ -6226,140 +6357,166 @@ def fin_change(stk, df, fig, cols, table, items=None):
         for index in items:
             df = fin_percent_change_row(key, index, c, df.loc[index], df)
 
-        for index in items:
-            # For income statements, calculate gross, net, operating profit margins and other params
-            if 'income' in table.lower():
-                #df.loc[index, column_name] = new_value
-                if is_number(df.loc[index, 'grossProfit']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'grossMargin'] = df.loc[index, 'grossProfit'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'grossMargin'] = nan
-                
-                if is_number(df.loc[index, 'netIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'netMargin'] = df.loc[index, 'netIncome'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'netMargin'] = nan
-                
-                if is_number(df.loc[index, 'operatingIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'operatingMargin'] = df.loc[index, 'operatingIncome'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'operatingMargin'] = nan
-                
-                if is_number(df.loc[index, 'researchDevelopment']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'researchDevelopmentPercent'] = df.loc[index, 'researchDevelopment'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'researchDevelopmentPercent'] = nan
+    for index in items:
+        # For income statements, calculate gross, net, operating profit margins and other params
+        if 'income' in table.lower():
+            print("Table name: %r, index: %r" %(table, index))
+            #df.loc[index, column_name] = new_value
+            if is_number(df.loc[index, 'grossProfit']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'grossMargin'] = df.loc[index, 'grossProfit'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'grossMargin'] = nan
+            
+            if is_number(df.loc[index, 'netIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'netMargin'] = df.loc[index, 'netIncome'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'netMargin'] = nan
+            
+            if is_number(df.loc[index, 'operatingIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'operatingMargin'] = df.loc[index, 'operatingIncome'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'operatingMargin'] = nan
+            
+            if is_number(df.loc[index, 'researchDevelopment']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'researchDevelopmentPercent'] = df.loc[index, 'researchDevelopment'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'researchDevelopmentPercent'] = nan
 
-                if is_number(df.loc[index, 'sellingAndMarketingExpenses']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'sellingAndMarketingExpensesPercent'] = df.loc[index, 'sellingAndMarketingExpenses'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'sellingAndMarketingExpensesPercent'] = nan
+            if is_number(df.loc[index, 'sellingAndMarketingExpenses']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'sellingAndMarketingExpensesPercent'] = df.loc[index, 'sellingAndMarketingExpenses'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'sellingAndMarketingExpensesPercent'] = nan
  
-                if is_number(df.loc[index, 'interestExpense']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'interestExpensePercent'] = df.loc[index, 'interestExpense'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'interestExpensePercent'] = nan
+            if is_number(df.loc[index, 'interestExpense']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'interestExpensePercent'] = df.loc[index, 'interestExpense'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'interestExpensePercent'] = nan
 
-                if is_number(df.loc[index, 'interestIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
-                    df.loc[index, 'interestIncomePercent'] = df.loc[index, 'interestIncome'] / df.loc[index, 'totalRevenue']
-                else:
-                    df.loc[index, 'interestIncomePercent'] = nan
+            if is_number(df.loc[index, 'interestIncome']) and is_number(df.loc[index, 'totalRevenue'], check_non_zero=True):
+                df.loc[index, 'interestIncomePercent'] = df.loc[index, 'interestIncome'] / df.loc[index, 'totalRevenue']
+            else:
+                df.loc[index, 'interestIncomePercent'] = nan
 
-                if is_number(df.loc[index, 'ebit']) and is_number(df.loc[index, 'interestExpense'], check_non_zero=True):
-                    df.loc[index, 'interestCoverage'] = df.loc[index, 'ebit'] / df.loc[index, 'interestExpense']
-                else:
-                    df.loc[index, 'interestCoverage'] = nan
+            if is_number(df.loc[index, 'ebit']) and is_number(df.loc[index, 'interestExpense'], check_non_zero=True):
+                df.loc[index, 'interestCoverage'] = df.loc[index, 'ebit'] / df.loc[index, 'interestExpense']
+            else:
+                df.loc[index, 'interestCoverage'] = nan
 
-            # For balance sheets, calculate long term debt to equity, short term debt to equity etc.
-            elif 'balance' in table.lower():
-                #df.loc[index, column_name] = new_value
-                # longTermDebt, shortTermDebt, totalStockholderEquity, commonStock, commonStockSharesOutstanding, totalAssets, totalLiab, nonCurrentAssetsTotal, nonCurrentLiabilitiesTotal
-                # 1. lDtoE = longTermDebt/totalStockholderEquity
-                # 2. sDtoE = shortTermDebt/totalStockholderEquity
-                # 3. lDtocS = longTermDebt/commonStock
-                # 4. sDtocS = shortTermDebt/commonStock
-                # 5. currentRatio = totalCurrentAssets/totalCurrentLiabilities
-                # 6. quickRatio = (totalCurrentAssets - inventory)/totalCurrentLiabilities
-                # 7. RoA = netIncome/totalAssets (netIncome has to be taken from the Income Statement)
-                # 8. RoE = netIncome/totalStockholderEquity (netIncome has to be taken from the Income Statement)
-                # 9. RoI = Return on Investment. Need to find the calculation or else skip this param.
-                # 10. RoIC = https://www.fe.training/free-resources/valuation/return-on-invested-capital-roic/
-                # 11. 
-                if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
-                    df.loc[index, 'lDtoE'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'totalStockholderEquity']
-                else:
-                    df.loc[index, 'lDtoE'] = nan
+        # For balance sheets, calculate long term debt to equity, short term debt to equity etc.
+        elif 'balance' in table.lower():
+            #df.loc[index, column_name] = new_value
+            # longTermDebt, shortTermDebt, totalStockholderEquity, commonStock, commonStockSharesOutstanding, totalAssets, totalLiab, nonCurrentAssetsTotal, nonCurrentLiabilitiesTotal
+            # 1. lDtoE = longTermDebt/totalStockholderEquity
+            # 2. sDtoE = shortTermDebt/totalStockholderEquity
+            # 3. lDtocS = longTermDebt/commonStock
+            # 4. sDtocS = shortTermDebt/commonStock
+            # 5. currentRatio = totalCurrentAssets/totalCurrentLiabilities
+            # 6. quickRatio = (totalCurrentAssets - inventory)/totalCurrentLiabilities
+            # 7. RoA = netIncome/totalAssets (netIncome has to be taken from the Income Statement)
+            # 8. RoE = netIncome/totalStockholderEquity (netIncome has to be taken from the Income Statement)
+            # 9. RoI = Return on Investment. Need to find the calculation or else skip this param.
+            # 10. RoIC = https://www.fe.training/free-resources/valuation/return-on-invested-capital-roic/
+            # 11. 
+            if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                df.loc[index, 'lDtoE'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'totalStockholderEquity']
+            else:
+                df.loc[index, 'lDtoE'] = nan
 
-                if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
-                    df.loc[index, 'sDtoE'] = df.loc[index, 'shortTermDebt'] / df.loc[index, 'totalStockholderEquity']
-                else:
-                    df.loc[index, 'sDtoE'] = nan
+            if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                df.loc[index, 'sDtoE'] = df.loc[index, 'shortTermDebt'] / df.loc[index, 'totalStockholderEquity']
+            else:
+                df.loc[index, 'sDtoE'] = nan
 
-                if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
-                    df.loc[index, 'lDtocS'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'commonStock']
-                else:
-                    df.loc[index, 'lDtocS'] = nan
+            if is_number(df.loc[index, 'longTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
+                df.loc[index, 'lDtocS'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'commonStock']
+            else:
+                df.loc[index, 'lDtocS'] = nan
 
-                if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
-                    df.loc[index, 'sDtocS'] = df.loc[index, 'longTermDebt'] / df.loc[index, 'commonStock']
-                else:
-                    df.loc[index, 'sDtocS'] = nan
+            if is_number(df.loc[index, 'shortTermDebt']) and is_number(df.loc[index, 'commonStock'], check_non_zero=True):
+                df.loc[index, 'sDtocS'] = df.loc[index, 'shortTermDebt'] / df.loc[index, 'commonStock']
+            else:
+                df.loc[index, 'sDtocS'] = nan
 
-                if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
-                    df.loc[index, 'currentRatio'] = df.loc[index, 'totalCurrentAssets'] / df.loc[index, 'totalCurrentLiabilities']
-                else:
-                    df.loc[index, 'currentRatio'] = nan
+            if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
+                df.loc[index, 'currentRatio'] = df.loc[index, 'totalCurrentAssets'] / df.loc[index, 'totalCurrentLiabilities']
+            else:
+                df.loc[index, 'currentRatio'] = nan
 
-                if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'inventory']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
+            if is_number(df.loc[index, 'totalCurrentAssets']) and is_number(df.loc[index, 'totalCurrentLiabilities'], check_non_zero=True):
+                if is_number(df.loc[index, 'inventory'], check_non_zero=True):
                     df.loc[index, 'quickRatio'] = (df.loc[index, 'totalCurrentAssets'] - df.loc[index, 'inventory']) / df.loc[index, 'totalCurrentLiabilities']
                 else:
-                    df.loc[index, 'quickRatio'] = nan
-             
-                if 'yearly' in table.lower():
-                    table = 'Income_Statement_yearly'
-                else:
-                    table = 'Income_Statement_quarterly'
-                fin_sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
-                query = 'select Date, netIncome from {} where Symbol=\'{}\' and Date=\'{}\''.format(table, stk['bscs']['symbol'], index)
-                edf = read_from_sql(query, fin_sql_engine)
-                close_sql_connection(fin_sql_engine)
-                if not edf.empty and is_number(edf.loc[-1, 'netIncome']) and is_number(df.loc[index, 'totalAssets'], check_non_zero=True):
-                    df.loc[index, 'RoA'] = edf.loc[-1, 'netIncome'] / df.loc[index, 'totalAssets']
-                else:
-                    df.loc[index, 'RoA'] = nan
-
-                if not edf.empty and is_number(edf.loc[-1, 'netIncome']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
-                    df.loc[index, 'RoE'] = edf.loc[-1, 'netIncome'] / df.loc[index, 'totalStockholderEquity']
-                else:
-                    df.loc[index, 'RoE'] = nan
-
-        if 'income' in table.lower():
-            if 'year' in table.lower():
-                duration = 'year'
+                    df.loc[index, 'quickRatio'] = df.loc[index, 'currentRatio']
             else:
-                duration = 'quarter'
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.grossMargin', (df.loc[-1, 'grossMargin'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.netMargin', (df.loc[-1, 'netMargin'],nan)[df.empty]) 
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.operatingMargin', (df.loc[-1, 'operatingMargin'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.researchDevelopmentPercent', (df.loc[-1, 'researchDevelopmentPercent'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sellingAndMarketingExpensesPercent', (df.loc[-1, 'sellingAndMarketingExpensesPercent'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestExpensePercent', (df.loc[-1, 'interestExpensePercent'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestIncomePercent', (df.loc[-1, 'interestIncomePercent'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.interestCoverage', (df.loc[-1, 'interestCoverage'],nan)[df.empty])
-        elif 'balance' in table.lower():
-            if 'year' in table.lower():
-                duration = 'year'
+                df.loc[index, 'quickRatio'] = nan
+         
+            if 'yearly' in table.lower():
+                income_table = 'Income_Statement_yearly'
             else:
-                duration = 'quarter'
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.lDtoE', (df.loc[-1, 'lDtoE'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sDtoE', (df.loc[-1, 'sDtoE'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.lDtocS', (df.loc[-1, 'lDtocS'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.sDtocS', (df.loc[-1, 'sDtocS'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.currentRatio', (df.loc[-1, 'currentRatio'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.quickRatio', (df.loc[-1, 'quickRatio'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.ROA', (df.loc[-1, 'ROA'],nan)[df.empty])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios'+duration+'.ROE', (df.loc[-1, 'ROE'],nan)[df.empty])
+                income_table = 'Income_Statement_quarterly'
+            fin_sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+            query = 'select Date, netIncome from {} where Symbol=\'{}\' and Date=\'{}\''.format(income_table, stk['bscs']['symbol'], str(index.date()))
+            edf = read_from_sql(query, fin_sql_engine)
+            close_sql_connection(fin_sql_engine)
+            if not edf.empty and is_number(edf.iloc[-1]['netIncome']) and is_number(df.loc[index, 'totalAssets'], check_non_zero=True):
+                df.loc[index, 'RoA'] = edf.iloc[-1]['netIncome'] / df.loc[index, 'totalAssets']
+            else:
+                df.loc[index, 'RoA'] = nan
 
+            if not edf.empty and is_number(edf.iloc[-1]['netIncome']) and is_number(df.loc[index, 'totalStockholderEquity'], check_non_zero=True):
+                df.loc[index, 'RoE'] = edf.iloc[-1]['netIncome'] / df.loc[index, 'totalStockholderEquity']
+            else:
+                df.loc[index, 'RoE'] = nan
+
+    if 'year' in table.lower():
+        duration = 'year'
+        duration_range = fin_year_fields.keys()
+    else:
+        duration = 'quarter'
+        duration_range = fin_quarter_fields.keys()
+
+    if 'income' in table.lower():
+        all_fields = income_fields.keys()
+        sheet_type = 'Income_Statement'
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.grossMargin', (df.iloc[-1]['grossMargin'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.netMargin', (df.iloc[-1]['netMargin'],nan)[df.empty]) 
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.operatingMargin', (df.iloc[-1]['operatingMargin'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.researchDevelopmentPercent', (df.iloc[-1]['researchDevelopmentPercent'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.sellingAndMarketingExpensesPercent', (df.iloc[-1]['sellingAndMarketingExpensesPercent'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.interestExpensePercent', (df.iloc[-1]['interestExpensePercent'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.interestIncomePercent', (df.iloc[-1]['interestIncomePercent'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.interestCoverage', (df.iloc[-1]['interestCoverage'],nan)[df.empty])
+    elif 'balance' in table.lower():
+        all_fields = balance_fields.keys()
+        sheet_type = 'Balance_Sheet'
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.lDtoE', (df.iloc[-1]['lDtoE'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.sDtoE', (df.iloc[-1]['sDtoE'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.lDtocS', (df.iloc[-1]['lDtocS'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.sDtocS', (df.iloc[-1]['sDtocS'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.currentRatio', (df.iloc[-1]['currentRatio'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.quickRatio', (df.iloc[-1]['quickRatio'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.RoA', (df.iloc[-1]['RoA'],nan)[df.empty])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.RoE', (df.iloc[-1]['RoE'],nan)[df.empty])
+
+    elif 'cash' in table.lower():
+        all_fields = cash_fields.keys()
+        sheet_type = 'Cash_Flow'
+    else:
+        all_fields = []
+
+    for f in all_fields:
+        for dd in duration_range:
+            field = 'FinChange' + '.' + sheet_type + '.' + f + '.' + dd
+            df_field = f + ' ' + dd
+            print("%s: field: %r, df_field: %r" %(stk['bscs']['symbol'], field, df_field))
+            if df_field in df.columns:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], field, (df.iloc[-1][df_field],nan)[df.empty])
+            else:
+                update_field(db.US_Stocks, stk['bscs']['symbol'], field, nan)
+
+    close_db_client(db_client)
     #df.index = ret_index
     return df
 #                wdf.loc[cur_date_str]=nan
@@ -6637,15 +6794,15 @@ def update_US_fin_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig
 def US_fin_percent_change(mysql_engine, mysql_fin_engine, db, stk, sem=None):
     t = time.time()
     #print("sem acquire: %r: %r: %r" %(threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
-    if 'fin_percent_update_date' in stk['bscs'].keys():
-        if dt.now().date() - stk['bscs']['fin_percent_update_date'].date() < timedelta(30):
-        #if False:
-            if sem:
-                #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
-                sem.release()
-            return
-    update_US_fin_percent_change(mysql_engine, mysql_fin_engine, stk, 'fig')
+    #if 'fin_percent_update_date' in stk['dates'].keys():
+    #    if dt.now().date() - stk['dates']['fin_percent_update_date'].date() < timedelta(30):
+    #    #if False:
+    #        if sem:
+    #            #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
+    #            sem.release()
+    #        return
     update_US_fin_percent_change(mysql_engine, mysql_fin_engine, stk, 'quart_fig')
+    update_US_fin_percent_change(mysql_engine, mysql_fin_engine, stk, 'fig')
     db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {"dates.fin_percent_update_date": dt.combine(dt.now(), dt.min.time())}})
     if sem:
         #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
@@ -6671,7 +6828,9 @@ def US_fin_percent_per_process(stk, sem, core=None):
 # like sales, profits, cash flows, tangible/total book value etc
 def update_all_US_fin_percent_change():
     #os.system("taskset -p 0xfffff %d > /dev/null 2>&1" % os.getpid())
-    sem = multiprocessing.BoundedSemaphore(num_cores)
+    num_processes = num_cores #* 2 
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
     #sem = threading.BoundedSemaphore(num_cores)
     c  = open_db_client()
     db = c['Stocks']
@@ -6683,26 +6842,38 @@ def update_all_US_fin_percent_change():
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {"dates.fin_percent_update_date": {"$exists": False }},\
+                                                        {"dates.fin_percent_update_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]\
+                                            },\
+ 
                                             #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
 
-    stocks = db.US_Stocks.find({"bscs.symbol":'AAPL'})
+    #stocks = db.US_Stocks.find({"bscs.symbol":'PFE'})
     print(stocks.count())
 
-    for i, stk in enumerate(stocks):
-        #if i > 8:
-        #    break
-        sem.acquire()
-        print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['bscs']['name']))
-        #US_fin_percent_change(mysql_engine, db, stk, sem)
-        US_fin_percent_per_process(stk, sem)
-        #multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,)).start()
+    try:
+        for i, stk in enumerate(stocks):
+            #if i > 8:
+            #    break
+            sem.acquire()
+            print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            #US_fin_percent_change(mysql_engine, db, stk, sem)
+            #US_fin_percent_per_process(stk, sem)
+            processes[i%num_processes] = multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,))
+            processes[i%num_processes].start()
 
-    time.sleep(30)
-    close_db_client(c)
-    close_sql_connection(mysql_engine)
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        time.sleep(30)
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
 
 def correct_error(stmt, stmt_type):
     miss_count = 0

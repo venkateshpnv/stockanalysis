@@ -71,14 +71,15 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     url = construct_price_data_url(symbol, start, end, index=False)
                 try:
                     ret = requests.get(url)
-                    if ret.status_code == 402:
-                        print("%s: Ratelimit: %r %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
-                        sys.exit(1)
-                    if ret.status_code == 404:
+                    if ret.status_code == 402 or ret.headers['X-RateLimit-Remaining'] < 1 :
+                        print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                        time.sleep(10)
+                        continue
+                    elif ret.status_code == 404:
                         print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                         update = True
                         return df
-                    if ret.status_code != 200:
+                    elif ret.status_code != 200:
                         print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                         return df
                 except Exception as E:
@@ -572,6 +573,7 @@ def hdf_price_change(country, sym=None, df=None, days=None, weeks=None, months=N
 # if the date is 24-oct-2019, its nearest will be the same date.
 def get_nearest_index(df, req_date, tolerance=pd.Timedelta('2Y')):
     l = list(df.index)
+    #l = df.index.to_list()
     try:
         # get the index of the entry
         i = l.index(pd.Timestamp(str(req_date)))
@@ -579,7 +581,8 @@ def get_nearest_index(df, req_date, tolerance=pd.Timedelta('2Y')):
         #    x = df.index.get_loc(str(req_date), method='nearest', tolerance=tolerance)
         #    if x.size != 0:
         #        return int(x)
-        #    req_date = req_date - relativedelta(months=3) 
+        #    req_date = req_date - relativedelta(months=3)
+        index = i
     except Exception as e:
         # If entry does not exists, add the entry to the list,
         # sort the list and find the entry location.
@@ -590,8 +593,23 @@ def get_nearest_index(df, req_date, tolerance=pd.Timedelta('2Y')):
             #print("entry greater than first entry")
         i = l.index(pd.Timestamp(str(req_date)))
         if i != 0:
-            i = i - 1
-    return i
+            cur = l[i]
+            before = l[i - 1]
+            if i < len(l):
+                after  = l[i + 1]
+                if (cur - before) < (after - cur):
+                    # Take previous entry
+                    #index = df.index.to_list().index(before)
+                    index = df.index.get_loc(before)
+                else:
+                    #index = df.index.to_list().index(after)
+                    index = df.index.get_loc(after)
+            else:
+                #index = df.index.to_list().index(before) 
+                index = df.index.get_loc(before)
+        else:
+            index = i
+    return index
     #return df.index.get_loc(req_date, method='nearest', tolerance=30)
 
 def hdf_get_price(sym, df, req_date):
@@ -1234,22 +1252,28 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                             # The table has old entries. Remove those entries
                             if not df.empty and\
                                 stk['bscs']['since'] and\
+                                'price_truncate_date' not in stk['bscs'].keys() and \
                                 abs((stk['bscs']['since'] - df.index[0]).days) >= 7: # If atleast there's a time difference of 7 days between the IPO date and the start index date, truncate them and repopulate again.
                                 print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
-                                if stk['bscs']['since'] > df.index[0]:
-                                    query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
-                                    sql_engine.execute(query)
+                                if  stk['bscs']['since'] > df.index[0]:
+                                    cols = DB.mysql_get_columns(table_name, sql_engine)
+                                    if 'Day Change' in cols:
+                                        query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
+                                        sql_engine.execute(query)
                                     query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
                                     sql_engine.execute(query)
+                                    DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
                                 else:
-                                    query = "truncate table {}".format(table_name)
+                                    query = "drop table {}".format(table_name)
                                     sql_engine.execute(query)
-        
+                                    DB.mysql_check_n_create_table(sql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
+                                    DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
                                 beta_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
                                 # Truncate betas.
                                 if DB.mysql_exists_table(beta_engine, table_name):
-                                    query = "truncate table {}".format(table_name)
+                                    query = "drop table {}".format(table_name)
                                     beta_engine.execute(query)
+                                    DB.mysql_check_n_create_table(beta_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
                                 DB.close_sql_connection(beta_engine)
         
                 query = 'select Date from ' + table + ' order by Date DESC limit 1'

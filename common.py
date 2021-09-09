@@ -14,6 +14,7 @@ import re
 import pandas as pd
 import numpy as np
 import requests
+from math import nan, isnan
 
 from itertools import cycle
 import secrets
@@ -64,6 +65,13 @@ def p2f(x):
     except ValueError:
         return 0
     return val
+
+def is_number(a, check_non_zero=False):
+    if isinstance(a, (int, float, complex)) and not isinstance(a, bool) is True and not isnan(a):
+        if check_non_zero:
+            return (a != 0)
+        return True
+    return False
 
 def str_to_int(x):
     try:
