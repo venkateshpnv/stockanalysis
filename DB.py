@@ -3776,6 +3776,7 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
     if not isinstance(fin, dict):
         return
 
+    mysql_fin_change_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin_Change')
     if mysql_engine is None:
         mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
         local_mysql = True
@@ -3794,6 +3795,32 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
 
                     table_name = stmt_type+'_'+duration
                     mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=True)
+                    # Sometimes, we get null entries and they are added to the database.
+                    # Check if new values are available and overwrite the null entries
+                    # with the updated data.
+                    if 'income'.lower() in stmt_type.lower():
+                        field = 'totalRevenue'
+                    elif 'balance'.lower() in stmt_type.lower():
+                        field = 'totalAssets'
+                    else: 
+                        field = 'freeCashFlow'
+                    query = 'select `Date`, %s from {} where Symbol = \'{}\' and %s IS NULL'.format(table_name, stk['bscs']['symbol'])%(field, field)
+                    null_df = read_from_sql(query, mysql_engine)
+                    # Get the entries where the totalRevenue was NULL in the past.
+                    new_entries = stmt[stmt.index.isin(null_df.index)]
+                    if not new_entries.empty:
+                        print("%s : %s: Old null %s entries are getting updated: %r" %(table_name, stk['bscs']['symbol'], field, ', '.join(new_entries.index.tolist())))
+                        # Update the database with the new data
+                        mysql_update_table(mysql_engine, table_name, new_entries, check=True, insert=False, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+                        # Delete those entries in the Fin_Change database and recalculate them
+                        for i in range(list(new_entries.index)):
+                            query = 'Delete from {} where Symbol = \'{}\' and Date = \'{}\''.format(table_name, stk['bscs']['symbol'], str(i.date()))
+                            mysql_fin_change_engine.execute(query)
+
+                        fig = ['quart_fig', 'fig'][duration == 'yearly']
+                        update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
+                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_update_date', dt.combine(dt.now(), dt.min.time()))
+
                     query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
                     ddf = read_from_sql(query, mysql_engine)
 
@@ -3805,11 +3832,15 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
                     if not stmt.empty:
                         print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(stmt.index.tolist())))
                         mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+                        fig = ['quart_fig', 'fig'][duration == 'yearly']
+                        update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
+                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_update_date', dt.combine(dt.now(), dt.min.time()))
 
     finally:
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_pull_date', dt.combine(dt.now(), dt.min.time()))
         if local_mysql:
             close_sql_connection(mysql_engine)
+        close_sql_connection(mysql_fin_change_engine)
  
 def update_US_stock_fin_information(stk, core, sem):
 
@@ -4157,10 +4188,17 @@ def update_splits(stk, core, sem=None):
                     str(dt.strptime(rdf['Date'][0], "%Y-%m-%d").date() + timedelta(1))
  
         try:
-            ret = requests.get(url)
-            if ret.status_code != 200:
-                print("Failed to get Splits data for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
-                return
+            while True:
+                ret = requests.get(url)
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue 
+                elif ret.status_code != 200:
+                    print("Failed to get Splits data for %r, error code: %r" %(stk['bscs']['symbol'], ret.status_code))
+                    return
+                else:
+                    break
         except Exception as E:
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
@@ -4327,19 +4365,21 @@ def update_dividends(stk, core, sem=None):
         url = url + '&fmt=json'
  
         try:
-            ret = requests.get(url)
-            if ret.status_code == 402:
-                print("%r" %(ret.text))
-                close_sql_connection(mysql_engine)
-                close_db_client(c)
-                sys.exit(1)
-            if ret.status_code == 404:
-                print("Failed to get Dividends data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                update = True
-                return
-            if ret.status_code != 200:
-                print("Failed to get Dividends data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                return
+            while True:
+                ret = requests.get(url)
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue
+                elif ret.status_code == 404:
+                    print("Failed to get Dividends data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    update = True
+                    return
+                elif ret.status_code != 200:
+                    print("Failed to get Dividends data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    return
+                else:
+                    break
         except Exception as E:
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
@@ -4509,11 +4549,10 @@ def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_ev
         try:
             while True:
                 ret = requests.get(url)
-                if ret.status_code == 402:
-                    print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
-                    close_sql_connection(mysql_engine)
-                    close_db_client(c)
-                    sys.exit(1)
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue
                 elif ret.status_code == 404:
                     print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                     update = True
@@ -4521,45 +4560,45 @@ def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_ev
                 elif ret.status_code != 200:
                     print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                     return
-                elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
-                    now = dt.now()
-                    # If the ratelimit was not yet reset,
-                    # wait for 60 secs
-                    if technicals_ratelimit_reset_time is None: 
-                        secs = 60
-                    else:
-                        # Because the ratelimit is restricted 
-                        # 1000 requests per minute, wait for 
-                        # 60 - number of seconds elapsed since the 
-                        # ratelimit was reset. We don't need to wait
-                        # again for 60 secs.
-                        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
+                #elif ratelimit_event and int(ret.headers['X-RateLimit-Remaining']) == 0:
+                #    now = dt.now()
+                #    # If the ratelimit was not yet reset,
+                #    # wait for 60 secs
+                #    if technicals_ratelimit_reset_time is None: 
+                #        secs = 60
+                #    else:
+                #        # Because the ratelimit is restricted 
+                #        # 1000 requests per minute, wait for 
+                #        # 60 - number of seconds elapsed since the 
+                #        # ratelimit was reset. We don't need to wait
+                #        # again for 60 secs.
+                #        secs = 60 - (now-technicals_ratelimit_reset_time).seconds
 
-                    lock_acquired = unblocked_lock(lock)
-                    # I am the first process to know that ratelimit has reached.
-                    # Tell the other processes to wait and not send any further API requests.
-                    # Sleep for the remaining time.
-                    # Reset the ratelimit time to now.
-                    # Wakeup and inform the other processes to resume.
-                    if lock_acquired:
-                        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
-                        ratelimit_event.clear()
-                        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
-                        time.sleep(secs)
-                        technicals_ratelimit_reset_time = dt.now()
-                        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
-                        ratelimit_event.set()
-                        lock.release()
-                    else:
-                        # I am not the first one to know that the ratelimit has reached.
-                        # The first guy has already informed the other processes
-                        # who have not yet sent the API requests to wait.
-                        # Unfortunately I came to know a bit late.
-                        # I will simply wait for the remaining time.
-                        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
-                        time.sleep(secs)
-                    # Now retry the API request again.
-                    continue
+                #    lock_acquired = unblocked_lock(lock)
+                #    # I am the first process to know that ratelimit has reached.
+                #    # Tell the other processes to wait and not send any further API requests.
+                #    # Sleep for the remaining time.
+                #    # Reset the ratelimit time to now.
+                #    # Wakeup and inform the other processes to resume.
+                #    if lock_acquired:
+                #        print("%s: Broadcasting ratelimit reached" %(stk['bscs']['symbol']))
+                #        ratelimit_event.clear()
+                #        print("%s: Reached max limit, waiting for %s sec"%(stk['bscs']['symbol'], sec))
+                #        time.sleep(secs)
+                #        technicals_ratelimit_reset_time = dt.now()
+                #        print("%s: Broadcasting ratelimit reset" %(stk['bscs']['symbol']))
+                #        ratelimit_event.set()
+                #        lock.release()
+                #    else:
+                #        # I am not the first one to know that the ratelimit has reached.
+                #        # The first guy has already informed the other processes
+                #        # who have not yet sent the API requests to wait.
+                #        # Unfortunately I came to know a bit late.
+                #        # I will simply wait for the remaining time.
+                #        print("%s: Reached max limit, waiting without lock for %s sec"%s(stk['bscs']['symbol'], sec))
+                #        time.sleep(secs)
+                #    # Now retry the API request again.
+                #    continue
                 else:
                     break
             
@@ -4860,19 +4899,21 @@ def update_earnings(stk, core, sem=None, all=False):
         url = url + '&fmt=json'
  
         try:
-            ret = requests.get(url)
-            if ret.status_code == 402:
-                print("%r" %(ret.text))
-                close_sql_connection(mysql_engine)
-                close_db_client(c)
-                sys.exit(1)
-            if ret.status_code == 404:
-                print("Failed to get Earnings for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                update = True
-                return
-            if ret.status_code != 200:
-                print("Failed to get Earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                return
+            while True:
+                ret = requests.get(url)
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue
+                elif ret.status_code == 404:
+                    print("Failed to get Earnings for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    update = True
+                    return
+                elif ret.status_code != 200:
+                    print("Failed to get Earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                    return
+                else:
+                    break
         except Exception as E:
             print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
@@ -4965,21 +5006,28 @@ def update_all_earnings(all=False):
         if all:
             return
 
-        # Now fetch the bulk earnings
-        url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
-        ret = requests.get(url)
-        if ret.status_code == 402:
-            print("%s: Ratelimit: %r, %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
-            close_sql_connection(mysql_engine)
-            close_db_client(c)
-            sys.exit(1)
-        elif ret.status_code == 404:
-            print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
-            update = True
+        try:
+            while True:
+                # Now fetch the bulk earnings
+                url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
+                ret = requests.get(url)
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                    print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                    time.sleep(10)
+                    continue
+                elif ret.status_code == 404:
+                    print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
+                    update = True
+                    return
+                elif ret.status_code != 200:
+                    print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
+                    return
+                else:
+                    break
+        except Exception as E:
+            print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
-        elif ret.status_code != 200:
-            print("Failed to get bulk earnings data for error code: %r, error: %r" %(ret.status_code, ret.text))
-            return
+
 
         earnings = pd.DataFrame(ret.json()['earnings'])
         if not earnings.empty:
@@ -5199,7 +5247,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         try:
             while True:
                 ret = requests.get(url)
-                if ret.status_code == 402 or ret.headers['X-RateLimit-Remaining'] < 1 :
+                if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
                     print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
                     time.sleep(10)
                     continue
@@ -5781,6 +5829,7 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
     betas.update({"End_Price":float(s_last)})
     betas.update({"Start_Date":dt.combine(df.index[0].date(), dt.min.time())})
     betas.update({"End_Date": dt.combine(df.index[-1].date(), dt.min.time())})
+    betas.update({"Last_Updated_Date": dt.combine(dt.now().date(), dt.min.time())})
     betas.update({"Index_CAGR":b_cagr})
     betas.update({"Index_Percent_Change":bgrowth_percent})
     betas.update({"CAGR":cagr})
@@ -5848,8 +5897,8 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
         since_start = since.date()
     for year in years:
         try:
-            #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
-            if True:
+            if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
+            #if True:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
                 if st_date >= since_start:
@@ -5937,10 +5986,15 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
 
         update_stock_recession_betas(country, collection, stk, sym, df=df)
        
-        #if ('since_last_recession' in stk['fig']['betas'].keys() and 
-        #   stk['fig']['betas']['since_last_recession']['End_Date'].date() < dt.now().date()
-        #   ):
-        if True:
+        if ('since_last_recession' in stk['fig']['betas'].keys() and \
+            stk['fig']['betas']['since_last_recession'] is not None and \
+            'End_Date' in stk['fig']['betas']['since_last_recession'].keys() and \
+           stk['fig']['betas']['since_last_recession']['End_Date'].date() < get_previous_trading_day().date())\
+           or ('since_last_recession' not in stk['fig']['betas'].keys() or \
+                (stk['fig']['betas']['since_last_recession'] is not None and \
+                    'End_Date' not in stk['fig']['betas']['since_last_recession'].keys())
+              ):
+        #if True:
             #print(stk['fig']['betas'].keys())
             #Since last recession
             betas = None
@@ -5996,6 +6050,8 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
 
         insert=False
         for i, field in enumerate(beta_change_fields):
+            if not mysql_exists_table(price_engine, table_name):
+                continue
             if (mysql_exists_table(beta_engine, table_name) and
                     field+'_Momentum' in mysql_get_columns_from_engine(beta_engine, table_name)):
                 query = 'select Date, `Adj Close` from {}.{} WHERE Date not in (Select Date from {}.{} WHERE {} is not NULL order by Date);'.format(price_db, table_name, beta_db, table_name, field+'_Momentum')
@@ -6059,21 +6115,21 @@ def update_all_stock_betas(country):
     #docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     docs = db.US_Stocks.find({"$and" : [ \
-                                            {"$or": [\
-                                                        {"dates.betas_calc_date": {"$exists": False }},\
-                                                        {"dates.betas_calc_date": {"$lt": get_latest_trading_day()}}\
-                                                    ]\
-                                            },\
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":major_exchanges}},\
-                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            #{"$or": [\
+                                            #            {"dates.betas_calc_date": {"$exists": False }},\
+                                            #            {"dates.betas_calc_date": {"$lt": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
  
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    #docs = db.US_Stocks.find({"bscs.symbol" : "ZT"})
+    #docs = db.US_Stocks.find({"bscs.symbol" : "TWCB"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
@@ -6102,7 +6158,7 @@ def update_all_stock_betas(country):
         for j in range(len(processes)):
             if processes[j] is not None:
                 processes[j].join()
-        time.sleep(10)
+        #time.sleep(10)
         close_db_client(c)
         #close_sql_connection(sql_engine)
         print("Betas: Stocks tried :%r"%(i))
@@ -6470,14 +6526,51 @@ def fin_change(stk, df, fig, cols, table, items=None):
 
     if 'year' in table.lower():
         duration = 'year'
+        period = 5 # Last 5 years. Used for revenue slope calculation
+        dod = 'yoy'
         duration_range = fin_year_fields.keys()
     else:
         duration = 'quarter'
+        period = 4 # Last four quarters. Used for revenue slope calculation
+        dod = 'qoq'
         duration_range = fin_quarter_fields.keys()
 
     if 'income' in table.lower():
         all_fields = income_fields.keys()
         sheet_type = 'Income_Statement'
+
+        slope = np.nan
+        nrmse = np.nan
+        try:
+            if not df.empty:
+                #rev_df = df['totalRevenue']
+                rev_df=df.iloc[-period:]['totalRevenue']
+                rev_df = (rev_df - rev_df.mean())/rev_df.std()
+                # Calculate trend for that particular period
+                coefficients, residuals, _, _, _ = np.polyfit(range(len(rev_df)), rev_df, 1, full=True)
+                #coefficients, residuals, _, _, _ = np.polyfit(range(period), df.iloc[-period:]['totalRevenue ' + dod], 1, full=True)
+    
+                # Slope indicates the trend.
+                # The slope is 
+                # - positive if the price is going up.
+                # - negative if the price is moving down.
+                # - 0 if the price is constant.
+                # The slope value closer to 0 indicates that the 
+                # price didn't change much during that period.
+                # The other values indicates the strength of the trend
+                # in their respective directions.
+                slope = coefficients[0]
+                # Mean Square Error
+                mse = residuals[0]/(len(rev_df.index))
+                # Normalised Mean Square Error
+                #nrmse = np.sqrt(mse)/(df.iloc[-period:]['totalRevenue '+dod].max() - cur_df.min())
+                nrmse = np.sqrt(mse)/(rev_df.max() - rev_df.min())
+        except Exception as E:
+            pass
+        finally:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.revenueSlope', slope)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.revenueError', nrmse)
+
 
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.grossMargin', (df.iloc[-1]['grossMargin'],nan)[df.empty])
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration+'.netMargin', (df.iloc[-1]['netMargin'],nan)[df.empty]) 
@@ -6722,16 +6815,20 @@ def update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk
     # As we seggreated them into different databases, we don't use this method.
     #df = edf.append(df, sort=True)
 
-    cols = []
+    numeric_cols = []
     #cols = list(df.columns)
     for c in list(df.columns):
         if is_numeric_dtype(df[c]):
-            cols.append(c)
+            numeric_cols.append(c)
+
+    cols = list(df.columns)
+    cols.remove('Symbol')
+    cols.remove('Date')
 
     print("%s: %s: Total entries to calculate: %r" %(stk['bscs']['symbol'], table, items))
 
     # Calculate percentage change for all columns
-    df = fin_change(stk, df, fig, cols, table, items=items)
+    df = fin_change(stk, df, fig, numeric_cols, table, items=items)
 
     # Drop the financial entries. Retain only percentage change items
     # and write them to the database.
@@ -6748,7 +6845,7 @@ def update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk
     #Only once due to wrong entries
     #mysql_engine.execute("delete from {} where Symbol='{}';".format(table, stk['bscs']['symbol']))
 
-    ##mysql_update_table(mysql_fin_change_engine, table, df.loc[items], check=True, insert=True, unknown_table=False, cols_type='fin', temp=True, date_column=False, format_columns=False)
+    mysql_update_table(mysql_fin_change_engine, table, df.loc[items], check=True, insert=True, unknown_table=False, cols_type='fin', temp=True, date_column=False, format_columns=False)
 
 # By error, calculated same values for all yoys and qoqs
 # Check if two columns have the same values
@@ -6808,7 +6905,7 @@ def US_fin_percent_change(mysql_engine, mysql_fin_engine, db, stk, sem=None):
         #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
 
-def US_fin_percent_per_process(stk, sem, core=None):
+def US_fin_percent_per_process(stk, sem, core=None, mysql_engine=None, mysql_fin_change_engine=None):
     if core is not None:
         # Set process affinity
         aff = 0 | 1 << core
@@ -6822,7 +6919,9 @@ def US_fin_percent_per_process(stk, sem, core=None):
 
     close_db_client(c)
     close_sql_connection(mysql_engine)
-    sem.release()
+    close_sql_connection(mysql_fin_change_engine)
+    if sem:
+        sem.release()
 
 # Calculate percentage change of the annual/quarter fundamental params
 # like sales, profits, cash flows, tangible/total book value etc
@@ -6842,18 +6941,18 @@ def update_all_US_fin_percent_change():
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":major_exchanges}},\
-                                            {"$or": [\
-                                                        {"dates.fin_percent_update_date": {"$exists": False }},\
-                                                        {"dates.fin_percent_update_date": {"$lt": get_latest_trading_day()}}\
-                                                    ]\
-                                            },\
+                                            #{"$or": [\
+                                            #            {"dates.fin_percent_update_date": {"$exists": False }},\
+                                            #            {"dates.fin_percent_update_date": {"$lt": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
  
                                             #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
 
-    #stocks = db.US_Stocks.find({"bscs.symbol":'PFE'})
+    #stocks = db.US_Stocks.find({"bscs.symbol":'AMZN'})
     print(stocks.count())
 
     try:

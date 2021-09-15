@@ -71,7 +71,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     url = construct_price_data_url(symbol, start, end, index=False)
                 try:
                     ret = requests.get(url)
-                    if ret.status_code == 402 or ret.headers['X-RateLimit-Remaining'] < 1 :
+                    if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
                         print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
                         time.sleep(10)
                         continue

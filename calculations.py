@@ -347,7 +347,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
                                         {'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
                                         {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
     #stocks = collection.find({'bscs.symbol':'MTDR'})
-    print("Stocks: %r" %(stocks.count())) 
+    print("Stocks count: %r" %(stocks.count())) 
     for doc in stocks:
     #for doc in collection.find({'failcount.mysql_price_failcount' : {'$lte':5}}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):
     #for doc in collection.find({'failcount.mysql_price_failcount' : 0}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]]).allow_disk_use(True):

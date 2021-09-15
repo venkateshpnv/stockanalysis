@@ -325,6 +325,31 @@ def add_basic_header(sheet, i):
 
     i+=1
     sheet.col(i).width = 6*367
+    sheet.write(0, i, "Revenue Slope Quarterly", style_wrap)
+    conf.REVENUE_SLOPE_Q=i
+    styles['REVENUE_SLOPE_Q_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    styles['REVENUE_SLOPE_Q'] = get_style(color=None, num_format_str="0.00")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Slope Q Error", style_wrap)
+    conf.REVENUE_SLOPE_Q_ERROR=i
+    styles['REVENUE_SLOPE_Q_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Revenue Growth qoq", style_wrap)
+    conf.REV_QOQ=i
+    styles['REV_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Net Profit qoq", style_wrap)
+    conf.NET_PR_QOQ=i
+    styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Earnings Date", style_wrap)
     conf.EARNINGS_DATE=i
     #styles['UPCOMING_EARNINGS_DATE'] = get_style('blue', num_format_str="MM/DD/YY")
@@ -348,18 +373,6 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "Earnings Week Price Change", style_wrap)
     conf.EARNINGS_WEEK_PR_CHANGE=i
     styles['EARNINGS_WEEK_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
-
-    i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Revenue Growth qoq", style_wrap)
-    conf.REV_QOQ=i
-    styles['REV_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
-
-    i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Net Profit qoq", style_wrap)
-    conf.NET_PR_QOQ=i
-    styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     #i+=1
     ##Current Price Date
@@ -559,6 +572,16 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, st, style_wrap)
     conf.RSI_PRICE_CHANGE_DAYS=i
     styles['RSI_PRICE_CHANGE_DAYS'] = get_style(colors[i%len(colors)], num_format_str="0")
+
+    i+=1
+    # The percentage difference between today's price and the price on the day of Max RSI.
+    # This will give an idea of how much profit is possible if the price is back to same as the price
+    # on the day of max RSI.
+    sheet.col(i).width = 5*367
+    st = "Cur Price Max RSI Change"
+    sheet.write(0, i, st, style_wrap)
+    conf.CUR_PRICE_MAX_RSI=i
+    styles['CUR_PRICE_MAX_RSI'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     ##i+=1
     ##sheet.col(i).width = 6*367
@@ -1498,6 +1521,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'])
         days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'])
+        cur_price_max_rsi_change = percent_change(stk['price_change']['price'], stk['technicals']['rsi']['60day_max_price'])
+        sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'])
 
     if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
@@ -1861,6 +1886,16 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
        
     if stk['bscs']['symbol'] == 'AGM-PF':
         print('AGM-PF')
+
+    if 'Ratios' in stk.keys() and \
+            'quarter' in stk['Ratios'].keys() and \
+            'revenueSlope' in stk['Ratios']['quarter'].keys() and \
+            not isnan(stk['Ratios']['quarter']['revenueSlope']):
+            if stk['Ratios']['quarter']['revenueSlope'] > 0.7:
+                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, stk['Ratios']['quarter']['revenueSlope'], styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+            else:
+                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, stk['Ratios']['quarter']['revenueSlope'], styles['REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q_ERROR, stk['Ratios']['quarter']['revenueError'], styles['REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
 
     if 'last_earnings_report_date' in stk['dates'].keys():
         if stk['dates']['last_earnings_report_date'] >= dt.combine(dt.now(), dt.min.time()):
@@ -2242,6 +2277,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                     sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
                     days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
                     sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'], ashs=ashs, recent_ipos=recent_ipos)
+                    cur_price_max_rsi_change = percent_change(stk['price_change']['price'], stk['technicals']['rsi']['60day_max_price'])
+                    sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'], ashs=ashs, recent_ipos=recent_ipos)
 
         if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
             sh_write(ash, conf.COUNT, conf.BBANDS_PRICE, round(percent_change(stk['technicals']['bbands']['upper'], stk['price_change']['price']),2), styles['BBANDS_PRICE'], ashs=ashs, recent_ipos=recent_ipos)
@@ -2327,7 +2364,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         sh_write(ash, conf.COUNT, conf.DAY_PR_CHANGE, stk['price_change']['day'], price_style, ashs=ashs, recent_ipos=recent_ipos)
 
     if 'fig' in stk.keys():
-        if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
+        if 'betas' in stk['fig'].keys() and \
+                stk['fig']['betas']['one_month'] is not None:
+                #'one_month' in stk['fig']['betas'].keys() and \
             sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
             #sh_write(ash, conf.COUNT, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
             #sh_write(ash, conf.COUNT, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
