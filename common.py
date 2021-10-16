@@ -66,6 +66,12 @@ def p2f(x):
         return 0
     return val
 
+def is_val(a):
+    if a is not None:
+        if isinstance(a, str) and len(a) > 0:
+            return True
+    return False
+
 def is_number(a, check_non_zero=False):
     if isinstance(a, (int, float, complex)) and not isinstance(a, bool) is True and not isnan(a):
         if check_non_zero:

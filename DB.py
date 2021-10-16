@@ -118,6 +118,12 @@ def close_sql_connection(mysql_engine):
 def db_name(mysql_engine):
     return str(mysql_engine.url).split('/')[-1]
 
+def get_primary_keys(mysql_engine, table_name):
+    metadata = MetaData()
+    table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+    primary_keys = [pk_column.name for pk_column in table.primary_key.columns.values()]
+    return primary_keys
+
 def read_from_sql(query, mysql_engine, date=True):
     df = pd.DataFrame()
     df = pd.read_sql_query(query, mysql_engine)
@@ -234,7 +240,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
     all_fields = {**price_fields, **price_change_fields,\
                 **fin_year_fields, **fin_quarter_fields, \
                 **income_fields, **balance_fields, **cash_fields,\
-                **generic_fields,}
+                **generic_fields, **trends_fields}
     if cols_type == 'text':
         for c in sorted(missing_cols):
             c_dtype = 'text'
@@ -242,9 +248,15 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
     else:
         for c in sorted(missing_cols):
-            if c in all_fields.keys():
-                c_dtype = all_fields[c]
+            #if c in all_fields.keys():
+            #    c_dtype = all_fields[c]
+            # Get the indices of the matching or a substring in the list.
+            indices = [i for i, s in enumerate([item.lower() for item in list(all_fields.keys())]) if c.lower() in s]
+            if len(indices) > 0:
+                # Assign the same data type to the new column c
+                c_dtype = all_fields[list(all_fields.keys())[indices[0]]]
             else:
+                # If no match found, assume its a float
                 c_dtype = 'float'
             print("%s: Column: %s: %s" %(table_name, c, c_dtype))
             mysql_add_column(mysql_engine, table_name, c, c_dtype, remove_spaces)
@@ -483,13 +495,19 @@ def get_symbols_names_from_mongo(collection=None, country='US'):
         db = c['Stocks']
 
     collection = get_collection(country, db)
-    items = collection.find({},{'bscs.symbol':1,'bscs.name':1,'_id':0})
+    items = collection.find({ "$and": [\
+                                {"General.IsDelisted": False},\
+                                {'General.Type':'Common Stock'},\
+                                {'General.Exchange':{"$in":major_exchanges}},\
+                                ]\
+                            }, \
+                            {'General.Code':1,'General.Name':1,'_id':0})
     if not collection:
         close_db_client(c)
 
     stocks = []
     for i in items:
-        stocks.append("{}              {}".format(i['bscs']['symbol'], i['bscs']['name']))
+        stocks.append("{}          {}".format(i['General']['Code'], i['General']['Name']))
 
     return stocks
 
@@ -2472,6 +2490,8 @@ def update_price_trend(collection, sym, df, end, duration, duration_text):
     eindex = get_nearest_index(df, end)
     sindex = get_nearest_index(df, end-duration)
     cur_df = df.iloc[sindex:eindex]['Adj Close']
+    # Normalize the price data
+    cur_df = (cur_df - cur_df.mean())/cur_df.std()
     slope = np.nan
     nrmse = np.nan
     try:
@@ -3771,7 +3791,146 @@ def update_US_stock_statement(col, stk, statement_type, duration_type):
         col.update({'bscs.symbol':stk['bscs']['symbol']},{'$set':{field:dt.now().date().strftime("%Y-%m-%d")}})
         break
 
-def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
+def update_US_stock_earnings_trend(stk, core, sem=None):
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+    c  = open_db_client()
+    db = c['Stocks']
+
+    update = False
+    df  = pd.DataFrame()
+    url='https://eodhistoricaldata.com/api/calendar/trends?api_token=' + \
+                get_eod_token_id() + \
+                '&fmt=json&symbols=' + \
+                stk['bscs']['symbol'] + \
+                '.US'
+    try:
+        count = 0
+        while True:
+            ret = requests.get(url)
+            if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
+                print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
+                time.sleep(10)
+                continue
+            elif ret.status_code == 404:
+                print("Failed to get earnings trend data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                update = True
+                return
+            elif ret.status_code != 200:
+                print("Failed to get earnings trend data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+            else:
+                   break
+    except Exception as E:
+            print("update earning trends Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            close_sql_connection(mysql_engine)
+            close_db_client(c)
+            return
+
+    try:
+        df = pd.DataFrame(ret.json()['trends'][0])
+        if df.empty:
+            return
+
+        table_name = 'Earnings_Trends'
+        mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=True)
+        table_cols = mysql_get_columns_from_engine(mysql_engine, table_name)
+        table_primary_keys =  get_primary_keys(mysql_engine, table_name)
+        desired_primary_keys = {'Symbol':'varchar(12)', 
+                                'Date':'varchar(12)', 
+                                'period':'varchar(12)'
+                                }
+        update_primary_key = False
+        for col in desired_primary_keys.keys():
+            if col not in table_primary_keys:
+                if col in table_cols:
+                    # First set the key to be not null
+                    query='alter table ' + table_name + \
+                            ' modify column ' + col + ' ' + \
+                            desired_primary_keys[col]+ ' not null'
+                else:
+                    # Column doesn't exist. Add new column
+                    query = 'alter table ' + table_name + \
+                            ' add column ' + col + \
+                            ' ' + desired_primary_keys[col] + ' not null'
+                mysql_engine.execute(query)
+                update_primary_key = True
+
+        if update_primary_key:
+            query='alter table ' + table_name + \
+                    ' drop primary key, add primary key('\
+                    +",".join(list(desired_primary_keys.keys()))+ ')'
+            mysql_engine.execute(query)
+
+        df.rename(columns={'date':'Date'}, inplace=True)
+        df.index = df['Date']
+        #del df['date']
+
+        if 'code' in df.keys():
+            del df['code']
+
+        df.insert(loc=0, column='Symbol', value=stk['bscs']['symbol'])
+
+        query = 'select Symbol, Date, period from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        ddf = read_from_sql(query, mysql_engine)
+
+        # Get the new entries that are already not present in the database.
+        df = df[~df[['Symbol', 'Date', 'period']].isin(ddf[['Symbol', 'Date', 'period']].to_dict(orient='list')).all(axis=1)]
+        if not df.empty:
+            print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(df.index.tolist())))
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_update_date', dt.combine(dt.now(), dt.min.time()))
+
+    finally:
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_pull_date', dt.combine(dt.now(), dt.min.time()))
+        close_sql_connection(mysql_engine)
+        if sem:
+            sem.release()
+
+def update_all_earnings_trend():
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+    sort = [-1, 1][dt.now().day % 2 == 0]
+
+    num_processes = 6
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    j=0
+ 
+    today = dt.combine(dt.now(), dt.min.time())
+
+    try:
+        stocks = db.US_Stocks.find({"$and": [\
+                                                {'General.Type':'Common Stock'},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                            ]\
+                                    },\
+                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+        print(stocks.count())
+
+        #stocks = db.US_Stocks.find({"bscs.symbol":"AAPL"})
+        for i, stk in enumerate(stocks):
+            print("%d: %r" %(i, stk['bscs']['symbol']))
+            sem.acquire()
+            #update_US_stock_earnings_trend(stk, i%num_cores, sem)
+            processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_earnings_trend, args=(stk, i%num_cores, sem))
+            processes[j%num_processes].start()
+            j = j + 1
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None, calc_fin_percent=True):
     local_mysql = False
     if not isinstance(fin, dict):
         return
@@ -3795,6 +3954,8 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
 
                     table_name = stmt_type+'_'+duration
                     mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=True)
+                    table_cols = mysql_get_columns_from_engine(mysql_engine, table_name)
+
                     # Sometimes, we get null entries and they are added to the database.
                     # Check if new values are available and overwrite the null entries
                     # with the updated data.
@@ -3804,8 +3965,12 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
                         field = 'totalAssets'
                     else: 
                         field = 'freeCashFlow'
-                    query = 'select `Date`, %s from {} where Symbol = \'{}\' and %s IS NULL'.format(table_name, stk['bscs']['symbol'])%(field, field)
-                    null_df = read_from_sql(query, mysql_engine)
+                    if field in table_cols:
+                        query = 'select `Date`, %s from {} where Symbol = \'{}\' and %s IS NULL'.format(table_name, stk['bscs']['symbol'])%(field, field)
+                        null_df = read_from_sql(query, mysql_engine)
+                    else:
+                        null_df = pd.DataFrame()
+
                     # Get the entries where the totalRevenue was NULL in the past.
                     new_entries = stmt[stmt.index.isin(null_df.index)]
                     if not new_entries.empty:
@@ -3818,7 +3983,8 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
                             mysql_fin_change_engine.execute(query)
 
                         fig = ['quart_fig', 'fig'][duration == 'yearly']
-                        update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
+                        if calc_fin_percent:
+                            update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
                         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_update_date', dt.combine(dt.now(), dt.min.time()))
 
                     query = 'select `Date` from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
@@ -3833,7 +3999,8 @@ def update_US_stock_fin_information_data(db, fin, stk, mysql_engine=None):
                         print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(stmt.index.tolist())))
                         mysql_update_table(mysql_engine, table_name, stmt, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
                         fig = ['quart_fig', 'fig'][duration == 'yearly']
-                        update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
+                        if calc_fin_percent:
+                            update_US_fin_stmt_percent_change(mysql_engine, mysql_fin_change_engine, stk, fig, table_name)
                         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_statements_update_date', dt.combine(dt.now(), dt.min.time()))
 
     finally:
@@ -3872,7 +4039,7 @@ def update_US_stock_fin_information(stk, core, sem):
             return
 
         fin = ret.json()
-        update_US_stock_fin_information_data(db, fin, stk, mysql_engine)
+        update_US_stock_fin_information_data(db, fin, stk, mysql_engine, calc_fin_percent=False)
 
         #if not isinstance(fin, dict):
         #    return
@@ -3931,6 +4098,7 @@ def update_US_all_stock_fin_information():
                                         ]\
                                 }, no_cursor_timeout=True).sort([["General.Code",sort]]).allow_disk_use(True)
     print(stocks.count())
+    #stocks = db.US_Stocks.find({'bscs.symbol':'AAPL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
 
     for i, stk in enumerate(stocks):
         print("%d: %r" %(i, stk['bscs']['symbol']))
@@ -5993,6 +6161,8 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
            or ('since_last_recession' not in stk['fig']['betas'].keys() or \
                 (stk['fig']['betas']['since_last_recession'] is not None and \
                     'End_Date' not in stk['fig']['betas']['since_last_recession'].keys())
+           or ('since_last_recession' in stk['fig']['betas'].keys() and \
+               stk['fig']['betas']['since_last_recession'] is None)
               ):
         #if True:
             #print(stk['fig']['betas'].keys())
@@ -6129,7 +6299,7 @@ def update_all_stock_betas(country):
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
  
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    #docs = db.US_Stocks.find({"bscs.symbol" : "TWCB"})
+    #docs = db.US_Stocks.find({"bscs.symbol" : "XPRO"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)

@@ -336,6 +336,25 @@ def add_basic_header(sheet, i):
     conf.REVENUE_SLOPE_Q_ERROR=i
     styles['REVENUE_SLOPE_Q_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
+    i = i + 1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Yr Price Change", style_wrap)
+    conf.YR_PR_CHANGE=i
+    styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+ 
+    #i+=1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Annual Price Slope", style_wrap)
+    #conf.PRICE_SLOPE_A=i
+    #styles['PRICE_SLOPE_A_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    #styles['PRICE_SLOPE_A'] = get_style(color=None, num_format_str="0.00")
+
+    #i+=1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Price Slope A Error", style_wrap)
+    #conf.PRICE_SLOPE_A_ERROR=i
+    #styles['PRICE_SLOPE_A_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
     i+=1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Revenue Growth qoq", style_wrap)
@@ -344,9 +363,21 @@ def add_basic_header(sheet, i):
 
     i+=1
     sheet.col(i).width = 6*367
-    sheet.write(0, i, "Net Profit qoq", style_wrap)
-    conf.NET_PR_QOQ=i
-    styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    sheet.write(0, i, "Revenue Growth yoy", style_wrap)
+    conf.REV_YOY=i
+    styles['REV_YOY'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Revenue Growth yo3y", style_wrap)
+    conf.REV_YO3Y=i
+    styles['REV_YO3Y'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    #i+=1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Net Profit qoq", style_wrap)
+    #conf.NET_PR_QOQ=i
+    #styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 6*367
@@ -1338,17 +1369,17 @@ def add_price_change_header(sheet, i, sheet_type):
     conf.HF_YR_PR_CHANGE=i
     styles['HF_YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
-    i = i + 1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Yr Price Change", style_wrap)
-    conf.YR_PR_CHANGE=i
-    styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    #i = i + 1
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "Yr Price Change", style_wrap)
+    #conf.YR_PR_CHANGE=i
+    #styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
  
     i = i + 1
     sheet.col(i).width = 8*367
-    sheet.write(0, i, "Whole Price Change", style_wrap)
+    sheet.write(0, i, "Whole Price Change times", style_wrap)
     conf.WH_PR_CHANGE=i
-    styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="#,##0.00")
 
     return i
 
@@ -1533,7 +1564,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text)
  
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
-        sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, style_percent)
+        sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole'], style_decimal)
     sh_write(ash, count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
     sh_write(ash, count, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent)
     sh_write(ash, count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
@@ -1837,7 +1868,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'fig' in stk.keys() and 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
             if '2020' in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession']['2020'] != None:
-                if 'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
+                if 'since_last_recession' in stk['fig']['betas'].keys() and \
+                        'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
                     sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent, ashs, recent_ipos=recent_ipos)
             if '2007' in stk['fig']['betas']['recession'].keys():
                 if stk['fig']['betas']['recession']['2007'] != None:
@@ -1892,10 +1924,20 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             'revenueSlope' in stk['Ratios']['quarter'].keys() and \
             not isnan(stk['Ratios']['quarter']['revenueSlope']):
             if stk['Ratios']['quarter']['revenueSlope'] > 0.7:
-                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, stk['Ratios']['quarter']['revenueSlope'], styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, round(stk['Ratios']['quarter']['revenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
             else:
-                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, stk['Ratios']['quarter']['revenueSlope'], styles['REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q_ERROR, stk['Ratios']['quarter']['revenueError'], styles['REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, round(stk['Ratios']['quarter']['revenueSlope'],2), styles['REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q_ERROR, round(stk['Ratios']['quarter']['revenueError'],2), styles['REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+    #if 'technicals' in stk.keys() and \
+    #        'price_trend' in stk['technicals'].keys() and \
+    #        'year' in stk['technicals']['price_trend'].keys() and \
+    #        not isnan(stk['technicals']['price_trend']['year']['slope']):
+    #        if stk['technicals']['price_trend']['year']['slope'] > 0.25:
+    #            sh_write(ash, conf.COUNT, conf.PRICE_SLOPE_A, stk['technicals']['price_trend']['year']['slope'], styles['PRICE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+    #        else:
+    #            sh_write(ash, conf.COUNT, conf.PRICE_SLOPE_A, stk['technicals']['price_trend']['year']['slope'], styles['PRICE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+    #        sh_write(ash, conf.COUNT, conf.PRICE_SLOPE_A_ERROR, stk['technicals']['price_trend']['year']['error'], styles['PRICE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
 
     if 'last_earnings_report_date' in stk['dates'].keys():
         if stk['dates']['last_earnings_report_date'] >= dt.combine(dt.now(), dt.min.time()):
@@ -1916,11 +1958,20 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         if 'totalRevenue' in stk['FinChange']['Income_Statement'].keys() and \
                 'qoq' in stk['FinChange']['Income_Statement']['totalRevenue'].keys() and \
                 not isnan(stk['FinChange']['Income_Statement']['totalRevenue']['qoq']):
-            sh_write(ash, conf.COUNT, conf.REV_QOQ, stk['FinChange']['Income_Statement']['totalRevenue']['qoq'], styles['NET_PR_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'netIncome' in stk['FinChange']['Income_Statement'].keys() and \
-                'qoq' in stk['FinChange']['Income_Statement']['netIncome'].keys() and\
-                not isnan(stk['FinChange']['Income_Statement']['netIncome']['qoq']):
-            sh_write(ash, conf.COUNT, conf.NET_PR_QOQ, stk['FinChange']['Income_Statement']['netIncome']['qoq'], styles['NET_PR_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
+            sh_write(ash, conf.COUNT, conf.REV_QOQ, stk['FinChange']['Income_Statement']['totalRevenue']['qoq'], styles['REV_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'totalRevenue' in stk['FinChange']['Income_Statement'].keys() and \
+                        'yoy' in stk['FinChange']['Income_Statement']['totalRevenue'].keys() and \
+                        not isnan(stk['FinChange']['Income_Statement']['totalRevenue']['yoy']):
+                    sh_write(ash, conf.COUNT, conf.REV_YOY, stk['FinChange']['Income_Statement']['totalRevenue']['yoy'], styles['REV_YOY'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'totalRevenue' in stk['FinChange']['Income_Statement'].keys() and \
+                        'yo3y' in stk['FinChange']['Income_Statement']['totalRevenue'].keys() and \
+                        not isnan(stk['FinChange']['Income_Statement']['totalRevenue']['yo3y']):
+                    sh_write(ash, conf.COUNT, conf.REV_YO3Y, stk['FinChange']['Income_Statement']['totalRevenue']['yo3y'], styles['REV_YO3Y'], ashs=ashs, recent_ipos=recent_ipos)
+
+        #if 'netIncome' in stk['FinChange']['Income_Statement'].keys() and \
+        #        'qoq' in stk['FinChange']['Income_Statement']['netIncome'].keys() and\
+        #        not isnan(stk['FinChange']['Income_Statement']['netIncome']['qoq']):
+        #    sh_write(ash, conf.COUNT, conf.NET_PR_QOQ, stk['FinChange']['Income_Statement']['netIncome']['qoq'], styles['NET_PR_QOQ'], ashs=ashs, recent_ipos=recent_ipos)
 
     sheet.write(i, 3, "Public Stake")
     if 'pub_stake' in stk['bscs'].keys():
@@ -2340,7 +2391,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     if 'whole' in stk['price_change'].keys() and stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         #price_style = get_percent_style(stk['price_change']['whole'], styles['WH_PR_CHANGE'])
-        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole']/100, styles['WH_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole'], styles['WH_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
     if 'year' in stk['price_change'].keys() and stk['price_change']['year'] is not None and stk['price_change']['year'] != 0:
         price_style = get_percent_style(stk['price_change']['year'], styles['YR_PR_CHANGE'])
         sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], price_style, ashs=ashs, recent_ipos=recent_ipos)
@@ -2365,6 +2416,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     if 'fig' in stk.keys():
         if 'betas' in stk['fig'].keys() and \
+                'one_month' in stk['fig']['betas'].keys() and \
                 stk['fig']['betas']['one_month'] is not None:
                 #'one_month' in stk['fig']['betas'].keys() and \
             sh_write(ash, conf.COUNT, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent, ashs=ashs, recent_ipos=recent_ipos)

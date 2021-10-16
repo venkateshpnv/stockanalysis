@@ -552,6 +552,31 @@ generic_fields = {'Symbol':'varchar(12)',
                     }
 generic_fields_datatypes = ['varchar(12)', 'varchar(12)','varchar(12)', 'varchar(24)', 'varchar(24)', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'BOOL', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(20)', 'varchar(15)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'varchar(12)', 'BIGINT', 'BIGINT', 'varchar(12)']
 
+trends_fields = {'date'  : 'varchar(12)', 
+                'period' : 'varchar(12)', 
+                'growth' : 'float', 
+                'earningsEstimateAvg' : 'float', 
+                'earningsEstimateLow' : 'float', 
+                'earningsEstimateHigh': 'float',
+                'earningsEstimateYearAgoEps' : 'float', 
+                'earningsEstimateNumberOfAnalysts' : 'int', 
+                'earningsEstimateGrowth' : 'float', 
+                'revenueEstimateAvg' : 'float', 
+                'revenueEstimateLow' : 'float', 
+                'revenueEstimateHigh': 'float', 
+                'revenueEstimateYearAgoEps' : 'float', 
+                'revenueEstimateNumberOfAnalysts' : 'int', 
+                'revenueEstimateGrowth' : 'float', 
+                'epsTrendCurrent' : 'float', 
+                'epsTrend7daysAgo' : 'float', 
+                'epsTrend30daysAgo': 'float', 
+                'epsTrend60daysAgo': 'float',
+                'epsTrend90daysAgo': 'float',
+                'epsRevisionsUpLast7days' : 'float', 
+                'epsRevisionsUpLast30days': 'float', 
+                'epsRevisionsDownLast30days' : 'float',
+                }
+
 #Ticker info fields in the US_Stocks.STKSYMBOL.
 # This information is retrieved from yfinance.Ticker(SYMBOL).info() and updated in our tables on daily basis.
 tick_fields = ['floatShares', 'heldPercentInsiders', 'heldPercentInstitutions', 'sharesOutstanding', 'sharesPercentSharesOut', 'sharesShort', 'sharesShortPreviousMonthDate', 'sharesShortPriorMonth', 'shortPercentOfFloat', 'shortRatio']

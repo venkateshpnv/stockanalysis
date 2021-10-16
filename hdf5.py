@@ -83,7 +83,11 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                         print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                         return df
                 except Exception as E:
-                    print("Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+                    print("get_stock_data(): Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+                    if isinstance(E, x-ratelimit-remaining):
+                        print("%s: ratelimit exception. sleep and retry." %(stk['bscs']['symbol']))
+                        time.sleep(10)
+                        continue
                     return
 
                 #print("%s: Ratelimit: %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining'])))
@@ -595,7 +599,7 @@ def get_nearest_index(df, req_date, tolerance=pd.Timedelta('2Y')):
         if i != 0:
             cur = l[i]
             before = l[i - 1]
-            if i < len(l):
+            if i < len(l)-1:
                 after  = l[i + 1]
                 if (cur - before) < (after - cur):
                     # Take previous entry
@@ -1309,12 +1313,12 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                 df = get_stock_data(country, stk, start, end, vpn_event, eod_token=eod_token)
                 data_pull = True
                 # Sometimes yahoo gives wrong data. Wrong data will have volume as 0. Discard those rows
-                if 'Volume' in df.columns:
+                if df is not None and 'Volume' in df.columns:
                     df.drop(df[df['Volume']==0].index, inplace=True)
                 #e=time.time()
                 #print("got data for %r from yahoo, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))
                 #print("two: sym: %r, start: %r, end: %r" %(stk['bscs']['symbol'], str(start), str(end)))
-                if not df.empty:
+                if df is not None and not df.empty:
                     xdf=copy.deepcopy(df)
                     #rdf = rdf.append(df)
                     #rdf = remove_df_duplicates(rdf)
@@ -1374,7 +1378,7 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
 
                 if not index:
                     if data_pull:
-                        if not df.empty:
+                        if df is not None and not df.empty:
                             DB.update_field(collection, symbol, "dates.mysql_price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
                     else:
