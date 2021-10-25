@@ -124,9 +124,12 @@ def get_primary_keys(mysql_engine, table_name):
     primary_keys = [pk_column.name for pk_column in table.primary_key.columns.values()]
     return primary_keys
 
-def read_from_sql(query, mysql_engine, date=True):
+def read_from_sql(query, mysql_engine, date=True, params=None):
     df = pd.DataFrame()
-    df = pd.read_sql_query(query, mysql_engine)
+    if params:
+        df = pd.read_sql_query(query, mysql_engine, params=params)
+    else:
+        df = pd.read_sql_query(query, mysql_engine)
     if date and not df.empty:
         df.index = pd.to_datetime(df['Date'])
     return df
@@ -7143,6 +7146,184 @@ def update_all_US_fin_percent_change():
         time.sleep(30)
         close_db_client(c)
         close_sql_connection(mysql_engine)
+
+def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='Income_Statement', ordinal=True):
+    #tables = ['Income_Statement_quarterly', 'Balance_Sheet_quarterly', 'Cash_Flow_quarterly']
+    pd.set_option('float_format', '{:f}'.format)
+
+    table = stmt+'_'+duration.lower()
+    future_table = 'Earnings_Trends'
+    if not mysql_exists_table(mysql_engine, table):
+        return
+    if not mysql_exists_table(mysql_engine, future_table):
+        return
+
+    dur = duration.lower()[0]
+    # Current statement fields
+    fields = ['totalRevenue']
+    # Current statement future trends fields
+    f_fields = ['revenueEstimateAvg']
+    # Current statement mongodb fields
+    mdb_fields = ['revenue']
+    if duration.lower() == 'yearly':
+        # Take last five years of revenue
+        num_stmts = 5
+        # multiply slope with this factor to get a closer to zero slope.
+        slope_factor = 100
+    else:
+        # Take last four quarters of revenue
+        num_stmts = 4
+        # multiply slope with this factor to get a closer to zero slope.
+        slope_factor = 1
+
+    for i, field in enumerate(fields):
+        query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, stk['bscs']['symbol'], num_stmts)
+        stmt_df = read_from_sql(query, mysql_engine)
+        if stmt_df.empty:
+            continue
+
+#        if duration.lower() == 'yearly':
+#            # Take last five years of revenue
+#            num_stmts = 5
+#            stmt_df = stmt_df.iloc[-5:]
+#        else:
+#            num_stmts = 4
+#            # Take last four quarters of revenue
+#            stmt_df = stmt_df.iloc[-4:]
+
+        # Needed for appending with f_stmt_df
+        stmt_df.index = stmt_df['Date']
+
+        # Calculate slope of last five years
+        slope, nrmse = calculate_slope(stmt_df[[field]], ordinal=ordinal)
+        slope = slope * slope_factor
+        if isinstance(nrmse, pd.Series):    
+            nrmse = nrmse[0]
+        #update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'revenueSlope', slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Slope', slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Error', nrmse)
+
+        last_date = stmt_df.iloc[-1]['Date']
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
+        #query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and (period = \'+2%s\' or period = \'+1%s\' or period = \'0%s\')'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))%(dur, dur, dur)
+        # Future stmt
+        f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format(dur),))
+        if f_stmt_df.empty:
+            continue
+        # Sort by Date followed by period.
+        # If there are multiple entries for the same date, retain entries with '0y' period.
+        # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
+        # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
+
+        # Sort the entries based on period where '0y' takes the order of precedence
+        f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+        # Set the index from 0 to n
+        f_stmt_df = f_stmt_df.reset_index(drop=True)
+        # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+        f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+        # Set the index back to the Date.
+        f_stmt_df.index = f_stmt_df['Date']
+
+        # Calculate slope of future years
+        slope, nrmse = calculate_slope(f_stmt_df[[f_fields[i]]], ordinal=ordinal)
+        slope = slope * slope_factor
+        if isinstance(nrmse, pd.Series):    
+            nrmse = nrmse[0]
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+'Slope', slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+'Error', nrmse)
+
+
+        # Delete period column and rename revenueEstimateAvg to totalRevenue
+        if 'period' in f_stmt_df.columns:
+            del f_stmt_df['period']
+        #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+        new_cols = {f_fields[i]:field}
+        f_stmt_df.rename(columns=new_cols, inplace=True)
+
+        # Combine both dfs.
+        # Now we have the revenue for last 5 years and next two years.
+        df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+
+        rolling_slopes = pd.DataFrame()
+        rolling_slopes['slope'] = np.nan
+        rolling_slopes['error'] = np.nan
+
+        # Calculate rolling revenue slopes and a slope of all rolling slopes.
+        for j, d in df.iloc[:-1].iterrows():
+            rolling_slopes.at[j,'slope'], rolling_slopes.at[j,'error'] = calculate_slope(df.loc[j:][[field]], ordinal=ordinal)
+        rolling_slopes['slope'] = rolling_slopes['slope'] * slope_factor
+        slope, nrmse = calculate_slope(rolling_slopes[['slope']], transform=False, ordinal=ordinal)
+        slope = slope * slope_factor * [1, 10][ordinal]
+        if isinstance(nrmse, pd.Series):    
+            nrmse = nrmse[0]
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i]+'Slope', slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i]+'Error', nrmse)
+
+def update_fin_slope(stk, sem=None, core=None):
+    if core is not None:
+        # Set process affinity
+        aff = 0 | 1 << core
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+    try:
+        #update_fin_slope_duration(mysql_engine, db, stk, 'yearly')
+        update_fin_slope_duration(mysql_engine, db, stk, 'quarterly', ordinal=False)
+
+    finally:
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.fin_slopes_update_date', dt.combine(dt.now(), dt.min.time()))
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
+        if sem:
+            sem.release()
+
+def update_all_fin_slopes():
+    #os.system("taskset -p 0xfffff %d > /dev/null 2>&1" % os.getpid())
+    num_processes = num_cores #* 2 
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    #sem = threading.BoundedSemaphore(num_cores)
+    c  = open_db_client()
+    db = c['Stocks']
+
+    #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(2).sort([["sno",1]])
+    sort = [1, -1][dt.now().day % 2 == 0]
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{"$or": [\
+                                            #            {"dates.fin_slopes_update_date": {"$exists": False }},\
+                                            #            {"dates.fin_slopes_update_date": {"$lt": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+ 
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+
+    stocks = db.US_Stocks.find({"bscs.symbol":'PLTR'})
+    print(stocks.count())
+
+    try:
+        for i, stk in enumerate(stocks):
+            #if i > 8:
+            #    break
+            sem.acquire()
+            print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            update_fin_slope(stk, sem, i%num_cores)
+            #processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, sem, i%num_cores,))
+            #processes[i%num_processes].start()
+
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        #time.sleep(30)
+        close_db_client(c)
 
 def correct_error(stmt, stmt_type):
     miss_count = 0

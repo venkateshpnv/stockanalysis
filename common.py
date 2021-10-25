@@ -15,6 +15,9 @@ import pandas as pd
 import numpy as np
 import requests
 from math import nan, isnan
+from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
+from scipy import stats
+import copy
 
 from itertools import cycle
 import secrets
@@ -499,3 +502,59 @@ def get_latest_figure(stk, statement_type, figure):
                             return stk['fig']['financial-statements']['income-statement'][latest_date][figure]/1000
 
     return None
+
+def df_format(x, thousands=False):
+    if thousands:
+        return "${:,.0f}K".format(x/1000)
+    return "${:,.0f}".format(x)
+
+def calculate_slope(df, scaler=True, transform=True, ordinal=True):
+    slope = np.nan
+    nrmse = np.nan
+    try:
+        if not isinstance(df,pd.DataFrame):
+            print("Error: common.py: calculate_slope(): Not an instance of dataframe")
+            return
+ 
+        if df.empty:
+            print("Error: common.py: calculate_slope(): Empty dataframe")
+            return
+
+        # Normalize data.
+        # You can also use scikitlearn's scaling function
+
+        # This is a simple way to substract the mean and divide by std devivation.
+        if scaler:
+            if transform:
+                #scaler = MinMaxScaler()
+                scaler = MaxAbsScaler()
+                df_transform = scaler.fit_transform(df)
+                df_transform = pd.DataFrame(columns=list(df.columns), data=df_transform, index=df.index)
+
+            else:
+                # You don't need to transform the slopes
+                # Set this to False if you are calculating a slope for a set of slopes
+                df_transform = copy.deepcopy(df)
+        else:
+            df_transform = (df - df.mean())/df.std()
+            #df_transform = (df - df.min())/(df.max() - df.min())
+
+        if ordinal:
+            df['Date'] = df.index
+            df['Date_ordinal'] = pd.to_datetime(df['Date']).map(dt.toordinal)
+            x_coordinates = df['Date_ordinal'].values
+        else:
+            x_coordinates = np.arange(len(df_transform))
+
+        coefficients, residuals, _, _, _ = np.polyfit(x_coordinates, df_transform, 1, full=True)
+        #coefficients, residuals, _, _, _ = np.polyfit(np.arange(len(df_transform)), df_transform, 1, full=True)
+        slope = coefficients[0][0]
+        # Mean Square Error
+        if len(residuals) > 0:
+            mse = residuals[0]/(len(df.index))
+            # Normalised Root Mean Square Error
+            nrmse = np.sqrt(mse)/(df_transform.max() - df_transform.min())
+    except Exception as E:
+            print("Error: common.py: calculate_slope(): %s" %(str(E)))
+    finally:
+        return slope, nrmse
