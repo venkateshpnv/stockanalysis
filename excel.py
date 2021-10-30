@@ -287,6 +287,150 @@ def get_India_symbol_and_sector(stk):
             return
     PRINT_ERR("Cant find symbol name for %s" %(stk['bscs']['bse_symbol']))
 
+def revenue_slopes(sheet, i):
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev Slope Q", style_wrap)
+    conf.CUR_REVENUE_SLOPE_Q=i
+    styles['REVENUE_SLOPE_Q_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    styles['CUR_REVENUE_SLOPE_Q'] = get_style(color=None, num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev Slope Q Error", style_wrap)
+    conf.CUR_REVENUE_SLOPE_Q_ERROR=i
+    styles['CUR_REVENUE_SLOPE_Q_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev Slope Q", style_wrap)
+    conf.FUTURE_REVENUE_SLOPE_Q=i
+    styles['FUTURE_REVENUE_SLOPE_Q'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev Slope Q Error", style_wrap)
+    conf.FUTURE_REVENUE_SLOPE_Q_ERROR=i
+    styles['FUTURE_REVENUE_SLOPE_Q_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev CQGR", style_wrap)
+    conf.CUR_REVENUE_CQGR=i
+    styles['CUR_REVENUE_CQGR'] = get_style(color=None, num_format_str="0.00%")
+    styles['REVENUE_CQGR_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev CQGR", style_wrap)
+    conf.FUTURE_REVENUE_CQGR=i
+    styles['FUTURE_REVENUE_CQGR'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Fut Rev CQGR", style_wrap)
+    conf.CUR_FUTURE_REVENUE_CQGR=i
+    styles['CUR_FUTURE_REVENUE_CQGR'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Elbow Point Q", style_wrap)
+    conf.REVENUE_ELBOW_POINT_Q=i
+    styles['REVENUE_ELBOW_POINT_Q'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Elbow Pre Slope Q", style_wrap)
+    conf.REVENUE_PRE_ELBOW_SLOPE_Q=i
+    styles['REVENUE_PRE_ELBOW_SLOPE_Q'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Post Elbow Slope Q", style_wrap)
+    conf.REVENUE_POST_ELBOW_SLOPE_Q=i
+    styles['REVENUE_POST_ELBOW_SLOPE_Q'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev Slope A", style_wrap)
+    conf.CUR_REVENUE_SLOPE_A=i
+    styles['REVENUE_SLOPE_A_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    styles['CUR_REVENUE_SLOPE_A'] = get_style(color=None, num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev Slope A Error", style_wrap)
+    conf.CUR_REVENUE_SLOPE_A_ERROR=i
+    styles['CUR_REVENUE_SLOPE_A_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev Slope A", style_wrap)
+    conf.FUTURE_REVENUE_SLOPE_A=i
+    styles['FUTURE_REVENUE_SLOPE_A'] = get_style(color=None, num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev Slope A Error", style_wrap)
+    conf.FUTURE_REVENUE_SLOPE_A_ERROR=i
+    styles['FUTURE_REVENUE_SLOPE_A_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Rev CAGR", style_wrap)
+    conf.CUR_REVENUE_CAGR=i
+    styles['REVENUE_CAGR_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    styles['CUR_REVENUE_CAGR'] = get_style(color=None, num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Fut Rev CAGR", style_wrap)
+    conf.FUTURE_REVENUE_CAGR=i
+    styles['FUTURE_REVENUE_CAGR'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Cur Fut Rev CAGR", style_wrap)
+    conf.CUR_FUTURE_REVENUE_CAGR=i
+    styles['CUR_FUTURE_REVENUE_CAGR'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Elbow Point A", style_wrap)
+    conf.REVENUE_ELBOW_POINT_A=i
+    styles['REVENUE_ELBOW_POINT_A'] = get_style(colors[i%len(colors)], num_format_str="normal")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Elbow Pre Slope A", style_wrap)
+    conf.REVENUE_PRE_ELBOW_SLOPE_A=i
+    styles['REVENUE_PRE_ELBOW_SLOPE_A'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Rev Post Elbow Slope A", style_wrap)
+    conf.REVENUE_POST_ELBOW_SLOPE_A=i
+    styles['REVENUE_POST_ELBOW_SLOPE_A'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    return i
 
 def add_basic_header(sheet, i):
     sheet.row(0).height_mismatch = True
@@ -324,19 +468,9 @@ def add_basic_header(sheet, i):
     conf.SINCE=i
 
     i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Revenue Slope Quarterly", style_wrap)
-    conf.REVENUE_SLOPE_Q=i
-    styles['REVENUE_SLOPE_Q_HIGH'] = get_style(colors[i%len(colors)], num_format_str="0.00")
-    styles['REVENUE_SLOPE_Q'] = get_style(color=None, num_format_str="0.00")
+    i = revenue_slopes(sheet, i)
 
     i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Rev Slope Q Error", style_wrap)
-    conf.REVENUE_SLOPE_Q_ERROR=i
-    styles['REVENUE_SLOPE_Q_ERROR'] = get_style(colors[i%len(colors)], num_format_str="0.00")
-
-    i = i + 1
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Yr Price Change", style_wrap)
     conf.YR_PR_CHANGE=i
@@ -1723,6 +1857,111 @@ def get_percent_style(price_change, default_style):
         price_style = default_style
     return price_style
 
+def add_slopes(ash, ashs, stk, recent_ipos):
+    if 'Ratios' in stk.keys():
+        duration = 'quarter'
+        if duration in stk['Ratios'].keys():
+            if 'revenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueSlope']):
+                if stk['Ratios'][duration]['revenueSlope'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['revenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['revenueError'],2), styles['CUR_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
+                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'revenueCQGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueCQGR']):
+                if stk['Ratios'][duration]['revenueCQGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['CUR_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'futureRevenueCQGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCQGR']):
+                if stk['Ratios'][duration]['futureRevenueCQGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'pastAndFutureRevenueCQGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCQGR']):
+                if stk['Ratios'][duration]['pastAndFutureRevenueCQGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['CUR_FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'revenueElbowPoint' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueElbowPoint']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_ELBOW_POINT_Q, stk['Ratios'][duration]['revenueElbowPoint'], styles['REVENUE_ELBOW_POINT_Q'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'preElbowRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['preElbowRevenueSlope']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_PRE_ELBOW_SLOPE_Q, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_PRE_ELBOW_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'postElbowRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['postElbowRevenueSlope']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_POST_ELBOW_SLOPE_Q, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_POST_ELBOW_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+
+        duration = 'year'
+        if duration in stk['Ratios'].keys():
+            if 'revenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueSlope']):
+                if stk['Ratios'][duration]['revenueSlope'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['revenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A_ERROR, round(stk['Ratios'][duration]['revenueError'],2), styles['CUR_REVENUE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
+                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+                sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A_ERROR, round(stk['Ratios'][duration]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'revenueCAGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueCAGR']):
+                if stk['Ratios'][duration]['revenueCAGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['CUR_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'futureRevenueCAGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCAGR']):
+                if stk['Ratios'][duration]['futureRevenueCAGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'pastAndFutureRevenueCAGR' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCAGR']):
+                if stk['Ratios'][duration]['pastAndFutureRevenueCAGR'] > 0.7:
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                else:
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['CUR_FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'revenueElbowPoint' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['revenueElbowPoint']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_ELBOW_POINT_A, stk['Ratios'][duration]['revenueElbowPoint'], styles['REVENUE_ELBOW_POINT_A'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'preElbowRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['preElbowRevenueSlope']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_PRE_ELBOW_SLOPE_A, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_PRE_ELBOW_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+
+            if 'postElbowRevenueSlope' in stk['Ratios'][duration].keys() and \
+                not is_none_r_nan(stk['Ratios'][duration]['postElbowRevenueSlope']):
+                sh_write(ash, conf.COUNT, conf.REVENUE_POST_ELBOW_SLOPE_A, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_POST_ELBOW_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+
+
 #com : Company Work Book
 #ash : All Stocks Work Sheet
 #stk : Stock information
@@ -1919,15 +2158,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if stk['bscs']['symbol'] == 'AGM-PF':
         print('AGM-PF')
 
-    if 'Ratios' in stk.keys() and \
-            'quarter' in stk['Ratios'].keys() and \
-            'revenueSlope' in stk['Ratios']['quarter'].keys() and \
-            not isnan(stk['Ratios']['quarter']['revenueSlope']):
-            if stk['Ratios']['quarter']['revenueSlope'] > 0.7:
-                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, round(stk['Ratios']['quarter']['revenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-            else:
-                sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q, round(stk['Ratios']['quarter']['revenueSlope'],2), styles['REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.REVENUE_SLOPE_Q_ERROR, round(stk['Ratios']['quarter']['revenueError'],2), styles['REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+    add_slopes(ash, ashs, stk, recent_ipos)
 
     #if 'technicals' in stk.keys() and \
     #        'price_trend' in stk['technicals'].keys() and \

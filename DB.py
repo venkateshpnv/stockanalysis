@@ -10,6 +10,7 @@ import requests
 import math
 from math import nan, isnan
 import json
+import matplotlib.pyplot as plt
 
 from datetime import date, timedelta, datetime as dt
 from dateutil.relativedelta import relativedelta
@@ -311,6 +312,7 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
             df['Date'] = df.index
 
     df = df.where(pd.notnull(df), None)
+    df = df.sort_index()
     try:
         metadata = MetaData()
         if check:
@@ -3806,6 +3808,7 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
     db = c['Stocks']
 
     update = False
+    insert = True
     df  = pd.DataFrame()
     url='https://eodhistoricaldata.com/api/calendar/trends?api_token=' + \
                 get_eod_token_id() + \
@@ -3884,9 +3887,10 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
 
         # Get the new entries that are already not present in the database.
         df = df[~df[['Symbol', 'Date', 'period']].isin(ddf[['Symbol', 'Date', 'period']].to_dict(orient='list')).all(axis=1)]
+        #insert = False
         if not df.empty:
             print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(df.index.tolist())))
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False, symbol=stk['bscs']['symbol'])
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_update_date', dt.combine(dt.now(), dt.min.time()))
 
     finally:
@@ -3918,7 +3922,7 @@ def update_all_earnings_trend():
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print(stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"AAPL"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"HOOD"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -7147,7 +7151,7 @@ def update_all_US_fin_percent_change():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
-def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='Income_Statement', ordinal=True):
+def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='Income_Statement', ordinal=True, transform=True, num_stmts=None):
     #tables = ['Income_Statement_quarterly', 'Balance_Sheet_quarterly', 'Cash_Flow_quarterly']
     pd.set_option('float_format', '{:f}'.format)
 
@@ -7165,14 +7169,20 @@ def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='In
     f_fields = ['revenueEstimateAvg']
     # Current statement mongodb fields
     mdb_fields = ['revenue']
+
     if duration.lower() == 'yearly':
-        # Take last five years of revenue
-        num_stmts = 5
+        if num_stmts is None:
+            # Take last five years of revenue
+            num_stmts = 5
         # multiply slope with this factor to get a closer to zero slope.
-        slope_factor = 100
+        if ordinal:
+            slope_factor = 100
+        else:
+            slope_factor = 1
     else:
-        # Take last four quarters of revenue
-        num_stmts = 4
+        if num_stmts is None:
+            # Take last eight quarters of revenue
+            num_stmts = 8
         # multiply slope with this factor to get a closer to zero slope.
         slope_factor = 1
 
@@ -7182,29 +7192,34 @@ def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='In
         if stmt_df.empty:
             continue
 
-#        if duration.lower() == 'yearly':
-#            # Take last five years of revenue
-#            num_stmts = 5
-#            stmt_df = stmt_df.iloc[-5:]
-#        else:
-#            num_stmts = 4
-#            # Take last four quarters of revenue
-#            stmt_df = stmt_df.iloc[-4:]
-
         # Needed for appending with f_stmt_df
         stmt_df.index = stmt_df['Date']
 
-        # Calculate slope of last five years
-        slope, nrmse = calculate_slope(stmt_df[[field]], ordinal=ordinal)
+        # Calculate slope of all entries in the field column for the current available financial statements
+        slope, nrmse = calculate_slope(stmt_df[[field]], transform=transform, ordinal=ordinal)
         slope = slope * slope_factor
         if isinstance(nrmse, pd.Series):    
             nrmse = nrmse[0]
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+duration[0:-2].capitalize()+'s', len(stmt_df))
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'StartDate', stmt_df.index[0])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'EndDate', stmt_df.index[-1])
         #update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'revenueSlope', slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Slope', slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Error', nrmse)
+       
+        # Calculate percent change
+        change = percent_change(stmt_df.iloc[0][field], stmt_df.iloc[-1][field])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'PercentChange', change)
+        # Calculate CAGR
+        # The len(df) gives you number of years or quarters.
+        # Save as CAGR for years and CQGR for quarters
+        cagr = CAGR(stmt_df.iloc[0][field], stmt_df.iloc[-1][field], len(stmt_df))
+        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+cagr_field, cagr)
 
         last_date = stmt_df.iloc[-1]['Date']
-        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
         #query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and (period = \'+2%s\' or period = \'+1%s\' or period = \'0%s\')'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))%(dur, dur, dur)
         # Future stmt
         f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format(dur),))
@@ -7225,13 +7240,25 @@ def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='In
         f_stmt_df.index = f_stmt_df['Date']
 
         # Calculate slope of future years
-        slope, nrmse = calculate_slope(f_stmt_df[[f_fields[i]]], ordinal=ordinal)
+        slope, nrmse = calculate_slope(f_stmt_df[[f_fields[i]]], transform=transform, ordinal=ordinal)
         slope = slope * slope_factor
         if isinstance(nrmse, pd.Series):    
             nrmse = nrmse[0]
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+'Slope', slope)
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+'Error', nrmse)
 
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+duration[0:-2].capitalize()+'s', len(f_stmt_df))
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'Slope', slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'Error', nrmse)
+
+        # Calculate percent change
+        change = percent_change(f_stmt_df.iloc[0][f_fields[i]], f_stmt_df.iloc[-1][f_fields[i]])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'PercentChange', change)
+
+        # Calculate CAGR
+        # The len(df) gives you number of years or quarters.
+        # Save as CAGR for years and CQGR for quarters
+        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+        cagr = CAGR(f_stmt_df.iloc[0][f_fields[i]], f_stmt_df.iloc[-1][f_fields[i]], len(f_stmt_df))
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+cagr_field, cagr)
 
         # Delete period column and rename revenueEstimateAvg to totalRevenue
         if 'period' in f_stmt_df.columns:
@@ -7242,22 +7269,101 @@ def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='In
 
         # Combine both dfs.
         # Now we have the revenue for last 5 years and next two years.
-        df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+        df = stmt_df.append(f_stmt_df)
+        #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
 
-        rolling_slopes = pd.DataFrame()
-        rolling_slopes['slope'] = np.nan
-        rolling_slopes['error'] = np.nan
+        change = percent_change(df.iloc[0][field], df.iloc[-1][field])
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+'PercentChange', change)
+        # Calculate CAGR
+        # The len(df) gives you number of years or quarters.
+        # Save as CAGR for years and CQGR for quarters
+        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+        cagr = CAGR(df.iloc[0][field], df.iloc[-1][field], len(df))
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+cagr_field, cagr)
 
-        # Calculate rolling revenue slopes and a slope of all rolling slopes.
-        for j, d in df.iloc[:-1].iterrows():
-            rolling_slopes.at[j,'slope'], rolling_slopes.at[j,'error'] = calculate_slope(df.loc[j:][[field]], ordinal=ordinal)
-        rolling_slopes['slope'] = rolling_slopes['slope'] * slope_factor
-        slope, nrmse = calculate_slope(rolling_slopes[['slope']], transform=False, ordinal=ordinal)
-        slope = slope * slope_factor * [1, 10][ordinal]
-        if isinstance(nrmse, pd.Series):    
-            nrmse = nrmse[0]
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i]+'Slope', slope)
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i]+'Error', nrmse)
+        # Find the elbow. The elbow is the inflection point from where
+        # the revenue starts climbing high.
+        # Convex for elbow
+        # Concave for knee
+        knee = elbow = elbow_point = None
+        knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+        #plt.plot(df['Date'], df['totalRevenue'])
+        #plt.scatter(df['Date'], df['totalRevenue'], color='orange')
+        #plt.show()
+        ##plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
+        #plt.close()
+
+        elbow_point = pre_elbow_slope = pre_elbow_nrmse = post_elbow_slope = post_elbow_nrmse = elbow_percent_change = None
+        if elbow is not None and elbow > 0:
+            # Now calculate the slopes of entries df.iloc[0:elbow+1] and df.iloc[elbow:]
+            # The higher the slope of df.iloc[elbow:], the higher is the revenue growth of the stock.
+            # Save these entries in the mongoDB. Sort the slopes and find the high growth stocks.
+            if elbow > 0:
+                pre_elbow_slope, pre_elbow_nrmse = calculate_slope(df.iloc[0:elbow+1][[field]], transform=transform, ordinal=ordinal)
+                if isinstance(pre_elbow_nrmse, pd.Series):    
+                    pre_elbow_nrmse = pre_elbow_nrmse[0]
+
+            post_elbow_slope, post_elbow_nrmse = calculate_slope(df.iloc[elbow:][[field]], transform=transform, ordinal=ordinal)
+            if isinstance(post_elbow_nrmse, pd.Series):    
+                post_elbow_nrmse = post_elbow_nrmse[0]
+            elbow_point = df.index[elbow]
+
+            elbow_percent_change = percent_change(pre_elbow_slope, post_elbow_slope)
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preElbow'+mdb_fields[i].capitalize()+'Slope', pre_elbow_slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preElbow'+mdb_fields[i].capitalize()+'Error', pre_elbow_nrmse)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postElbow'+mdb_fields[i].capitalize()+'Slope', post_elbow_slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postElbow'+mdb_fields[i].capitalize()+'Error', post_elbow_nrmse)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'ElbowPoint', elbow_point)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'ElbowSlopePercentChange', elbow_percent_change)
+
+        knee = elbow = knee_point = None
+        knee, elbow = knee_locator_df(df, field, 1.0, "concave", "increasing")
+
+        knee_point = pre_knee_slope = pre_knee_nrmse = post_knee_slope = post_knee_nrmse = knee_percent_change = None
+        if knee is not None and knee > 0:
+            # Now calculate the slopes of entries df.iloc[0:knee+1] and df.iloc[knee:]
+            # The lower the slope of df.iloc[knee:] means the revenues are becoming flat, flatter.
+            # Stop investing or close the positions in these stocks.
+            if knee > 0:
+                pre_knee_slope, pre_knee_nrmse = calculate_slope(df.iloc[0:knee+1][[field]], transform=transform, ordinal=ordinal)
+                if isinstance(pre_knee_nrmse, pd.Series):    
+                    pre_knee_nrmse = pre_knee_nrmse[0]
+
+            post_knee_slope, post_knee_nrmse = calculate_slope(df.iloc[knee:][[field]], transform=transform, ordinal=ordinal)
+            if isinstance(post_knee_nrmse, pd.Series):    
+                post_knee_nrmse = post_knee_nrmse[0]
+            knee_point = df.index[knee]
+        
+            knee_percent_change = percent_change(pre_knee_slope, post_knee_slope)
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preKnee'+mdb_fields[i].capitalize()+'Slope', pre_knee_slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preKnee'+mdb_fields[i].capitalize()+'Error', pre_knee_nrmse)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postKnee'+mdb_fields[i].capitalize()+'Slope', post_knee_slope)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postKnee'+mdb_fields[i].capitalize()+'Error', post_knee_nrmse)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'KneePoint', knee_point)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'KneeSlopePercentChange', knee_percent_change)
+
+        ## Rolling slopes
+        ## Calculate the slopes of x=n to m entries (where n is from 0 to m-1).
+        ## Consider each slope as a rolling slope and finally calculate the 
+        ## slope of all rolling slopes.
+
+        #rolling_slopes = pd.DataFrame()
+        #rolling_slopes['slope'] = np.nan
+        #rolling_slopes['error'] = np.nan
+
+        ## Calculate rolling revenue slopes and a slope of all rolling slopes.
+        #for j, d in df.iloc[:-1].iterrows():
+        #    rolling_slopes.at[j,'slope'], rolling_slopes.at[j,'error'] = calculate_slope(df.loc[j:][[field]], transform=transform, ordinal=ordinal)
+        #rolling_slopes['slope'] = rolling_slopes['slope'] * slope_factor
+        #slope, nrmse = calculate_slope(rolling_slopes[['slope']], transform=False, ordinal=ordinal)
+        #slope = slope * slope_factor * [1, 10][ordinal]
+        #if isinstance(nrmse, pd.Series):    
+        #    nrmse = nrmse[0]
+        #update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i].capitalize()+'Slope', slope)
+        #update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'rolling'+mdb_fields[i].capitalize()+'Error', nrmse)
 
 def update_fin_slope(stk, sem=None, core=None):
     if core is not None:
@@ -7269,7 +7375,7 @@ def update_fin_slope(stk, sem=None, core=None):
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
     try:
-        #update_fin_slope_duration(mysql_engine, db, stk, 'yearly')
+        update_fin_slope_duration(mysql_engine, db, stk, 'yearly', ordinal=False)
         update_fin_slope_duration(mysql_engine, db, stk, 'quarterly', ordinal=False)
 
     finally:
@@ -7278,6 +7384,150 @@ def update_fin_slope(stk, sem=None, core=None):
         close_sql_connection(mysql_engine)
         if sem:
             sem.release()
+
+def plot_revenues(sym):
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+ 
+    field = 'totalRevenue'
+    f_field = 'revenueEstimateAvg'
+    table = 'Income_Statement_yearly'
+    future_table = 'Earnings_Trends'
+    num_stmts = 5
+
+    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
+    stmt_df = read_from_sql(query, mysql_engine)
+    if stmt_df.empty:
+        return
+
+    # Needed for appending with f_stmt_df
+    stmt_df.index = stmt_df['Date']
+
+    last_date = stmt_df.iloc[-1]['Date']
+    query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
+    # Future stmt
+    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('y'),))
+    # Sort by Date followed by period.
+    # If there are multiple entries for the same date, retain entries with '0y' period.
+    # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
+    # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
+
+    # Sort the entries based on period where '0y' takes the order of precedence
+    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+    # Set the index from 0 to n
+    f_stmt_df = f_stmt_df.reset_index(drop=True)
+    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+    # Set the index back to the Date.
+    f_stmt_df.index = f_stmt_df['Date']
+
+    # Delete period column and rename revenueEstimateAvg to totalRevenue
+    if 'period' in f_stmt_df.columns:
+        del f_stmt_df['period']
+    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+    new_cols = {f_field:field}
+    f_stmt_df.rename(columns=new_cols, inplace=True)
+
+    # Combine both dfs.
+    # Now we have the revenue for last 5 years and next two years.
+    df = stmt_df.append(f_stmt_df)
+    #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+
+    # Find the elbow. The elbow is the inflection point from where
+    # the revenue starts climbing high.
+    # Convex for elbow
+    # Concave for knee
+    knee = elbow = elbow_point = None
+    knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+    elbow_point = None
+    if elbow is not None and elbow > 0:
+        elbow_point = df.index[elbow]
+
+    f = plt.figure()
+    f.set_figwidth(15)
+    f.set_figheight(7)
+
+    plt.subplot(2,1,1)
+    plt.plot(df['Date'], df['totalRevenue']/10**6)
+    plt.scatter(df['Date'], df['totalRevenue']/10**6, color='green')
+    plt.plot(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='orange')
+    plt.scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='red')
+    plt.title('Annual Revenues $Mn')
+    if elbow:
+        plt.scatter(elbow_point, df.loc[elbow_point]['totalRevenue']/10**6, s=100, color='magenta')
+
+    field = 'totalRevenue'
+    f_field = 'revenueEstimateAvg'
+    table = 'Income_Statement_quarterly'
+    future_table = 'Earnings_Trends'
+    num_stmts = 5
+
+    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
+    stmt_df = read_from_sql(query, mysql_engine)
+    if stmt_df.empty:
+        return
+
+    # Needed for appending with f_stmt_df
+    stmt_df.index = stmt_df['Date']
+
+    last_date = stmt_df.iloc[-1]['Date']
+    query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
+    # Future stmt
+    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('q'),))
+    # Sort by Date followed by period.
+    # If there are multiple entries for the same date, retain entries with '0y' period.
+    # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
+    # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
+
+    # Sort the entries based on period where '0y' takes the order of precedence
+    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+    # Set the index from 0 to n
+    f_stmt_df = f_stmt_df.reset_index(drop=True)
+    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+    # Set the index back to the Date.
+    f_stmt_df.index = f_stmt_df['Date']
+
+    # Delete period column and rename revenueEstimateAvg to totalRevenue
+    if 'period' in f_stmt_df.columns:
+        del f_stmt_df['period']
+    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+    new_cols = {f_field:field}
+    f_stmt_df.rename(columns=new_cols, inplace=True)
+
+    # Combine both dfs.
+    # Now we have the revenue for last 5 years and next two years.
+    df = stmt_df.append(f_stmt_df)
+    #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+
+    # Find the elbow. The elbow is the inflection point from where
+    # the revenue starts climbing high.
+    # Convex for elbow
+    # Concave for knee
+    knee = elbow = elbow_point = None
+    knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+    elbow_point = None
+    if elbow is not None and elbow > 0:
+        elbow_point = df.index[elbow]
+
+    plt.subplot(2,1,2)
+    plt.plot(df['Date'], df['totalRevenue']/10**6)
+    plt.scatter(df['Date'], df['totalRevenue']/10**6, color='green')
+    plt.plot(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='orange')
+    plt.scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='red')
+    plt.title('Quarterly Revenues $Mn')
+    if elbow:
+        plt.scatter(elbow_point, df.loc[elbow_point]['totalRevenue']/10**6, s=100, color='magenta')
+
+    plt.show()
+    #plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
+    plt.close()
+
+    close_db_client(c)
+    close_sql_connection(mysql_engine)
 
 def update_all_fin_slopes():
     #os.system("taskset -p 0xfffff %d > /dev/null 2>&1" % os.getpid())
@@ -7305,7 +7555,7 @@ def update_all_fin_slopes():
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
 
-    stocks = db.US_Stocks.find({"bscs.symbol":'PLTR'})
+    #stocks = db.US_Stocks.find({"bscs.symbol":'ENPH'})
     print(stocks.count())
 
     try:
@@ -7314,9 +7564,9 @@ def update_all_fin_slopes():
             #    break
             sem.acquire()
             print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
-            update_fin_slope(stk, sem, i%num_cores)
-            #processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, sem, i%num_cores,))
-            #processes[i%num_processes].start()
+            #update_fin_slope(stk, sem, i%num_cores)
+            processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, sem, i%num_cores,))
+            processes[i%num_processes].start()
 
     finally:
         for j in range(len(processes)):

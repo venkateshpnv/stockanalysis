@@ -17,6 +17,7 @@ import requests
 from math import nan, isnan
 from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
 from scipy import stats
+from kneed import KneeLocator
 import copy
 
 from itertools import cycle
@@ -68,6 +69,13 @@ def p2f(x):
     except ValueError:
         return 0
     return val
+
+def is_none_r_nan(a):
+    if a is None:
+        return True
+    if not isinstance(a, str) and isnan(a):
+        return True
+    return False
 
 def is_val(a):
     if a is not None:
@@ -444,6 +452,16 @@ def read_from_file(filename):
     f.close()
     return val
 
+def CAGR(start, end, years):
+    try:
+        if start is None or end is None or years <= 0 or end == 0:
+            return np.nan
+        cagr = ((end/start)**(1/years))-1
+        return cagr
+    except Exception as E:
+        print("start: %r, end: %r, years: %r" %(start,end,years))
+        return np.nan
+
 #def percent_change(st_price, en_price):
 #    if st_price == 0:
 #        return 0
@@ -453,36 +471,40 @@ def read_from_file(filename):
 #
 #    return float(en_price/st_price - 1)
 def percent_change(st_price, en_price):
-	flag = -1
-	percentChange = 0.0
+    flag = -1
+    percentChange = 0.0
 
-	if st_price == 0:
-		percentChange = en_price
-	
-	if st_price > 0 and en_price > 0:
-		# st_price:7 en_price:10	
-		if en_price >= st_price:
-			percentChange = float(abs(en_price - st_price)/st_price)
-		# st_price : 10 en_price: 7
-		#elif en_price < st_price:
-		else:
-			percentChange = float((abs(en_price - st_price)/st_price)*flag)
-	elif st_price < 0 and en_price < 0:
-		# st_price: -7 en_price: -3
-		if en_price >= st_price:
-			percentChange = float(abs(en_price - st_price)/abs(st_price))
-		# st_price: -3 en_price: -7
-		#elif en_price < st_price:
-		else:
-			percentChange = float(abs(en_price - st_price)/abs(st_price)*flag)
+    try:
+        if st_price is None or en_price is None:
+            percentChange = np.nan
+            return
+        if st_price == 0:
+            percentChange = en_price
+        
+        if st_price > 0 and en_price > 0:
+            # st_price:7 en_price:10    
+            if en_price >= st_price:
+                percentChange = float(abs(en_price - st_price)/st_price)
+            # st_price : 10 en_price: 7
+            #elif en_price < st_price:
+            else:
+                percentChange = float((abs(en_price - st_price)/st_price)*flag)
+        elif st_price < 0 and en_price < 0:
+            # st_price: -7 en_price: -3
+            if en_price >= st_price:
+                percentChange = float(abs(en_price - st_price)/abs(st_price))
+            # st_price: -3 en_price: -7
+            #elif en_price < st_price:
+            else:
+                percentChange = float(abs(en_price - st_price)/abs(st_price)*flag)
          # st_price: 7 en_price: -3
-	elif st_price > 0 and en_price < 0:
-		percentChange = float(abs(en_price - st_price)/st_price*flag)
-		# st_price: -3 en_price: 7
-	elif st_price < 0 and en_price > 0:
-			percentChange = float(abs(en_price - st_price)/abs(st_price))
-	
-	return percentChange
+        elif st_price > 0 and en_price < 0:
+            percentChange = float(abs(en_price - st_price)/st_price*flag)
+            # st_price: -3 en_price: 7
+        elif st_price < 0 and en_price > 0:
+                percentChange = float(abs(en_price - st_price)/abs(st_price))
+    finally:
+        return percentChange
 
 def get_latest_figure(stk, statement_type, figure):
     if 'fig' in stk.keys():
@@ -518,6 +540,9 @@ def calculate_slope(df, scaler=True, transform=True, ordinal=True):
  
         if df.empty:
             print("Error: common.py: calculate_slope(): Empty dataframe")
+            return
+
+        if len(df) <= 1:
             return
 
         # Normalize data.
@@ -558,3 +583,14 @@ def calculate_slope(df, scaler=True, transform=True, ordinal=True):
             print("Error: common.py: calculate_slope(): %s" %(str(E)))
     finally:
         return slope, nrmse
+
+def knee_locator_df(df, column, S, curve, direction, online=True):
+    x=np.array(range(len(df)))
+    y=list(df[column])
+    return knee_locator(x, y, S, curve, direction, online)
+
+def knee_locator(x, y, S, curve, direction, online=True):
+    kneedle = KneeLocator(x, y, S=S, curve=curve, direction=direction, online=online)
+    knee = kneedle.knee
+    elbow = kneedle.elbow
+    return knee,elbow
