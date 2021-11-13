@@ -1863,7 +1863,7 @@ def add_slopes(ash, ashs, stk, recent_ipos):
         if duration in stk['Ratios'].keys():
             if 'revenueSlope' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueSlope']):
-                if stk['Ratios'][duration]['revenueSlope'] > 0.7:
+                if stk['Ratios'][duration]['revenueSlope'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['revenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
@@ -1871,7 +1871,7 @@ def add_slopes(ash, ashs, stk, recent_ipos):
 
             if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
-                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.7:
+                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
@@ -1879,24 +1879,24 @@ def add_slopes(ash, ashs, stk, recent_ipos):
 
             if 'revenueCQGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueCQGR']):
-                if stk['Ratios'][duration]['revenueCQGR'] > 0.7:
+                if stk['Ratios'][duration]['revenueCQGR'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['CUR_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'futureRevenueCQGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCQGR']):
-                if stk['Ratios'][duration]['futureRevenueCQGR'] > 0.7:
+                if stk['Ratios'][duration]['futureRevenueCQGR'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'pastAndFutureRevenueCQGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCQGR']):
-                if stk['Ratios'][duration]['pastAndFutureRevenueCQGR'] > 0.7:
+                if stk['Ratios'][duration]['pastAndFutureRevenueCQGR'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
-                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['CUR_FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCQGR'],2), styles['CUR_FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'revenueElbowPoint' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueElbowPoint']):
@@ -1914,7 +1914,7 @@ def add_slopes(ash, ashs, stk, recent_ipos):
         if duration in stk['Ratios'].keys():
             if 'revenueSlope' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueSlope']):
-                if stk['Ratios'][duration]['revenueSlope'] > 0.7:
+                if stk['Ratios'][duration]['revenueSlope'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['revenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
@@ -1922,7 +1922,7 @@ def add_slopes(ash, ashs, stk, recent_ipos):
 
             if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
-                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.7:
+                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
@@ -1930,24 +1930,24 @@ def add_slopes(ash, ashs, stk, recent_ipos):
 
             if 'revenueCAGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueCAGR']):
-                if stk['Ratios'][duration]['revenueCAGR'] > 0.7:
+                if stk['Ratios'][duration]['revenueCAGR'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['CUR_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'futureRevenueCAGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCAGR']):
-                if stk['Ratios'][duration]['futureRevenueCAGR'] > 0.7:
+                if stk['Ratios'][duration]['futureRevenueCAGR'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'pastAndFutureRevenueCAGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCAGR']):
-                if stk['Ratios'][duration]['pastAndFutureRevenueCAGR'] > 0.7:
+                if stk['Ratios'][duration]['pastAndFutureRevenueCAGR'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
-                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['CUR_FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
+                    sh_write(ash, conf.COUNT, conf.CUR_FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['pastAndFutureRevenueCAGR'],2), styles['CUR_FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'revenueElbowPoint' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueElbowPoint']):
@@ -2262,9 +2262,12 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     try:
         if stk['SharesStats']['SharesOutstanding'] > 0:
-            sh_write(ash, conf.COUNT, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'], styles['SHARES_FLOAT_PERCENT'], ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.SHORT_PRIOR_MONTH, stk['SharesStats']['SharesShortPriorMonth']/stk['SharesStats']['SharesOutstanding'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.PPS_TTM, stk['Highlights']['GrossProfitTTM']/ stk['SharesStats']['SharesOutstanding'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+                if is_number(stk['SharesStats']['SharesFloat']):
+                    sh_write(ash, conf.COUNT, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'], styles['SHARES_FLOAT_PERCENT'], ashs=ashs, recent_ipos=recent_ipos)
+                if is_number(stk['SharesStats']['SharesShortPriorMonth']):
+                    sh_write(ash, conf.COUNT, conf.SHORT_PRIOR_MONTH, stk['SharesStats']['SharesShortPriorMonth']/stk['SharesStats']['SharesOutstanding'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
+                if is_number(stk['Highlights']['GrossProfitTTM']):
+                    sh_write(ash, conf.COUNT, conf.PPS_TTM, stk['Highlights']['GrossProfitTTM']/ stk['SharesStats']['SharesOutstanding'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
     except Exception as E:
         print(stk['SharesStats'])
 

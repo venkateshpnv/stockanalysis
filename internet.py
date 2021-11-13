@@ -781,12 +781,11 @@ def fork_hdf5_process(country):
             #if 'price_failcount' in stk['bscs'].keys() and stk['bscs']['price_failcount'] > 5:
             #    continue
  
+            print("%d: Symbol: %r, Name: %r" %(i, stk['General']['Code'], stk['General']['Name']))
             sem.acquire()
-            #print("Symbol: %r" %(stk['bscs']['symbol']))
             #update_price_change(country, stk, i%DB.num_cores, sem, index=False)
             processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, False))
             processes[i%num_processes].start()
-
     finally:
         # Wait till all threads are completed. You can use join() instead.
         # But need to track threads and update variables.

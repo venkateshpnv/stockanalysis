@@ -377,32 +377,54 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                 else:
                     # check if the key exists. If so, update the record,
                     # else create a new record. 
+                    # This is for backward compatibility only.
+                    # The else condition anyway covers this use case too.
                     if symbol is not None:
                         stmt = select([table]).where(table.c.Symbol == symbol).where(table.c.Date == key)
                     else:
-                        stmt = select([table]).where(table.c.Date == key)
-                    records = conn.execute(stmt).fetchall()
-                    if len(records) == 0:
-                        stmt=table.insert().values(items)
-                    else:
-                        #if 'Date' in items.keys():
-                        #    del items['Date']
-                        # Do not update primary key values. It results in error.
-                        # Remove them from the items list
                         inspector = sqlalchemy.inspect(mysql_engine)
-                        inspector.get_primary_keys(table_name)
                         primary_keys = inspector.get_primary_keys(table_name)
-                        for k in primary_keys:
-                            del items[k]
                         # No items to insert, go to next row
                         if len(items) == 0:
                             continue
-                        if symbol is not None:
-                            stmt=table.update().where(table.c.Symbol == symbol).where(table.c.Date==key).values(items)
-                            print("%s: mysql_update_table" %(symbol))
-                        else:
-                            stmt=table.update().where(table.c.Date==key).values(items)
+                        stmt = table.update()
+                        for k in primary_keys:
+                            if k in items.keys():
+                                stmt = stmt.where(table.c[primary_keys[k]] == items[k])
+                            else:
+                                print("Symbol: %s, key: %s not present in table %s, update failed" %(symbol, k, table_name))
+                                return
+                        # Do not update primary key values. It results in error.
+                        # Remove them from the items list
+                        for k in primary_keys:
+                            del items[k]
+                        print("%s: mysql_update_table" %(symbol))
                         # table.c.keys() -> prints the list of all columns in the table.
+
+
+                    ##else:
+                    ##    stmt = select([table]).where(table.c.Date == key)
+                    ##records = conn.execute(stmt).fetchall()
+                    ##if len(records) == 0:
+                    ##    stmt=table.insert().values(items)
+                    ##else:
+                    ##    #if 'Date' in items.keys():
+                    ##    #    del items['Date']
+                    ##    # Do not update primary key values. It results in error.
+                    ##    # Remove them from the items list
+                    ##    inspector = sqlalchemy.inspect(mysql_engine)
+                    ##    primary_keys = inspector.get_primary_keys(table_name)
+                    ##    for k in primary_keys:
+                    ##        del items[k]
+                    ##    # No items to insert, go to next row
+                    ##    if len(items) == 0:
+                    ##        continue
+                    ##    if symbol is not None:
+                    ##        stmt=table.update().where(table.c.Symbol == symbol).where(table.c.Date==key).values(items)
+                    ##        print("%s: mysql_update_table" %(symbol))
+                    ##    else:
+                    ##        stmt=table.update().where(table.c.Date==key).values(items)
+                    ##    # table.c.keys() -> prints the list of all columns in the table.
 
                     #stmt=table.update().where(table.c.Date==key).values(items)
                 try:
@@ -3882,17 +3904,77 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
 
         df.insert(loc=0, column='Symbol', value=stk['bscs']['symbol'])
 
-        query = 'select Symbol, Date, period from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        query = 'select * from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
+        #query = 'select Symbol, Date, period from {} where Symbol = \'{}\''.format(table_name, stk['bscs']['symbol'])
         ddf = read_from_sql(query, mysql_engine)
 
         # Get the new entries that are already not present in the database.
-        df = df[~df[['Symbol', 'Date', 'period']].isin(ddf[['Symbol', 'Date', 'period']].to_dict(orient='list')).all(axis=1)]
-        #insert = False
-        if not df.empty:
-            print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(df.index.tolist())))
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False, symbol=stk['bscs']['symbol'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_update_date', dt.combine(dt.now(), dt.min.time()))
+        ##new_df = df[~df[['Symbol', 'Date', 'period']].isin(ddf[['Symbol', 'Date', 'period']].to_dict(orient='list')).all(axis=1)]
 
+        # Convert the newly retries entries index to datetime.
+        # This is required for merge and comparision.
+        #df.index = pd.to_datetime(df.index)
+        ddf.index = ddf.index.strftime('%Y-%m-%d')
+        del df['Date']
+        del ddf['Date']
+
+        # Get the new entries that are already not present in the database.
+        df_all = df.merge(ddf, on=['Symbol', 'Date', 'period'], how='left', indicator=True)
+
+        # Get the new entries that are already not present in the database
+        new_df = df_all[df_all['_merge'] == 'left_only']
+        del new_df['_merge']
+
+        # Remove right side columns added as part of this merge operation.
+        new_df = new_df.iloc[:,~new_df.columns.str.endswith('_x')]
+
+        # Now strip off the columns with '_y'.
+        new_df.columns = new_df.columns.str.replace('_y','')
+
+        new_df['Date'] = new_df.index
+
+        #insert = False
+        ##if not new_df.empty:
+        ##    print("Updating %s data for %s: %r" %(table_name, stk['bscs']['symbol'], ', '.join(df.index.tolist())))
+        ##    mysql_update_table(mysql_engine, table_name, new_df, check=True, insert=True, unknown_table=False, fin_table=True, cols_type='fin', temp=False, date_column=False, format_columns=False, primary_key=False)
+        ##    update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_update_date', dt.combine(dt.now(), dt.min.time()))
+
+        # Get the list of entries that are already present in the database.
+        # See if there are any new values to the fields like Revenue etc.
+        # If so, update them in the database.
+        cur_df = df_all[df_all['_merge'] != 'left_only']
+        del cur_df['_merge']
+
+        # Remove left side columns added as part of this merge operation.
+        cur_df = cur_df.iloc[:,~cur_df.columns.str.endswith('_y')]
+
+        # Now strip off the columns with '_x'.
+        cur_df.columns = cur_df.columns.str.replace('_x','')
+
+        #cur_df['Date'] = cur_df.index
+        cur_df.sort_index(inplace=True)
+
+        ## Sort by column names in alphabetical order
+        cur_df = cur_df.sort_index(axis = 1)
+        ddf = ddf.sort_index(axis = 1)
+
+        # Set the datatypes of all columns in the two dataframes same.
+        # This is required for comparing.
+        types = cur_df.dtypes.to_dict()
+        ddf = ddf.astype(types)
+
+        #for c in cur_df.columns:
+        #    if ddf.dtypes[c] != cur_df.dtypes[c]
+        #            cur_df[c] = cur_df[c].astype(ddf.dtypes[c])
+
+        #x= cur_df[cur_df['revenueEstimateAvg'] != ddf['revenueEstimateAvg']]
+        #df3=cur_df.set_index(['Symbol', 'Date', 'period'])
+        #df3.update(ddf.set_index(['Symbol', 'Date', 'period']))
+        #df4=df3.reset_index(level=['Symbol', 'period'])
+
+        ## Sort by column names in alphabetical order
+        #df3=df3.sort_index(axis = 1)
+        #df4=df4.sort_index(axis = 1)
     finally:
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_pull_date', dt.combine(dt.now(), dt.min.time()))
         close_sql_connection(mysql_engine)
@@ -3922,13 +4004,13 @@ def update_all_earnings_trend():
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print(stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"HOOD"})
+        stocks = db.US_Stocks.find({"bscs.symbol":"PFE"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #update_US_stock_earnings_trend(stk, i%num_cores, sem)
-            processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_earnings_trend, args=(stk, i%num_cores, sem))
-            processes[j%num_processes].start()
+            update_US_stock_earnings_trend(stk, i%num_cores, sem)
+            #processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_earnings_trend, args=(stk, i%num_cores, sem))
+            #processes[j%num_processes].start()
             j = j + 1
     finally:
         for j in range(len(processes)):
@@ -4105,7 +4187,7 @@ def update_US_all_stock_fin_information():
                                         ]\
                                 }, no_cursor_timeout=True).sort([["General.Code",sort]]).allow_disk_use(True)
     print(stocks.count())
-    #stocks = db.US_Stocks.find({'bscs.symbol':'AAPL'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    stocks = db.US_Stocks.find({'bscs.symbol':'CRSP'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
 
     for i, stk in enumerate(stocks):
         print("%d: %r" %(i, stk['bscs']['symbol']))
@@ -5173,9 +5255,9 @@ def update_all_earnings(all=False):
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #update_earnings(stk, 0, sem, all=all)
-            processes[j%num_processes] = multiprocessing.Process(target=update_earnings, args=(stk, i%num_cores, sem, all))
-            processes[j%num_processes].start()
+            update_earnings(stk, 0, sem, all=all)
+            #processes[j%num_processes] = multiprocessing.Process(target=update_earnings, args=(stk, i%num_cores, sem, all))
+            #processes[j%num_processes].start()
             j = j + 1
 
         if all:
@@ -7151,6 +7233,175 @@ def update_all_US_fin_percent_change():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
+def plot_revenues(sym):
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
+ 
+    field = 'totalRevenue'
+    f_field = 'revenueEstimateAvg'
+    table = 'Income_Statement_yearly'
+    future_table = 'Earnings_Trends'
+    num_stmts = 5
+
+    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
+    stmt_df = read_from_sql(query, mysql_engine)
+    stmt_df.dropna(inplace=True)
+
+    # Needed for appending with f_stmt_df
+    stmt_df.index = stmt_df['Date']
+
+    if not stmt_df.empty:
+        last_date = stmt_df.iloc[-1]['Date']
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
+    else:
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and period LIKE %s'.format(f_field, future_table, sym)
+        
+    # Future stmt
+    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('y'),))
+    f_stmt_df.dropna(inplace=True)
+    if f_stmt_df.empty:
+        return
+
+    # Sort the entries based on period where '0y' takes the order of precedence
+    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+    # Set the index from 0 to n
+    f_stmt_df = f_stmt_df.reset_index(drop=True)
+    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+    # Set the index back to the Date.
+    f_stmt_df.index = f_stmt_df['Date']
+
+    # Delete period column and rename revenueEstimateAvg to totalRevenue
+    if 'period' in f_stmt_df.columns:
+        del f_stmt_df['period']
+    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+    new_cols = {f_field:field}
+    f_stmt_df.rename(columns=new_cols, inplace=True)
+
+    # Combine both dfs.
+    # Now we have the revenue for last 5 years and next two years.
+    #df = stmt_df.append(f_stmt_df)
+    df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+
+    # Find the elbow. The elbow is the inflection point from where
+    # the revenue starts climbing high.
+    # Convex for elbow
+    # Concave for knee
+    knee = elbow = elbow_point = None
+    if len(df) > 1:
+        knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+    elbow_point = None
+    if elbow is not None and elbow > 0:
+        elbow_point = df.index[elbow]
+
+    df['totalRevenue'] = round(df['totalRevenue']/10**9,2)
+    stmt_df['totalRevenue'] = round(stmt_df['totalRevenue']/10**9,2)
+    f_stmt_df['totalRevenue'] = round(f_stmt_df['totalRevenue']/10**9,2)
+
+    fig, ax = plt.subplots(2,1, figsize=[15,7])
+
+    ax[0].plot(stmt_df['Date'], stmt_df['totalRevenue'], label='Actual')
+    ax[0].scatter(stmt_df['Date'], stmt_df['totalRevenue'], color='green')
+    for i in range(len(stmt_df)):
+        ax[0].annotate(str(stmt_df.iloc[i]['totalRevenue'])+' Bn', (stmt_df.iloc[i]['Date'], stmt_df.iloc[i]['totalRevenue']+0.2))
+
+    ax[0].plot(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='orange', label='Projected')
+    ax[0].scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='red')
+    for i in range(len(f_stmt_df)):
+        ax[0].annotate(str(f_stmt_df.iloc[i]['totalRevenue'])+' Bn', (f_stmt_df.iloc[i]['Date'], f_stmt_df.iloc[i]['totalRevenue']-0.2))
+    ax[0].set_title(sym+': Annual Revenues $Bn')
+    ax[0].legend()
+    if elbow:
+        ax[0].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'], s=100, color='magenta', label='Elbow Point')
+
+    field = 'totalRevenue'
+    f_field = 'revenueEstimateAvg'
+    table = 'Income_Statement_quarterly'
+    future_table = 'Earnings_Trends'
+    num_stmts = 5
+
+    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
+    stmt_df = read_from_sql(query, mysql_engine)
+    stmt_df.dropna(inplace=True)
+
+    # Needed for appending with f_stmt_df
+    stmt_df.index = stmt_df['Date']
+
+    if not stmt_df.empty:
+        last_date = stmt_df.iloc[-1]['Date']
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
+    else:
+        query = 'select Date, period, {} from {} where Symbol=\'{}\' and period LIKE %s'.format(f_field, future_table, sym)
+    # Future stmt
+    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('q'),))
+    f_stmt_df.dropna(inplace=True)
+    if f_stmt_df.empty:
+        return
+    # Sort by Date followed by period.
+    # If there are multiple entries for the same date, retain entries with '0y' period.
+    # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
+    # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
+
+    # Sort the entries based on period where '0y' takes the order of precedence
+    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+    # Set the index from 0 to n
+    f_stmt_df = f_stmt_df.reset_index(drop=True)
+    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+    # Set the index back to the Date.
+    f_stmt_df.index = f_stmt_df['Date']
+
+    # Delete period column and rename revenueEstimateAvg to totalRevenue
+    if 'period' in f_stmt_df.columns:
+        del f_stmt_df['period']
+    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+    new_cols = {f_field:field}
+    f_stmt_df.rename(columns=new_cols, inplace=True)
+
+    # Combine both dfs.
+    # Now we have the revenue for last 5 years and next two years.
+    #df = stmt_df.append(f_stmt_df)
+    df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+
+    # Find the elbow. The elbow is the inflection point from where
+    # the revenue starts climbing high.
+    # Convex for elbow
+    # Concave for knee
+    knee = elbow = elbow_point = None
+    if len(df) > 1:
+        knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+    elbow_point = None
+    if elbow is not None and elbow > 0:
+        elbow_point = df.index[elbow]
+
+    df['totalRevenue'] = round(df['totalRevenue']/10**9,2)
+    stmt_df['totalRevenue'] = round(stmt_df['totalRevenue']/10**9,2)
+    f_stmt_df['totalRevenue'] = round(f_stmt_df['totalRevenue']/10**9,2)
+
+    ax[1].plot(stmt_df['Date'], stmt_df['totalRevenue'], label='Actual')
+    ax[1].scatter(stmt_df['Date'], stmt_df['totalRevenue'], color='green')
+    for i in range(len(stmt_df)):
+        ax[1].annotate(str(stmt_df.iloc[i]['totalRevenue'])+' Bn', (stmt_df.iloc[i]['Date'], stmt_df.iloc[i]['totalRevenue']+0.2))
+
+    ax[1].plot(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='orange', label='Projected')
+    ax[1].scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='red')
+    for i in range(len(f_stmt_df)):
+        ax[1].annotate(str(f_stmt_df.iloc[i]['totalRevenue'])+' Bn', (f_stmt_df.iloc[i]['Date'], f_stmt_df.iloc[i]['totalRevenue']-0.2))
+    if elbow:
+        ax[1].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'], s=100, color='magenta', label='Elbow Point')
+    ax[1].set_title(sym+': Quaterly Revenues $Bn')
+    ax[1].legend()
+
+    plt.show()
+    #plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
+    plt.close()
+
+    close_db_client(c)
+    close_sql_connection(mysql_engine)
+
 def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='Income_Statement', ordinal=True, transform=True, num_stmts=None):
     #tables = ['Income_Statement_quarterly', 'Balance_Sheet_quarterly', 'Cash_Flow_quarterly']
     pd.set_option('float_format', '{:f}'.format)
@@ -7189,155 +7440,192 @@ def update_fin_slope_duration(mysql_engine, db, stk, duration='yearly', stmt='In
     for i, field in enumerate(fields):
         query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, stk['bscs']['symbol'], num_stmts)
         stmt_df = read_from_sql(query, mysql_engine)
-        if stmt_df.empty:
-            continue
 
+        stmt_df.dropna(inplace=True)
+
+        # Drop all entries with zero revenue
+        stmt_df = stmt_df[stmt_df[field] != 0]
         # Needed for appending with f_stmt_df
         stmt_df.index = stmt_df['Date']
 
-        # Calculate slope of all entries in the field column for the current available financial statements
-        slope, nrmse = calculate_slope(stmt_df[[field]], transform=transform, ordinal=ordinal)
-        slope = slope * slope_factor
-        if isinstance(nrmse, pd.Series):    
-            nrmse = nrmse[0]
+        slope = nrmse = change = cagr = None
+        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+        if not stmt_df.empty and len(stmt_df) > 1:
+
+            # Calculate slope of all entries in the field column for the current available financial statements
+            slope, nrmse = calculate_slope(stmt_df[[field]], transform=transform, ordinal=ordinal)
+            slope = slope * slope_factor
+            if isinstance(nrmse, pd.Series):    
+                nrmse = nrmse[0]
+
+            # Calculate percent change
+            change = percent_change(stmt_df.iloc[0][field], stmt_df.iloc[-1][field])
+            # Calculate CAGR
+            # The len(df) gives you number of years or quarters.
+            # Save as CAGR for years and CQGR for quarters
+            cagr = CAGR(stmt_df.iloc[0][field], stmt_df.iloc[-1][field], len(stmt_df))
+
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'StartDate', stmt_df.index[0])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'EndDate', stmt_df.index[-1])
 
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+duration[0:-2].capitalize()+'s', len(stmt_df))
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'StartDate', stmt_df.index[0])
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'EndDate', stmt_df.index[-1])
         #update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'revenueSlope', slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Slope', slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'Error', nrmse)
-       
-        # Calculate percent change
-        change = percent_change(stmt_df.iloc[0][field], stmt_df.iloc[-1][field])
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'PercentChange', change)
-        # Calculate CAGR
-        # The len(df) gives you number of years or quarters.
-        # Save as CAGR for years and CQGR for quarters
-        cagr = CAGR(stmt_df.iloc[0][field], stmt_df.iloc[-1][field], len(stmt_df))
-        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+cagr_field, cagr)
-
-        last_date = stmt_df.iloc[-1]['Date']
-        query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
+       
+        if not stmt_df.empty:
+            last_date = stmt_df.iloc[-1]['Date']
+            # If the results are already published, we have the actual data.
+            # We don't need the projected data. Consider projected data only when the actual data
+            # is not available.
+            if dt.now().date() - dt.strptime(last_date, "%Y-%m-%d").date() > timedelta(1):
+                query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
+            else:
+                query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))
+        else:
+            query = 'select Date, period, {} from {} where Symbol=\'{}\' and period LIKE %s'.format(f_fields[i], future_table, stk['bscs']['symbol'])
         #query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and (period = \'+2%s\' or period = \'+1%s\' or period = \'0%s\')'.format(f_fields[i], future_table, stk['bscs']['symbol'], str(last_date))%(dur, dur, dur)
         # Future stmt
         f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format(dur),))
-        if f_stmt_df.empty:
-            continue
-        # Sort by Date followed by period.
-        # If there are multiple entries for the same date, retain entries with '0y' period.
-        # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
-        # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
 
-        # Sort the entries based on period where '0y' takes the order of precedence
-        f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
-        # Set the index from 0 to n
-        f_stmt_df = f_stmt_df.reset_index(drop=True)
-        # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
-        f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
-        # Set the index back to the Date.
-        f_stmt_df.index = f_stmt_df['Date']
+        f_stmt_df.dropna(inplace=True)
 
-        # Calculate slope of future years
-        slope, nrmse = calculate_slope(f_stmt_df[[f_fields[i]]], transform=transform, ordinal=ordinal)
-        slope = slope * slope_factor
-        if isinstance(nrmse, pd.Series):    
-            nrmse = nrmse[0]
+        # Drop all entries with zero revenue
+        f_stmt_df = f_stmt_df[f_stmt_df[f_fields[i]] != 0]
+
+        slope = nrmse = change = cagr = None
+        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+        if not f_stmt_df.empty:
+            # Sort by Date followed by period.
+            # If there are multiple entries for the same date, retain entries with '0y' period.
+            # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
+            # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
+
+            # Sort the entries based on period where '0y' takes the order of precedence
+            f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
+            # Set the index from 0 to n
+            f_stmt_df = f_stmt_df.reset_index(drop=True)
+            # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
+            f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+            # Set the index back to the Date.
+            f_stmt_df.index = f_stmt_df['Date']
+            # Delete period column and rename revenueEstimateAvg to totalRevenue
+            if 'period' in f_stmt_df.columns:
+                del f_stmt_df['period']
+            #new_cols = {'revenueEstimateAvg':'totalRevenue'}
+            new_cols = {f_fields[i]:field}
+            f_stmt_df.rename(columns=new_cols, inplace=True)
+
+            # This is a case where the results are already published and only the
+            # stmt_df has the current year/quarter's data.
+            # We need that information in calculating the future slope.
+            # Check it and add to the projected data.
+            # This entry will be again removed later for knee elbow calculations
+            if stmt_df.index.difference(f_stmt_df.index).equals(stmt_df.index):
+                f_stmt_df = f_stmt_df.append(stmt_df.iloc[-1:])
+                f_stmt_df.sort_index(inplace=True)
+
+            # Take the entries from current year only
+            f_stmt_df['Year'] = pd.to_datetime(f_stmt_df['Date']).dt.year
+            f_stmt_df = f_stmt_df[f_stmt_df['Year']>=dt.now().year]
+            del f_stmt_df['Year']
+
+            if len(f_stmt_df) > 1:
+                # Calculate slope of future years
+                slope, nrmse = calculate_slope(f_stmt_df[[field]], transform=transform, ordinal=ordinal)
+                slope = slope * slope_factor
+                if isinstance(nrmse, pd.Series):    
+                    nrmse = nrmse[0]
+
+                # Calculate percent change
+                change = percent_change(f_stmt_df.iloc[0][field], f_stmt_df.iloc[-1][field])
+
+                # Calculate CAGR
+                # The len(df) gives you number of years or quarters.
+                # Save as CAGR for years and CQGR for quarters
+                cagr = CAGR(f_stmt_df.iloc[0][field], f_stmt_df.iloc[-1][field], len(f_stmt_df))
 
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i]+duration[0:-2].capitalize()+'s', len(f_stmt_df))
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'Slope', slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'Error', nrmse)
 
-        # Calculate percent change
-        change = percent_change(f_stmt_df.iloc[0][f_fields[i]], f_stmt_df.iloc[-1][f_fields[i]])
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+'PercentChange', change)
-
-        # Calculate CAGR
-        # The len(df) gives you number of years or quarters.
-        # Save as CAGR for years and CQGR for quarters
-        cagr_field = ['CQGR', 'CAGR'][dur == 'y']
-        cagr = CAGR(f_stmt_df.iloc[0][f_fields[i]], f_stmt_df.iloc[-1][f_fields[i]], len(f_stmt_df))
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'future'+mdb_fields[i].capitalize()+cagr_field, cagr)
-
-        # Delete period column and rename revenueEstimateAvg to totalRevenue
-        if 'period' in f_stmt_df.columns:
-            del f_stmt_df['period']
-        #new_cols = {'revenueEstimateAvg':'totalRevenue'}
-        new_cols = {f_fields[i]:field}
-        f_stmt_df.rename(columns=new_cols, inplace=True)
 
         # Combine both dfs.
         # Now we have the revenue for last 5 years and next two years.
-        df = stmt_df.append(f_stmt_df)
+        #df = stmt_df.append(f_stmt_df)
         #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
+        df = stmt_df.append(f_stmt_df.loc[f_stmt_df.index.difference(stmt_df.index)]) # Ignore the rows that are already present in the current revenues
 
-        change = percent_change(df.iloc[0][field], df.iloc[-1][field])
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+'PercentChange', change)
-        # Calculate CAGR
-        # The len(df) gives you number of years or quarters.
-        # Save as CAGR for years and CQGR for quarters
+        slope = nrmse = change = cagr = None
         cagr_field = ['CQGR', 'CAGR'][dur == 'y']
-        cagr = CAGR(df.iloc[0][field], df.iloc[-1][field], len(df))
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+cagr_field, cagr)
-
-        # Find the elbow. The elbow is the inflection point from where
-        # the revenue starts climbing high.
-        # Convex for elbow
-        # Concave for knee
-        knee = elbow = elbow_point = None
-        knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
-
-        #plt.plot(df['Date'], df['totalRevenue'])
-        #plt.scatter(df['Date'], df['totalRevenue'], color='orange')
-        #plt.show()
-        ##plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
-        #plt.close()
-
+        knee = elbow = None
         elbow_point = pre_elbow_slope = pre_elbow_nrmse = post_elbow_slope = post_elbow_nrmse = elbow_percent_change = None
-        if elbow is not None and elbow > 0:
-            # Now calculate the slopes of entries df.iloc[0:elbow+1] and df.iloc[elbow:]
-            # The higher the slope of df.iloc[elbow:], the higher is the revenue growth of the stock.
-            # Save these entries in the mongoDB. Sort the slopes and find the high growth stocks.
-            if elbow > 0:
+        knee_point = pre_knee_slope = pre_knee_nrmse = post_knee_slope = post_knee_nrmse = knee_percent_change = None
+        if not df.empty and len(df) > 1:
+            change = percent_change(df.iloc[0][field], df.iloc[-1][field])
+            # Calculate CAGR
+            # The len(df) gives you number of years or quarters.
+            # Save as CAGR for years and CQGR for quarters
+            cagr_field = ['CQGR', 'CAGR'][dur == 'y']
+            cagr = CAGR(df.iloc[0][field], df.iloc[-1][field], len(df))
+
+            # Find the elbow. The elbow is the inflection point from where
+            # the revenue starts climbing high.
+            # Convex for elbow
+            # Concave for knee
+            knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+
+            #plt.plot(df['Date'], df['totalRevenue'])
+            #plt.scatter(df['Date'], df['totalRevenue'], color='orange')
+            #plt.show()
+            ##plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
+            #plt.close()
+
+            if elbow is not None and elbow > 0:
+                # Now calculate the slopes of entries df.iloc[0:elbow+1] and df.iloc[elbow:]
+                # The higher the slope of df.iloc[elbow:], the higher is the revenue growth of the stock.
+                # Save these entries in the mongoDB. Sort the slopes and find the high growth stocks.
                 pre_elbow_slope, pre_elbow_nrmse = calculate_slope(df.iloc[0:elbow+1][[field]], transform=transform, ordinal=ordinal)
                 if isinstance(pre_elbow_nrmse, pd.Series):    
                     pre_elbow_nrmse = pre_elbow_nrmse[0]
 
-            post_elbow_slope, post_elbow_nrmse = calculate_slope(df.iloc[elbow:][[field]], transform=transform, ordinal=ordinal)
-            if isinstance(post_elbow_nrmse, pd.Series):    
-                post_elbow_nrmse = post_elbow_nrmse[0]
-            elbow_point = df.index[elbow]
+                post_elbow_slope, post_elbow_nrmse = calculate_slope(df.iloc[elbow:][[field]], transform=transform, ordinal=ordinal)
+                if isinstance(post_elbow_nrmse, pd.Series):    
+                    post_elbow_nrmse = post_elbow_nrmse[0]
+                elbow_point = df.index[elbow]
 
-            elbow_percent_change = percent_change(pre_elbow_slope, post_elbow_slope)
+                elbow_percent_change = percent_change(pre_elbow_slope, post_elbow_slope)
 
+            knee = elbow = None
+            knee, elbow = knee_locator_df(df, field, 1.0, "concave", "increasing")
+
+            if knee is not None and knee > 0:
+                # Now calculate the slopes of entries df.iloc[0:knee+1] and df.iloc[knee:]
+                # The lower the slope of df.iloc[knee:] means the revenues are becoming flat, flatter.
+                # Stop investing or close the positions in these stocks.
+                pre_knee_slope, pre_knee_nrmse = calculate_slope(df.iloc[0:knee+1][[field]], transform=transform, ordinal=ordinal)
+                if isinstance(pre_knee_nrmse, pd.Series):    
+                    pre_knee_nrmse = pre_knee_nrmse[0]
+
+                post_knee_slope, post_knee_nrmse = calculate_slope(df.iloc[knee:][[field]], transform=transform, ordinal=ordinal)
+                if isinstance(post_knee_nrmse, pd.Series):    
+                    post_knee_nrmse = post_knee_nrmse[0]
+                knee_point = df.index[knee]
+            
+                knee_percent_change = percent_change(pre_knee_slope, post_knee_slope)
+
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+'PercentChange', change)
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'pastAndFuture'+mdb_fields[i].capitalize()+cagr_field, cagr)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preElbow'+mdb_fields[i].capitalize()+'Slope', pre_elbow_slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preElbow'+mdb_fields[i].capitalize()+'Error', pre_elbow_nrmse)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postElbow'+mdb_fields[i].capitalize()+'Slope', post_elbow_slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postElbow'+mdb_fields[i].capitalize()+'Error', post_elbow_nrmse)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'ElbowPoint', elbow_point)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+mdb_fields[i]+'ElbowSlopePercentChange', elbow_percent_change)
-
-        knee = elbow = knee_point = None
-        knee, elbow = knee_locator_df(df, field, 1.0, "concave", "increasing")
-
-        knee_point = pre_knee_slope = pre_knee_nrmse = post_knee_slope = post_knee_nrmse = knee_percent_change = None
-        if knee is not None and knee > 0:
-            # Now calculate the slopes of entries df.iloc[0:knee+1] and df.iloc[knee:]
-            # The lower the slope of df.iloc[knee:] means the revenues are becoming flat, flatter.
-            # Stop investing or close the positions in these stocks.
-            if knee > 0:
-                pre_knee_slope, pre_knee_nrmse = calculate_slope(df.iloc[0:knee+1][[field]], transform=transform, ordinal=ordinal)
-                if isinstance(pre_knee_nrmse, pd.Series):    
-                    pre_knee_nrmse = pre_knee_nrmse[0]
-
-            post_knee_slope, post_knee_nrmse = calculate_slope(df.iloc[knee:][[field]], transform=transform, ordinal=ordinal)
-            if isinstance(post_knee_nrmse, pd.Series):    
-                post_knee_nrmse = post_knee_nrmse[0]
-            knee_point = df.index[knee]
-        
-            knee_percent_change = percent_change(pre_knee_slope, post_knee_slope)
-
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preKnee'+mdb_fields[i].capitalize()+'Slope', pre_knee_slope)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'preKnee'+mdb_fields[i].capitalize()+'Error', pre_knee_nrmse)
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'Ratios.'+duration[0:-2]+'.'+'postKnee'+mdb_fields[i].capitalize()+'Slope', post_knee_slope)
@@ -7385,150 +7673,6 @@ def update_fin_slope(stk, sem=None, core=None):
         if sem:
             sem.release()
 
-def plot_revenues(sym):
-    c  = open_db_client()
-    db = c['Stocks']
-    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Fin')
- 
-    field = 'totalRevenue'
-    f_field = 'revenueEstimateAvg'
-    table = 'Income_Statement_yearly'
-    future_table = 'Earnings_Trends'
-    num_stmts = 5
-
-    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
-    stmt_df = read_from_sql(query, mysql_engine)
-    if stmt_df.empty:
-        return
-
-    # Needed for appending with f_stmt_df
-    stmt_df.index = stmt_df['Date']
-
-    last_date = stmt_df.iloc[-1]['Date']
-    query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
-    # Future stmt
-    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('y'),))
-    # Sort by Date followed by period.
-    # If there are multiple entries for the same date, retain entries with '0y' period.
-    # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
-    # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
-
-    # Sort the entries based on period where '0y' takes the order of precedence
-    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
-    # Set the index from 0 to n
-    f_stmt_df = f_stmt_df.reset_index(drop=True)
-    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
-    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
-    # Set the index back to the Date.
-    f_stmt_df.index = f_stmt_df['Date']
-
-    # Delete period column and rename revenueEstimateAvg to totalRevenue
-    if 'period' in f_stmt_df.columns:
-        del f_stmt_df['period']
-    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
-    new_cols = {f_field:field}
-    f_stmt_df.rename(columns=new_cols, inplace=True)
-
-    # Combine both dfs.
-    # Now we have the revenue for last 5 years and next two years.
-    df = stmt_df.append(f_stmt_df)
-    #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
-
-    # Find the elbow. The elbow is the inflection point from where
-    # the revenue starts climbing high.
-    # Convex for elbow
-    # Concave for knee
-    knee = elbow = elbow_point = None
-    knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
-
-    elbow_point = None
-    if elbow is not None and elbow > 0:
-        elbow_point = df.index[elbow]
-
-    f = plt.figure()
-    f.set_figwidth(15)
-    f.set_figheight(7)
-
-    plt.subplot(2,1,1)
-    plt.plot(df['Date'], df['totalRevenue']/10**6)
-    plt.scatter(df['Date'], df['totalRevenue']/10**6, color='green')
-    plt.plot(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='orange')
-    plt.scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='red')
-    plt.title('Annual Revenues $Mn')
-    if elbow:
-        plt.scatter(elbow_point, df.loc[elbow_point]['totalRevenue']/10**6, s=100, color='magenta')
-
-    field = 'totalRevenue'
-    f_field = 'revenueEstimateAvg'
-    table = 'Income_Statement_quarterly'
-    future_table = 'Earnings_Trends'
-    num_stmts = 5
-
-    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
-    stmt_df = read_from_sql(query, mysql_engine)
-    if stmt_df.empty:
-        return
-
-    # Needed for appending with f_stmt_df
-    stmt_df.index = stmt_df['Date']
-
-    last_date = stmt_df.iloc[-1]['Date']
-    query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date > \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
-    # Future stmt
-    f_stmt_df = read_from_sql(query, mysql_engine, params=("%{}%".format('q'),))
-    # Sort by Date followed by period.
-    # If there are multiple entries for the same date, retain entries with '0y' period.
-    # '0y' is the latest predicted value. So, retain it and remove '+1y' values.
-    # Similarly if the period has '+1y', '+2y' values, remove '+2y' values etc.
-
-    # Sort the entries based on period where '0y' takes the order of precedence
-    f_stmt_df = f_stmt_df.sort_index().sort_values('period', ascending=False)
-    # Set the index from 0 to n
-    f_stmt_df = f_stmt_df.reset_index(drop=True)
-    # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
-    f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
-    # Set the index back to the Date.
-    f_stmt_df.index = f_stmt_df['Date']
-
-    # Delete period column and rename revenueEstimateAvg to totalRevenue
-    if 'period' in f_stmt_df.columns:
-        del f_stmt_df['period']
-    #new_cols = {'revenueEstimateAvg':'totalRevenue'}
-    new_cols = {f_field:field}
-    f_stmt_df.rename(columns=new_cols, inplace=True)
-
-    # Combine both dfs.
-    # Now we have the revenue for last 5 years and next two years.
-    df = stmt_df.append(f_stmt_df)
-    #df = stmt_df.append(f_stmt_df.iloc[1:]) # Ignore first row as it is already present in the current revenues
-
-    # Find the elbow. The elbow is the inflection point from where
-    # the revenue starts climbing high.
-    # Convex for elbow
-    # Concave for knee
-    knee = elbow = elbow_point = None
-    knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
-
-    elbow_point = None
-    if elbow is not None and elbow > 0:
-        elbow_point = df.index[elbow]
-
-    plt.subplot(2,1,2)
-    plt.plot(df['Date'], df['totalRevenue']/10**6)
-    plt.scatter(df['Date'], df['totalRevenue']/10**6, color='green')
-    plt.plot(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='orange')
-    plt.scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue']/10**6, color='red')
-    plt.title('Quarterly Revenues $Mn')
-    if elbow:
-        plt.scatter(elbow_point, df.loc[elbow_point]['totalRevenue']/10**6, s=100, color='magenta')
-
-    plt.show()
-    #plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
-    plt.close()
-
-    close_db_client(c)
-    close_sql_connection(mysql_engine)
-
 def update_all_fin_slopes():
     #os.system("taskset -p 0xfffff %d > /dev/null 2>&1" % os.getpid())
     num_processes = num_cores #* 2 
@@ -7555,7 +7699,7 @@ def update_all_fin_slopes():
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
 
-    #stocks = db.US_Stocks.find({"bscs.symbol":'ENPH'})
+    stocks = db.US_Stocks.find({"bscs.symbol":'NTLA'})
     print(stocks.count())
 
     try:
@@ -7564,9 +7708,9 @@ def update_all_fin_slopes():
             #    break
             sem.acquire()
             print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
-            #update_fin_slope(stk, sem, i%num_cores)
-            processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, sem, i%num_cores,))
-            processes[i%num_processes].start()
+            update_fin_slope(stk, sem, i%num_cores)
+            #processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, sem, i%num_cores,))
+            #processes[i%num_processes].start()
 
     finally:
         for j in range(len(processes)):
