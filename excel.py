@@ -435,16 +435,16 @@ def revenue_slopes(sheet, i):
 def add_basic_header(sheet, i):
     sheet.row(0).height_mismatch = True
     sheet.row(0).height = 3*367
-    #Company
-    sheet.col(i).width = 13*367
-    sheet.write(0, i, "Company", style_wrap)
-    conf.COMP=i
-
-    i+=1
     #Symbol
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Symbol", style_wrap)
     conf.SYM=i
+
+    i+=1
+    #Company
+    sheet.col(i).width = 13*367
+    sheet.write(0, i, "Company", style_wrap)
+    conf.COMP=i
 
     i+=1
     sheet.col(i).width = 6*367
@@ -550,6 +550,21 @@ def add_basic_header(sheet, i):
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Current Price", style_wrap)
     conf.CUR_PR=i
+
+    i+=1
+    #Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Shares", style_wrap)
+
+    i+=1
+    #Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Amount Invested", style_wrap)
+
+    i+=1
+    #Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Price after Year", style_wrap)
 
     i+=1
     sheet.col(i).width = 5*367
@@ -1869,27 +1884,12 @@ def add_slopes(ash, ashs, stk, recent_ipos):
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
                 sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['revenueError'],2), styles['CUR_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
 
-            if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
-                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
-                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.2:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                else:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
-                sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
-
             if 'revenueCQGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueCQGR']):
                 if stk['Ratios'][duration]['revenueCQGR'] > 0.2:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CQGR, round(stk['Ratios'][duration]['revenueCQGR'],2), styles['CUR_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
-
-            if 'futureRevenueCQGR' in stk['Ratios'][duration].keys() and \
-                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCQGR']):
-                if stk['Ratios'][duration]['futureRevenueCQGR'] > 0.2:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                else:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'pastAndFutureRevenueCQGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCQGR']):
@@ -1920,27 +1920,12 @@ def add_slopes(ash, ashs, stk, recent_ipos):
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['revenueSlope'],2), styles['CUR_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
                 sh_write(ash, conf.COUNT, conf.CUR_REVENUE_SLOPE_A_ERROR, round(stk['Ratios'][duration]['revenueError'],2), styles['CUR_REVENUE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
 
-            if 'futureRevenueSlope' in stk['Ratios'][duration].keys() and \
-                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueSlope']):
-                if stk['Ratios'][duration]['futureRevenueSlope'] > 0.3:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                else:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
-                sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A_ERROR, round(stk['Ratios'][duration]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
-
             if 'revenueCAGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['revenueCAGR']):
                 if stk['Ratios'][duration]['revenueCAGR'] > 0.3:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
                 else:
                     sh_write(ash, conf.COUNT, conf.CUR_REVENUE_CAGR, round(stk['Ratios'][duration]['revenueCAGR'],2), styles['CUR_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
-
-            if 'futureRevenueCAGR' in stk['Ratios'][duration].keys() and \
-                not is_none_r_nan(stk['Ratios'][duration]['futureRevenueCAGR']):
-                if stk['Ratios'][duration]['futureRevenueCAGR'] > 0.3:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                else:
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['futureRevenueCAGR'],2), styles['FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
 
             if 'pastAndFutureRevenueCAGR' in stk['Ratios'][duration].keys() and \
                 not is_none_r_nan(stk['Ratios'][duration]['pastAndFutureRevenueCAGR']):
@@ -1961,6 +1946,43 @@ def add_slopes(ash, ashs, stk, recent_ipos):
                 not is_none_r_nan(stk['Ratios'][duration]['postElbowRevenueSlope']):
                 sh_write(ash, conf.COUNT, conf.REVENUE_POST_ELBOW_SLOPE_A, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_POST_ELBOW_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
 
+            if 'future_trends_pull_dates' in stk['Ratios'][duration].keys():
+                pull_dates = list(stk['Ratios'][duration]['future_trends_pull_dates'].keys())
+                if len(pull_dates) == 0:
+                    return
+                pull_dates = pd.DataFrame(pull_dates, columns=['dates'])
+                pull_dates['datetime'] = pd.to_datetime(pull_dates['dates'])
+                pull_dates = pull_dates.sort_values(['datetime'],ascending=True)
+                latest_date = pull_dates.iloc[-1]['dates']
+
+                if 'futureRevenueSlope' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'] > 0.2:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+                if 'futureRevenueCQGR' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'] > 0.2:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+
+                if 'futureRevenueSlope' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'] > 0.3:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_A_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_A'], ashs=ashs, recent_ipos=recent_ipos)
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_A_ERROR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_A_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+                if 'futureRevenueCAGR' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCAGR']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCAGR'] > 0.3:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCAGR'],2), styles['REVENUE_CAGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CAGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCAGR'],2), styles['FUTURE_REVENUE_CAGR'], ashs=ashs, recent_ipos=recent_ipos)
 
 #com : Company Work Book
 #ash : All Stocks Work Sheet
