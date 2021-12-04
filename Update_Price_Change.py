@@ -7,10 +7,10 @@ import parse_html
 from datetime import datetime as dt
 
 if __name__ == "__main__":
-    #if len(sys.argv) != 2:
-    #    print("Invalid arguments")
-    #    print("$ %s country_name" %(sys.argv[0]))
-    #    sys.exit(1)
+    ##if len(sys.argv) != 2:
+    ##    print("Invalid arguments")
+    ##    print("$ %s country_name" %(sys.argv[0]))
+    ##    sys.exit(1)
 
 
     print("Start Time: %r" %(str(dt.now())))
@@ -41,14 +41,23 @@ if __name__ == "__main__":
         print(error)
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Technical Params Error" %(sys.argv[1]), s)
- 
-    # send email
-    internet.send_email_price_changes('US')
 
-    # Radar Stocks
-    excel.get_radar_stocks('US')
+    try:
+        DB.update_bond_yields()
+    except Exception as e:
+        print('Failed to update bond yields')
+
+    ## send email
+    #internet.send_email_price_changes('US')
+
+    ## Radar Stocks
+    #excel.get_radar_stocks('US')
+
+    DB.update_all_US_fin_percent_change()
 
     DB.update_all_stock_betas('US')
 
+    DB.clear_all_zero_volume_rows()
+    DB.update_all_since()
     print("End Time: %r" %(str(dt.now())))
 

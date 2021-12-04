@@ -509,14 +509,14 @@ def update_price_change(country, stk, core, sem=None, index=False):
             # The datatype of the fields is taken from the price fields 
             # mentioned in the datastructures.py 
             if len(missing_cols) > 0:
-                print("%s: Adding missing columns: %r", table_name, missing_cols)
+                print("%s: Adding missing columns: %r"%(table_name, missing_cols))
                 miss = DB.mysql_add_columns(sql_engine, table_name, missing_cols, remove_spaces=False)
                 if miss > 0:
                     PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
                     PRINT_ERR("Columns: ",missing_cols)
                     sys.exit(1)
 
-            for i, field in enumerate([*price_change_fields][:-1]):
+            for i, field in enumerate([*price_change_fields][:-2]):
                 query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
                 #print(query)
                 #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
@@ -575,9 +575,12 @@ def update_price_change(country, stk, core, sem=None, index=False):
                 df = DB.read_from_sql(query, sql_engine)
 
             #print(query)
+            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            df = DB.read_from_sql(query, sql_engine)
             start_price = df['Adj Close'][0]
 
-            field = [*price_change_fields][-1]
+            # Whole Change
+            field = [*price_change_fields][-2]
             query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
             df = DB.read_from_sql(query, sql_engine)
             if not df.empty:
@@ -590,8 +593,38 @@ def update_price_change(country, stk, core, sem=None, index=False):
                     #wdf.loc[cur_date_str]['Date'] = cur_date_str
                     wdf.loc[cur_date_str, 'Date'] = cur_date_str
                     change = percent_change(start_price, cur_price)
-                    #Ewdf.loc[cur_date_str][[*price_change_fields][-1]] = change
-                    wdf.loc[cur_date_str, [*price_change_fields][-1]] = change
+                    #Ewdf.loc[cur_date_str][[*price_change_fields][-2]] = change
+                    wdf.loc[cur_date_str, [*price_change_fields][-2]] = change
+
+            wdf = wdf.dropna(axis=0)
+            # Write to the database
+            DB.mysql_update_table(sql_engine, table_name, wdf)
+
+            # YTD Change
+            field = [*price_change_fields][-1]
+            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            df = DB.read_from_sql(query, sql_engine)
+            if not df.empty:
+                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+                for index, d in df.iloc[1:].iterrows():
+                    cur_price = d['Adj Close']
+                    cur_date = pd.to_datetime(index).date()
+                    start_year = cur_date.year
+                    cur_date_str = str(cur_date)
+
+                    #query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+                    query = 'select Date, `Adj Close` from {} where Date = (select min(Date) from {} where Year(Date)={})'.format(table_name, table_name, start_year)
+                    start_df = DB.read_from_sql(query, sql_engine)
+                    if not start_df.empty:
+                        start_price = start_df['Adj Close'][0]
+                        #wdf.loc[cur_date_str]=nan
+                        #wdf.loc[cur_date_str]['Date'] = cur_date_str
+                        wdf.loc[cur_date_str, 'Date'] = cur_date_str
+                        change = percent_change(start_price, cur_price)
+                        #Ewdf.loc[cur_date_str][[*price_change_fields][-1]] = change
+                        wdf.loc[cur_date_str, [*price_change_fields][-1]] = change
+                    else:
+                        change = nan
 
             wdf = wdf.dropna(axis=0)
             # Write to the database
@@ -629,6 +662,9 @@ def update_price_change(country, stk, core, sem=None, index=False):
 
             change = get_change(df, 'Whole Change')
             DB.update_field(collection, sym, "price_change.whole", change)
+
+            change = get_change(df, 'YTD Change')
+            DB.update_field(collection, sym, "price_change.ytd", change)
 
             end_date = str(dt.now().date())
             #get 52 week high
@@ -731,10 +767,10 @@ def fork_hdf5_process(country):
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
             sem.acquire()
-            update_price_change(country, stk, 1, sem, index=True)
+            #update_price_change(country, stk, 1, sem, index=True)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
-            #processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, True))
-            #processes[i%num_processes].start()
+            processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, True))
+            processes[i%num_processes].start()
 
         ## Randomly get all records whose price is not updated till today
         ##pipeline = [{'$sample': {'size':num_docs}},

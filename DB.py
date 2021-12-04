@@ -394,7 +394,8 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                         stmt = table.update()
                         for k in primary_keys:
                             if k in items.keys():
-                                stmt = stmt.where(table.c[primary_keys[k]] == items[k])
+                                stmt = stmt.where(table.c[k] == items[k])
+                                #stmt = stmt.where(table.c[primary_keys[k]] == items[k])
                             else:
                                 print("Symbol: %s, key: %s not present in table %s, update failed" %(symbol, k, table_name))
                                 return
@@ -402,7 +403,8 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                         # Remove them from the items list
                         for k in primary_keys:
                             del items[k]
-                        print("%s: mysql_update_table" %(symbol))
+                        stmt = stmt.values(items)
+                        #print("%s: mysql_update_table" %(symbol))
                         # table.c.keys() -> prints the list of all columns in the table.
 
 
@@ -4051,7 +4053,9 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
 
         df.rename(columns={'date':'Date'}, inplace=True)
         df.index = df['Date']
-        df.index = pd.to_datetime(df.index)
+        #df.index = pd.to_datetime(df.index)
+        df.index = pd.to_datetime(df.index,errors='coerce')
+        df = df.loc[df.index.notnull()]
         df = df.where(pd.notnull(df), None)
         df['datetime'] = pd.to_datetime(df['Date'])
         #del df['date']
@@ -4114,9 +4118,11 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
         ##df3=df3.sort_index(axis = 1)
         ##df4=df4.sort_index(axis = 1)
     finally:
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_pull_date', dt.combine(dt.now(), dt.min.time()))
         if update:
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_pull_date', dt.combine(dt.now(), dt.min.time()))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_trends_update_date', dt.combine(dt.now(), dt.min.time()))
             # Earnings trends are updated. Recalculate the slopes and CAGR
+            print('%s: Updating fin slope' %(stk['bscs']['symbol']))
             update_fin_slope(stk, fin_engine=fin_engine, trends_engine=trends_engine)
 
         close_sql_connection(trends_engine)
@@ -4138,16 +4144,24 @@ def update_all_earnings_trend():
     today = dt.combine(dt.now(), dt.min.time())
 
     try:
-        stocks = db.US_Stocks.find({"$and": [\
-                                                {'General.Type':'Common Stock'},\
+        stocks = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                {'General.Type':'Common Stock'},\
+                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {"dates.earnings_trends_pull_date": {"$exists": False }},\
+                                                            {"dates.earnings_trends_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                        ]\
+                                                },\
+ 
+                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                             ]\
-                                    },\
-                                    no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+                                    }\
+                                    ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+
         print(stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"DOCU"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"LSPD"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -6634,7 +6648,7 @@ def update_all_stock_betas(country):
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
  
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    #docs = db.US_Stocks.find({"bscs.symbol" : "XPRO"})
+    docs = db.US_Stocks.find({"bscs.symbol" : "FITB"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
@@ -8038,11 +8052,11 @@ def update_all_fin_slopes():
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.Exchange':{"$in":major_exchanges}},\
-                                            #{"$or": [\
-                                            #            {"dates.fin_slopes_update_date": {"$exists": False }},\
-                                            #            {"dates.fin_slopes_update_date": {"$lt": get_latest_trading_day()}}\
-                                            #        ]\
-                                            #},\
+                                            {"$or": [\
+                                                        {"dates.fin_slopes_update_date": {"$exists": False }},\
+                                                        {"dates.fin_slopes_update_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]\
+                                            },\
  
                                             #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
