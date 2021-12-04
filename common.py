@@ -167,6 +167,11 @@ def lowest_3(a, b, c):
         return b
     return c
 
+def get_current_quarter():
+    month = dt.now().date().month - 1
+    quarter = (month // 3) + 1
+    return quarter
+
 # Lock without blocking
 # Return False if lock is not available
 # Acquire lock and return True if the lock is available.
