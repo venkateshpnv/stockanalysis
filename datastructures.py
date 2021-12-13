@@ -401,6 +401,9 @@ recessions = {
                            "end"   : "23 March 2020",
                            "duration" : 1
                          },
+                "2021" : { "start" : "24 November 2021",
+                         },
+ 
              }
 
 major_exchanges = ['NASDAQ', 'NYSE', 'NYSE MKT', 'NYSE ARCA', 'AMEX']

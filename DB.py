@@ -3926,6 +3926,8 @@ def update_US_stock_earnings_trend_duration(fin_engine, trends_engine, stk, df, 
         cols = list(f_stmt_df.columns)
         if 'pullDate' in cols:
             cols.remove('pullDate')
+        if 'datetime' in cols:
+            cols.remove('datetime')
         new_df = new_df[cols]
     
         if new_df.empty:
@@ -4136,7 +4138,7 @@ def update_all_earnings_trend():
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
     sort = [-1, 1][dt.now().day % 2 == 0]
 
-    num_processes = 6
+    num_processes = 12
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     j=0
@@ -4149,8 +4151,13 @@ def update_all_earnings_trend():
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}},\
                                                 {"$or": [\
+                                                            {"$and": [\
+                                                                        {"dates.earnings_trends_pull_date": {"$exists": True }},\
+                                                                        {'dates.earnings_trends_pull_date' : {'$ne': dt.combine(dt.now(), dt.min.time())}},\
+                                                                        {"dates.earnings_trends_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                                    ]\
+                                                            },\
                                                             {"dates.earnings_trends_pull_date": {"$exists": False }},\
-                                                            {"dates.earnings_trends_pull_date": {"$lt": get_latest_trading_day()}}\
                                                         ]\
                                                 },\
  
@@ -4507,7 +4514,7 @@ def update_short_interests(stk, core, sem=None):
                 close_db_client(c)
                 sys.exit(1)
             if ret.status_code == 404:
-                print("Failed to get Dividends data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                print("Failed to get Short Interest for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                 update = True
                 return
             if ret.status_code != 200:
@@ -5721,12 +5728,12 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
 
             close_sql_connection(price_engine)
 
-        if (dt.now().isoweekday() > 5) \
-                or ('dates' in stk.keys() \
-                        and 'technicals_pull_date' in stk['dates'].keys() \
-                        and  stk['dates']['technicals_pull_date'].date() == dt.now().date()):
-            update = False
-            return
+        ##if (dt.now().isoweekday() > 5) \
+        ##        or ('dates' in stk.keys() \
+        ##                and 'technicals_pull_date' in stk['dates'].keys() \
+        ##                and  stk['dates']['technicals_pull_date'].date() == dt.now().date()):
+        ##    update = False
+        ##    return
 
         #url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
 
@@ -5933,6 +5940,7 @@ def update_all_technicals():
         i = 0
         skip = 0
         for sym, d in df.iterrows():
+            #stks = db.US_Stocks.find({'bscs.symbol': 'AAPL'})
             stks = db.US_Stocks.find({'bscs.symbol': sym})
             if stks.count() == 0:
                 add_symbol_to_database(d, db)

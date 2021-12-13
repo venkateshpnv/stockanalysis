@@ -411,6 +411,15 @@ def revenue_slopes(sheet, i):
 
     i+=1
 
+    # Market Cap in Cr
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "MCap Billions", style_wrap)
+    conf.MCAP=i
+    styles['MCAP'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    styles['MCAP_1BN'] = get_style(color=None, num_format_str="0.0000")
+
+    i+=1
+
     sheet.col(i).width = 6*367
     sheet.write(0, i, "Rev Elbow Point A", style_wrap)
     conf.REVENUE_ELBOW_POINT_A=i
@@ -472,9 +481,9 @@ def add_basic_header(sheet, i):
 
     i+=1
     sheet.col(i).width = 6*367
-    sheet.write(0, i, "Yr Price Change", style_wrap)
-    conf.YR_PR_CHANGE=i
-    styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    sheet.write(0, i, "YTD Price Change", style_wrap)
+    conf.YTD_PR_CHANGE=i
+    styles['YTD_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
  
     #i+=1
     #sheet.col(i).width = 6*367
@@ -649,14 +658,6 @@ def add_basic_header(sheet, i):
     #sheet.col(i).width = 5*367
     #sheet.write(0, i, "Face Value", style_wrap)
     #conf.FV=i
-
-    i+=1
-    # Market Cap in Cr
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "MCap Billions", style_wrap)
-    conf.MCAP=i
-    styles['MCAP'] = get_style(colors[i%len(colors)], num_format_str="0.00")
-    styles['MCAP_1BN'] = get_style(color=None, num_format_str="0.0000")
 
     #i+=1
     ## Market Cap in Cr
@@ -1520,9 +1521,9 @@ def add_price_change_header(sheet, i, sheet_type):
 
     #i = i + 1
     #sheet.col(i).width = 6*367
-    #sheet.write(0, i, "Yr Price Change", style_wrap)
-    #conf.YR_PR_CHANGE=i
-    #styles['YR_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    #sheet.write(0, i, "YTD Price Change", style_wrap)
+    #conf.YTD_PR_CHANGE=i
+    #styles['YTD_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
  
     i = i + 1
     sheet.col(i).width = 8*367
@@ -1537,7 +1538,7 @@ def add_price_change_header(sheet, i, sheet_type):
 #    if sheet_type == 'YEAR':
 #        sheet.col(i).width = 6*367
 #        sheet.write(0, i, "Yr Price Change", style_wrap)
-#        conf.YR_PR_CHANGE=i
+#        conf.YTD_PR_CHANGE=i
 #        return i
 #
 #    # Quarter Price Change
@@ -1673,7 +1674,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
 
 #    if sheet_type == 'YEAR':
-#        sh_write(ash, count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+#        sh_write(ash, count, conf.YTD_PR_CHANGE, stk['price_change']['ytd'], style_percent)
 #    if sheet_type == 'QUARTER':
 #        sh_write(ash, count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
 #    if sheet_type == 'MONTH':
@@ -1714,7 +1715,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
  
     if stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         sh_write(ash, count, conf.WH_PR_CHANGE, stk['price_change']['whole'], style_decimal)
-    sh_write(ash, count, conf.YR_PR_CHANGE, stk['price_change']['year'], style_percent)
+    sh_write(ash, count, conf.YTD_PR_CHANGE, stk['price_change']['ytd'], style_percent)
     sh_write(ash, count, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], style_percent)
     sh_write(ash, count, conf.QR_PR_CHANGE, stk['price_change']['quarter'], style_percent)
     sh_write(ash, count, conf.MON_PR_CHANGE, stk['price_change']['month'], style_percent)
@@ -2649,8 +2650,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         #price_style = get_percent_style(stk['price_change']['whole'], styles['WH_PR_CHANGE'])
         sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole'], styles['WH_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
     if 'year' in stk['price_change'].keys() and stk['price_change']['year'] is not None and stk['price_change']['year'] != 0:
-        price_style = get_percent_style(stk['price_change']['year'], styles['YR_PR_CHANGE'])
-        sh_write(ash, conf.COUNT, conf.YR_PR_CHANGE, stk['price_change']['year'], price_style, ashs=ashs, recent_ipos=recent_ipos)
+        price_style = get_percent_style(stk['price_change']['year'], styles['YTD_PR_CHANGE'])
+        sh_write(ash, conf.COUNT, conf.YTD_PR_CHANGE, stk['price_change']['ytd'], price_style, ashs=ashs, recent_ipos=recent_ipos)
     if 'half_year' in stk['price_change'].keys() and stk['price_change']['half_year'] is not None and stk['price_change']['half_year'] != 0:
         price_style = get_percent_style(stk['price_change']['half_year'], styles['HF_YR_PR_CHANGE'])
         sh_write(ash, conf.COUNT, conf.HF_YR_PR_CHANGE, stk['price_change']['half_year'], price_style, ashs=ashs, recent_ipos=recent_ipos)
