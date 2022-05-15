@@ -109,7 +109,7 @@ def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=Fals
     except:
         pass
 
-def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=22):
+def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=38):
     sheet = workbook.add_sheet(sheet_name)
     sheet.set_panes_frozen(True) 
     sheet.set_horz_split_pos(horz_pos) 
@@ -484,7 +484,10 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "YTD Price Change", style_wrap)
     conf.YTD_PR_CHANGE=i
     styles['YTD_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
- 
+
+    i+=1
+    i = add_price_change_header(sheet, i, 'ALL')
+
     #i+=1
     #sheet.col(i).width = 6*367
     #sheet.write(0, i, "Annual Price Slope", style_wrap)
@@ -684,26 +687,26 @@ def add_basic_header(sheet, i):
     #sheet.write(0, i, "Prom Stake", style_wrap)
     #conf.PRM_S=i
 
-    i+=1
-    # RSI
-    sheet.col(i).width = 5*367
-    st = "RSI"
-    sheet.write(0, i, st, style_wrap)
-    conf.RSI=i
-
-    i+=1
-    # 100 EMA
-    sheet.col(i).width = 7*367
-    st = "EMA Price Change"
-    sheet.write(0, i, st, style_wrap)
-    conf.EMA=i
-    styles['EMA'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+    #i+=1
+    ## 100 EMA
+    #sheet.col(i).width = 7*367
+    #st = "EMA Price Change"
+    #sheet.write(0, i, st, style_wrap)
+    #conf.EMA=i
+    #styles['EMA'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
     sheet.col(i).width = 4*367
     sheet.write(0, i, "Short Ratio", style_wrap)
     conf.SHORT_RATIO=i
     styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+    i+=1
+    # RSI
+    sheet.col(i).width = 5*367
+    st = "RSI"
+    sheet.write(0, i, st, style_wrap)
+    conf.RSI=i
 
     i+=1
     # difference between 60 day min RSI and latest RSI
@@ -1282,8 +1285,8 @@ def add_dcf_header(sheets, years, prices_only=False):
             sheet.write(0, i, "Price Years of Data", style_wrap)
             conf.PRICE_YR_DAT=i
 
-        i+=1
-        i = add_price_change_header(sheet, i, 'ALL')
+        #i+=1
+        #i = add_price_change_header(sheet, i, 'ALL')
 
         i+=1
         i = add_technicals(sheet, i)
@@ -1531,6 +1534,14 @@ def add_price_change_header(sheet, i, sheet_type):
     conf.WH_PR_CHANGE=i
     styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="#,##0.00")
 
+    i = i + 1
+    sheet.col(i).width = 6*367
+    last_recession_year = list(recessions.keys())[-1]
+    st = "Since %s Recession" %(last_recession_year)
+    sheet.write(0, i, st, style_wrap)
+    conf.R2020=i
+
+
     return i
 
 
@@ -1570,9 +1581,9 @@ def add_price_change_header(sheet, i, sheet_type):
 #        return i
 
 def add_second_price_change_header(sheet, i):
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Since 2020 Recession", style_wrap)
-    conf.R2020=i
+#    sheet.col(i).width = 6*367
+#    sheet.write(0, i, "Since 2021 Recession", style_wrap)
+#    conf.R2020=i
 
     i+=1
     # 2007 Percent Change
@@ -1618,9 +1629,9 @@ def add_price_surprise_header(sheet, sheet_type):
     i = 0
     i = add_basic_header(sheet, i)
 
-    i+=1
-    i = add_price_change_header(sheet, i, sheet_type)
-
+#    i+=1
+#    i = add_price_change_header(sheet, i, sheet_type)
+#
     #i+=1
     #i = add_calc_header(sheet, i)
 
@@ -1911,6 +1922,30 @@ def add_slopes(ash, ashs, stk, recent_ipos):
                 not is_none_r_nan(stk['Ratios'][duration]['postElbowRevenueSlope']):
                 sh_write(ash, conf.COUNT, conf.REVENUE_POST_ELBOW_SLOPE_Q, round(stk['Ratios'][duration]['preElbowRevenueSlope'],2), styles['REVENUE_POST_ELBOW_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
 
+            if 'future_trends_pull_dates' in stk['Ratios'][duration].keys():
+                pull_dates = list(stk['Ratios'][duration]['future_trends_pull_dates'].keys())
+                if len(pull_dates) == 0:
+                    return
+                pull_dates = pd.DataFrame(pull_dates, columns=['dates'])
+                pull_dates['datetime'] = pd.to_datetime(pull_dates['dates'])
+                pull_dates = pull_dates.sort_values(['datetime'],ascending=True)
+                latest_date = pull_dates.iloc[-1]['dates']
+
+                if 'futureRevenueSlope' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'] > 0.2:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
+                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
+
+                if 'futureRevenueCQGR' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
+                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR']):
+                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'] > 0.2:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
+                    else:
+                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
+
         duration = 'year'
         if duration in stk['Ratios'].keys():
             if 'revenueSlope' in stk['Ratios'][duration].keys() and \
@@ -1955,21 +1990,6 @@ def add_slopes(ash, ashs, stk, recent_ipos):
                 pull_dates['datetime'] = pd.to_datetime(pull_dates['dates'])
                 pull_dates = pull_dates.sort_values(['datetime'],ascending=True)
                 latest_date = pull_dates.iloc[-1]['dates']
-
-                if 'futureRevenueSlope' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
-                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope']):
-                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'] > 0.2:
-                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['REVENUE_SLOPE_Q_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                    else:
-                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope'],2), styles['FUTURE_REVENUE_SLOPE_Q'], ashs=ashs, recent_ipos=recent_ipos)
-                    sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_SLOPE_Q_ERROR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueError'],2), styles['FUTURE_REVENUE_SLOPE_Q_ERROR'], ashs=ashs, recent_ipos=recent_ipos)
-
-                if 'futureRevenueCQGR' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
-                    not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR']):
-                    if stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'] > 0.2:
-                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['REVENUE_CQGR_HIGH'], ashs=ashs, recent_ipos=recent_ipos)
-                    else:
-                        sh_write(ash, conf.COUNT, conf.FUTURE_REVENUE_CQGR, round(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueCQGR'],2), styles['FUTURE_REVENUE_CQGR'], ashs=ashs, recent_ipos=recent_ipos)
 
                 if 'futureRevenueSlope' in stk['Ratios'][duration]['future_trends_pull_dates'][latest_date].keys() and \
                     not is_none_r_nan(stk['Ratios'][duration]['future_trends_pull_dates'][latest_date]['futureRevenueSlope']):
@@ -2127,12 +2147,17 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #    sh_write(ash, conf.COUNT, conf.DII, stk['bscs']['dii_stake']/100, style_percent, ashs, recent_ipos=recent_ipos)
 
     #Betas
+    last_recession_year = list(recessions.keys())[-1]
     if 'fig' in stk.keys() and 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
-            if '2020' in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession']['2020'] != None:
+            if last_recession_year in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession'][last_recession_year] != None:
                 if 'since_last_recession' in stk['fig']['betas'].keys() and \
+                        'betas_calc_date' in stk['dates'].keys() and \
+                        stk['dates']['betas_calc_date'] >= DB.get_latest_trading_day() - timedelta(3) and \
+                        stk['fig']['betas']['since_last_recession'] != None and \
                         'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
-                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent, ashs, recent_ipos=recent_ipos)
+                    price_style = get_percent_style(stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent)
+                    sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], price_style, ashs, recent_ipos=recent_ipos)
             if '2007' in stk['fig']['betas']['recession'].keys():
                 if stk['fig']['betas']['recession']['2007'] != None:
                     try:
@@ -2559,11 +2584,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'technicals' not in stk.keys():
         print('%s: %s: No technicals' %(stk['bscs']['symbol'], stk['General']['Name']))
     else:
-        if 'ema' in stk['technicals'].keys() and \
-                stk['technicals']['ema'] is not None and \
-                'change_with_price' in stk['technicals']['ema'].keys() and \
-                not isnan(stk['technicals']['ema']['change_with_price']):
-            sh_write(ash, conf.COUNT, conf.EMA, stk['technicals']['ema']['change_with_price'], styles['EMA'], ashs=ashs, recent_ipos=recent_ipos)
+        #if 'ema' in stk['technicals'].keys() and \
+        #        stk['technicals']['ema'] is not None and \
+        #        'change_with_price' in stk['technicals']['ema'].keys() and \
+        #        not isnan(stk['technicals']['ema']['change_with_price']):
+        #    sh_write(ash, conf.COUNT, conf.EMA, stk['technicals']['ema']['change_with_price'], styles['EMA'], ashs=ashs, recent_ipos=recent_ipos)
 
         if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
             sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
