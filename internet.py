@@ -485,7 +485,6 @@ def update_price_change(country, stk, core, sem=None, index=False):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
 
-    sym = stk['bscs']['symbol']
     c = DB.open_db_client()
     db = c['Stocks']
     collection = DB.get_collection(country, db)
@@ -496,10 +495,11 @@ def update_price_change(country, stk, core, sem=None, index=False):
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
     
-    table_name = DB.get_symbol_table_name(sym)
-    change = 0
-
     try:
+        sym = stk['bscs']['symbol']
+        table_name = DB.get_symbol_table_name(sym)
+        change = 0
+
         if DB.mysql_exists_table(sql_engine, table_name):
             print("mysql: percent_change: %s"%(sym))
 
@@ -716,7 +716,7 @@ def update_price_change(country, stk, core, sem=None, index=False):
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
  
     except Exception as E:
-        print("Error: %r" %(str(E)))
+        print("Error: price_change: %r, %r" %(stk['bscs'], str(E)))
     finally:
         DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
         DB.close_sql_connection(sql_engine)
@@ -799,7 +799,7 @@ def fork_hdf5_process(country):
                                             #        ]\
                                             #},\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'AAPL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CBL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
