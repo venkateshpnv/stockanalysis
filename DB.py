@@ -671,6 +671,11 @@ def close_db():
 def close_db_client(c):
     c.close()
 
+def doc_exists(col, symbol):
+    if col.find({"General.Code":symbol}).count() > 0 :
+        return True
+    return False
+
 def update_field(col, symbol, field, value):
     col.update({"bscs.symbol":symbol},{'$set':{field:value}})
 
@@ -680,11 +685,11 @@ def get_collection(country, db):
     return db.Indian_Stocks
 
 def write_to_collection(col, doc):
-    if col.find({"bscs.symbol":doc['bscs']['symbol']}).count() > 0 :
-        print("Stock exists")
+    if doc_exists(col, doc['bscs']['symbol']):
+        #print("Stock exists")
         return
     col.insert_one(doc)
-    print("Count: %r" %(col.count()))
+    #print("Count: %r" %(col.count()))
     #x = col.find_one()
     #print(x)
 
@@ -1312,18 +1317,18 @@ j=0
 def update_bond_yields():
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
 
-    new_cols = {'1 mo': '001_1_mon', 
-            '2 mo': '002_2_mon', 
-            '3 mo': '003_3_mon', 
-            '6 mo' : '004_6_mon', 
-            '1 yr' : '005_1_yr',
-            '2 yr' : '006_2_yr',
-            '3 yr' : '007_3_yr',
-            '5 yr' : '008_5_yr',
-            '7 yr' : '009_7_yr',
-            '10 yr': '010_10_yr',
-            '20 yr': '011_20_yr',
-            '30 yr': '012_30_yr',
+    new_cols = {'1 Mo': '001_1_mon', 
+            '2 Mo': '002_2_mon', 
+            '3 Mo': '003_3_mon', 
+            '6 Mo' : '004_6_mon', 
+            '1 Yr' : '005_1_yr',
+            '2 Yr' : '006_2_yr',
+            '3 Yr' : '007_3_yr',
+            '5 Yr' : '008_5_yr',
+            '7 Yr' : '009_7_yr',
+            '10 Yr': '010_10_yr',
+            '20 Yr': '011_20_yr',
+            '30 Yr': '012_30_yr',
             }
 
     table = 'BOND_YIELDS'
@@ -1346,7 +1351,7 @@ def update_bond_yields():
 
     page = internet.get_webpage(url)
     df = pd.read_html(page)
-    df = df[1]
+    df = df[0]
     if not df.empty:
         df['Date'] = pd.to_datetime(df['Date'])
         df['Date'] = df['Date'].astype('str')
@@ -1355,6 +1360,11 @@ def update_bond_yields():
             index = df.index.get_loc(rdf['Date'][0])
             df = df[index+1:]
         df.rename(columns=new_cols, inplace=True)
+
+    # Remove unnecessary columns
+    for c in df.columns:
+        if c not in ['Date'] + list(new_cols.values()):
+            del df[c]
 
     #mysql_update_table(sql_engine, table, df, insert=True)
 
@@ -1536,8 +1546,11 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         for k in indices.keys():
             stk = {}
             stk['bscs']={}
+            stk['General']={}
             stk['bscs']['symbol'] = k
             stk['bscs']['name'] = indices[k]
+            stk['General']['Code'] = k
+            stk['General']['Name'] = indices[k]
             stk['bscs']['quoteType'] = 'Index'
             stk['sno'] = i
             sem.acquire()
@@ -1579,12 +1592,13 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}},\
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'ABVC'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'FSRVW'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
@@ -1602,12 +1616,13 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
  
     try:
         stocks = db.US_Stocks.find({"$and" : [ \
-                                                {'dates.mysql_price_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {'dates.mysql_price_pull_date': {'$lt':get_latest_trading_day()}},\
                                                 {'dates.mysql_price_pull_success': False},\
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}},\
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -1644,15 +1659,15 @@ def update_price_failcount(stk, country, df=False):
         price_failcount='price_failcount'
         field = 'failcount.price_failcount'
 
-    if 'bscs' in stk.keys() and price_failcount in stk['bscs'].keys():
-        failcount = failcount + stk['bscs'][price_failcount]
+    if 'failcount' in stk.keys() and price_failcount in stk['failcount'].keys():
+        failcount = failcount + stk['failcount'][price_failcount]
    
     print("%s: Updating %s for field %s" %(stk['bscs']['symbol'], failcount, field))
     update_field(collection, stk['bscs']['symbol'], field, failcount)
     
     # Ignore the stk for future purposes if failed to get data
     # for more than 10 times.
-    if failcount > 10:
+    if failcount > MAX_FAIL_COUNT:
         if 'trading' not in stk['bscs'].keys():
             update_field(collection, stk['bscs']['symbol'], "bscs.trading", "NO")
             update_field(collection, stk['bscs']['symbol'], "bscs.trading_stop_date", str(dt.now().date()))
@@ -2681,14 +2696,15 @@ def update_all_tech_analysis_params(country='US'):
     stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
-                                        #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
-                                        #{'$or':[\
-                                        #        {'technicals.date': {"$exists": False}},\
-                                        #        {'technicals.date':{'$lt': get_latest_trading_day()}}
-                                        #        ]\
-                                        #},\
-                                        #{'dates.mysql_price_pull_success':True}, \
-                                        #{'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
+                                        {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                        {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        {'$or':[\
+                                                {'technicals.date': {"$exists": False}},\
+                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                                ]\
+                                        },\
+                                        {'dates.mysql_price_pull_success':True}, \
+                                        {'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
@@ -4160,6 +4176,7 @@ def update_all_earnings_trend():
                                                             {"dates.earnings_trends_pull_date": {"$exists": False }},\
                                                         ]\
                                                 },\
+                                                {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
  
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                             ]\
@@ -5674,6 +5691,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         table_name = get_symbol_table_name(stk['bscs']['symbol'])
 
         if 'General' in stk.keys()\
+            and isinstance(stk['General'], dict) \
             and 'IPODate' in stk['General'].keys() \
             and stk['General']['IPODate'] is not None \
             and len(stk['General']['IPODate']) > 0:
@@ -6172,7 +6190,7 @@ def update_sector_info():
     print("Total : %d" %(j))
     close_db_client(c)
 
-def get_beta(country, sym, sdate, edate, df=None, recession=False):
+def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_year=None):
     betas = {}
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if df is None:
@@ -6291,7 +6309,8 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
     #print("Years: %r, first: %r, last: %r, cagr: %r, cagr_b: %r" %(round(years,2), first, last, round(cagr,4), round(b_cagr,4)))
 
     # from daily data points, create a time-series of monthly data points
-    if df_end_date-df_start_date <= timedelta(days=31):
+    if df_end_date-df_start_date <= timedelta(days=31) or \
+            len(df) <= 31:
         duration='d'
         if df_end_date == df_start_date:
             time_period = 1
@@ -6385,25 +6404,34 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False):
             s_last = df['Adj Close'][-1]
             if isinstance(s_last, complex):
                 print("last is complex number")
-            growth_percent = s_last/s_first - 1
+            growth_percent = percent_change(s_first, s_last)
+            #growth_percent = s_last/s_first - 1
             betas.update({"since_then":growth_percent})
         except Exception as e:
             betas.update({"since_then":nan})
         try:
-            sdate = edate
-            edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
-            query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
-            df = read_from_sql(query, sql_engine)
-            #df = hdf5.read_from_hdf(country, sym, sdate, edate)
-            # Calculate CAGR
-            s_first = df['Adj Close'][0]
-            if isinstance(s_first, complex):
-                print("first is complex number")
-            s_last = df['Adj Close'][-1]
-            if isinstance(s_last, complex):
-                print("last is complex number")
-            growth_percent = s_last/s_first - 1
-            betas.update({"since_then_till_last_recession":growth_percent})
+            sdate = edate + timedelta(1)
+            recession_keys = list(recessions.keys())
+            recession_year_index = recession_keys.index(recession_year)
+            if recession_year_index < len(recession_keys)-1:
+                edate = dt.strptime(recessions[recession_keys[recession_year_index+1]]['start'], "%d %B %Y").date() - timedelta(1)
+                #edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
+                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+                df = read_from_sql(query, sql_engine)
+                #df = hdf5.read_from_hdf(country, sym, sdate, edate)
+                # Calculate CAGR
+                s_first = df['Adj Close'][0]
+                if isinstance(s_first, complex):
+                    print("first is complex number")
+                s_last = df['Adj Close'][-1]
+                if isinstance(s_last, complex):
+                    print("last is complex number")
+                growth_percent = percent_change(s_first, s_last)
+                #growth_percent = s_last/s_first - 1
+                betas.update({"since_then_till_last_recession":growth_percent})
+            # As this is the last recession, there is no change required
+            else:
+                betas.update({"since_then_till_last_recession":nan})
         except Exception as e:
             betas.update({"since_then_till_last_recession":nan})
  
@@ -6420,10 +6448,12 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
         since_start = dt.strptime(since, "%Y-%m-%d").date()
     else:
         since_start = since.date()
+    collection.update({'bscs.symbol':sym},{'$set': {'fig.betas.recession' : {}}})
+
     for year in years:
         try:
-            if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
-            #if True:
+            #if not 'recession' in doc['fig']['betas'].keys() or not year in doc['fig']['betas']['recession'].keys():
+            if True:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
                 if st_date >= since_start:
@@ -6433,23 +6463,24 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                         en_date = dt.now().date()
                     #print(st_date)
                     #print(en_date)
-                    betas = get_beta(country, sym, st_date, en_date, df=None, recession=True)
-                    #print("Beta: %r" %(betas))
-                    field="fig.betas.recession.%s" %(year)
-                    collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
+                    betas = get_beta(country, sym, st_date, en_date, df=None, recession=True, recession_year=year)
+                    if betas != {}:
+                        #print("Beta: %r" %(betas))
+                        field="fig.betas.recession.%s" %(year)
+                        collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
         except KeyError:
                 #print("Recession Betas")
                 st_date = dt.strptime(recessions[year]['start'], "%d %B %Y").date()
                 en_date = dt.strptime(recessions[year]['end'], "%d %B %Y").date()
                 #print(st_date)
                 #print(en_date)
-                betas = get_beta(country, sym, st_date, en_date, df=None, recession=True)
+                betas = get_beta(country, sym, st_date, en_date, df=None, recession=True, recession_year=year)
                 #print("Beta: %r" %(betas))
                 field="fig.betas.recession.%s" %(year)
                 collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
     return
 
-def update_stock_betas2(country, stk, core=0, sem=None, df=None):
+def update_stock_betas2(country, stk, core=0, sem=None, df=None, recession_only=False):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
@@ -6457,7 +6488,7 @@ def update_stock_betas2(country, stk, core=0, sem=None, df=None):
     beta_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
 
     try:
-        update_stock_betas(country, collection, price_engine, beta_engine, stk, core=core, sem=sem, df=df)
+        update_stock_betas(country, collection, price_engine, beta_engine, stk, core=core, sem=sem, df=df, recession_only=recession_only)
     finally:
         close_db_client(c)
         close_sql_connection(price_engine)
@@ -6471,7 +6502,7 @@ def add_beta_columns(sql_engine, table_name, cols):
 def get_beta_columns(beta_field):
     cols = []
     for c1 in beta_parameters:
-        cols.append(beta_field+'_'+c1)
+        cols.append(beta_field+'_'+c1.capitalize())
 
     return cols
 
@@ -6479,11 +6510,11 @@ def get_all_beta_columns():
     cols = []
     for c1 in beta_change_fields:
         for c2 in beta_parameters:
-            cols.append(c1+'_'+c2)
+            cols.append(c1+'_'+c2.capitalize())
 
     return cols
 
-def update_stock_betas(country, collection, price_engine, beta_engine, stk, core=0, sem=None, df=None):
+def update_stock_betas(country, collection, price_engine, beta_engine, stk, core=0, sem=None, df=None, recession_only=False):
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
@@ -6511,17 +6542,19 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
 
         update_stock_recession_betas(country, collection, stk, sym, df=df)
        
-        if ('since_last_recession' in stk['fig']['betas'].keys() and \
-            stk['fig']['betas']['since_last_recession'] is not None and \
-            'End_Date' in stk['fig']['betas']['since_last_recession'].keys() and \
-           stk['fig']['betas']['since_last_recession']['End_Date'].date() < get_previous_trading_day().date())\
-           or ('since_last_recession' not in stk['fig']['betas'].keys() or \
-                (stk['fig']['betas']['since_last_recession'] is not None and \
-                    'End_Date' not in stk['fig']['betas']['since_last_recession'].keys())
-           or ('since_last_recession' in stk['fig']['betas'].keys() and \
-               stk['fig']['betas']['since_last_recession'] is None)
-              ):
-        #if True:
+        #if ('fig' in stk.keys() and \
+        #    'betas' in stk['fig'].keys() and \
+        #    'since_last_recession' in stk['fig']['betas'].keys() and \
+        #    stk['fig']['betas']['since_last_recession'] is not None and \
+        #    'End_Date' in stk['fig']['betas']['since_last_recession'].keys() and \
+        #   stk['fig']['betas']['since_last_recession']['End_Date'].date() < get_previous_trading_day().date())\
+        #   or ('since_last_recession' not in stk['fig']['betas'].keys() or \
+        #        (stk['fig']['betas']['since_last_recession'] is not None and \
+        #            'End_Date' not in stk['fig']['betas']['since_last_recession'].keys())
+        #   or ('since_last_recession' in stk['fig']['betas'].keys() and \
+        #       stk['fig']['betas']['since_last_recession'] is None)
+        #      ):
+        if True:
             #print(stk['fig']['betas'].keys())
             #Since last recession
             betas = None
@@ -6543,24 +6576,28 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
             field="fig.betas.since_last_recession"
             collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
 
-        #mysql_check_n_create_table(beta_engine, table_name)
-        #metadata = MetaData()
-        #table = Table(table_name, metadata, autoload=True, autoload_with=beta_engine)
-        #table_cols = mysql_get_columns(table)
-        #beta_cols  = get_all_beta_columns()
+        # If the user has requested to calculate only recession betas, then return
+        if recession_only:
+            return
 
-        #missing_cols = list(set(beta_cols)-set(table_cols))
-        #if len(missing_cols) > 0:
-        #    #print("%s: Adding missing columns:", %(table_name, missing_cols))
-        #    miss = mysql_add_columns(beta_engine, table_name, missing_cols, 'float', remove_spaces=False)
-        #    if miss > 0:
-        #        PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
-        #        PRINT_ERR("Columns: ",missing_cols)
-        #        sys.exit(1)
+        mysql_check_n_create_table(beta_engine, table_name)
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload=True, autoload_with=beta_engine)
+        table_cols = mysql_get_columns(table)
+        beta_cols  = get_all_beta_columns()
+
+        missing_cols = list(set(beta_cols)-set(table_cols))
+        if len(missing_cols) > 0:
+            #print("%s: Adding missing columns:", %(table_name, missing_cols))
+            miss = mysql_add_columns(beta_engine, table_name, missing_cols, 'float', remove_spaces=False)
+            if miss > 0:
+                PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                PRINT_ERR("Columns: ",missing_cols)
+                sys.exit(1)
  
-        ##add_beta_columns(sql_engine, table_name, cols)
-        #del metadata
-        #del table
+        #add_beta_columns(sql_engine, table_name, cols)
+        del metadata
+        del table
 
 
         price_db = db_name(price_engine)
@@ -6626,7 +6663,7 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         if sem:
             sem.release()
 
-def update_all_stock_betas(country):
+def update_all_stock_betas(country, recession_only=False):
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection(country, db)
@@ -6652,11 +6689,12 @@ def update_all_stock_betas(country):
                                             #        ]\
                                             #},\
                                         ]\
-                                }\
-                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+                                },\
+                                #no_cursor_timeout=True).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+                                no_cursor_timeout=True).batch_size(10).sort([["dates.betas_calc_date",1]]).allow_disk_use(True)
  
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    docs = db.US_Stocks.find({"bscs.symbol" : "FITB"})
+    #docs = db.US_Stocks.find({"bscs.symbol" : "ABCM"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
@@ -6677,8 +6715,8 @@ def update_all_stock_betas(country):
 
             sem.acquire()
             print("%r: %s" %(i, doc['bscs']['symbol']))
-            #update_stock_betas2(country, copy.deepcopy(doc), 0, sem)
-            processes[i%num_processes] = multiprocessing.Process(target=update_stock_betas2, args=(country, copy.deepcopy(doc), i%num_cores, sem,))
+            #update_stock_betas2(country, copy.deepcopy(doc), 0, sem, None, recession_only)
+            processes[i%num_processes] = multiprocessing.Process(target=update_stock_betas2, args=(country, copy.deepcopy(doc), i%num_cores, sem, None, recession_only))
             processes[i%num_processes].start()
 
     finally:
@@ -8071,7 +8109,7 @@ def update_all_fin_slopes():
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
 
-    stocks = db.US_Stocks.find({"bscs.symbol":'MRVL'})
+    #stocks = db.US_Stocks.find({"bscs.symbol":'MRVL'})
     print(stocks.count())
 
     try:

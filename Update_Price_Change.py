@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
 
     print("Start Time: %r" %(str(dt.now())))
-    ## Get today's price from yahoo and update db and hdf5
+    # Get today's price from yahoo and update db and hdf5
     try:
        DB.update_all_price_volume_db('US')
     except Exception as e:
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
 
-    #### Calculate and store price change
+    ### Calculate and store price change
     try:
         internet.update_all_stocks_price_change('US')
     except Exception as e:
@@ -42,10 +42,12 @@ if __name__ == "__main__":
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Technical Params Error" %(sys.argv[1]), s)
 
-    try:
-        DB.update_bond_yields()
-    except Exception as e:
-        print('Failed to update bond yields')
+    DB.update_all_stock_betas('US', recession_only=True)
+
+    #try:
+    #    DB.update_bond_yields()
+    #except Exception as e:
+    #    print('Failed to update bond yields')
 
     ## send email
     #internet.send_email_price_changes('US')
@@ -55,9 +57,7 @@ if __name__ == "__main__":
 
     DB.update_all_US_fin_percent_change()
 
-    DB.update_all_stock_betas('US')
-
-    DB.clear_all_zero_volume_rows()
-    DB.update_all_since()
-    print("End Time: %r" %(str(dt.now())))
+    #DB.clear_all_zero_volume_rows()
+    #DB.update_all_since()
+    #print("End Time: %r" %(str(dt.now())))
 

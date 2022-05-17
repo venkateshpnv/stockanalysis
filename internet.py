@@ -756,6 +756,7 @@ def fork_hdf5_process(country):
         indices = US_indices 
     stk = {}
     stk['bscs']={}
+    stk['General']={}
 
     num_processes = DB.num_cores * 8
     sem = multiprocessing.BoundedSemaphore(num_processes)
@@ -764,8 +765,11 @@ def fork_hdf5_process(country):
     try:
         #Indices
         for i, k in enumerate(indices.keys()):
-            stk['bscs']['symbol'] = k
-            stk['bscs']['name'] = indices[k]
+            stk['bscs']['symbol']  = k
+            stk['bscs']['name']    = indices[k]
+            stk['General']['Code'] = k
+            stk['General']['Name'] = indices[k]
+            DB.write_to_collection(collection, stk)
             sem.acquire()
             #update_price_change(country, stk, 1, sem, index=True)
             #threading.Thread(target=update_price_change, args=(country, collection, copy.deepcopy(stk['bscs']['symbol']), sem, sql_engine,)).start()
@@ -791,15 +795,16 @@ def fork_hdf5_process(country):
                                             {'General.Exchange':{"$in":major_exchanges}},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
-                                            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                            #{'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_pull_success': True},\
-                                            #{"$or":[\
-                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                            #        {'price_change': {"$exists": False}}\
-                                            #        ]\
-                                            #},\
+                                            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                            {"$or":[\
+                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                                    {'price_change': {"$exists": False}}\
+                                                    ]\
+                                            },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'CBL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CIK'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

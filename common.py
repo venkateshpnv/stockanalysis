@@ -29,6 +29,7 @@ import DB
 
 from datastructures import eod_token_file
 
+MAX_FAIL_COUNT=10
 YEAR=1
 QUARTER=2
 MONTH=4

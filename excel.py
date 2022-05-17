@@ -1534,13 +1534,31 @@ def add_price_change_header(sheet, i, sheet_type):
     conf.WH_PR_CHANGE=i
     styles['WH_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="#,##0.00")
 
+
+    recession_keys = list(recessions.keys())
     i = i + 1
     sheet.col(i).width = 6*367
-    last_recession_year = list(recessions.keys())[-1]
-    st = "Since %s Recession" %(last_recession_year)
+    d1 = dt.strptime(recessions[recession_keys[-1]]['start'], "%d %B %Y").date()
+    d1 = (str(d1.month)+'-'+str(d1.year))
+    st = "Since %s Recession" %(d1)
     sheet.write(0, i, st, style_wrap)
     conf.R2020=i
 
+    i = i + 1
+    sheet.col(i).width = 6*367
+    d2 = dt.strptime(recessions[recession_keys[-2]]['end'], "%d %B %Y").date() + timedelta(1)
+    d2 = (str(d2.month)+'-'+str(d2.year))
+    st = "From %s till %s Recession" %(d2, d1)
+    sheet.write(0, i, st, style_wrap)
+    conf.RPREV=i
+
+    i = i + 1
+    sheet.col(i).width = 6*367
+    d2 = dt.strptime(recessions[recession_keys[-2]]['end'], "%d %B %Y").date() + timedelta(1)
+    d2 = (str(d2.month)+'-'+str(d2.year))
+    st = "%s Recession down percent" %(d2)
+    sheet.write(0, i, st, style_wrap)
+    conf.RPREV_DOWN=i
 
     return i
 
@@ -2158,6 +2176,14 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                         'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
                     price_style = get_percent_style(stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent)
                     sh_write(ash, conf.COUNT, conf.R2020, stk['fig']['betas']['since_last_recession']['Percent_Change'], price_style, ashs, recent_ipos=recent_ipos)
+
+                    prev_recession_year = list(recessions.keys())[-2]
+                    if prev_recession_year in stk['fig']['betas']['recession'].keys():
+                        price_style = get_percent_style(stk['fig']['betas']['recession'][prev_recession_year]['since_then_till_last_recession'], style_percent)
+                        sh_write(ash, conf.COUNT, conf.RPREV, stk['fig']['betas']['recession'][prev_recession_year]['since_then_till_last_recession'], price_style, ashs, recent_ipos=recent_ipos)
+                        price_style = get_percent_style(stk['fig']['betas']['recession'][prev_recession_year]['Percent_Change'], style_percent)
+                        sh_write(ash, conf.COUNT, conf.RPREV_DOWN, stk['fig']['betas']['recession'][prev_recession_year]['Percent_Change'], price_style, ashs, recent_ipos=recent_ipos)
+
             if '2007' in stk['fig']['betas']['recession'].keys():
                 if stk['fig']['betas']['recession']['2007'] != None:
                     try:

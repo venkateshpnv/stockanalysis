@@ -1072,7 +1072,7 @@ def bulk_update_price_volume(country, db, sql_engine):
                                                     ]\
                                             },\
  
-                                            {'failcount.mysql_price_failcount':{"$lt": 10}}\
+                                            {'failcount.mysql_price_failcount':{"$lt": MAX_FAIL_COUNT}}\
                                         ]\
                                 }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
     print("Total bulk stock candidates: %r" %(stocks.count()))
@@ -1231,59 +1231,69 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     'mysql_price_failcount' in stk['failcount'].keys():
 
                     failcount = stk['failcount']['mysql_price_failcount']
-                    if stk['failcount']['mysql_price_failcount'] > 10:
+                    if stk['failcount']['mysql_price_failcount'] > MAX_FAIL_COUNT:
                         return
 
             if not DB.mysql_exists_table(sql_engine, table):
                 rdf = pd.DataFrame()
             else:
-                # The tables with the same symbol name might have been
-                # pre-existing and the new entries are appended to the old entries.
-                # Or might have wrong data due to code errors.
-                # So, truncate the whole table and repopulate the entries.
-                # From now for all the new symbols that are added, this step is added
-                # in add_symbol_to_database(d, db)
-                if True:
-                #if check_since_ipo_date:
-                    if 'since' in stk['bscs'].keys() \
-                            and stk['bscs']['since'] is not None:
-                            #and date.today().year == stk['bscs']['since'].year:
-                        # Truncate the whole table, pull the new prices and recreate the percentage changes.
-                        table_name = DB.get_symbol_table_name(stk['bscs']['symbol'])
-                        if DB.mysql_exists_table(sql_engine, table_name):
-                            query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
-                            df = DB.read_from_sql(query, sql_engine)
-                            # The table has old entries. Remove those entries
-                            if not df.empty and\
-                                stk['bscs']['since'] and\
-                                'price_truncate_date' not in stk['bscs'].keys() and \
-                                abs((stk['bscs']['since'] - df.index[0]).days) >= 7: # If atleast there's a time difference of 7 days between the IPO date and the start index date, truncate them and repopulate again.
-                                print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
-                                if  stk['bscs']['since'] > df.index[0]:
-                                    cols = DB.mysql_get_columns(table_name, sql_engine)
-                                    if 'Day Change' in cols:
-                                        query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
-                                        sql_engine.execute(query)
-                                    query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
-                                    sql_engine.execute(query)
-                                    DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
-                                else:
-                                    query = "drop table {}".format(table_name)
-                                    sql_engine.execute(query)
-                                    DB.mysql_check_n_create_table(sql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
-                                    DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
-                                beta_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
-                                # Truncate betas.
-                                if DB.mysql_exists_table(beta_engine, table_name):
-                                    query = "drop table {}".format(table_name)
-                                    beta_engine.execute(query)
-                                    DB.mysql_check_n_create_table(beta_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
-                                DB.close_sql_connection(beta_engine)
+                table_name = DB.get_symbol_table_name(stk['bscs']['symbol'])
+                columns = DB.mysql_get_columns_from_engine(sql_engine, table_name)
+                if 'Adj Close' not in columns:
+                    rdf = pd.DataFrame()
+                else:
+
+                    # The tables with the same symbol name might have been
+                    # pre-existing and the new entries are appended to the old entries.
+                    # Or might have wrong data due to code errors.
+                    # So, truncate the whole table and repopulate the entries.
+                    # From now for all the new symbols that are added, this step is added
+                    # in add_symbol_to_database(d, db)
+                    if True:
+                    #if check_since_ipo_date:
+                        if 'since' in stk['bscs'].keys() \
+                                and stk['bscs']['since'] is not None:
+                                #and date.today().year == stk['bscs']['since'].year:
+                            # Truncate the whole table, pull the new prices and recreate the percentage changes.
+                            if DB.mysql_exists_table(sql_engine, table_name):
+
+                                query = 'select Date, `Adj Close` from {} order by Date asc limit 1'.format(table_name)
+                                df = DB.read_from_sql(query, sql_engine)
+                                # The table has old entries. Remove those entries
+                                try:
+                                    if not df.empty and\
+                                        stk['bscs']['since'] and\
+                                        'price_truncate_date' not in stk['bscs'].keys() and \
+                                        abs((stk['bscs']['since'] - df.index[0]).days) >= 7: # If atleast there's a time difference of 7 days between the IPO date and the start index date, truncate them and repopulate again.
+                                        print("%s: Old entries in price table, IPO Date: %r, first row date: %r deleting" %(stk['bscs']['symbol'], str(stk['bscs']['since']), str(df.index[0])))
+                                        if  stk['bscs']['since'] > df.index[0]:
+                                            cols = DB.mysql_get_columns(table_name, sql_engine)
+                                            if 'Day Change' in cols:
+                                                query = "update {} set `Day Change`=NULL, `Week Change`=NULL, `Two Week Change`=NULL, `Month Change`=NULL, `Quarter Change`=NULL, `Half Year Change`=NULL, `Year Change`=NULL, `Five Year Change`=NULL, `Whole Change`=NULL".format(table_name)
+                                                sql_engine.execute(query)
+                                            query = "delete from {} where Date < %r".format(table_name)%(str(stk['bscs']['since'].date()))
+                                            sql_engine.execute(query)
+                                            DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
+                                        else:
+                                            query = "drop table {}".format(table_name)
+                                            sql_engine.execute(query)
+                                            DB.mysql_check_n_create_table(sql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
+                                            DB.update_field(collection, symbol, "bscs.price_truncate_date", dt.combine(dt.now(), dt.min.time())) 
+                                        beta_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Beta')
+                                        # Truncate betas.
+                                        if DB.mysql_exists_table(beta_engine, table_name):
+                                            query = "drop table {}".format(table_name)
+                                            beta_engine.execute(query)
+                                            DB.mysql_check_n_create_table(beta_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False)
+                                        DB.close_sql_connection(beta_engine)
+                                except Exception as E:
+                                    print ("%s: Error during price truncate checking" %(stk['bscs']['symbol']))
+                                    print(str(E))
         
-                query = 'select Date from ' + table + ' order by Date DESC limit 1'
-                #rdf = read_from_hdf(country, symbol)
-                rdf = DB.read_from_sql(query, sql_engine)
-                #rdf = DB.read_from_sql2(sql_engine, table, ['Date'], order='desc', limit=1)
+                    query = 'select Date from ' + table + ' order by Date DESC limit 1'
+                    #rdf = read_from_hdf(country, symbol)
+                    rdf = DB.read_from_sql(query, sql_engine)
+                    #rdf = DB.read_from_sql2(sql_engine, table, ['Date'], order='desc', limit=1)
 
             # Read the existing data of the symbol
             #rdf = read_from_hdf(country, symbol)
@@ -1382,9 +1392,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                             DB.update_field(collection, symbol, "dates.mysql_price_date", dt.strptime(df.index[-1], "%Y-%m-%d"))
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
                     else:
-                        failcount = failcount + 1
-                        print("%s: Updating %r for field failcount.mysql_price_failcount" %(stk['bscs']['symbol'], failcount))
-                        DB.update_field(collection, symbol, "failcount.mysql_price_failcount", failcount)
+                        DB.update_price_failcount(stk, country, df=True)
+                        #failcount = failcount + 1
+                        #print("%s: Updating %r for field failcount.mysql_price_failcount" %(stk['bscs']['symbol'], failcount))
+                        #DB.update_field(collection, symbol, "failcount.mysql_price_failcount", failcount)
                     if data_update:
                         DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
                     else:
