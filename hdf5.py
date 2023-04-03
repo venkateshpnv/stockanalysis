@@ -91,7 +91,7 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                     return
 
                 #print("%s: Ratelimit: %r" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining'])))
-                df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+                df  = pd.read_csv(StringIO(ret.text), skipfooter=0, parse_dates=[0], index_col=0, engine='python')
                 df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
 
             elif not pdrDatareader:
@@ -1080,7 +1080,7 @@ def bulk_update_price_volume(country, db, sql_engine):
     if stocks.count() != 0:
         url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
         ret = requests.get(url)
-        df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+        df  = pd.read_csv(StringIO(ret.text), skipfooter=0, parse_dates=[0], index_col=0, engine='python')
         df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
         df['Symbol'] = df.index
         if 'Ex' in df.columns:

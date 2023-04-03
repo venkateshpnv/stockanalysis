@@ -12,6 +12,10 @@ Update all packages
 $ pip3 freeze > /tmp/r.txt
 $ pip3 install -r /tmp/r.txt --upgrade
 
+Conditional operator
+y=(1,2)[0==0]
+here y will be assigned 2
+
 Mongodb
 ========
 Table -> Collection
@@ -131,6 +135,13 @@ $ git lfs track "*.bson"
 Ignore files from git commit
 git update-index --assume-unchanged "main/dontcheckmein.txt"
 
+mongodb reIndex
+----------------
+If you face the below error, perform reindexing
+pymongo.errors.DuplicateKeyError: E11000 duplicate key error collection: Stocks.US_Stocks index: _id_ dup key: { _id: ObjectId('6283164eaa525f86f82aa64d') }, full error: {'index': 0, 'code': 11000, 'keyPattern': {'_id': 1}, 'keyValue': {'_id': ObjectId('6283164eaa525f86f82aa64d')}, 'errmsg': "E11000 duplicate key error collection: Stocks.US_Stocks index: _id_ dup key: { _id: ObjectId('6283164eaa525f86f82aa64d') }"}
+
+db.US_Stocks.reIndex()
+
 mongodb create index
 -----------------------
 db.US_Stocks.createIndex({'bscs.symbol': -1},{unique:true}) # Create unique index
@@ -196,6 +207,9 @@ df.index[0].to_pydatetime()
 How to add new column at a particular position
 df.columns[0] = 'New_ID'
 
+How to set/update a particular value with index and column_name
+df.loc[index, column_name] = new_value
+
 How to add incremental values to a column 'row_id'. 0 is the position of the column
 df.insert(0,'row_id',range(start, start+len(df)))
 
@@ -245,3 +259,45 @@ tick.get_info() -> Complete info of the stock
 
 import pandas_datareader.data as data
 data.get_iex_symbols()
+
+# Disable limiting df display
+pandas.set_option('display.max_rows', None)
+# Display float number in df.describe()
+pd.set_option('float_format', '{:f}'.format)
+
+df.round(2) ->  Round off to two decimals
+
+series.to_dataframe()-> to convert a series to dataframe
+psar_close.insert(loc=4,column='ch_long',value=rolling_high - atr * 3) -> Insert a new column at loc 4
+
+Normalize Data:
+===============
+One method:
+df = df['totalRevenue']
+df = (df - df.mean())/df.std()
+Other methods:
+https://www.analyticsvidhya.com/blog/2020/04/feature-scaling-machine-learning-normalization-standardization/
+
+import matplotlib.pyplot as plt
+#cols is the list of all columns except date. you can pick and choose.
+bond_df.plot(x='Date', y=cols)
+plt.show()
+
+sym='SPT';url='https://eodhistoricaldata.com/api/calendar/trends?api_token='+get_eod_token_id()+'&fmt=json&symbols='+sym+'.US';df=pd.DataFrame(requests.get(url).json()['trends'][0]);df['revenueEstimateLow']=df['revenueEstimateLow'].astype(float).map("${:,.0f}".format);df['revenueEstimateAvg']=df['revenueEstimateAvg'].astype(float).map("${:,.0f}".format);df['revenueEstimateHigh']=df['revenueEstimateHigh'].astype(float).map("${:,.0f}".format);df['earningsEstimateNumberOfAnalysts']=df['earningsEstimateNumberOfAnalysts'].astype(float);df.query('period==\'0q\' & earningsEstimateNumberOfAnalysts > 0').iloc[::-1][['date','period','revenueEstimateLow', 'revenueEstimateAvg', 'revenueEstimateHigh', 'earningsEstimateNumberOfAnalysts']]
+
+select Date, concat('$',format(totalRevenue,2)) as Revenue, concat('$',format(grossProfit,2)) as grossProfit, concat('$', format(netIncome,2)) as netIncome from US_Stocks_Fin.Income_Statement_quarterly where Symbol='AFRM';
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE income(IN sym CHAR(12)) BEGIN SELECT Date, concat('$', FORMAT(totalRevenue/1000000,2)) as Sales_Mn, concat('$', FORMAT(totalOperatingExpenses/1000000,2)) as Operating_Expenses, concat('$', FORMAT(costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(grossProfit/1000000,2)) as Gross_Profit, concat('$', FORMAT(netIncome/1000000,2)) as Net_Income, concat('$', FORMAT(ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(interestExpense/1000000,2)) as Interest_Expense FROM US_Stocks_Fin.Income_Statement_yearly where Symbol=sym; END$$
+mysql> DELIMITER ;
+mysql>call income('AAPL');
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE income_quart(IN sym CHAR(12)) BEGIN SELECT Date, concat('$', FORMAT(totalRevenue/1000000,2)) as Sales_Mn, concat('$', FORMAT(totalOperatingExpenses/1000000,2)) as Operating_Expenses, concat('$', FORMAT(costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(grossProfit/1000000,2)) as Gross_Profit, concat('$', FORMAT(netIncome/1000000,2)) as Net_Income, concat('$', FORMAT(ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(interestExpense/1000000,2)) as Interest_Expense FROM US_Stocks_Fin.Income_Statement_quarterly where Symbol=sym; END$$
+mysql> DELIMITER ;
+mysql>call income('AAPL');
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE cash_quart(IN sym CHAR(12)) BEGIN select Date, concat('$', FORMAT(netIncome,2)) as netIncome, concat('$', FORMAT(netBorrowings, 2)) as netBorrowings, concat('$', FORMAT(freeCashFlow,2)) as freeCashFlow, concat('$', FORMAT(changeInCash,2)) as changeInCash, concat('$', FORMAT(dividendsPaid,2)) as dividendsPaid from US_Stocks_Fin.Cash_Flow_quarterly where Symbol=sym; END$$
+mysql> DELIMITER ;
+mysql>call cash_quart('AAPL');

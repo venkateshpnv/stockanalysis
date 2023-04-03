@@ -5,6 +5,7 @@ import pprint
 import shutil
 import subprocess
 import time
+import types
 
 # Date
 from datetime import datetime as dt, timedelta
@@ -19,6 +20,8 @@ from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
 from scipy import stats
 from kneed import KneeLocator
 import copy
+
+import psutil
 
 from itertools import cycle
 import secrets
@@ -74,7 +77,8 @@ def p2f(x):
 def is_none_r_nan(a):
     if a is None:
         return True
-    if not isinstance(a, str) and isnan(a):
+    NumberTypes = (int, float)
+    if isinstance(a, NumberTypes) and isnan(a):
         return True
     return False
 
@@ -600,3 +604,24 @@ def knee_locator(x, y, S, curve, direction, online=True):
     knee = kneedle.knee
     elbow = kneedle.elbow
     return knee,elbow
+
+def set_cpu_affinity():
+    while True:
+        cpus  = psutil.cpu_percent(percpu=True)
+
+        core_usage_percent = min(cpus)
+        core = cpus.index(min(cpus))
+
+        if core_usage_percent <= 70:
+            # Set CPU affinity to that core if the usage percent is less than
+            # 70 percent
+
+            if core == 0:
+                aff = 0
+            else:
+                aff = 0 | 1 << (core - 1)
+            os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+            return aff
+        # Else, wait for a second and try again.
+        time.sleep(1)
+

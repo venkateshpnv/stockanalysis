@@ -11,7 +11,7 @@ if [ $val -eq 0 ]; then
 	sleep 3
    	#script -a $HOME_DIR/EPS_History_log.txt && python3 $HOME_DIR/$SCRIPT
 	echo "Starting $SCRIPT"
-   	cd $HOME_DIR && python3 -u $HOME_DIR/$SCRIPT 2>&1 >> $HOME_DIR/US_Fin_Statements.txt
+   	cd $HOME_DIR && python3 -u $HOME_DIR/$SCRIPT 2>&1 | tee $HOME_DIR/logs/US_Fin_Statements.txt
    	#python3 -u $HOME_DIR/$SCRIPT 2>&1 | tee -a $HOME_DIR/EPS_History_log2.txt
    	#python3 $HOME_DIR/$SCRIPT
 	unset DISPLAY

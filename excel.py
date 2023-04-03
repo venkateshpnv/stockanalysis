@@ -90,6 +90,8 @@ styles['PR_RED3'] = get_style('red', num_format_str="0.00%")
 
 
 def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=False):
+    if is_none_r_nan(data):
+        return
     try:
         if style:
             exl_sht.write(row, column, data, style)
@@ -109,7 +111,7 @@ def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=Fals
     except:
         pass
 
-def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=38):
+def add_wb_sheet(workbook, sheet_name, horz_pos=1, vert_pos=39):
     sheet = workbook.add_sheet(sheet_name)
     sheet.set_panes_frozen(True) 
     sheet.set_horz_split_pos(horz_pos) 
@@ -488,6 +490,21 @@ def add_basic_header(sheet, i):
     i+=1
     i = add_price_change_header(sheet, i, 'ALL')
 
+    i+=1
+    #Current Price
+    sheet.col(i).width = 5*367
+    sheet.write(0, i, "Current Price", style_wrap)
+    conf.CUR_PR=i
+
+    i+=1
+    i = add_ratios_header(sheet, i)
+
+    i+=1
+    i = add_fundamentals(sheet, i)
+
+    i+=1
+    i = add_valuation(sheet,i)
+ 
     #i+=1
     #sheet.col(i).width = 6*367
     #sheet.write(0, i, "Annual Price Slope", style_wrap)
@@ -556,12 +573,6 @@ def add_basic_header(sheet, i):
     #sheet.col(i).width = 3*367
     #sheet.write(0, i, "Current Price Date", style_wrap)
     #conf.CUR_PR_DT=i
-
-    i+=1
-    #Current Price
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Current Price", style_wrap)
-    conf.CUR_PR=i
 
     i+=1
     #Current Price
@@ -1301,20 +1312,11 @@ def add_dcf_header(sheets, years, prices_only=False):
         i = add_second_tech_indicators(sheet, i)
 
         i+=1
-        i = add_fundamentals(sheet, i)
-
-        i+=1
-        i = add_valuation(sheet,i)
-
-        i+=1
         # Price Growth
         sheet.col(i).width = 5*367
         st = "%s yr Price Gr" %(years)
         sheet.write(0, i, st, style_wrap)
         conf.TEN_PRICE=i
-
-        i+=1
-        i = add_ratios_header(sheet, i)
 
         i+=1
         i = add_betas_header(sheet, i)
@@ -1795,8 +1797,10 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     sh_write(ash, count, conf.FV, stk['bscs']['face_value'])
 
-    sh_write(ash, count, conf.PE, stk['Valuation']['TrailingPE'])
-    sh_write(ash, count, conf.F_PE, stk['Valuation']['ForwardPE'])
+    sh_write(ash, count, conf.PE, stk['Ratios']['ttm_PE'])
+    sh_write(ash, count, conf.F_PE, stk['Ratios']['forward_PE'])
+    #sh_write(ash, count, conf.PE, stk['Valuation']['TrailingPE'])
+    #sh_write(ash, count, conf.F_PE, stk['Valuation']['ForwardPE'])
     if stk['Highlights']['BookValue'] != 0:
         sh_write(ash, count, conf.PB, stk['price_change']['price']/stk['Highlights']['BookValue'])
     else:
@@ -2170,8 +2174,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         if 'recession' in stk['fig']['betas'].keys() and stk['fig']['betas']['recession'] != None:
             if last_recession_year in stk['fig']['betas']['recession'].keys() and stk['fig']['betas']['recession'][last_recession_year] != None:
                 if 'since_last_recession' in stk['fig']['betas'].keys() and \
-                        'betas_calc_date' in stk['dates'].keys() and \
-                        stk['dates']['betas_calc_date'] >= DB.get_latest_trading_day() - timedelta(3) and \
+                        'betas_calc_date_recession_only' in stk['dates'].keys() and \
+                        stk['dates']['betas_calc_date_recession_only'] >= DB.get_latest_trading_day() - timedelta(3) and \
                         stk['fig']['betas']['since_last_recession'] != None and \
                         'Percent_Change' in stk['fig']['betas']['since_last_recession'].keys():
                     price_style = get_percent_style(stk['fig']['betas']['since_last_recession']['Percent_Change'], style_percent)
@@ -2361,7 +2365,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if prices_only is False:
         i += 1
         sheet.write(i, 0, "Five Year Beta")
-        sheet.write(i, 1, stk['bscs']['five_yr_beta'])
+        sheet.write(i, 1, stk['Technicals']['Beta'])
     #sh_write(ash, conf.COUNT, conf.BETA, stk['bscs']['five_yr_beta'], ashs=ashs, recent_ipos=recent_ipos)
 
     if prices_only is False:

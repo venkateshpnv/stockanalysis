@@ -32,7 +32,7 @@
 0 6 1 1 * /usr/bin/python3 /home/vpetla/work/stockanalysis/US_Update_Holiday_List.py
 
 # Every week day 1:00 PM, look for new IPOs
-00 13 * * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
+#00 13 * * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/US_new_listings.sh
 
 # Every week day 1:30 PM, update prices
 30 13 * * 1-5 /bin/sh /home/vpetla/work/stockanalysis/scripts/Price_Change.sh 'US'

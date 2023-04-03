@@ -337,16 +337,18 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
     j = count = 0
 
+    sort = [1, -1][dt.now().day % 2 == 0]
     stocks = collection.find({"$and":[\
                                         {'General.Exchange':{"$in":major_exchanges}}, \
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted':False}, \
                                         {'failcount.mysql_price_failcount':{'$eq':0}}, \
-                                        #{'price_change.date':{'$gte':DB.get_latest_trading_day()}}, \
-                                        #{'dates.mysql_price_date':{'$gte':DB.get_latest_trading_day()}}, \
-                                        {'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
-                                        {'dates.mysql_price_pull_success':True}]}).batch_size(10).sort([["General.Code",1]]).allow_disk_use(True)
-    #stocks = collection.find({'bscs.symbol':'FMX'})
+                                        {'price_change.date':{'$gte':DB.get_latest_trading_day()}}, \
+                                        {'dates.mysql_price_date':{'$gte':DB.get_latest_trading_day()}}, \
+                                        #{'dates.mysql_price_date':{'$gte':DB.get_previous_trading_day()}}, \
+                                        {'dates.mysql_price_pull_success':True}
+                                        ]}).batch_size(10).sort([["General.Code", 1]]).allow_disk_use(True)
+    #stocks = collection.find({'bscs.symbol':'AAPL'})
     print("Stocks count: %r" %(stocks.count()))
     symbols = []
     for doc in stocks:

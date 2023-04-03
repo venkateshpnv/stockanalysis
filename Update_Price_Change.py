@@ -7,10 +7,10 @@ import parse_html
 from datetime import datetime as dt
 
 if __name__ == "__main__":
-    ##if len(sys.argv) != 2:
-    ##    print("Invalid arguments")
-    ##    print("$ %s country_name" %(sys.argv[0]))
-    ##    sys.exit(1)
+    #if len(sys.argv) != 2:
+    #    print("Invalid arguments")
+    #    print("$ %s country_name" %(sys.argv[0]))
+    #    sys.exit(1)
 
 
     print("Start Time: %r" %(str(dt.now())))
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         s = parse_html.html_text(s, error)
         internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
 
-    ### Calculate and store price change
+    #### Calculate and store price change
     try:
         internet.update_all_stocks_price_change('US')
     except Exception as e:
