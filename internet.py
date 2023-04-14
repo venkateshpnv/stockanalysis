@@ -795,14 +795,14 @@ def fork_hdf5_process(country):
                                             {'General.Exchange':{"$in":major_exchanges}},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
-                                            ##{'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_pull_success': True},\
                                             {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                            #{"$or":[\
-                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                            #        {'price_change': {"$exists": False}}\
-                                            #        ]\
-                                            #},\
+                                            {"$or":[\
+                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                                    {'price_change': {"$exists": False}}\
+                                                    ]\
+                                            },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'REX'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 

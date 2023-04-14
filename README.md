@@ -288,16 +288,31 @@ sym='SPT';url='https://eodhistoricaldata.com/api/calendar/trends?api_token='+get
 select Date, concat('$',format(totalRevenue,2)) as Revenue, concat('$',format(grossProfit,2)) as grossProfit, concat('$', format(netIncome,2)) as netIncome from US_Stocks_Fin.Income_Statement_quarterly where Symbol='AFRM';
 
 mysql> DELIMITER $$
-mysql> CREATE PROCEDURE income(IN sym CHAR(12)) BEGIN SELECT Date, concat('$', FORMAT(totalRevenue/1000000,2)) as Sales_Mn, concat('$', FORMAT(totalOperatingExpenses/1000000,2)) as Operating_Expenses, concat('$', FORMAT(costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(grossProfit/1000000,2)) as Gross_Profit, concat('$', FORMAT(netIncome/1000000,2)) as Net_Income, concat('$', FORMAT(ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(interestExpense/1000000,2)) as Interest_Expense FROM US_Stocks_Fin.Income_Statement_yearly where Symbol=sym; END$$
+mysql> CREATE PROCEDURE income(IN sym CHAR(12), IN max INT) BEGIN SELECT * FROM (SELECT Date, concat('$', FORMAT(totalRevenue/1000000,2)) as Sales_Mn, concat('$', FORMAT(totalOperatingExpenses/1000000,2)) as Operating_Expenses, concat('$', FORMAT(costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(grossProfit/1000000,2)) as Gross_Profit, concat('$', FORMAT(netIncome/1000000,2)) as Net_Income, concat('$', FORMAT(ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(interestExpense/1000000,2)) as Interest_Expense FROM US_Stocks_Fin.Income_Statement_yearly where Symbol=sym ORDER BY Date DESC LIMIT max) AS sub ORDER BY Date ASC ; END$$
+Query OK, 0 rows affected (0.01 sec)
+
 mysql> DELIMITER ;
-mysql>call income('AAPL');
+mysql> call income('AAPL', 20);
 
 mysql> DELIMITER $$
-mysql> CREATE PROCEDURE income_quart(IN sym CHAR(12)) BEGIN SELECT Date, concat('$', FORMAT(totalRevenue/1000000,2)) as Sales_Mn, concat('$', FORMAT(totalOperatingExpenses/1000000,2)) as Operating_Expenses, concat('$', FORMAT(costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(grossProfit/1000000,2)) as Gross_Profit, concat('$', FORMAT(netIncome/1000000,2)) as Net_Income, concat('$', FORMAT(ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(interestExpense/1000000,2)) as Interest_Expense FROM US_Stocks_Fin.Income_Statement_quarterly where Symbol=sym; END$$
+mysql> CREATE PROCEDURE income_quart(IN sym CHAR(12), IN max INT) BEGIN SELECT * FROM  (SELECT a.Date,  concat('$',
+FORMAT(a.totalRevenue/1000000,2)) as SalesMn, concat('$', FORMAT(a.totalOperatingExpenses/1000000,2)) as Expenses, concat('$', FORMAT(a.costOfRevenue/1000000,2)) as costOfRevenue, concat('$', FORMAT(a.grossProfit/1000000,2)) as GrossProfit, concat('$', FORMAT(a.netIncome/1000000,2)) as NetIncome, b.actual as EPS, concat('$', FORMAT(a.ebitda/1000000,2)) as Ebitda, concat('$', FORMAT(a.interestExpense/1000000,2)) as InterestExpense FROM US_Stocks_Fin.Income_Statement_quarterly a join Earnings_History b on a.Symbol=b.Symbol and a.Date=b.Date  where a.Symbol=sym ORDER BY a.Date DESC LIMIT max) AS sub ORDER BY Date ASC; END$$
+Query OK, 0 rows affected (0.01 sec)
+
 mysql> DELIMITER ;
-mysql>call income('AAPL');
+mysql> call income_quart('AAPL', 3);
+
 
 mysql> DELIMITER $$
-mysql> CREATE PROCEDURE cash_quart(IN sym CHAR(12)) BEGIN select Date, concat('$', FORMAT(netIncome,2)) as netIncome, concat('$', FORMAT(netBorrowings, 2)) as netBorrowings, concat('$', FORMAT(freeCashFlow,2)) as freeCashFlow, concat('$', FORMAT(changeInCash,2)) as changeInCash, concat('$', FORMAT(dividendsPaid,2)) as dividendsPaid from US_Stocks_Fin.Cash_Flow_quarterly where Symbol=sym; END$$
+mysql> CREATE PROCEDURE cash(IN sym CHAR(12), IN max INT) BEGIN SELECT * FROM (select Date, concat('$', FORMAT(netIncome,2)) as netIncome, concat('$', FORMAT(netBorrowings, 2)) as netBorrowings, concat('$', FORMAT(freeCashFlow,2)) as freeCashFlow, concat('$', FORMAT(changeInCash,2)) as changeInCash, concat('$', FORMAT(dividendsPaid,2)) as dividendsPaid from US_Stocks_Fin.Cash_Flow_yearly where Symbol=sym ORDER BY Date DESC LIMIT max) AS sub ORDER BY DATE ASC; END$$
+Query OK, 0 rows affected (0.01 sec)
+
 mysql> DELIMITER ;
-mysql>call cash_quart('AAPL');
+mysql> call cash('AAPL', 5);
+
+mysql> DELIMITER $$
+mysql> CREATE PROCEDURE cash_quart(IN sym CHAR(12), IN max INT) BEGIN SELECT * FROM (select Date, concat('$', FORMAT(netIncome,2)) as netIncome, concat('$', FORMAT(netBorrowings, 2)) as netBorrowings, concat('$', FORMAT(freeCashFlow,2)) as freeCashFlow, concat('$', FORMAT(changeInCash,2)) as changeInCash, concat('$', FORMAT(dividendsPaid,2)) as dividendsPaid from US_Stocks_Fin.Cash_Flow_quarterly where Symbol=sym ORDER BY Date DESC LIMIT max) AS sub ORDER
+BY DATE ASC; END$$
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> DELIMITER ;
