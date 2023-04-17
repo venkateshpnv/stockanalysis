@@ -481,14 +481,19 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
-def update_price_change(country, stk, core, sem=None, index=False):
+def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
 
-    c = DB.open_db_client()
-    db = c['Stocks']
-    collection = DB.get_collection(country, db)
-    sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    c  = DB.open_db_client()
+    if type == 'Stocks':
+        db = c['Stocks']
+        collection=db.US_Stocks
+        sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    else:
+        db = c['Cryptos']
+        collection=db.Cryptos
+        sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
 
     #print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
@@ -573,6 +578,7 @@ def update_price_change(country, stk, core, sem=None, index=False):
             else:
                 query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
                 df = DB.read_from_sql(query, sql_engine)
+                start_date = df.index[0].strftime("%Y-%m-%d")
 
             #print(query)
             query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
@@ -723,6 +729,27 @@ def update_price_change(country, stk, core, sem=None, index=False):
         DB.close_db_client(c)
         if sem:
             sem.release()
+
+def update_all_crypto_price_change():
+    c  = DB.open_db_client()
+    db = c['Cryptos']
+
+    cryptos = db.Cryptos.find({"$or" : [ \
+                                            {"price_change.date": {"$exists": False }},\
+                                            {"price_change.date": {"$lt": dt.combine(dt.now().date(), dt.min.time())}},\
+                                        ]\
+                                }\
+                                )
+
+    cryptos = db.Cryptos.find({})
+    try:
+        for i, crypto in enumerate(cryptos):
+            print("%d: %r" %(i, crypto['bscs']['symbol']))
+            update_price_change('US', crypto, 1, None, index=True,type='Crypto')
+
+    finally:
+        DB.close_db_client(c)
+
 
 def fork_hdf5_process(country):
     ## Randomly get all records whose price is not updated till today

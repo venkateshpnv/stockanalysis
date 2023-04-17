@@ -2619,7 +2619,7 @@ def update_price_trend_params(collection, sym, df):
     update_price_trend(collection, sym, df, end, relativedelta(weeks=1), 'week')
     
 
-def update_tech_analysis_params(sym, core=None, sem=None):
+def update_tech_analysis_params(sym, core=None, sem=None, type='Stocks'):
 
     if core is not None:
         aff = 0 | 1 << core
@@ -2628,9 +2628,14 @@ def update_tech_analysis_params(sym, core=None, sem=None):
     #set_cpu_affinity()
 
     c  = open_db_client()
-    db = c['Stocks']
-    collection=db.US_Stocks
-    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    if type == 'Stocks':
+        db = c['Stocks']
+        collection=db.US_Stocks
+        mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    else:
+        db = c['Cryptos']
+        collection=db.Cryptos
+        mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
 
     try:
         if not mysql_exists_table(mysql_engine, get_symbol_table_name(sym)):
@@ -5771,7 +5776,164 @@ def update_ipos():
            earnings.rename(columns = {'date': 'Date'}, inplace=True)
     earnings['Symbol']=[e.split('.')[0] for e in earnings['Symbol']]
        
+def add_crypto_symbols():
+    c  = open_db_client()
+    db = c['Cryptos']
+    try:
+        for i, sym in enumerate(crypto_symbols):
+            url = 'https://eodhistoricaldata.com/api/fundamentals/'+sym+'-USD.CC?api_token='+get_eod_token_id()
+            ret = requests.get(url)
+            if ret.status_code != 200:
+                print("Failed to get data for %s" %(c))
+                continue
+            crypto = ret.json()
+            crypto['bscs']={}
+            crypto['bscs']['symbol'] = sym
+            crypto['sno'] = i
+            db.Cryptos.insert_one(crypto)
+    finally:
+        close_db_client(c)
+
+def update_crypto_fundamentals(crypto):
+    c  = open_db_client()
+    db = c['Cryptos']
+    try:
+        url = 'https://eodhistoricaldata.com/api/fundamentals/'+crypto['bscs']['symbol']+'-USD.CC?api_token='+get_eod_token_id()
+        ret = requests.get(url)
+        if ret.status_code != 200:
+            print("Failed to get data for %s" %(c))
+            return
+        data = ret.json()
+        update_field(db.Cryptos, crypto['bscs']['symbol'], 'General', data['General'])
+        update_field(db.Cryptos, crypto['bscs']['symbol'], 'Statistics', data['Statistics'])
+        update_field(db.Cryptos, crypto['bscs']['symbol'], 'dates.crypto_fundamentals_pull_date', dt.combine(dt.now(), dt.min.time()))
+    finally:
+        close_db_client(c)
+
+def update_all_crypto_fundamentals():
+    c  = open_db_client()
+    db = c['Cryptos']
+
+    if 'Cryptos' not in db.collection_names():
+        db.create_collection("Cryptos")
+        add_crypto_symbols()
+
+    cryptos = db.Cryptos.find({"$or" : [ \
+                                            {"dates.crypto_fundamentals_pull_date": {"$exists": False }},\
+                                            {"dates.crypto_fundamentals_pull_date": {"$lt": dt.now().date()}},\
+                                        ]\
+                                }\
+                                )
+
+    try:
+        for i, crypto in enumerate(cryptos):
+            print("%d: %r" %(i, crypto['bscs']['symbol']))
+            update_crypto_fundamentals(crypto)
+
+    finally:
+        close_db_client(c)
+
+def update_crypto_prices(symbol, sql_engine=False):
+    c  = open_db_client()
+    db = c['Cryptos']
+    collection = db.Cryptos
+
+    if not sql_engine:
+        sql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='Cryptos')
+
+    try:
+        table = DB.get_symbol_table_name(symbol)
+        end = dt.now().date()
+
+        if not DB.mysql_exists_table(sql_engine, table):
+            rdf = pd.DataFrame()
+        else:
+            query = 'select Date from ' + table + ' order by Date DESC limit 1'
+            rdf = DB.read_from_sql(query, sql_engine)
+
+        if rdf.empty:
+            start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
+        else:
+            start = dt.strptime(rdf['Date'][0], "%Y-%m-%d").date()
+
+        if start < end:
+            print("getting price data for %r" %(symbol))
+            url = 'https://eodhistoricaldata.com/api/eod/'+symbol+'-USD.CC?api_token='+get_eod_token_id()+'&order=d&from='+str(start)+'&to='+str(end)
+
+            ret = requests.get(url)
+            if ret.status_code != 200:
+                print("Failed to get data for %s, period:%s-%s" %(symbol, str(start), str(end)))
+                return
+            DB.update_field(collection, symbol, "dates.mysql_price_pull_success", True)
+            DB.update_field(collection, symbol, "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
+
+            df  = pd.read_csv(StringIO(ret.text), skipfooter=0, parse_dates=[0], index_col=0, engine='python')
+            if not df.empty:
+                cols = {'Adjusted_close':'Adj Close'}
+                df.rename(columns = cols, inplace=True)
+                df.sort_index(inplace=True)
+                df=df.astype({'Volume':'float'})
+                df['Date'] = df.index.strftime("%Y-%m-%d")
+                df.index = df['Date'] #Is it required?
+                try:
+                    if not rdf.empty and rdf['Date'][0] in list(df.index):
+                        df_index = df.index.get_loc(rdf['Date'][0])
+                        df = df[df_index+1:]
+                        df.sort_index(inplace=True)
+                except Exception as E:
+                    print("hdf5.py: %r: update_dataframe_price_volume exception: %r"%(symbol, str(E)))
+                    print("hdf5.py: %r: update_dataframe_price_volume exception, df: %r"%(symbol, df))
+                    print("hdf5.py: %r: update_dataframe_price_volume exception, xdf: %r"%(symbol, xdf))
+                    print("hdf5.py: %r: update_dataframe_price_volume exception, rdf: %r"%(symbol, rdf))
+                if not df.empty:
+                   DB.mysql_update_table(sql_engine, table, df, insert=True, check=True, date_column=False, format_columns=False)
+                   DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                   DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
+                   DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
+                   DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
+    finally:
+        close_db_client(c)
+        close_sql_connection(sql_engine)
  
+def update_all_crypto_prices():
+    c  = open_db_client()
+    db = c['Cryptos']
+
+    cryptos = db.Cryptos.find({"$or" : [ \
+                                            {"dates.mysql_price_date": {"$exists": False }},\
+                                            {"dates.mysql_price_date": {"$lte": dt.combine(dt.now().date(), dt.min.time())}},\
+                                        ]\
+                                }\
+                                )
+
+    try:
+        for i, crypto in enumerate(cryptos):
+            print("%d: %r" %(i, crypto['bscs']['symbol']))
+            update_crypto_prices(crypto['bscs']['symbol'])
+
+    finally:
+        close_db_client(c)
+
+def update_all_crypto_technicals():
+    c  = open_db_client()
+    db = c['Cryptos']
+
+    cryptos = db.Cryptos.find({"$or" : [ \
+                                            {"technicals.date": {"$exists": False }},\
+                                            {"technicals.date": {"$lt": dt.combine(dt.now().date(), dt.min.time())}},\
+                                        ]\
+                                }\
+                                )
+
+    try:
+        for i, crypto in enumerate(cryptos):
+            print("%d: %r" %(i, crypto['bscs']['symbol']))
+            update_tech_analysis_params(crypto['bscs']['symbol'], 0, type='Cryptos')
+
+    finally:
+        close_db_client(c)
+
+
 def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_event=None, lock=None, check_since_ipo_date=False):
     global technicals_ratelimit_reset_time
 
@@ -6806,7 +6968,8 @@ def update_all_stock_betas(country, recession_only=False):
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}},\
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
+                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
                                                             {"dates.betas_calc_date_recession_only": {"$exists": False }},\
                                                             {"dates.betas_calc_date_recession_only": {"$lt": get_latest_trading_day()}}\
@@ -6821,7 +6984,8 @@ def update_all_stock_betas(country, recession_only=False):
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
                                                 {'General.Exchange':{"$in":major_exchanges}},\
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
+                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
                                                             {"dates.betas_calc_date": {"$exists": False }},\
                                                             {"dates.betas_calc_date": {"$lt": get_latest_trading_day()}}\

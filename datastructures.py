@@ -406,6 +406,8 @@ recessions = {
  
              }
 
+crypto_symbols = ['BTC', 'ETH']
+
 major_exchanges = ['NASDAQ', 'NYSE', 'NYSE MKT', 'NYSE ARCA', 'AMEX']
 
 #select DISTINCT Exchange from US_Stocks_Data.US_All_Stocks_List order  by Exchange;
@@ -429,11 +431,11 @@ price_fields = {'Date':'varchar(12)',
                 'Low':'float', 
                 'Open':'float', 
                 'Close':'float', 
-                'Volume':'INT UNSIGNED', 
+                'Volume':'BIGINT UNSIGNED', 
                 'Adj Close':'float', 
-                'Short':'INT UNSIGNED',
+                'Short':'BIGINT UNSIGNED',
                 }
-price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'INT UNSIGNED', 'float', 'INT UNSIGNED']
+price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'BIGINT UNSIGNED', 'float', 'BIGINT UNSIGNED']
 
 price_change_fields = {'Day Change':'float', 
                         'Week Change':'float',
@@ -530,7 +532,7 @@ generic_fields = {'Symbol':'varchar(12)',
                     'ask':'float', 
                     'change':'float', 
                     'percentChange':'float', 
-                    'volume':'UNSIGNED INT', 
+                    'volume':'UNSIGNED BIGINT', 
                     'openInterest':'float', 
                     'impliedVolatility':'float', 
                     'inTheMoney':'BOOL', 
