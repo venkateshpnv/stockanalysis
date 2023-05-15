@@ -1605,7 +1605,6 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         #    processes[i%num_processes].start()
         #    i = i + 1
 
-
         #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {"$or": [\
@@ -2442,7 +2441,8 @@ def update_EMA_params(collection, sym, df):
         update_field(collection, sym, "technicals.ema.change_with_price", change)
 
 def update_RSI_params(collection, sym, df):
-    rsi = ta.rsi(df['Adj Close'])
+    #rsi = ta.rsi(df['Adj Close'])
+    rsi = talib.RSI(df['Adj Close'])
     if len(rsi.index) == 0:
         update_field(collection, sym, "technicals.rsi", {})
     else:
@@ -2724,7 +2724,7 @@ def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    num_processes = num_cores #* 2
+    num_processes = num_cores * 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
@@ -2736,7 +2736,7 @@ def update_all_tech_analysis_params(country='US'):
                                         {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
                                         {'$or':[\
                                                 {'technicals.date': {"$exists": False}},\
-                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                                {'technicals.date':{'$lte': get_latest_trading_day()}}
                                                 ]\
                                         },\
                                         {'dates.mysql_price_pull_success':True}, \
@@ -4625,6 +4625,7 @@ def update_all_short_interests():
                                             },\
                                         ]\
                                 }, no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({"bscs.symbol":'AAPL'})
     print(stocks.count())
 
     for i, stk in enumerate(stocks):
@@ -5330,15 +5331,15 @@ def update_all_put_call_ratios(country='US'):
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({'General.Code': 'MTDR'})
+    stocks = db.US_Stocks.find({'General.Code': 'MTDR'})
     print("Total stocks: %r" %(stocks.count()))
     try:
         for stk in stocks:
            print("%d: Options: Checking: %r" %(i, stk['bscs']['symbol']))
            sem.acquire()
-           #update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
-           processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
-           processes[i%num_processes].start()
+           update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
+           #processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
+           #processes[i%num_processes].start()
            i = i + 1
 
     finally:
@@ -5647,7 +5648,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print("Stocks Earnings to be updated: ", stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"AMR"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"TSM"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -5824,6 +5825,8 @@ def update_all_crypto_fundamentals():
                                         ]\
                                 }\
                                 )
+
+    #cryptos = db.Cryptos.find({"dates.crypto_fundamentals_pull_date": {"$exists": True }})
 
     try:
         for i, crypto in enumerate(cryptos):
@@ -6695,8 +6698,8 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
             recession_keys = list(recessions.keys())
             recession_year_index = recession_keys.index(recession_year)
             if recession_year_index < len(recession_keys)-1:
-                edate = dt.strptime(recessions[recession_keys[recession_year_index+1]]['start'], "%d %B %Y").date() - timedelta(1)
-                #edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date()
+                #edate = dt.strptime(recessions[recession_keys[recession_year_index+1]]['start'], "%d %B %Y").date() - timedelta(1)
+                edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date() - timedelta(1)
                 query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
                 df = read_from_sql(query, sql_engine)
                 #df = hdf5.read_from_hdf(country, sym, sdate, edate)
@@ -6710,11 +6713,27 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
                 growth_percent = percent_change(s_first, s_last)
                 #growth_percent = s_last/s_first - 1
                 betas.update({"since_then_till_last_recession":growth_percent})
+
+                edate = get_latest_trading_day()
+                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+                df = read_from_sql(query, sql_engine)
+                # Calculate CAGR
+                s_first = df['Adj Close'][0]
+                if isinstance(s_first, complex):
+                    print("first is complex number")
+                s_last = df['Adj Close'][-1]
+                if isinstance(s_last, complex):
+                    print("last is complex number")
+                growth_percent = percent_change(s_first, s_last)
+                betas.update({"since_then_till_date":growth_percent})
+ 
             # As this is the last recession, there is no change required
             else:
                 betas.update({"since_then_till_last_recession":nan})
+                betas.update({"since_then_till_date":nan})
         except Exception as e:
             betas.update({"since_then_till_last_recession":nan})
+            betas.update({"since_then_till_date":nan})
  
     close_sql_connection(sql_engine)
     return betas
@@ -6964,6 +6983,7 @@ def update_all_stock_betas(country, recession_only=False):
     #docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     if recession_only:
+        num_processes = num_cores * 5 
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
@@ -6980,6 +7000,7 @@ def update_all_stock_betas(country, recession_only=False):
                                     #no_cursor_timeout=True).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
                                     no_cursor_timeout=True).batch_size(10).sort([["dates.betas_calc_date",1]]).allow_disk_use(True)
     else:
+        num_processes = num_cores
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
@@ -6997,11 +7018,10 @@ def update_all_stock_betas(country, recession_only=False):
                                     no_cursor_timeout=True).batch_size(10).sort([["dates.betas_calc_date",1]]).allow_disk_use(True)
 
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    #docs = db.US_Stocks.find({"bscs.symbol" : "AAPL"})
+    #docs = db.US_Stocks.find({"bscs.symbol" : "MFA"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
-    num_processes = num_cores #* 2 
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 

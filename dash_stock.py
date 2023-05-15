@@ -1,5 +1,7 @@
-import dash_html_components as html
-import dash_core_components as dcc
+from dash import html
+from dash import dcc
+#import dash_html_components as html
+#import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dashcore
 import DB
@@ -34,14 +36,14 @@ def stock_summary(db):
                     html.Div(
                         [
                             html.H5(stk['bscs']['price']), 
-                            html.H6(stk['price_change']['day'])
-                            html.P(str(stk['bscs']['price_date'])
+                            html.H6(stk['price_change']['day']),
+                            html.P(str(stk['bscs']['price_date'])),
                         ]),
                     # Row 4
                     html.Div(
                         [
                             html.H6("IPO Date : "), 
-                            html.H6(str(stk['bscs']['since'])
+                            html.H6(str(stk['bscs']['since'])),
                         ]),
 
                 ]

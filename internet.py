@@ -500,8 +500,8 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
     
+    sym = stk['bscs']['symbol']
     try:
-        sym = stk['bscs']['symbol']
         table_name = DB.get_symbol_table_name(sym)
         change = 0
 
@@ -547,7 +547,8 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
                 wdf = wdf.dropna(axis=0)
                 # Write to the database
-                DB.mysql_update_table(sql_engine, table_name, wdf)
+                if not wdf.empty:
+                    DB.mysql_update_table(sql_engine, table_name, wdf)
 
             # To save time in condition checks, calculate the 
             # whole field seperately outside the loop.

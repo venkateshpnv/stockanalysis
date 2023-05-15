@@ -543,20 +543,6 @@ def add_basic_header(sheet, i):
     #styles['NET_PR_QOQ'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
     i+=1
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Earnings Date", style_wrap)
-    conf.EARNINGS_DATE=i
-    #styles['UPCOMING_EARNINGS_DATE'] = get_style('blue', num_format_str="MM/DD/YY")
-    styles['UPCOMING_EARNINGS_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
-    styles['DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
-
-    i+=1
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Days To/From Earnings", style_wrap)
-    conf.DAYS_EARNINGS=i
-    styles['DAYS_EARNINGS'] = get_style(colors[i%len(colors)], num_format_str="general")
-
-    i+=1
     sheet.col(i).width = 5*367
     sheet.write(0, i, "Earnings Day Price Change", style_wrap)
     conf.EARNINGS_DAY_PR_CHANGE=i
@@ -574,20 +560,20 @@ def add_basic_header(sheet, i):
     #sheet.write(0, i, "Current Price Date", style_wrap)
     #conf.CUR_PR_DT=i
 
-    i+=1
-    #Current Price
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Shares", style_wrap)
+    #i+=1
+    ##Current Price
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Shares", style_wrap)
 
-    i+=1
-    #Current Price
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Amount Invested", style_wrap)
+    #i+=1
+    ##Current Price
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Amount Invested", style_wrap)
 
-    i+=1
-    #Current Price
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Price after Year", style_wrap)
+    #i+=1
+    ##Current Price
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Price after Year", style_wrap)
 
     i+=1
     sheet.col(i).width = 5*367
@@ -629,42 +615,42 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "Volume", style_wrap)
     conf.VOL=i
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "1M Beta", style_wrap)
-    conf.ONE_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "1M Beta", style_wrap)
+    #conf.ONE_BETA=i
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "3M Beta", style_wrap)
-    conf.THREE_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "3M Beta", style_wrap)
+    #conf.THREE_BETA=i
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "6M Beta", style_wrap)
-    conf.SIX_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "6M Beta", style_wrap)
+    #conf.SIX_BETA=i
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "1Yr Beta", style_wrap)
-    conf.YEAR_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "1Yr Beta", style_wrap)
+    #conf.YEAR_BETA=i
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "5Yr Beta", style_wrap)
-    conf.FIVE_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "5Yr Beta", style_wrap)
+    #conf.FIVE_BETA=i
 
 
-    i+=1
-    #Beta
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Whole Beta", style_wrap)
-    conf.W_BETA=i
+    #i+=1
+    ##Beta
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "Whole Beta", style_wrap)
+    #conf.W_BETA=i
 
 
     #i+=1
@@ -706,11 +692,11 @@ def add_basic_header(sheet, i):
     #conf.EMA=i
     #styles['EMA'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
-    i+=1
-    sheet.col(i).width = 4*367
-    sheet.write(0, i, "Short Ratio", style_wrap)
-    conf.SHORT_RATIO=i
-    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    #i+=1
+    #sheet.col(i).width = 4*367
+    #sheet.write(0, i, "Short Ratio", style_wrap)
+    #conf.SHORT_RATIO=i
+    #styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # RSI
@@ -777,6 +763,22 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, st, style_wrap)
     conf.CUR_PRICE_MAX_RSI=i
     styles['CUR_PRICE_MAX_RSI'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
+
+    i+=1
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Earnings Date", style_wrap)
+    conf.EARNINGS_DATE=i
+    #styles['UPCOMING_EARNINGS_DATE'] = get_style('blue', num_format_str="MM/DD/YY")
+    styles['UPCOMING_EARNINGS_DATE'] = get_style(colors[i%len(colors)], num_format_str="MM/DD/YY")
+    styles['DATE'] = get_style(color=None, num_format_str="MM/DD/YY")
+
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Days To/From Earnings", style_wrap)
+    conf.DAYS_EARNINGS=i
+    styles['DAYS_EARNINGS'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+
+
 
     ##i+=1
     ##sheet.col(i).width = 6*367
@@ -962,13 +964,6 @@ def add_second_tech_indicators(sheet, i):
     sheet.write(0, i, st, style_wrap)
     conf.AROON_DOWN=i
 
-    i+=1
-    # Morning Star
-    sheet.col(i).width = 3*367
-    st = "MStar"
-    sheet.write(0, i, st, style_wrap)
-    conf.MSTAR=i
-
     return i
 
 def add_calc_header(sheet, i):
@@ -1123,17 +1118,17 @@ def add_betas_header(sheet, i):
     #sheet.write(0, i, "Whole Beta", style_wrap)
     #conf.W_BETA=i
 
-    i+=1
-    # Whole Alpha
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Whole Alpha", style_wrap)
-    conf.W_ALPHA=i
+    #i+=1
+    ## Whole Alpha
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Whole Alpha", style_wrap)
+    #conf.W_ALPHA=i
 
-    i+=1
-    # Whole Pure Alpha
-    sheet.col(i).width = 5*367
-    sheet.write(0, i, "Whole Pure Alpha", style_wrap)
-    conf.W_PURE_ALPHA=i
+    #i+=1
+    ## Whole Pure Alpha
+    #sheet.col(i).width = 5*367
+    #sheet.write(0, i, "Whole Pure Alpha", style_wrap)
+    #conf.W_PURE_ALPHA=i
 
     #i+=1
     ## Profit Margin
@@ -1178,6 +1173,14 @@ def add_ratios_header(sheet, i):
     sheet.col(i).width = 4*367
     sheet.write(0, i, "PB", style_wrap)
     conf.PB=i
+
+    i+=1
+    # Morning Star
+    sheet.col(i).width = 3*367
+    st = "MStar"
+    sheet.write(0, i, st, style_wrap)
+    conf.MSTAR=i
+
 
     #i+=1
     ## TTM P/E
@@ -1733,6 +1736,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE, rsi_price_change, styles['RSI_PRICE_CHANGE'])
         days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'])
+        #cur_price_max_rsi_change = percent_change(stk['technicals']['rsi']['60day_max_price'],stk['price_change']['price'])
         cur_price_max_rsi_change = percent_change(stk['price_change']['price'], stk['technicals']['rsi']['60day_max_price'])
         sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'])
 
@@ -1787,13 +1791,13 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
     sh_write(ash, count, conf.VOL, stk['price_change']['volume'], style_num)
-    if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
-        sh_write(ash, count, conf.ONE_BETA, stk['fig']['betas']['one_month']['beta'])
-        sh_write(ash, count, conf.THREE_BETA, stk['fig']['betas']['three_months']['beta'])
-        sh_write(ash, count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
-        sh_write(ash, count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
-        sh_write(ash, count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
-        #sh_write(ash, count, conf.BETA, stk['bscs']['five_yr_beta'])
+    #if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
+    #    sh_write(ash, count, conf.ONE_BETA, stk['fig']['betas']['one_month']['beta'])
+    #    sh_write(ash, count, conf.THREE_BETA, stk['fig']['betas']['three_months']['beta'])
+    #    sh_write(ash, count, conf.SIX_BETA, stk['fig']['betas']['six_months']['beta'])
+    #    sh_write(ash, count, conf.YEAR_BETA, stk['fig']['betas']['one_year']['beta'])
+    #    sh_write(ash, count, conf.FIVE_BETA, stk['fig']['betas']['five_year']['beta'])
+    #    #sh_write(ash, count, conf.BETA, stk['bscs']['five_yr_beta'])
 
     sh_write(ash, count, conf.FV, stk['bscs']['face_value'])
 
@@ -1811,7 +1815,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.BOOK, stk['Highlights']['BookValue'])
     #sh_write(ash, count, conf.TTM_PE, stk['Ratios']['ttm_PE'])
 
-    sh_write(ash, count, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'])
+    #sh_write(ash, count, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'])
     sh_write(ash, count, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'])
     sh_write(ash, count, conf.SHORT_PERCENT_FLOAT, stk['SharesStats']['ShortPercentFloat'])
     sh_write(ash, count, conf.SHORT_PERCENT_OUTSTANDING, stk['SharesStats']['ShortPercentOutstanding'])
@@ -2201,21 +2205,21 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                         sh_write(ash, conf.COUNT, conf.SINCE_LAST_PER_CHG, round(stk['fig']['betas']['recession']['2007']['since_then_till_last_recession'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
                     except Exception:
                         pass
-        if 'whole' in stk['fig']['betas'].keys() and stk['fig']['betas']['whole']:
-            sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
-            sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
+        #if 'whole' in stk['fig']['betas'].keys() and stk['fig']['betas']['whole']:
+        #    sh_write(ash, conf.COUNT, conf.W_BETA, round(stk['fig']['betas']['whole']['beta'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
+        #    sh_write(ash, conf.COUNT, conf.W_ALPHA, round(stk['fig']['betas']['whole']['alpha'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
+        #    sh_write(ash, conf.COUNT, conf.W_PURE_ALPHA, round(stk['fig']['betas']['whole']['alpha_pure'], 2), style_decimal, ashs, recent_ipos=recent_ipos)
 
-        if 'one_month' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_month']:
-            sh_write(ash, conf.COUNT, conf.ONE_BETA,  round(stk['fig']['betas']['one_month']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
-        if 'three_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['three_months']:
-            sh_write(ash, conf.COUNT, conf.THREE_BETA,  round(stk['fig']['betas']['three_months']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
-        if 'six_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['six_months']:
-            sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
-        if 'one_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_year']:
-            sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
-        if 'five_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['five_year']:
-            sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
+        #if 'one_month' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_month']:
+        #    sh_write(ash, conf.COUNT, conf.ONE_BETA,  round(stk['fig']['betas']['one_month']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
+        #if 'three_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['three_months']:
+        #    sh_write(ash, conf.COUNT, conf.THREE_BETA,  round(stk['fig']['betas']['three_months']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
+        #if 'six_months' in stk['fig']['betas'].keys() and stk['fig']['betas']['six_months']:
+        #    sh_write(ash, conf.COUNT, conf.SIX_BETA,  round(stk['fig']['betas']['six_months']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
+        #if 'one_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['one_year']:
+        #    sh_write(ash, conf.COUNT, conf.YEAR_BETA, round(stk['fig']['betas']['one_year']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
+        #if 'five_year' in stk['fig']['betas'].keys() and stk['fig']['betas']['five_year']:
+        #    sh_write(ash, conf.COUNT, conf.FIVE_BETA, round(stk['fig']['betas']['five_year']['beta'],2), ashs=ashs, recent_ipos=recent_ipos)
 
     if stk['SharesStats']['SharesOutstanding'] == 0:
         float_percent = 0
@@ -2253,7 +2257,11 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             sh_write(ash, conf.COUNT, conf.EARNINGS_DATE, stk['dates']['last_earnings_report_date'], styles['UPCOMING_EARNINGS_DATE'], ashs=ashs, recent_ipos=recent_ipos)
         else:
             sh_write(ash, conf.COUNT, conf.EARNINGS_DATE, stk['dates']['last_earnings_report_date'], styles['DATE'], ashs=ashs, recent_ipos=recent_ipos)
-        days = str((stk['dates']['last_earnings_report_date'] - dt.combine(dt.now(), dt.min.time())).days)
+        #days = (stk['dates']['last_earnings_report_date'] - dt.combine(dt.now(), dt.min.time())).days
+        earnings_date = stk['dates']['last_earnings_report_date'].date()
+        today = dt.combine(dt.now(), dt.min.time()).date()
+        days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
+        days = int(days)
         sh_write(ash, conf.COUNT, conf.DAYS_EARNINGS, days, styles['DAYS_EARNINGS'], ashs=ashs, recent_ipos=recent_ipos)
 
     if 'last_earnings_day_price_change' in stk['dates'].keys():
@@ -2335,8 +2343,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #sh_write(ash, conf.COUNT, conf.TTM_PE, stk['Ratios']['ttm_PE'], ashs=ashs, recent_ipos=recent_ipos)
 
 
-    if 'ShortRatio' in stk['SharesStats'].keys():
-        sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], styles['SHORT_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
+    #if 'ShortRatio' in stk['SharesStats'].keys():
+    #    sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], styles['SHORT_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
 
     try:
         if stk['SharesStats']['SharesOutstanding'] > 0:

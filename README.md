@@ -316,3 +316,9 @@ BY DATE ASC; END$$
 Query OK, 0 rows affected (0.00 sec)
 
 mysql> DELIMITER ;
+
+Reload package in the python prompt
+importlib.reload(package_name)
+ex: importlib.reload(DB)
+import pandas as pd
+importlib.reload(pd)
