@@ -708,6 +708,16 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
                 change = (price/low_price) - 1
 
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
+
+            query = 'SELECT Date, Volume FROM (SELECT * FROM {} ORDER BY Date DESC LIMIT 60) AS sub ORDER BY Date ASC'.format(table_name)
+
+            df = DB.read_from_sql(query, sql_engine)
+            if not df.empty:
+                vol_mean = df['Volume'].mean()
+                DB.update_field(collection, sym, "price_change.avg_volume", vol_mean)
+            else:
+                DB.update_field(collection, sym, "price_change.avg_volume", None)
+ 
         else:
             change=None
             DB.update_field(collection, sym, "price_change.day", change)
@@ -820,7 +830,16 @@ def fork_hdf5_process(country):
 
         #stocks = db.US_Stocks.find({"$and" : [{"price_change.date": {"$lt": DB.get_latest_trading_day()}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
         stocks=db.US_Stocks.find({"$and":[\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
                                             {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
@@ -973,7 +992,16 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
                                         {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
                                         {'General.IsDelisted': False},\
                                         {'General.Type':'Common Stock'},\
-                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                        #{'General.Exchange':{"$in":major_exchanges}},\
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        },\
                                         {price_change:{cond:change}},\
                                         ]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
@@ -1171,7 +1199,23 @@ def price_surprises(country, change_percent, criteria, db_type, excel_type):
         else:
             latest_date = get_previous_trading_day()
 
-        docs = col.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+        docs = col.find({"$and" : [\
+                                        {"dates.mysql_price_date": {"$eq": latest_date}},\
+                                        {"General.IsDelisted": False},\
+                                        {'General.Type':'Common Stock'}, \
+                                        #{'General.Exchange':{"$in":major_exchanges}}
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        }\
+                                    ]
+                        }
+                        ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         print("Count: %r" %(docs.count()))
         i=0
         len_skip= dcf_skip = price_skip = trading_skip = vol_skip = 0

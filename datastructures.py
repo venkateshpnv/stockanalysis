@@ -449,6 +449,7 @@ price_change_fields = {'Day Change':'float',
                         'Whole Change':'float',
                         'YTD Change':'float',
                         }
+
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
 price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(weeks=2), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
 
@@ -519,7 +520,8 @@ cash_fields = {'freeCashFlow':'float',
                 'changeInCash':'float',
                 'totalCashflowsFromInvestingActivities':'float',
                 }
-generic_fields = {'Symbol':'varchar(12)', 
+generic_fields = {'Symbol':'varchar(12)',
+                    'IsDelisted': 'BOOL',
                     'Date':'varchar(12)',
                     'report_date':'varchar(12)',
                     'before_after_market':'varchar(25)',

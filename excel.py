@@ -611,9 +611,15 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Volume
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "Volume", style_wrap)
+    sheet.col(i).width = 8*367
+    sheet.write(0, i, "Volume * Price in Mn", style_wrap)
     conf.VOL=i
+
+    i+=1
+    #Volume
+    sheet.col(i).width = 8*367
+    sheet.write(0, i, "Volume % in MCap", style_wrap)
+    conf.VOL_MCAP=i
 
     #i+=1
     ##Beta
@@ -692,11 +698,11 @@ def add_basic_header(sheet, i):
     #conf.EMA=i
     #styles['EMA'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
 
-    #i+=1
-    #sheet.col(i).width = 4*367
-    #sheet.write(0, i, "Short Ratio", style_wrap)
-    #conf.SHORT_RATIO=i
-    #styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
+    i+=1
+    sheet.col(i).width = 4*367
+    sheet.write(0, i, "Short Ratio", style_wrap)
+    conf.SHORT_RATIO=i
+    styles['SHORT_RATIO'] = get_style(colors[i%len(colors)], num_format_str="0.00")
 
     i+=1
     # RSI
@@ -1758,7 +1764,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.TWO_WEEK_PR_CHANGE, stk['price_change']['two_week'], style_percent)
     sh_write(ash, count, conf.DAY_PR_CHANGE, stk['price_change']['day'], style_percent)
     if 'betas' in stk['fig'].keys() and stk['fig']['betas']['one_month'] is not None:
-        sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_percent)
+        sh_write(ash, count, conf.VOLATILITY, stk['fig']['betas']['one_month']['volatility'], style_decimal)
         sh_write(ash, count, conf.ONE_MOMENTUM, stk['fig']['betas']['one_month']['momentum'], style_percent)
         sh_write(ash, count, conf.THREE_MOMENTUM, stk['fig']['betas']['three_months']['momentum'], style_percent)
         sh_write(ash, count, conf.SIX_MOMENTUM, stk['fig']['betas']['six_months']['momentum'], style_percent)
@@ -1790,7 +1796,10 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.W_F2WK_HG, stk['price_change']['with_52week_high'], style_percent)
     sh_write(ash, count, conf.W_F2WK_LW, stk['price_change']['with_52week_low'], style_percent)
 
-    sh_write(ash, count, conf.VOL, stk['price_change']['volume'], style_num)
+    if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
+        sh_write(ash, count, conf.VOL, (stk['price_change']['price']*stk['price_change']['volume'])/1000000, style_decimal)
+        sh_write(ash, count, conf.VOL_MCAP, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000), 4), style_percent)
+    #sh_write(ash, count, conf.VOL, stk['price_change']['volume'], style_num)
     #if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
     #    sh_write(ash, count, conf.ONE_BETA, stk['fig']['betas']['one_month']['beta'])
     #    sh_write(ash, count, conf.THREE_BETA, stk['fig']['betas']['three_months']['beta'])
@@ -1815,7 +1824,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
     sh_write(ash, count, conf.BOOK, stk['Highlights']['BookValue'])
     #sh_write(ash, count, conf.TTM_PE, stk['Ratios']['ttm_PE'])
 
-    #sh_write(ash, count, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'])
+    sh_write(ash, count, conf.SHORT_RATIO, stk['Technicals']['ShortRatio'])
     sh_write(ash, count, conf.SHARES_FLOAT_PERCENT, stk['SharesStats']['SharesFloat']/ stk['SharesStats']['SharesOutstanding'])
     sh_write(ash, count, conf.SHORT_PERCENT_FLOAT, stk['SharesStats']['ShortPercentFloat'])
     sh_write(ash, count, conf.SHORT_PERCENT_OUTSTANDING, stk['SharesStats']['ShortPercentOutstanding'])
@@ -2317,7 +2326,10 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     sheet.write(i, 3, "Volume")
     #sheet.write(i, 4, stk['price_change']['volume'])
-    sh_write(ash, conf.COUNT, conf.VOL, stk['price_change']['volume'], ashs=ashs, recent_ipos=recent_ipos)
+    if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
+        sh_write(ash, conf.COUNT, conf.VOL, (stk['price_change']['price']*stk['price_change']['volume'])/1000000, style=style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        sh_write(ash, conf.COUNT, conf.VOL_MCAP, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000), 4), style=style_percent, ashs=ashs, recent_ipos=recent_ipos)
+    #sh_write(ash, conf.COUNT, conf.VOL, stk['price_change']['volume'], ashs=ashs, recent_ipos=recent_ipos)
 
     #i += 1 #row 7
     #sheet.write(i, 0, "Face Value")
@@ -2343,8 +2355,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #sh_write(ash, conf.COUNT, conf.TTM_PE, stk['Ratios']['ttm_PE'], ashs=ashs, recent_ipos=recent_ipos)
 
 
-    #if 'ShortRatio' in stk['SharesStats'].keys():
-    #    sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['SharesStats']['ShortRatio'], styles['SHORT_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
+    if 'ShortRatio' in stk['Technicals'].keys():
+        sh_write(ash, conf.COUNT, conf.SHORT_RATIO, stk['Technicals']['ShortRatio'], styles['SHORT_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
 
     try:
         if stk['SharesStats']['SharesOutstanding'] > 0:

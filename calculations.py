@@ -340,7 +340,16 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
     sort = [1, -1][dt.now().day % 2 == 0]
     stocks = collection.find({"$and":[\
-                                        {'General.Exchange':{"$in":major_exchanges}}, \
+                                        #{'General.Exchange':{"$in":major_exchanges}}, \
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        },\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted':False}, \
                                         {'failcount.mysql_price_failcount':{'$eq':0}}, \

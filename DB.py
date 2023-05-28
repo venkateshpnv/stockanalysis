@@ -555,7 +555,16 @@ def get_symbols_names_from_mongo(collection=None, country='US'):
     items = collection.find({ "$and": [\
                                 {"General.IsDelisted": False},\
                                 {'General.Type':'Common Stock'},\
-                                {'General.Exchange':{"$in":major_exchanges}},\
+                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                {"$or": [\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$and": [ \
+                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                    ] \
+                                            },\
+                                        ]\
+                                },\
                                 ]\
                             }, \
                             {'General.Code':1,'General.Name':1,'_id':0})
@@ -591,11 +600,11 @@ def rename_table(engine, t):
     engine.execute(query)
 
 def get_symbols_from_sql2():
-    engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
 
     query='select distinct Symbol from US_All_Stocks_List' 
-    rdf=pd.read_sql_query(query, engine)
-    close_sql_connection(engine)
+    rdf=pd.read_sql_query(query, mysql_engine)
+    close_sql_connection(mysql_engine)
 
     if not rdf.empty:
         symbols = list(rdf['Symbol'])
@@ -1619,7 +1628,15 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                                 },\
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
                                                 {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                             ]\
@@ -1628,6 +1645,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'FLAG'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
+
         for stk in stocks:
             #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -1641,14 +1659,23 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             if processes[j] is not None:
                 processes[j].join()
 
- 
     try:
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {'dates.mysql_price_pull_date': {'$lt':get_latest_trading_day()}},\
                                                 {'dates.mysql_price_pull_success': False},\
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
+
                                                 {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                             ]\
@@ -2729,7 +2756,17 @@ def update_all_tech_analysis_params(country='US'):
     processes = [None]*num_processes
 
     sort = [1, -1][dt.now().day % 2 == 0]
-    stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}},\
+    stocks=db.US_Stocks.find({"$and":[ \
+                                        #{'General.Exchange':{"$in":major_exchanges}},\
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        },\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
                                         {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
@@ -2969,7 +3006,7 @@ def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock
 
     return df
 
-def add_symbol_to_database(d, db=None, mysql_engine=None):
+def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False):
     local_db    = False
     local_mysql = False
 
@@ -2985,18 +3022,29 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     sno = db.US_Stocks.find({}).count()
     bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type'], "since": dt.combine(dt.now(), dt.min.time())}
     stk  = {"bscs" : bscs, "sno": sno}
+
+    if tracking:
+        general_only=True
+    else :
+        if d['Exchange'] not in major_exchanges:
+            general_only=True
+        else:
+            general_only=False
+
+    stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+    if stks.count() != 0:
+        print("Trying to add new symbol %s: %r to mongodb, but already exists" %(d['Symbol'], d['Name']))
+        update_technicals(stk, general_only=general_only)
+        return
+
     print("Adding new symbol: %s: %s" %(d['Symbol'], d['Name']))
     db.US_Stocks.insert_one(stk)
     db.US_Stocks_Added.insert_one(stk)
     
-    if d['Exchange'] not in major_exchanges:
-        general_only=True
-    else:
-        general_only=False
-
     update_technicals(stk, general_only=general_only)
     
     stk_df = pd.DataFrame([list(d.values)], columns=list(d.index), index=[d['Symbol']])
+    stk_df['IsDelisted'] = False
 
     table_name = 'US_All_Stocks_List'
     mysql_check_n_create_table(mysql_engine, table_name, empty_table=True)
@@ -3005,7 +3053,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
     # Truncate the whole table, pull the new prices and recreate the percentage changes.
     price_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
     table_name = get_symbol_table_name(d['Symbol'])
-    if mysql_exists_table(mysql_engine, table_name):
+    if mysql_exists_table(price_engine, table_name):
         print("%s: symbol price table already exists, truncating" %(d['Symbol']))
         query = "drop table {}".format(table_name)
         price_engine.execute(query)
@@ -3022,7 +3070,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None):
 
     options_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Options')
     table_name = get_symbol_table_name(d['Symbol'])
-    if mysql_exists_table(mysql_engine, table_name):
+    if mysql_exists_table(options_engine, table_name):
         print("%s: symbol price table already exists, truncating" %(d['Symbol']))
         query = "drop table {}".format(table_name)
         options_engine.execute(query)
@@ -4201,7 +4249,16 @@ def update_all_earnings_trend():
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
                                                 {"$or": [\
                                                             {"$and": [\
                                                                         {"dates.earnings_trends_pull_date": {"$exists": True }},\
@@ -4318,7 +4375,16 @@ def US_earnings_trends_new_db():
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {"General.IsDelisted": False},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                #{'General.Exchange':{"$in":major_exchanges}}\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                }\
                                             ]\
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -4501,7 +4567,16 @@ def update_US_all_stock_fin_information():
     stocks = db.US_Stocks.find({\
                                 "$and": [\
                                         #{"dates.fin_statements_pull_date": {"$exists": False}},\
-                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                        #{'General.Exchange':{"$in":major_exchanges}},\
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        },\
                                         {"General.IsDelisted": False},\
                                         {'General.Type':'Common Stock'},\
                                         ]\
@@ -4898,7 +4973,16 @@ def update_all_splits(all=False):
         # Get splits for all stocks
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                #{'General.Exchange':{"$in":major_exchanges}}\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                }\
                                             ]\
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -4907,7 +4991,16 @@ def update_all_splits(all=False):
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {"dates.splits_pull_date": {"$exists": False}},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                #{'General.Exchange':{"$in":major_exchanges}}\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                }\
                                             ]\
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -4953,7 +5046,17 @@ def update_all_splits(all=False):
         for line_number, (i, d) in enumerate(df.iterrows()):
             stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']},\
                                                 {"General.Type":"Common Stock"}, \
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
+
                                                 #{"dates.splits_pull_date": {"$lt": get_latest_trading_day()}}
                                                 ]})
             if stocks.count() == 0 or stocks.count() > 1:
@@ -5091,7 +5194,16 @@ def update_all_dividends(all=False):
             stocks = db.US_Stocks.find({"$and": [\
                                                     {'General.Type':'Common Stock'},\
                                                     {"General.IsDelisted": False},\
-                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                    #{'General.Exchange':{"$in":major_exchanges}}\
+                                                    {"$or": [\
+                                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                                {"$and": [ \
+                                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                            {'bscs.tracking':{'$exists':True}}, \
+                                                                        ] \
+                                                                },\
+                                                            ]\
+                                                    }\
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -5101,7 +5213,16 @@ def update_all_dividends(all=False):
                                                     {'General.Type':'Common Stock'},\
                                                     {"dates.dividends_pull_date": {"$exists": False}},\
                                                     {"General.IsDelisted": False},\
-                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                    #{'General.Exchange':{"$in":major_exchanges}}\
+                                                    {"$or": [\
+                                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                                {"$and": [ \
+                                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                            {'bscs.tracking':{'$exists':True}}, \
+                                                                        ] \
+                                                                },\
+                                                            ]\
+                                                    }\
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -5111,7 +5232,7 @@ def update_all_dividends(all=False):
         #stocks = db.US_Stocks.find({"$and": [{"$or":[{"dates.dividends_pull_date": {"$lt": today}}, {"dates.dividends_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
         #stocks = db.US_Stocks.find({"bscs.symbol":'AAPL'})
         #stocks = db.US_Stocks.find({"General.Exchange":{'$in': major_exchanges}})
-        print(stocks.count())
+        print("Total Dividend stocks: %s" %(stocks.count()))
 
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
@@ -5148,10 +5269,27 @@ def update_all_dividends(all=False):
             df.index = df['Date']
 
             for i, d in df.iterrows():
-                stocks = db.US_Stocks.find({"$and":[{"bscs.symbol":d['Symbol']}, {"General.Type":"Common Stock"}, {'General.Exchange':{"$in":major_exchanges}}, {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}]})
+                stocks = db.US_Stocks.find({"$and":[\
+                                                        {"bscs.symbol":d['Symbol']},\
+                                                        {"General.Type":"Common Stock"},\
+                                                        #{'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$or": [\
+                                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                                    {"$and": [ \
+                                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                                            ] \
+                                                                    },\
+                                                                ]\
+                                                        },\
+                                                        {"dates.dividends_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]
+                                            }
+                                           )
 
                 if stocks.count() == 0 or stocks.count() > 1:
                     continue
+                print("Updating dividends for %s" %(d['Symbol']))
                 update_dividends(stocks[0], 0, sem=None)
 
                 #stk_df = df[df['Symbol'] == d['Symbol']]
@@ -5399,7 +5537,16 @@ def clear_all_zero_volume_rows():
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {"General.IsDelisted": False},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                #{'General.Exchange':{"$in":major_exchanges}}\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
                                             ]\
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -5441,7 +5588,16 @@ def update_all_since():
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
                                                 {"General.IsDelisted": False},\
-                                                {'General.Exchange':{"$in":major_exchanges}}\
+                                                #{'General.Exchange':{"$in":major_exchanges}}\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                }\
                                             ]\
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -5631,7 +5787,16 @@ def update_all_earnings(all=False):
             stocks = db.US_Stocks.find({"$and": [\
                                                     {'General.Type':'Common Stock'},\
                                                     {"General.IsDelisted": False},\
-                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    #{'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$or": [\
+                                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                                {"$and": [ \
+                                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                            {'bscs.tracking':{'$exists':True}}, \
+                                                                        ] \
+                                                                },\
+                                                            ]\
+                                                    }, \
                                                     {'dates.earnings_pull_date': {'$lt':get_latest_trading_day()}},\
                                                     {'dates.technicals_pull_date':{'$gte':get_previous_trading_day()}}\
                                                 ]\
@@ -5642,7 +5807,16 @@ def update_all_earnings(all=False):
                                                     {'General.Type':'Common Stock'},\
                                                     {"dates.earnings_pull_date": {"$exists": False}},\
                                                     {"General.IsDelisted": False},\
-                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                    #{'General.Exchange':{"$in":major_exchanges}}\
+                                                    {"$or": [\
+                                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                                {"$and": [ \
+                                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                            {'bscs.tracking':{'$exists':True}}, \
+                                                                        ] \
+                                                                },\
+                                                            ]\
+                                                    } \
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -5713,7 +5887,16 @@ def update_all_earnings(all=False):
                                                                 {"dates.earnings_pull_date": {"$lt": get_latest_trading_day()}}\
                                                             ]\
                                                     },\
-                                                    {'General.Exchange':{"$in":major_exchanges}}\
+                                                    #{'General.Exchange':{"$in":major_exchanges}}\
+                                                    {"$or": [\
+                                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                                {"$and": [ \
+                                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                            {'bscs.tracking':{'$exists':True}}, \
+                                                                        ] \
+                                                                },\
+                                                            ]\
+                                                    },\
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -6054,7 +6237,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals}})
  
         if general_only == True:
-            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights'
         else:
             url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
 
@@ -6152,7 +6335,10 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         df = pd.DataFrame()
         for k in technicals.keys():
             if technicals[k] != 'NA':
-                df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
+                #df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
+                df1 = pd.DataFrame.from_dict(technicals[k], orient='index')
+                df1.dropna(inplace=True)
+                df = df1.combine_first(df)
                 db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {k: technicals[k]}})
 
         #query = 'select * from Dividends_History where Symbol={} order by Date desc limit 1;'.format(stk['bscs']['symbol'])
@@ -6183,6 +6369,48 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         close_sql_connection(mysql_engine)
         close_db_client(c)
 
+def update_mysql_db_with_listed_stocks(adf=None):
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Data')
+    c  = open_db_client()
+    db = c['Stocks']
+ 
+    if adf is None:
+        adf = get_eod_all_trading_symbols()
+
+    adf.index = adf['Symbol']
+
+    table_name = 'US_All_Stocks_List'
+    # Get all symbols from local database
+    query = 'select distinct Symbol from ' + table_name
+    ddf = pd.read_sql_query(query, mysql_engine)
+    ddf.index = ddf['Symbol']
+
+    # Get all symbols that are not in eod trading symbols and mark them as Delisted
+    delisted_df = ddf[~ddf.Symbol.isin(adf.Symbol)]
+    delisted_df['IsDelisted'] = True
+
+    print("Total Symbols to be delisted from mysqldb: %r" %(len(delisted_df)))
+    #i = 0
+    #for sym, d in delisted_df.iterrows():
+    #    #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
+    #    stks = db.US_Stocks.find({'bscs.symbol': sym})
+    #    if stks.count() == 0:
+    #        continue
+    #    stk = stks[0]
+    #    print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+    #    update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+    #    i = i + 1
+
+    mysql_update_table(mysql_engine, table_name, delisted_df, check=True, insert=False, unknown_table=True, fin_table=False, cols_type='symbol', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=True)
+
+
+    ## Get all symbols that are in eod trading symbols and mark them as listed
+    #listed_df = ddf[ddf.Symbol.isin(adf.Symbol)]
+    #listed_df['IsDelisted'] = False
+
+    #mysql_update_table(mysql_engine, table_name, listed_df, check=True, insert=False, unknown_table=True, fin_table=False, cols_type='symbol', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=True)
+
+
 def update_all_technicals():
 
     c  = open_db_client()
@@ -6197,21 +6425,125 @@ def update_all_technicals():
     processes = [None]*num_processes
     sort = [1, -1][dt.now().day % 2 == 0]
     j=0
+    i = 0
+    skip = 0
  
     today = dt.combine(dt.now(), dt.min.time())
 
     # Get trading symbols from eod
-    df = get_eod_all_trading_symbols(exchanges=major_exchanges, quoteType='Common Stock')
+    adf = get_eod_all_trading_symbols()
+    #adf = get_eod_all_trading_symbols(exchanges=major_exchanges, quoteType='Common Stock')
+    # Filter based on quoteType
+    df = adf[adf['Type']=='Common Stock']
+    # Filter based on exchange
+    # All major exchange symbols
+    df = adf[adf['Exchange'].isin(major_exchanges)]
+    # All pink symbols
+    pink_df = adf[~adf['Exchange'].isin(major_exchanges)]
 
-    # Get already updated stocks list
-    stks = db.US_Stocks.find({'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,
-                                {"bscs.symbol":1, '_id':False}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+    # Get all stocks that are not in major exchanges
+    # but we are tracking. Add them to the above symbols
+    # that are trading in major exchanges.
+    stks = db.US_Stocks.find({ "$and" : [ \
+                                {'General.Type':'Common Stock'},\
+                                {'bscs.tracking':{'$exists':True}} , \
+                                #{'General.Exchange':{"$nin":major_exchanges}}, \
+                                {"$or": [\
+                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$and": [ \
+                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                    ] \
+                                            },\
+                                        ]\
+                                },\
+                                ]\
+                             }, \
+                            no_cursor_timeout=True).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
     syms=[]
     for stk in stks:
         syms.append(stk['bscs']['symbol'])
 
     stk_df=pd.DataFrame(syms, columns=['Symbol'])
+    stk_df.index=stk_df['Symbol']
+    df = df.append(stk_df)
+    df.index=df['Symbol']
 
+    #update_mysql_db_with_listed_stocks(adf)
+
+    # Get all symbols trading in major exchanges
+    stks = db.US_Stocks.find({"$and" : [ \
+                                            {'General.Type':'Common Stock'},\
+                                            {"General.IsDelisted": False},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+
+    syms=[]
+    for stk in stks:
+        syms.append(stk['bscs']['symbol'])
+
+    stk_df=pd.DataFrame(syms, columns=['Symbol'])
+    stk_df.index=stk_df['Symbol']
+
+    # Get all symbols from major exchanges that are present in mongodb
+    # but not present in the eod historical data.
+    # They are not trading anymore. We should delist them.
+    pdf = stk_df[~stk_df.Symbol.isin(df.Symbol)]
+    pdf.dropna(axis=0,inplace=True)
+    print("Total Symbols to be delisted from mongodb: %r" %(len(pdf)))
+    pink=0
+    for sym, d in pdf.iterrows():
+        #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
+        stks = db.US_Stocks.find({'bscs.symbol': sym})
+        if stks.count() == 0:
+            continue
+        stk = stks[0]
+
+        # If the same stock is moved from major exchange to OTC/PINK Market,
+        # then track them.
+        sdf = pink_df[pink_df['Name'] == stk['General']['Name']]
+        if len(sdf) != 0:
+            if sdf.iloc[0]['Symbol'] != stk['bscs']['symbol']:
+                print("Adding symbol to db: %s, new symbol %s" %(stk['bscs']['symbol'], sdf.iloc[0]['Symbol']))
+                add_symbol_to_database(sdf.iloc[0], db, tracking=True)
+                update_field(db.US_Stocks, sdf.iloc[0]['Symbol'], 'bscs.tracking', True)
+                # Update old symbol's data with the new symbol information
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'bscs.other_symbol', sdf.iloc[0]['Symbol'])
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+                db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
+            pink = pink + 1
+
+        print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+        i = i + 1
+
+    print("Total stocks moved from major exchanges to PINK: %s" %(pink))
+
+    return
+
+    # Get already updated stocks list
+    stks = db.US_Stocks.find(
+                                {'dates.technicals_pull_date':{'$gte':get_latest_trading_day()}} ,
+                                {"bscs.symbol":1, '_id':False}
+                            ).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+    syms=[]
+    for stk in stks:
+        syms.append(stk['bscs']['symbol'])
+    stk_df=pd.DataFrame(syms, columns=['Symbol'])
+    stk_df.index=stk_df['Symbol']
+
+    i = 0
     # Get list of symbols to be updated
     df = df[~df.Symbol.isin(stk_df.Symbol)]
     df.dropna(axis=0,inplace=True)
@@ -6237,15 +6569,14 @@ def update_all_technicals():
         #    #processes[j%num_processes].start()
         #    #j = j + 1
 
-        i = 0
-        skip = 0
         for sym, d in df.iterrows():
-            #stks = db.US_Stocks.find({'bscs.symbol': 'AAPL'})
+            #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
             stks = db.US_Stocks.find({'bscs.symbol': sym})
             if stks.count() == 0:
                 add_symbol_to_database(d, db)
-                # Pull the updated data
-                stks = db.US_Stocks.find({'bscs.symbol': sym})
+                continue
+                ## Pull the updated data
+                #stks = db.US_Stocks.find({'bscs.symbol': sym})
             stk = stks[0]
 
             ## Already updated skip
@@ -6987,7 +7318,16 @@ def update_all_stock_betas(country, recession_only=False):
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
                                                 {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
@@ -7004,7 +7344,16 @@ def update_all_stock_betas(country, recession_only=False):
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {'General.Exchange':{"$in":major_exchanges}},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
                                                 {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
@@ -7828,7 +8177,16 @@ def update_all_US_fin_percent_change():
     stocks = db.US_Stocks.find({"$and" : [ \
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
                                             {"$or": [\
                                                         {"dates.fin_percent_update_date": {"$exists": False }},\
                                                         {"dates.fin_percent_update_date": {"$lt": get_latest_trading_day()}}\
@@ -8420,7 +8778,16 @@ def update_all_fin_slopes():
     stocks = db.US_Stocks.find({"$and" : [ \
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
                                             {"$or": [\
                                                         {"dates.fin_slopes_update_date": {"$exists": False }},\
                                                         {"dates.fin_slopes_update_date": {"$lt": get_latest_trading_day()}}\
@@ -8521,4 +8888,161 @@ def update_all_US_fin_stmts_errors():
 
     print("Miss Count: %r" %(count))
     close_db_client(c)
+
+#def US_Update_Symbol_Changes():
+#    df.rename(columns=new_cols, inplace=True)
+#    df.index=pd.RangeIndex(len(df.index))
+#    #The below two statements are required to convert date from YY/mm/dd to YY-mm-dd
+#    df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+#    df['Effective_Date'] = df['Effective_Date'].astype('str')
+#
+#    table_name = 'Symbol_Changes'
+#    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Changes')
+#    price_change_mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+#    mysql_check_n_create_table(mysql_engine, table_name)
+#
+#    query = 'select Old_Symbol, New_Symbol, Effective from {} order by Effective desc limit 1'.format('Symbol_Changes')
+#    df = read_from_sql(query, mysql_engine, date=False)
+#    if df.empty:
+#        url = 'https://eodhistoricaldata.com/api/symbol-change-history?from=2020-01-01&api_token='+get_eod_token_id()
+#    else:
+#        date = df.index[-1]+timedelta(1)
+#        url = 'https://eodhistoricaldata.com/api/symbol-change-history?from='+date+'&api_token='+get_eod_token_id()
+#
+#    ret = requests.get(url)
+#    if ret.status_code != 200:
+#        print("Failed to get symbol change history")
+#        return
+#    df = pd.DataFrame(ret.json())
+#    df.index=df['effective']
+#    del df['exchange']
+#    df.index=pd.to_datetime(df.index)
+#    df.sort_index(inplace=True)
+#
+#    mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='text', temp=True, date_column=False, format_columns=False, primary_key=True, empty_table=True)
+#    # Convert to string. Just for info.
+#    #df['Effective_Date']=df['Effective_Date'].astype('str')
+#    if not df.empty:
+#        # Convert to datetime
+#        df['Effective_Date'] = pd.to_datetime(df['Effective_Date'])
+#        mysql_update_table(mysql_engine, 'Symbol_Changes', df, check=True, insert=True, unknown_table=True, cols_type='fin', temp=True, date_column=False)
+#
+#        print("Sending email of the list of new symbol changes")
+#        subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
+#        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+#        
+#    # Read all symbol's information that are not yet updated to mongodb and price changes.
+#    query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
+#    df = read_from_sql(query, mysql_engine, date=False)
+#    c  = open_db_client()
+#    db = c['Stocks']
+#    for index, d in df.iterrows():
+#        old_symbol = d['Old_Symbol']
+#        new_symbol = d['New_Symbol']
+#        
+#        stks = db.US_Stocks.find({'bscs.symbol':old_symbol})
+#        # old symbol not in our database
+#        if stks.count() == 0:
+#            if db.US_Stocks.find({"bscs.symbol":new_symbol}).count() > 0:
+#                print("%r: %r: %r" %(index, old_symbol, new_symbol))
+#                # New symbol already exists in mongodb
+#                # Update Symbol_changes table 'updated_to_mongodb field and updated date field
+#                query = 'update Symbol_Changes set updated_to_mongodb=\'YES\' where Old_Symbol=\'{}\''.format(old_symbol)
+#                mysql_engine.execute(query)
+#                query = 'update Symbol_Changes set updated_date=\'{}\' where Old_Symbol=\'{}\''.format(str(dt.now().date()), old_symbol)
+#                mysql_engine.execute(query)
+#        # old symbol in our database
+#        else:
+#            print("%r: %r: %r" %(index, old_symbol, new_symbol))
+#            stk = stks[0]
+#            query = 'select tried_count from Symbol_Changes where Old_Symbol=\'{}\''.format(old_symbol)
+#            tried_count = read_from_sql(query, mysql_engine, date=False)
+#            tried_count = tried_count.iloc[0]['tried_count'] + 1
+#            query = 'update Symbol_Changes set tried_count={} where Old_Symbol=\'{}\''.format(tried_count, old_symbol)
+#            mysql_engine.execute(query)
+#
+#            #if not price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+#            #    print("Symbol %s does not have a table in mysql database" %(old_symbol))
+#            #    continue
+#
+#            # Check if the new_symbol already exists in your databases.
+#            # If so, break there and manually handle the case.
+#            if db.US_Stocks.find({'bscs.symbol':new_symbol}).count() > 0 or price_change_mysql_engine.has_table('STK'+new_symbol.replace('.','_')):
+#                print("new_sym: %r, old_sym: %r, new_symbol entry already exists in mongodb or mysqldb" %(new_symbol, old_symbol))
+#                #print("Skipping")
+#                #continue
+#                #print("Handle manually")
+#                #choice = input("1. Delete the new symbol info \n2. Delete the old symbol info\nChoice : ")
+#                sym = new_symbol
+#
+#                # If there exists an old table, drop the new table and
+#                # update the name of the old table with the new table.
+#                if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+#                    query = 'drop table {}'.format('STK'+sym.replace('.','_'))
+#                    #query = 'drop table {}'.format('STK'+new_symbol.replace('.','_'))
+#                    price_change_mysql_engine.execute(query)
+#                    #query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+#                    #price_change_mysql_engine.execute(query)
+#
+#                # Delete all new symbol financial data entries
+#                query = 'delete from US_Stocks_Fin.income_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#                query = 'delete from US_Stocks_Fin.cash_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#                query = 'delete from US_Stocks_Fin.balance_quart_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#                query = 'delete from US_Stocks_Fin.income_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#                query = 'delete from US_Stocks_Fin.cash_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#                query = 'delete from US_Stocks_Fin.balance_table where Symbol=\'{}\''.format(sym.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+# 
+#                # Remove new symbol information from the mongodb
+#                db.US_Stocks.remove({"bscs.symbol" : sym},1)
+#                db.US_Stocks_List.remove({"symbol" : sym},1)
+#                #if choice == '2':
+#                #    continue
+#
+#            # Update the symbol to new symbol
+#            db.US_Stocks.update({'bscs.symbol': old_symbol}, {'$set': {"bscs.symbol": new_symbol}})
+#            # Update the old symbol in US_Stocks_List with the new symbol
+#            db.US_Stocks_List.update({'symbol': old_symbol}, {'$set': {'symbol': new_symbol}})
+#            # Save previous symbols information
+#            prev_syms = []
+#            prev_names = []
+#            prev_syms_till_date = []
+#            if 'previous_symbols' in stk['bscs'].keys():
+#                prev_syms = stk['bscs']['previous_symbols']['Names']
+#                if 'Company_Names' in stk['bscs']['previous_symbols'].keys():
+#                    prev_names = stk['bscs']['previous_symbols']['Company_Names']
+#                prev_syms_till_date = stk['bscs']['previous_symbols']['Till_Date']
+#           
+#            prev_syms.append(old_symbol)
+#            prev_names.append(stk['bscs']['name'])
+#            prev_syms_till_date.append(str(d['Effective_Date'] - timedelta(1)))
+#            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
+#            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Company_Names": prev_names}})
+#            db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Till_Date": prev_syms_till_date}})
+#            
+#            # Reset failcount
+#            if 'mysql_price_failcount' in stk['bscs'].keys():
+#                db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"failcount.mysql_price_failcount": 0}})
+#                db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.trading": "YES"}})
+#           
+#            # Rename table with the new symbol name
+#            if price_change_mysql_engine.has_table('STK'+old_symbol.replace('.','_')):
+#                query = 'alter table {} rename to {};'.format('STK'+old_symbol.replace('.','_'), 'STK'+new_symbol.replace('.','_'))
+#                price_change_mysql_engine.execute(query)
+#
+#            # Update Symbol_changes table 'updated_to_mongodb field and updated date field
+#            query = 'update Symbol_Changes set updated_to_mongodb=\'YES\' where Old_Symbol=\'{}\''.format(old_symbol)
+#            mysql_engine.execute(query)
+#            query = 'update Symbol_Changes set updated_date=\'{}\' where Old_Symbol=\'{}\''.format(str(dt.now().date()), old_symbol)
+#            mysql_engine.execute(query)
+#
+#    close_sql_connection(mysql_engine)
+#    close_sql_connection(price_change_mysql_engine)
+#    close_db_client(c)
+
 

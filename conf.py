@@ -69,6 +69,7 @@ SAL_PR=0
 MOS_RT=0
 CUR_RT=0
 VOL=0
+VOL_MCAP=0
 YR_DAT=0
 PRICE_YR_DAT=0
 TEN_PRICE=0
@@ -285,6 +286,7 @@ def init_variables():
     MOS_RT=0
     CUR_RT=0
     VOL=0
+    VOL_MCAP=0
     YR_DAT=0
     PRICE_YR_DAT=0
     TEN_PRICE=0

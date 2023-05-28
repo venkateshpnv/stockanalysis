@@ -1063,7 +1063,16 @@ def bulk_update_price_volume(country, db, sql_engine):
     # They will be taken care in a different execution path.
     stocks = db.US_Stocks.find({"$and" : [\
                                             {'General.Type':'Common Stock'},\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
                                             {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
                                             {"$or": [\
