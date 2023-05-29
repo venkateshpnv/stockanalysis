@@ -842,9 +842,16 @@ def fork_hdf5_process(country):
                                             },\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
-                                            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
-                                            {'dates.mysql_price_pull_success': True},\
-                                            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                            {"$or": [\
+                                                        {'dates.mysql_price_date': {'exists':False}},\
+                                                        {"$and": [ \
+                                                                    {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                                                    {'dates.mysql_price_pull_success': True},\
+                                                                    {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                                ]\
+                                                        }, \
+                                                    ] \
+                                            },\
                                             {"$or":[\
                                                     {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
                                                     {'price_change': {"$exists": False}}\

@@ -522,6 +522,8 @@ cash_fields = {'freeCashFlow':'float',
                 }
 generic_fields = {'Symbol':'varchar(12)',
                     'IsDelisted': 'BOOL',
+                    'Company': 'varchar(100)',
+                    'Company_Name': 'varchar(100)',
                     'Date':'varchar(12)',
                     'report_date':'varchar(12)',
                     'before_after_market':'varchar(25)',
