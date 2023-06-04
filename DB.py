@@ -1627,12 +1627,14 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {"$or": [\
                                                             {"dates.mysql_price_date": {"$exists": False }},\
-                                                            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
+                                                            {"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                                            #{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
                                                         ]\
                                                 },\
                                                 {"$or": [\
                                                             {"dates.mysql_price_pull_date": {"$exists": False }},\
-                                                            {"dates.mysql_price_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                            {"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                                            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
                                                         ]\
                                                 },\
                                                 {"General.IsDelisted": False},\
@@ -3517,7 +3519,7 @@ def US_update_split_history():
 
         print("Sending email of the list of new symbol changes")
         subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
-        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+        internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, df.to_html())
         
     # Read all symbol's information that are not yet updated to mongodb and price changes.
     query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
@@ -3714,7 +3716,7 @@ def update_symbol_name_changes():
 
         print("Sending email of the list of new symbol changes")
         subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
-        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, df.to_html())
+        internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, df.to_html())
         
     # Read all symbol's information that are not yet updated to mongodb and price changes.
     query = 'select * from Symbol_Changes  where updated_to_mongodb = \'NO\' and tried_count < 5 order by Effective_Date desc'
@@ -3850,7 +3852,7 @@ def build_US_All_Stocks_List():
         #print(s)
         subject = 'New Stocks :' + str(dt.now().date())
         write_to_file(s, '/tmp/new_listings.html')
-        internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
+        internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
     return len(new_stocks)
 
 def update_US_stock_statement(col, stk, statement_type, duration_type):
@@ -9052,7 +9054,7 @@ def US_Update_Symbol_Changes():
         if len(sdf) != 0:
             print("Sending email of the list of new symbol changes")
             subject='Symbol Changes: %r' %(str(datetime.datetime.now().date()))
-            internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, sdf.to_html())
+            internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, sdf.to_html())
 
     finally:
         close_sql_connection(mysql_engine)

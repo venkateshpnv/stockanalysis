@@ -21,7 +21,7 @@ if __name__ == "__main__":
         s = parse_html.html_head()
         error = [str(e)]
         s = parse_html.html_text(s, error)
-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
+        internet.send_email2(sender_email_id, receiver_email_id, "%s Update Price Volume Error" %(sys.argv[1]), s)
 
     #### Calculate and store price change
     try:
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         s = parse_html.html_head()
         error = [str(e)]
         s = parse_html.html_text(s, error)
-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
+        internet.send_email2(sender_email_id, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
 
     ### Calculate and store technical analysis parameters
     try:
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         error = [str(e)]
         print(error)
         s = parse_html.html_text(s, error)
-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Technical Params Error" %(sys.argv[1]), s)
+        internet.send_email2(sender_email_id, receiver_email_id, "%s Update Technical Params Error" %(sys.argv[1]), s)
 
     DB.update_all_stock_betas('US', recession_only=True)
 
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     #    print('Failed to update bond yields')
 
     ## send email
-    #internet.send_email_price_changes('US')
+    internet.send_email_price_changes('US')
 
     ## Radar Stocks
     #excel.get_radar_stocks('US')

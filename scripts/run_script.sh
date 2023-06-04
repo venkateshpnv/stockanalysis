@@ -21,7 +21,15 @@ if [ $val -ne 0 ]; then
     echo "Killing stale processes of $SCRIPT"
     pkill -9 -f "python3 -u $HOME_DIR/$SCRIPT"
 fi
+
 echo "Starting $SCRIPT"
+#res=`mysql -h 10.89.45.241 -uvpetla -ppetla123 US_Stocks_Data -e "SELECT * FROM US_Holiday_List WHERE Date='2023-05-30';"
+#if [[ -z "$res" ]]; then
+#   dt=`/usr/bin/date '+%Y-%m-%d'`
+#   echo "Holiday Today $dt" | tee -a $log_file
+#   exit
+#fi
+
 /usr/bin/cp $log_file $yesterday_log_file
 # Skip first argument of $@
 shift

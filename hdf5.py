@@ -1076,12 +1076,15 @@ def bulk_update_price_volume(country, db, sql_engine):
                                             {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
                                             {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
                                             {"$or": [\
-                                                        {"bscs.lastSplitUpdateDate": {"$exists": False}},\
-                                                        {"bscs.lastSplitUpdateDate":{"$lte": dt.now()-timedelta(7)}}\
+                                                        {'failcount.mysql_price_failcount': {'$exists': False}},\
+                                                        {"failcount.mysql_price_failcount":{"$lt": MAX_FAIL_COUNT}}\
                                                     ]\
                                             },\
- 
-                                            {'failcount.mysql_price_failcount':{"$lt": MAX_FAIL_COUNT}}\
+                                            #{"$or": [\
+                                            #            {"bscs.lastSplitUpdateDate": {"$exists": False}},\
+                                            #            {"bscs.lastSplitUpdateDate":{"$lte": dt.now()-timedelta(7)}}\
+                                            #        ]\
+                                            #},\
                                         ]\
                                 }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
     print("Total bulk stock candidates: %r" %(stocks.count()))
@@ -1107,9 +1110,9 @@ def bulk_update_price_volume(country, db, sql_engine):
                     del stk_df['Symbol']
  
                     sem.acquire()
-                    #update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
-                    processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
-                    processes[i%num_processes].start()
+                    update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
+                    #processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
+                    #processes[i%num_processes].start()
                     i = i + 1
         finally:
             for j in range(len(processes)):

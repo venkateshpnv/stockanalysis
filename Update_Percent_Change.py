@@ -15,5 +15,5 @@ if __name__ == "__main__":
         s = parse_html.html_head()
         error = [str(e)]
         s = parse_html.html_text(s, error)
-        internet.send_email2(sender_email_id, sender_passwd, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
+        internet.send_email2(sender_email_id, receiver_email_id, "%s Update Price Change Error" %(sys.argv[1]), s)
  

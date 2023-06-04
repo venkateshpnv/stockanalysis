@@ -256,7 +256,7 @@ def get_radar_stocks(country):
     f=open("stocks.html","w")
     f.write(s)
     f.close()
-    internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
+    internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
     #internet.send_email(s)
 
 def get_India_stock_split_info(stk):
@@ -597,11 +597,11 @@ def add_basic_header(sheet, i):
     sheet.write(0, i, "52Wk Lw", style_wrap)
     conf.F2WK_LW=i
 
-    i+=1
-    #52 Week Low
-    sheet.col(i).width = 6*367
-    sheet.write(0, i, "With 52Wk Lw", style_wrap)
-    conf.W_F2WK_LW=i
+    #i+=1
+    ##52 Week Low
+    #sheet.col(i).width = 6*367
+    #sheet.write(0, i, "With 52Wk Lw", style_wrap)
+    #conf.W_F2WK_LW=i
 
     i+=1
     #52 Week Low
@@ -1538,7 +1538,13 @@ def add_price_change_header(sheet, i, sheet_type):
     #sheet.write(0, i, "YTD Price Change", style_wrap)
     #conf.YTD_PR_CHANGE=i
     #styles['YTD_PR_CHANGE'] = get_style(colors[i%len(colors)], num_format_str="0.00%")
- 
+
+    i+=1
+    #52 Week Low
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "With 52Wk Lw", style_wrap)
+    conf.W_F2WK_LW=i
+
     i = i + 1
     sheet.col(i).width = 8*367
     sheet.write(0, i, "Whole Price Change times", style_wrap)
@@ -1744,7 +1750,8 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
         sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'])
         #cur_price_max_rsi_change = percent_change(stk['technicals']['rsi']['60day_max_price'],stk['price_change']['price'])
         cur_price_max_rsi_change = percent_change(stk['price_change']['price'], stk['technicals']['rsi']['60day_max_price'])
-        sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'])
+        max_rsi_style = get_rsi_change_style(cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'])
+        sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, max_rsi_style)
 
     if stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
         sh_write(ash, conf.COUNT, conf.BBANDS_RANGE, "{}-{}".format(round(stk['technicals']['bbands']['lower'],2), round(stk['technicals']['bbands']['upper'],2)), style_text)
@@ -1918,6 +1925,24 @@ def get_percent_style(price_change, default_style):
     else:
         price_style = default_style
     return price_style
+
+def get_rsi_change_style(change, default_style):
+    if change > 0.10 and change < 0.15:
+        style = styles['PR_GREEN1']
+    elif change >= 0.15 and change < 0.25:
+        style = styles['PR_GREEN2']
+    elif change >= 0.25:
+        style = styles['PR_GREEN3']
+    #elif change <= -0.10:
+    #    style = styles['PR_RED3']
+    #elif change > -0.10 and change <= -0.08:
+    #    style = styles['PR_RED2']
+    #elif change > -0.08 and change <= -0.05:
+    #    style = styles['PR_RED1']
+    else:
+        style = default_style
+    return style
+
 
 def add_slopes(ash, ashs, stk, recent_ipos):
     if 'Ratios' in stk.keys():
@@ -2661,7 +2686,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                     days = (stk['technicals']['rsi']['60day_max_price_date'] - stk['technicals']['rsi']['60day_min_price_date']).days
                     sh_write(ash, conf.COUNT, conf.RSI_PRICE_CHANGE_DAYS, days, styles['RSI_PRICE_CHANGE_DAYS'], ashs=ashs, recent_ipos=recent_ipos)
                     cur_price_max_rsi_change = percent_change(stk['price_change']['price'], stk['technicals']['rsi']['60day_max_price'])
-                    sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'], ashs=ashs, recent_ipos=recent_ipos)
+                    max_rsi_style = get_rsi_change_style(cur_price_max_rsi_change, styles['CUR_PRICE_MAX_RSI'])
+                    sh_write(ash, conf.COUNT, conf.CUR_PRICE_MAX_RSI, cur_price_max_rsi_change, max_rsi_style, ashs=ashs, recent_ipos=recent_ipos)
 
         if 'bbands' in stk['technicals'].keys() and stk['technicals']['bbands'] is not None and len(stk['technicals']['bbands'].keys()) > 0:
             sh_write(ash, conf.COUNT, conf.BBANDS_PRICE, round(percent_change(stk['technicals']['bbands']['upper'], stk['price_change']['price']),2), styles['BBANDS_PRICE'], ashs=ashs, recent_ipos=recent_ipos)

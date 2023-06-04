@@ -48,10 +48,11 @@ def US_main():
     #DB.update_US_all_stock_fin_information()
     #internet.update_all_stocks_price_change('US')
     #DB.update_all_put_call_ratios()
-    DB.repopulate_split_stocks()
+    DB.repopulate_prices_stk('NDAQ')
+    #DB.repopulate_split_stocks()
     #hdf5.insert_all_dfs_from_hdf_to_sql('US')
     #internet.send_email("Hello World")
-    #internet.send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', 'Test', 'Hello')
+    #internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', 'Test', 'Hello')
     #get_radar_stocks()
 
     #stock = Stock()

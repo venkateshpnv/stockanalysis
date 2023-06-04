@@ -291,33 +291,39 @@ def send_email(message):
     # terminating the session 
     s.quit() 
 
-def send_email2(user, pwd, recipient, subject, body):
+def send_email2(user, recipient, subject, body):
 
-    FROM = user
-    TO = recipient if isinstance(recipient, list) else [recipient]
-    SUBJECT = subject
-    TEXT = body
+    try:
+        FROM = user
+        TO = recipient if isinstance(recipient, list) else [recipient]
+        SUBJECT = subject
+        TEXT = body
 
-    # Prepare actual message
-    #message = """From: %s\nTo: %s\nSubject: %s\n\n%s
-    #""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+        # Prepare actual message
+        #message = """From: %s\nTo: %s\nSubject: %s\n\n%s
+        #""" % (FROM, ", ".join(TO), SUBJECT, TEXT)
 
-    message = MIMEMultipart('alternative')
-    message['Subject'] = subject
-    message['From'] = user
-    message['To'] = recipient
-    message.attach(MIMEText(body, 'html'))
+        message = MIMEMultipart('alternative')
+        message['Subject'] = subject
+        message['From'] = user
+        message['To'] = recipient
+        message.attach(MIMEText(body, 'html'))
 
-    #server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    #server.set_debuglevel(1)
-    server.ehlo()
-    server.starttls()
-    server.login(user, pwd)
-    server.sendmail(FROM, TO, message.as_string())
-    #server.sendmail(FROM, TO, message)
-    server.close()
-    print('successfully sent the mail')
+        #server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        #server.set_debuglevel(1)
+        server.ehlo()
+        server.starttls()
+        pwd="poggfuvtowfdtsyp"
+        server.login(user, pwd)
+        server.sendmail(FROM, TO, message.as_string())
+        #server.sendmail(FROM, TO, message)
+        server.close()
+        print('successfully sent the mail')
+
+    except Exception as E:
+        print("Failed to send email, err: %s", str(E))
+        pass
 
 def index_change(country, sym, name, num_days, data_type):
     change = 0
@@ -852,11 +858,11 @@ def fork_hdf5_process(country):
                                                         }, \
                                                     ] \
                                             },\
-                                            {"$or":[\
-                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                                    {'price_change': {"$exists": False}}\
-                                                    ]\
-                                            },\
+                                            #{"$or":[\
+                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                            #        {'price_change.date': {"$exists": False}}\
+                                            #        ]\
+                                            #},\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'REX'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
@@ -1151,7 +1157,7 @@ def send_email_price_changes(country):
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'day')
     #subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
-    #send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'shravanrdstocks@gmail.com', subject, s)
+    #send_email2('petlafin@gmail.com', 'shravanrdstocks@gmail.com', subject, s)
     s = parse_html.html_text(s, ["Weekly Price Surprises"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'week')
@@ -1171,7 +1177,7 @@ def send_email_price_changes(country):
     #f.write(s)
     #f.close()
     subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
-    send_email2('petlafin@gmail.com', 'Tasche3#Gm', 'petlafin@gmail.com', subject, s)
+    send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
 
 def price_surprises(country, change_percent, criteria, db_type, excel_type):
     print("Criteria: %r" %(criteria))
