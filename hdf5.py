@@ -1031,6 +1031,15 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         local_sql = True
 
     try:
+        table = get_symbol_table_name(symbol)
+        query='select Date from ' + table + ' order by Date desc limit 1' 
+        rdf = read_from_sql(query, sql_engine)
+        if len(rdf) != 1:
+            printf("Table for symbol %s doesn't exist, skipping bulk update" %(symbol))
+            return
+        if rdf.iloc[-1]['Date'] != str(DB.get_previous_trading_day().date()):
+            print("Symbol : %s price data was updated on %s date which is not the previous date. Skipping bulk update for this symbol" %(symbol, rdf.iloc[-1]['Date']))
+            return
         DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']), stk_df, insert=True, check=True, date_column=False, format_columns=False)
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", stk_df['Adj Close'][-1])
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.volume", int(stk_df['Volume'][-1]))

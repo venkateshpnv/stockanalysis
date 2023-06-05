@@ -45,6 +45,18 @@ receiver_email_id="petlafin@gmail.com"
 sender_passwd="Tasche3#Gm"
 proxy_list = None
 
+def get_free_core(timeout=10000):
+    cpus = psutil.cpu_percent(interval=0.1, percpu=True)
+    count = 0
+    while True or count == timeout/2:
+        for i in range(cpus):
+            if cpus[i] < 95:
+                return i
+        time.sleep(2)
+        count = count + 1
+    print("Couldn't find a free core even after 1000 seconds")
+    return -1
+
 #Supportive calls
 def PRINT_ERR(x):
     f = open("error_log.txt", "a")

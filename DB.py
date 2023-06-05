@@ -421,6 +421,9 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                     else:
                         inspector = sqlalchemy.inspect(mysql_engine)
                         primary_keys = inspector.get_primary_keys(table_name)
+                        if len(primary_keys) == 0:
+                            print("No primary keys for table %s, skipping table update" %(table_name))
+                            return
                         # No items to insert, go to next row
                         if len(items) == 0:
                             continue
@@ -1658,7 +1661,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'FLAG'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'AULT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
 
         for stk in stocks:
@@ -4775,7 +4778,8 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
             start = dt.strptime("2022-12-30", "%Y-%m-%d").date()
             #start = dt.strptime("2021-01-01", "%Y-%m-%d").date()
             if i < start:
-                break
+                print("Ignoring split update for symbol: %s as split date: %s is less than start date is %s" %(d['Symbol'], str(i), str(start)))
+                continue
  
             # Split date is announced but actual split has not yet happened.
             # Wait atleast 3 working days to get the data updated.
@@ -4991,6 +4995,7 @@ def update_all_splits(all=False):
         # Get splits for all stocks
         stocks = db.US_Stocks.find({"$and": [\
                                                 {'General.Type':'Common Stock'},\
+                                                {"General.IsDelisted": False},\
                                                 #{'General.Exchange':{"$in":major_exchanges}}\
                                                 {"$or": [\
                                                             {'General.Exchange':{"$in":major_exchanges}},\
@@ -6450,7 +6455,10 @@ def update_all_technicals():
  
     today = dt.combine(dt.now(), dt.min.time())
 
-    US_Update_Symbol_Changes()
+    try:
+        US_Update_Symbol_Changes()
+    except Exception as E:
+        pass
 
     # Get trading symbols from eod
     adf = get_eod_all_trading_symbols()
@@ -6462,16 +6470,18 @@ def update_all_technicals():
     df = adf[adf['Exchange'].isin(major_exchanges)]
     # All pink symbols
     pink_df = adf[~adf['Exchange'].isin(major_exchanges)]
+    pink_df_trimmed = copy.deepcopy(pink_df)
+    pink_df_trimmed['Name']=pink_df_trimmed.Name.str.replace('.','').replace('-','')
 
     # Get all stocks that are not in major exchanges
     # but we are tracking. Add them to the above symbols
     # that are trading in major exchanges.
     stks = db.US_Stocks.find({ "$and" : [ \
                                 {'General.Type':'Common Stock'},\
-                                {'bscs.tracking':{'$exists':True}} , \
+                                #{'bscs.tracking':{'$exists':True}} , \
                                 #{'General.Exchange':{"$nin":major_exchanges}}, \
                                 {"$or": [\
-                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
                                             {"$and": [ \
                                                         {'General.Exchange':{"$nin":major_exchanges}},\
                                                         {'bscs.tracking':{'$exists':True}}, \
@@ -6491,67 +6501,73 @@ def update_all_technicals():
     df = df.append(stk_df)
     df.index=df['Symbol']
 
-    #update_mysql_db_with_listed_stocks(adf)
+    try:
+        #update_mysql_db_with_listed_stocks(adf)
 
-    # Get all symbols trading in major exchanges
-    stks = db.US_Stocks.find({"$and" : [ \
-                                            {'General.Type':'Common Stock'},\
-                                            {"General.IsDelisted": False},\
-                                            #{'General.Exchange':{"$in":major_exchanges}},\
-                                            {"$or": [\
-                                                        {'General.Exchange':{"$in":major_exchanges}},\
-                                                        {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                    {'bscs.tracking':{'$exists':True}}, \
-                                                                ] \
-                                                        },\
-                                                    ]\
-                                            },\
-                                        ]\
-                                }\
-                                ).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+        # Get all symbols trading in major exchanges
+        stks = db.US_Stocks.find({"$and" : [ \
+                                                {'General.Type':'Common Stock'},\
+                                                {"General.IsDelisted": False},\
+                                                #{'General.Exchange':{"$in":major_exchanges}},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
+                                            ]\
+                                    }\
+                                    ).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
 
-    syms=[]
-    for stk in stks:
-        syms.append(stk['bscs']['symbol'])
+        syms=[]
+        for stk in stks:
+            syms.append(stk['bscs']['symbol'])
 
-    stk_df=pd.DataFrame(syms, columns=['Symbol'])
-    stk_df.index=stk_df['Symbol']
+        stk_df=pd.DataFrame(syms, columns=['Symbol'])
+        stk_df.index=stk_df['Symbol']
 
-    # Get all symbols from major exchanges that are present in mongodb
-    # but not present in the eod historical data.
-    # They are not trading anymore. We should delist them.
-    pdf = stk_df[~stk_df.Symbol.isin(df.Symbol)]
-    pdf.dropna(axis=0,inplace=True)
-    print("Total Symbols to be delisted from mongodb: %r" %(len(pdf)))
-    pink=0
-    for sym, d in pdf.iterrows():
-        #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
-        stks = db.US_Stocks.find({'bscs.symbol': sym})
-        if stks.count() == 0:
-            continue
-        stk = stks[0]
+        # Get all symbols from major exchanges that are present in mongodb
+        # but not present in the eod historical data.
+        # They are not trading anymore. We should delist them.
+        pdf = stk_df[~stk_df.Symbol.isin(df.Symbol)]
+        pdf.dropna(axis=0,inplace=True)
+        print("Total Symbols to be delisted from mongodb: %r" %(len(pdf)))
+        pink=0
+        for sym, d in pdf.iterrows():
+            #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
+            stks = db.US_Stocks.find({'bscs.symbol': sym})
+            if stks.count() == 0:
+                continue
+            stk = stks[0]
 
-        # If the same stock is moved from major exchange to OTC/PINK Market,
-        # then track them.
-        sdf = pink_df[pink_df['Name'] == stk['General']['Name']]
-        if len(sdf) != 0:
-            if sdf.iloc[0]['Symbol'] != stk['bscs']['symbol']:
-                print("Adding symbol to db: %s, new symbol %s" %(stk['bscs']['symbol'], sdf.iloc[0]['Symbol']))
-                add_symbol_to_database(sdf.iloc[0], db, tracking=True)
-                copy_data(stk['bscs']['symbol'], sdf.iloc[0]['Symbol'])
-                update_field(db.US_Stocks, sdf.iloc[0]['Symbol'], 'bscs.tracking', True)
-                # Update old symbol's data with the new symbol information
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'bscs.other_symbol', sdf.iloc[0]['Symbol'])
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
-                db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
-            pink = pink + 1
+            # If the same stock is moved from major exchange to OTC/PINK Market,
+            # then track them.
+            stk_name = stk['General']['Name'].replace('.','').replace('-','').lstrip().rstrip()
+            #sdf = pink_df[pink_df['Name'] == stk['General']['Name']]
+            sdf = pink_df_trimmed.loc[pink_df_trimmed['Name'].str.contains(stk['General']['Name'], case=False)]
+            if len(sdf) != 0:
+                sdf = pink_df.loc[sdf.index[0]]
+                if sdf['Symbol'] != stk['bscs']['symbol']:
+                    print("Adding symbol to db: %s, new symbol %s" %(stk['bscs']['symbol'], sdf['Symbol']))
+                    add_symbol_to_database(sdf, db, tracking=True)
+                    copy_data(stk['bscs']['symbol'], sdf['Symbol'])
+                    update_field(db.US_Stocks, sdf['Symbol'], 'bscs.tracking', True)
+                    # Update old symbol's data with the new symbol information
+                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'bscs.other_symbol', sdf['Symbol'])
+                    #update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+                    db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
+                pink = pink + 1
 
-        print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
-        update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
-        i = i + 1
+            print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+            i = i + 1
 
-    print("Total stocks moved from major exchanges to PINK: %s" %(pink))
+        print("Total stocks moved from major exchanges to PINK: %s" %(pink))
+    except Exception as e:
+        pass
 
     # Get already updated stocks list
     stks = db.US_Stocks.find(
@@ -8968,6 +8984,7 @@ def US_Update_Symbol_Changes():
     db = c['Stocks']
 
     try:
+        print("Updating Symbol Changes")
         table_name = 'Symbol_Changes'
         mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Changes')
         mysql_check_n_create_table(mysql_engine, table_name, primary_key=False)
@@ -9038,6 +9055,7 @@ def US_Update_Symbol_Changes():
                     print("Symbol: %s, name: %s, Type: %s is not Common Stock. Skipping" %(stk['General']['Code'], stk['General']['Name'], stk['General']['Type']))
                     continue
                 sym_d = pd.Series([d['new_symbol'], d['company_name'], '', 'Common Stock'], index=['Symbol', 'Name', 'Exchange', 'Type'])
+                print("Adding new symbol to the database, %s: %s", d['new_symbol'], d['company_name'])
                 add_symbol_to_database(sym_d, only_mongo=True)
                 copy_data(old_symbol, new_symbol)
 
@@ -9058,5 +9076,91 @@ def US_Update_Symbol_Changes():
 
     finally:
         close_sql_connection(mysql_engine)
+        close_db_client(c)
+
+
+def check_stock_uniqueness(stk, mysql_engine=None, sem=None, core=None):
+    if core is not None:
+        # Set process affinity
+        aff = 0 | 1 << core
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    local_mysql_engine = False
+
+    if mysql_engine is None:
+        mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        local_mysql_engine = True
+    try:
+        table_name = get_symbol_table_name(stk['General']['Code'])
+        if not mysql_exists_table(mysql_engine, table_name):
+        #    print("Table for Symbol %s does not exist, skipping" %(stk['General']['Code']))
+            return
+
+        inspector = sqlalchemy.inspect(mysql_engine)
+        primary_keys = inspector.get_primary_keys(table_name)
+        if len(primary_keys) == 0:
+            print("No primary keys exist for %s, adding Date as primary key" %(stk['General']['Code']))
+            query = 'alter table {} add primary key (Date)'.format(table_name)
+            mysql_engine.execute(query)
+            return
+
+        query='Select Date, `Adj Close` from {} order by Date desc limit 10'.format(table_name)
+        df = DB.read_from_sql(query, mysql_engine)
+        if not df.index.is_unique:
+            print("Symbol %s has redundant entries" %(stk['General']['Code']))
+
+    finally:
+        if local_mysql_engine:
+            close_sql_connection(mysql_engine)
+        if sem:
+            sem.release()
+
+def check_all_stocks_uniqueness():
+    #os.system("taskset -p 0xfffff %d > /dev/null 2>&1" % os.getpid())
+    num_processes = num_cores #* 2 
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    #sem = threading.BoundedSemaphore(num_cores)
+    c  = open_db_client()
+    db = c['Stocks']
+    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+
+    #stocks = db.US_Stocks.find({}, no_cursor_timeout=True).batch_size(2).sort([["sno",1]])
+    sort = [1, -1][dt.now().day % 2 == 0]
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+
+    #stocks = db.US_Stocks.find({"bscs.symbol":'MRVL'})
+    print("Total stocks: %d" %(stocks.count()))
+
+    try:
+        for i, stk in enumerate(stocks):
+            #if i > 8:
+            #    break
+            sem.acquire()
+            #print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            check_stock_uniqueness(stk, mysql_engine=mysql_engine, sem=sem, core=i%num_cores)
+            #processes[i%num_processes] = multiprocessing.Process(target=update_fin_slope, args=(stk, None, None, sem, i%num_cores,))
+            #processes[i%num_processes].start()
+
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        #time.sleep(30)
         close_db_client(c)
 

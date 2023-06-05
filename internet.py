@@ -864,7 +864,7 @@ def fork_hdf5_process(country):
                                             #        ]\
                                             #},\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'REX'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'AULT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
@@ -884,6 +884,7 @@ def fork_hdf5_process(country):
  
             print("%d: Symbol: %r, Name: %r" %(i, stk['General']['Code'], stk['General']['Name']))
             sem.acquire()
+            #core = get_free_core()
             #update_price_change(country, stk, i%DB.num_cores, sem, index=False)
             processes[i%num_processes] = multiprocessing.Process(target=update_price_change, args=(country, copy.deepcopy(stk), i%DB.num_cores, sem, False))
             processes[i%num_processes].start()
@@ -1044,7 +1045,10 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
         else:
             entry.append("")
         #try:
-        if 'fig' in stk.keys() and 'betas' in stk['fig'].keys() and stk['fig']['betas']['six_months'] != None:
+        if 'fig' in stk.keys() and \
+            'betas' in stk['fig'].keys() and \
+            'six_months' in stk['fig']['betas'].keys() and \
+            stk['fig']['betas']['six_months'] != None:
             entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
         else:
             entry.append("-")
