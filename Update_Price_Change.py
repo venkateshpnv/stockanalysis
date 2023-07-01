@@ -5,6 +5,7 @@ from common import *
 import excel
 import parse_html
 from datetime import datetime as dt
+import sys
 
 if __name__ == "__main__":
     #if len(sys.argv) != 2:
@@ -13,7 +14,7 @@ if __name__ == "__main__":
     #    sys.exit(1)
 
 
-    #print("Start Time: %r" %(str(dt.now())))
+    print("Start Time: %r" %(str(dt.now())))
     # Get today's price from yahoo and update db and hdf5
     try:
        DB.update_all_price_volume_db('US')
@@ -54,7 +55,8 @@ if __name__ == "__main__":
 
     # send email
     try:
-    internet.send_email_price_changes('US')
+        if len(sys.argv) == 2:
+            internet.send_email_price_changes('US')
     except Exception as e:
         print('Failed to send email, err: %s' %(str(e)))
         pass

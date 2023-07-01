@@ -1630,13 +1630,13 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {"$or": [\
                                                             {"dates.mysql_price_date": {"$exists": False }},\
-                                                            {"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
-                                                            #{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
+                                                            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                                            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
                                                         ]\
                                                 },\
                                                 {"$or": [\
                                                             {"dates.mysql_price_pull_date": {"$exists": False }},\
-                                                            {"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                                            {"dates.mysql_price_pull_date": {"$lt": get_latest_trading_day()}}\
                                                             #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
                                                         ]\
                                                 },\
@@ -2506,11 +2506,21 @@ def update_RSI_params(collection, sym, df):
     
         idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmax()
         if type(idx) is pd.Timestamp:
+            #if rsi[idx] == rsi.iloc[-1]:
+            #    c  = open_db_client()
+            #    db = c['Stocks']
+            #    stks = db.US_Stocks.find({'General.Code': sym})
+            #    for stk in stks:
+            #        update_field(collection, sym, "technicals.rsi.60day_max_previous", stk['technicals']['rsi']['60day_max'])
+            #        close_db_client(c)
+            #        break
+
             update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
             update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
             update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
             #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
         else:
+            #update_field(collection, sym, "technicals.rsi.60day_max_previous", nan)
             update_field(collection, sym, "technicals.rsi.60day_max", nan)
             update_field(collection, sym, "technicals.rsi.60day_max_price", nan)
             update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
@@ -2769,7 +2779,7 @@ def update_all_tech_analysis_params(country='US'):
     c  = open_db_client()
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    num_processes = num_cores * 2
+    num_processes = num_cores #* 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
@@ -2791,7 +2801,7 @@ def update_all_tech_analysis_params(country='US'):
                                         {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
                                         {'$or':[\
                                                 {'technicals.date': {"$exists": False}},\
-                                                {'technicals.date':{'$lte': get_latest_trading_day()}}
+                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
                                                 ]\
                                         },\
                                         {'dates.mysql_price_pull_success':True}, \
@@ -9055,7 +9065,7 @@ def US_Update_Symbol_Changes():
                     print("Symbol: %s, name: %s, Type: %s is not Common Stock. Skipping" %(stk['General']['Code'], stk['General']['Name'], stk['General']['Type']))
                     continue
                 sym_d = pd.Series([d['new_symbol'], d['company_name'], '', 'Common Stock'], index=['Symbol', 'Name', 'Exchange', 'Type'])
-                print("Adding new symbol to the database, %s: %s", d['new_symbol'], d['company_name'])
+                print("Adding new symbol to the database, %s: %s" %(d['new_symbol'], d['company_name']))
                 add_symbol_to_database(sym_d, only_mongo=True)
                 copy_data(old_symbol, new_symbol)
 

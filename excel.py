@@ -2750,8 +2750,8 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     if 'whole' in stk['price_change'].keys() and stk['price_change']['whole'] is not None and stk['price_change']['whole'] != 0:
         #price_style = get_percent_style(stk['price_change']['whole'], styles['WH_PR_CHANGE'])
         sh_write(ash, conf.COUNT, conf.WH_PR_CHANGE, stk['price_change']['whole'], styles['WH_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-    if 'year' in stk['price_change'].keys() and stk['price_change']['year'] is not None and stk['price_change']['year'] != 0:
-        price_style = get_percent_style(stk['price_change']['year'], styles['YTD_PR_CHANGE'])
+    if 'ytd' in stk['price_change'].keys() and stk['price_change']['ytd'] is not None and stk['price_change']['ytd'] != 0:
+        price_style = get_percent_style(stk['price_change']['ytd'], styles['YTD_PR_CHANGE'])
         sh_write(ash, conf.COUNT, conf.YTD_PR_CHANGE, stk['price_change']['ytd'], price_style, ashs=ashs, recent_ipos=recent_ipos)
     if 'half_year' in stk['price_change'].keys() and stk['price_change']['half_year'] is not None and stk['price_change']['half_year'] != 0:
         price_style = get_percent_style(stk['price_change']['half_year'], styles['HF_YR_PR_CHANGE'])

@@ -34,6 +34,6 @@ echo "Starting $SCRIPT"
 # Skip first argument of $@
 shift
 echo "cd $HOME_DIR && python3 -u $HOME_DIR/$SCRIPT $@ 2>&1  | tee $log_file"
-echo "Starting Time `/usr/bin/date`" 2>&1 | tee $log_file
+echo "Starting Time `/usr/bin/date`" 2>&1 | tee -a $log_file
 cd $HOME_DIR && /usr/bin/python3 -u $HOME_DIR/$SCRIPT $@ 2>&1  | tee -a $log_file
 echo "Ending Time `/usr/bin/date`" 2>&1 | tee -a $log_file

@@ -858,11 +858,11 @@ def fork_hdf5_process(country):
                                                         }, \
                                                     ] \
                                             },\
-                                            #{"$or":[\
-                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                            #        {'price_change.date': {"$exists": False}}\
-                                            #        ]\
-                                            #},\
+                                            {"$or":[\
+                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                                    {'price_change.date': {"$exists": False}}\
+                                                    ]\
+                                            },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
         #stocks = collection.find({'bscs.symbol':'AULT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
