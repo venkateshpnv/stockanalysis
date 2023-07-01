@@ -2515,16 +2515,24 @@ def update_RSI_params(collection, sym, df):
             #        close_db_client(c)
             #        break
 
+            cur_price_max_rsi_change = percent_change(df.iloc[-1]['Adj Close'], df.loc[idx]['Adj Close'])
+
             update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
             update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
             update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
             #update_field(collection, sym, "technicals.rsi.60day_max_price_date", str(idx).split(' ')[0])
+            update_field(collection, sym, "technicals.rsi.cur_price", df.iloc[-1]['Adj Close'])
+            update_field(collection, sym, "technicals.rsi.cur_price_date", df.index[-1].to_pydatetime())
+            update_field(collection, sym, "technicals.rsi.cur_price_max_rsi_change", cur_price_max_rsi_change)
         else:
             #update_field(collection, sym, "technicals.rsi.60day_max_previous", nan)
             update_field(collection, sym, "technicals.rsi.60day_max", nan)
             update_field(collection, sym, "technicals.rsi.60day_max_price", nan)
             update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
             #update_field(collection, sym, "technicals.rsi.60day_max_price_date", nan)
+            update_field(collection, sym, "technicals.rsi.cur_price", nan)
+            update_field(collection, sym, "technicals.rsi.cur_price_date", nan)
+            update_field(collection, sym, "technicals.rsi.cur_price_max_rsi_change", nan)
         return rsi
 
 def update_BB_params(collection, sym, df):
@@ -2809,7 +2817,7 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'CCEL'})
+    #stocks=db.US_Stocks.find({'General.Code':'AAPL'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -6504,6 +6512,7 @@ def update_all_technicals():
                             no_cursor_timeout=True).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
     syms=[]
     for stk in stks:
+        print("Pink Stock: %s: %s" %(stk['General']['Code'], stk['General']['Name']))
         syms.append(stk['bscs']['symbol'])
 
     stk_df=pd.DataFrame(syms, columns=['Symbol'])
@@ -6514,7 +6523,7 @@ def update_all_technicals():
     try:
         #update_mysql_db_with_listed_stocks(adf)
 
-        # Get all symbols trading in major exchanges
+        # Get all symbols trading in major exchanges or in OTC that are being tracked
         stks = db.US_Stocks.find({"$and" : [ \
                                                 {'General.Type':'Common Stock'},\
                                                 {"General.IsDelisted": False},\
@@ -6546,6 +6555,10 @@ def update_all_technicals():
         pdf.dropna(axis=0,inplace=True)
         print("Total Symbols to be delisted from mongodb: %r" %(len(pdf)))
         pink=0
+        pink_old_symbols = []
+        pink_new_symbols = []
+        pink_names = []
+
         for sym, d in pdf.iterrows():
             #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
             stks = db.US_Stocks.find({'bscs.symbol': sym})
@@ -6570,12 +6583,23 @@ def update_all_technicals():
                     #update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
                     db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
                 pink = pink + 1
+                pink_old_symbols.append(stk['General']['Code'])
+                pink_new_symbols.append(sdf['Symbol'])
+                pink_names.append(stk['General']['Name'])
 
             print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
             i = i + 1
 
-        print("Total stocks moved from major exchanges to PINK: %s" %(pink))
+        if pink > 0:
+            try:
+                print("Total stocks moved from major exchanges to PINK: %s" %(pink))
+                stk_df=pd.DataFrame(data = {'Name': pink_names, 'Old_Symbol':pink_old_symbols, 'New_Symbol':pink_new_symbols})
+                stk_df.index=stk_df['Symbol']
+                subject='Companies moved to OTC: %r' %(str(datetime.datetime.now().date()))
+                internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, stk_df.to_html())
+            except Exception as e:
+                pass
     except Exception as e:
         pass
 
@@ -6593,7 +6617,8 @@ def update_all_technicals():
     i = 0
     # Get list of symbols to be updated
     df = df[~df.Symbol.isin(stk_df.Symbol)]
-    df.dropna(axis=0,inplace=True)
+    #df.dropna(axis=0,inplace=True)
+    df = df[df['Symbol'].notna()]
     print("Update Technicals: Total Symbols: %r" %(len(df)))
     try:
         # First get dividends for all new stocks
@@ -6632,7 +6657,7 @@ def update_all_technicals():
             #    skip = skip+1
             #    continue
             sem.acquire()
-            print("%d: %r" %(i, stk['bscs']['symbol']))
+            print("%d: %s" %(i, stk['bscs']['symbol']))
             #update_technicals(stk, 0, sem, general_only, ratelimit_event, lock, False)
             processes[j%num_processes] = multiprocessing.Process(target=update_technicals, args=(stk, i%num_cores, sem, general_only, ratelimit_event, lock, False))
             processes[j%num_processes].start()

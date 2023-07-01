@@ -959,9 +959,271 @@ def update_all_stocks_price_change(country):
 def pcent(val):
     return str(round(val *100, 2))+'%'
 
+#Minimum percent changes per day, week, month etc that should
+# be considered for stocks with different ranges of mcaps
+# in descending order
+# [> 100bn, 10bn to 100bn, 5bn to 10bn, 1bn to 5bn, 1mn to 1bn]
+pcent_chg = {}
+pcent_chg['day']       = [0.03, 0.05, 0.05, 0.10, 0.15]
+pcent_chg['week']      = [0.05, 0.05, 0.10, 0.15, 0.20]
+pcent_chg['month']     = [0.05, 0.05, 0.10, 0.15, 0.20]
+pcent_chg['quarter']   = [0.10, 0.10, 0.20, 0.25, 0.25]
+pcent_chg['half_year'] = [0.15, 0.15, 0.25, 0.30, 0.50]
+pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
+
+# Day change column position.
+# Week = Day + 1
+# Month = Week + 1 etc
+day_col = 10
+week_col = day_col + 1
+month_col = week_col + 1
+quarter_col = month_col + 1
+half_year_col = quarter_col + 1
+year_col = half_year_col + 1
+
+highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quarter':quarter_col, 'half_year':half_year_col, 'year':year_col }
+
+def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit=-1):
+    rsi_change='technicals.rsi.cur_price_max_rsi_change'
+    if direction == -1:
+        cond = '$lte'
+    else:
+        cond = '$gte'
+
+    factor = 1
+    if country == 'US':
+        mcap = "MCap in Millions"
+        #Convert to billions for mcap greater than 1 billion.
+        if high_mcap > 1000:
+            factor = 1/1000
+            mcap = "Mcap Bn"
+    elif country == 'India':
+        mcap = "MCap in Crores"
+
+    db = DB.open_db('Stocks')
+    collection = DB.get_collection(country, db)
+    
+    entries = []
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Vol*Price Mn", "Vol %Mcap", "RSI", "RSI Min Diff", "RSI Max Diff", "RSI PR Chg", "PSAR Trend", "PSAR Cur", "PSAR Prev", "Price", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg"]
+
+    entries.append(head)
+    today = dt.combine(dt.now(), dt.min.time())
+    if today == DB.get_latest_trading_day():
+        latest_date = DB.get_latest_trading_day()
+    else:
+        latest_date = DB.get_previous_trading_day()
+
+    #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+
+    conditions = [\
+                 #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+                 {"dates.mysql_price_pull_success": True},\
+                 {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+                 {'General.IsDelisted': False},\
+                 {'General.Type':'Common Stock'},\
+                 #{'General.Exchange':{"$in":major_exchanges}},\
+                 {"$or": [\
+                             {'General.Exchange':{"$in":major_exchanges}},\
+                             {"$and": [ \
+                                         {'General.Exchange':{"$nin":major_exchanges}},\
+                                         {'bscs.tracking':{'$exists':True}}, \
+                                     ] \
+                             },\
+                         ]\
+                 },\
+                ]
+
+    if direction > 0 :
+        conditions.append({rsi_change:{cond:change}})
+        if limit > 0:
+            stocks = collection.find({'$and':conditions}).limit(limit).sort([[rsi_change,-1]])
+        else:
+            stocks = collection.find({'$and':conditions}).sort([[rsi_change,-1]])
+        #stocks = collection.find({'$and':[\
+        #                                    #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+        #                                    {"dates.mysql_price_pull_success": True},\
+        #                                    {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+        #                                    {'General.IsDelisted': False},\
+        #                                    {'General.Type':'Common Stock'},\
+        #                                    #{'General.Exchange':{"$in":major_exchanges}},\
+        #                                    {"$or": [\
+        #                                                {'General.Exchange':{"$in":major_exchanges}},\
+        #                                                {"$and": [ \
+        #                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+        #                                                            {'bscs.tracking':{'$exists':True}}, \
+        #                                                        ] \
+        #                                                },\
+        #                                            ]\
+        #                                    },\
+        #                                    {rsi_change:{cond:change}},\
+        #                                    ]}).sort([[rsi_change,-1]])
+    else:
+        conditions.append({rsi_change:{'$lt':0}})
+        if limit > 0:
+            stocks = collection.find({'$and':conditions}).limit(limit).sort([[rsi_change,1]])
+        else:
+            stocks = collection.find({'$and':conditions}).sort([[rsi_change,1]])
+
+        #stocks = collection.find({'$and':[\
+        #                                    #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+        #                                    {"dates.mysql_price_pull_success": True},\
+        #                                    {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+        #                                    {'General.IsDelisted': False},\
+        #                                    {'General.Type':'Common Stock'},\
+        #                                    #{'General.Exchange':{"$in":major_exchanges}},\
+        #                                    {"$or": [\
+        #                                                {'General.Exchange':{"$in":major_exchanges}},\
+        #                                                {"$and": [ \
+        #                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+        #                                                            {'bscs.tracking':{'$exists':True}}, \
+        #                                                        ] \
+        #                                                },\
+        #                                            ]\
+        #                                    },\
+        #                                    #{rsi_change:{'$gte':change}},\
+        #                                    {rsi_change:{'$lte':0}},\
+        #                                    ]}).sort([[rsi_change,1]]).limit(10)
+
+    #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
+    #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
+    i = 0
+    for stk in stocks:
+        if limit > 0 and i > limit:
+            break
+        #if DB.ignore_stock(stk):
+        #    continue
+
+        bscs  = stk['bscs']
+        pchg = stk['price_change']
+        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
+        entry = [ ]
+        entry.append(bscs['symbol'])
+        entry.append(stk['General']['Name'])
+        entry.append(stk['General']['IPODate'])
+        if stk['General']['GicSubIndustry']:
+            entry.append(stk['General']['GicSubIndustry'])
+        else:
+            entry.append("")
+        entry.append(str(round(stk['Highlights']['MarketCapitalizationMln']*factor, 2)))
+        if 'price_change' in stk.keys() and \
+            'volume' in stk['price_change'].keys():
+            entry.append(str(round(stk['price_change']['volume']/1000, 2))+'k')
+        else:
+            entry.append("-")
+        if 'price_change' in stk.keys() and \
+            'avg_volume' in stk['price_change'].keys():
+            entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
+        else:
+            entry.append("-")
+        if 'price' in stk['price_change'].keys():
+            entry.append(str(stk['price_change']['price']))
+        else:
+            entry.append("")
+        #try:
+        if 'technicals' in stk.keys() and \
+            'rsi' in stk['technicals'].keys() and \
+            'latest' in stk['technicals']['rsi'].keys() and \
+            stk['technicals']['rsi']['latest'] != None:
+            entry.append(str(round(stk['technicals']['rsi']['latest'], 2)))
+            min_diff = stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']
+            max_diff = stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']
+            entry.append(str(round(min_diff,2)))
+            entry.append(str(round(max_diff,2)))
+            entry.append(str(round(stk['technicals']['rsi']['cur_price_max_rsi_change']*100, 2))+'%')
+        else:
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+       
+        if 'technicals' in stk.keys() and \
+            'sar' in stk['technicals'].keys() and \
+            'ta_psar_trend_sequence' in stk['technicals']['sar'].keys() and \
+            stk['technicals']['sar']['ta_psar_trend_sequence'] != None:
+                entry.append(stk['technicals']['sar']['ta_psar_trend_sequence'])
+        else:
+            entry.append("")
+
+        if 'technicals' in stk.keys() and \
+            'sar' in stk['technicals'].keys() and \
+            'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys() and \
+            stk['technicals']['sar']['ta_psar_cur_trend_price_change'] != None:
+                entry.append(str(round(stk['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2))+'%')
+                entry.append(str(round(stk['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2))+'%')
+        else:
+            entry.append("")
+            entry.append("")
+
+        if 'price_change' in stk.keys() and 'price' in stk['price_change'].keys():
+            entry.append(str(round((stk['price_change']['price']*stk['price_change']['volume'])/1000000, 2)))
+        else:
+            entry.append("")
+        entry.append(pcent(pchg['day']))
+        entry.append(pcent(pchg['week']))
+        entry.append(pcent(pchg['month']))
+        entry.append(pcent(pchg['quarter']))
+        entry.append(pcent(pchg['half_year']))
+        entry.append(pcent(pchg['year']))
+ 
+        entries.append(entry)
+        i = i + 1
+
+    DB.close_db()
+    return entries
+
+def build_html_rsi(s, country, low_mcap, high_mcap, change, segment, uplimit=-1,downlimit=-1): 
+    direction = 1
+    highlight_column = 11
+    s = parse_html.html_text(s, segment)
+    e = get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, uplimit)
+    if len(e) > 1:
+        #entries = [["Up"]]
+        entries = e
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries, highlight_column)
+    e = get_stocks_rsi_change(country, low_mcap, high_mcap, -direction, -change, downlimit)
+    if len(e) > 1:
+        #entries = [["Up"]]
+        entries = e
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries, highlight_column)
+
+    return s
+
+def get_rsi_changes(s, country):
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    Tn = 1000*Bn
+    #s = parse_html.html_set_line(s)
+    print("MCap 100 Bn and above")
+    s = build_html_rsi(s, country, 100*Bn, 100*Tn, 0.10, ["MCap 100 Bn and above"])
+    print("MCap 10 Bn and 100 Bn")
+    s = build_html_rsi(s, country, 10*Bn, 100*Bn,  0.10, ["MCap 10 Bn and 100 Bn"], downlimit=20)
+    print("MCap 5 Bn and 10 Bn")
+    s = build_html_rsi(s, country, 5*Bn, 10*Bn,    0.15, ["MCap 5 Bn and 10 Bn"], downlimit=20)
+    print("MCap 1 Bn and 5 Bn")
+    s = build_html_rsi(s, country, 1*Bn, 5*Bn,     0.15, ["MCap 1 Bn and 5 Bn"], downlimit=20)
+    print("MCap 500Mn and 1 Bn")
+    s = build_html_rsi(s, country, 500*Mn, 1*Bn,   0.20, ["MCap 500Mn and 1 Bn"], uplimit=20, downlimit=20)
+    print("MCap < 500 Mn")
+    s = build_html_rsi(s, country, 1, 500*Mn,      0.30, ["MCap < 500 Mn"], uplimit=20, downlimit=20)
+    return s
+
+def send_email_rsi_changes(country):
+    disconnect_vpn()
+
+    s = parse_html.html_head()
+    s = parse_html.html_text(s, ["RSI Price Surprises"])
+    s = parse_html.html_set_line(s)
+    s = get_rsi_changes(s, country)
+    s = parse_html.html_set_line(s)
+    subject='%s: RSI Surprises: %r' %(country, str(datetime.datetime.now().date()))
+    send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
+
 # direction : -1 -> ascending order. Used for negative percent change
 # direction : 1 -> descending order. Used for positive percent change.
-def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
+def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, duration):
 
     # duration can be "day", "week", "month", "quarter", "half_year", "year"
     price_change="price_change.%s"%(duration)
@@ -1085,7 +1347,7 @@ def get_stocks(country, low_mcap, high_mcap, direction, change, duration):
     return entries
 
 def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, duration, segment): 
-    e = get_stocks(country, low_mcap, high_mcap, direction, change, duration)
+    e = get_stocks_price_change(country, low_mcap, high_mcap, direction, change, duration)
     s = parse_html.html_text(s, segment)
     if len(e) > 1:
         #entries = [["Up"]]
@@ -1095,7 +1357,7 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         s = parse_html.html_set_line(s)
         s = parse_html.html_text(s, entries, highlight_columns[duration])
         s = parse_html.html_set_line(s)
-    e = get_stocks(country, low_mcap, high_mcap, -direction, -change, duration)
+    e = get_stocks_price_change(country, low_mcap, high_mcap, -direction, -change, duration)
     if len(e) > 1:
         #entries = [["Down"]]
         entries = e
@@ -1105,30 +1367,6 @@ def build_html_price_change(s, country, low_mcap, high_mcap, direction, change, 
         s = parse_html.html_set_line(s)
     return s
 
-#Minimum percent changes per day, week, month etc that should
-# be considered for stocks with different ranges of mcaps
-# in descending order
-# [> 100bn, 10bn to 100bn, 5bn to 10bn, 1bn to 5bn, 1mn to 1bn]
-pcent_chg = {}
-pcent_chg['day']       = [0.03, 0.05, 0.05, 0.10, 0.15]
-pcent_chg['week']      = [0.05, 0.05, 0.10, 0.15, 0.20]
-pcent_chg['month']     = [0.05, 0.05, 0.10, 0.15, 0.20]
-pcent_chg['quarter']   = [0.10, 0.10, 0.20, 0.25, 0.25]
-pcent_chg['half_year'] = [0.15, 0.15, 0.25, 0.30, 0.50]
-pcent_chg['year']      = [0.20, 0.20, 0.25, 0.30, 0.50]
-
-# Day change column position.
-# Week = Day + 1
-# Month = Week + 1 etc
-day_col = 10
-week_col = day_col + 1
-month_col = week_col + 1
-quarter_col = month_col + 1
-half_year_col = quarter_col + 1
-year_col = half_year_col + 1
-
-highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quarter':quarter_col, 'half_year':half_year_col, 'year':year_col }
-
 def get_price_changes(s, country, duration):
 
     if country == 'US':
@@ -1136,21 +1374,21 @@ def get_price_changes(s, country, duration):
         Bn = 1000*Mn
         Tn = 1000*Bn
         #s = parse_html.html_set_line(s)
-        s = build_html_price_change(s, 'US', 100*Bn, 10*Tn,   1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
-        s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
-        s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
-        s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
-        s = build_html_price_change(s, 'US', 500*Mn, 1*Bn,    1, pcent_chg[duration][4], duration, ["MCap 500Mn and 1 Bn"])
-        s = build_html_price_change(s, 'US', 1, 500*Mn,       1, pcent_chg[duration][4], duration, ["MCap < 500 Mn"])
+        s = build_html_price_change(s, 'US', 100*Bn, 100*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
+        s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,  1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
+        s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,    1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
+        s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,     1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
+        s = build_html_price_change(s, 'US', 500*Mn, 1*Bn,   1, pcent_chg[duration][4], duration, ["MCap 500Mn and 1 Bn"])
+        s = build_html_price_change(s, 'US', 1, 500*Mn,      1, pcent_chg[duration][4], duration, ["MCap < 500 Mn"])
     elif country == 'India':
         Bn = 100 # crores
         Tn = 100 * Bn
         #s = parse_html.html_set_line(s)
         s = build_html_price_change(s, 'India', 100*Bn, 10*Tn, 1, pcent_chg[duration][0], duration, ["MCap 10k Cr and above"])
-        s = build_html_price_change(s, 'India', 10*Bn, 100*Bn,   1, pcent_chg[duration][1], duration, ["MCap 1k Cr and 10k Cr"])
-        s = build_html_price_change(s, 'India', 5*Bn, 10*Bn,     1, pcent_chg[duration][2], duration, ["MCap 500 Cr and 1k Cr"])
-        s = build_html_price_change(s, 'India', 1*Bn, 5*Bn,      1, pcent_chg[duration][3], duration, ["MCap 100 Cr and 500 Cr"])
-        s = build_html_price_change(s, 'India', 1, 1*Bn,         1, pcent_chg[duration][4], duration, ["MCap < 100 Cr"])
+        s = build_html_price_change(s, 'India', 10*Bn, 100*Bn, 1, pcent_chg[duration][1], duration, ["MCap 1k Cr and 10k Cr"])
+        s = build_html_price_change(s, 'India', 5*Bn, 10*Bn,   1, pcent_chg[duration][2], duration, ["MCap 500 Cr and 1k Cr"])
+        s = build_html_price_change(s, 'India', 1*Bn, 5*Bn,    1, pcent_chg[duration][3], duration, ["MCap 100 Cr and 500 Cr"])
+        s = build_html_price_change(s, 'India', 1, 1*Bn,       1, pcent_chg[duration][4], duration, ["MCap < 100 Cr"])
     return s
 
 def send_email_price_changes(country):
