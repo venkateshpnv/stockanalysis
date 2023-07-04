@@ -31,6 +31,7 @@ echo "Starting $SCRIPT"
 #fi
 
 /usr/bin/cp $log_file $yesterday_log_file
+echo > $log_file
 # Skip first argument of $@
 shift
 echo "cd $HOME_DIR && python3 -u $HOME_DIR/$SCRIPT $@ 2>&1  | tee $log_file"

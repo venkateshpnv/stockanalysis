@@ -4317,13 +4317,13 @@ def update_all_earnings_trend():
 
         print(stocks.count())
 
-        stocks = db.US_Stocks.find({"bscs.symbol":"AMR"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"AMR"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            update_US_stock_earnings_trend(stk, i%num_cores, sem)
-            #processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_earnings_trend, args=(stk, i%num_cores, sem))
-            #processes[j%num_processes].start()
+            #update_US_stock_earnings_trend(stk, i%num_cores, sem)
+            processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_earnings_trend, args=(stk, i%num_cores, sem))
+            processes[j%num_processes].start()
             j = j + 1
     finally:
         for j in range(len(processes)):

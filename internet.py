@@ -1155,7 +1155,7 @@ def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit
             entry.append("")
 
         if 'price_change' in stk.keys() and 'price' in stk['price_change'].keys():
-            entry.append(str(round((stk['price_change']['price']*stk['price_change']['volume'])/1000000, 2)))
+            entry.append(str(stk['price_change']['price']))
         else:
             entry.append("")
         entry.append(pcent(pchg['day']))

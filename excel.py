@@ -611,14 +611,21 @@ def add_basic_header(sheet, i):
 
     i+=1
     #Volume
-    sheet.col(i).width = 8*367
+    sheet.col(i).width = 6*367
     sheet.write(0, i, "Volume * Price in Mn", style_wrap)
     conf.VOL=i
 
     i+=1
-    #Volume
-    sheet.col(i).width = 8*367
-    sheet.write(0, i, "Volume % in MCap", style_wrap)
+    #Avg Volume
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Avg Volume * Price in Mn", style_wrap)
+    conf.AVG_VOL=i
+
+
+    i+=1
+    #Avg Volume in Mcap
+    sheet.col(i).width = 6*367
+    sheet.write(0, i, "Avg Volume % in MCap", style_wrap)
     conf.VOL_MCAP=i
 
     #i+=1
@@ -866,7 +873,20 @@ def add_basic_header(sheet, i):
     st = "PSAR"
     sheet.write(0, i, st, style_wrap)
     conf.PSAR=i
- 
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "CHANDELIER LONG"
+    sheet.write(0, i, st, style_wrap)
+    conf.CHANDELIER_LONG=i
+
+    i+=1
+    sheet.col(i).width = 5*367
+    st = "CHANDELIER SHORT"
+    sheet.write(0, i, st, style_wrap)
+    conf.CHANDELIER_SHORT=i
+
+
     i+=1
     sheet.col(i).width = 3*367
     st = "Put Call Ratio"
@@ -912,18 +932,6 @@ def add_basic_header(sheet, i):
     return i
 
 def add_second_tech_indicators(sheet, i):
-    sheet.col(i).width = 5*367
-    st = "CHANDELIER LONG"
-    sheet.write(0, i, st, style_wrap)
-    conf.CHANDELIER_LONG=i
-
-    i+=1
-    sheet.col(i).width = 5*367
-    st = "CHANDELIER SHORT"
-    sheet.write(0, i, st, style_wrap)
-    conf.CHANDELIER_SHORT=i
-
-    i+=1
     sheet.col(i).width = 5*367
     st = "ULCER INDEX"
     sheet.write(0, i, st, style_wrap)
@@ -1805,6 +1813,7 @@ def write_to_price_change_excel(count, ash, stk, sheet_type, prices_only=False):
 
     if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
         sh_write(ash, count, conf.VOL, (stk['price_change']['price']*stk['price_change']['volume'])/1000000, style_decimal)
+        sh_write(ash, count, conf.AVG_VOL, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2), style_decimal)
         sh_write(ash, count, conf.VOL_MCAP, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000), 4), style_percent)
     #sh_write(ash, count, conf.VOL, stk['price_change']['volume'], style_num)
     #if 'betas' in stk['fig'].keys() and stk['fig']['betas'] != None:
@@ -2353,6 +2362,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
     #sheet.write(i, 4, stk['price_change']['volume'])
     if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
         sh_write(ash, conf.COUNT, conf.VOL, (stk['price_change']['price']*stk['price_change']['volume'])/1000000, style=style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+        sh_write(ash, conf.COUNT, conf.AVG_VOL, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2), style=style_decimal, ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.VOL_MCAP, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000), 4), style=style_percent, ashs=ashs, recent_ipos=recent_ipos)
     #sh_write(ash, conf.COUNT, conf.VOL, stk['price_change']['volume'], ashs=ashs, recent_ipos=recent_ipos)
 
