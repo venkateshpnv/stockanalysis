@@ -385,23 +385,30 @@ recessions = {
                            "end" : "14 January 1991",
                            "duration" : 8
                          },
+                # Dot Com Bubble
                 "2001" : { "start" : "31 August 2000",
                            "end" : "12 March 2003",
                            "duration" : 31
                          },
+                # Financial Crisis
                 "2007" : { "start" : "12 October 2007",
                            "end" : "27 February 2009",
                            "duration" : 14
                          },
+                # Yield Curve Flatten
                 "2018" : { "start" : "30 November 2018",
                            "end" : "21 December 2018",
                            "duration" : 1
                          },
+                # Covid Time
                 "2020" : { "start" : "19 February 2020",
                            "end"   : "23 March 2020",
                            "duration" : 1
                          },
+                # Interest rate hike following Covid
                 "2021" : { "start" : "24 November 2021",
+                           "end": "14 October 2022",
+                           "duration": 11
                          },
  
              }

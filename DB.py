@@ -2588,7 +2588,7 @@ def update_ATR_params(collection, sym, df, rsi=None):
             update_field(collection, sym, "technicals.atr.60day_max_price", "")
             update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
             #update_field(collection, sym, "technicals.atr.60day_max_price_date", "")
-            return atr
+    return atr
 
 def update_chandelier_params(collection, sym, df, atr=None):
     if atr is None:
@@ -2817,14 +2817,14 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'AAPL'})
+    #stocks=db.US_Stocks.find({'General.Code':'TSLA'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
         for i, stk in enumerate(stocks):
             print("Tech analysis params: %d: Symbol: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
-            #update_tech_analysis_params(stk['bscs']['symbol'], 0)
+            #update_tech_analysis_params(stk['bscs']['symbol'], 0, sem=sem)
             processes[i%num_processes] = multiprocessing.Process(target=update_tech_analysis_params, args=(stk['bscs']['symbol'], i%num_cores, sem,))
             processes[i%num_processes].start()
     finally:
@@ -5877,8 +5877,9 @@ def update_all_earnings(all=False):
 
         try:
             while True:
-                # Now fetch the bulk earnings
-                url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
+                # Now fetch the bulk earnings for the next 60 days
+                #url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
+                url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&from='+str(dt.now().date())+'&to='+str(dt.now().date()+timedelta(60))+'&fmt=json'
                 ret = requests.get(url)
                 if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
                     print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
@@ -5912,7 +5913,9 @@ def update_all_earnings(all=False):
            if 'date' in earnings.columns:
                earnings.rename(columns = {'date': 'Date'}, inplace=True)
         earnings['Symbol']=[e.split('.')[0] for e in earnings['Symbol']]
-       
+        earnings.index= earnings.Date
+
+        count = 1
         for i, e in earnings.iterrows():
             query='select * from {} where Symbol=%r and report_date=%r and date=%r'.format(table_name) %(e['Symbol'], e['report_date'], e['Date'])
             df = read_from_sql(query, mysql_engine)
@@ -5948,11 +5951,18 @@ def update_all_earnings(all=False):
             # Convert series to dataframe
             df = e.to_frame()
             df = df.transpose().sort_index()
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
-            if not df.empty:
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(df.iloc[-1]['report_date'], "%Y-%m-%d"))
+            
+            if df.empty:
+                continue
+            df.sort_index(inplace=True)
+
+            print("%d: %r" %(count, stk['bscs']['symbol']))
+            mysql_update_table(mysql_engine, table_name, df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(df.iloc[-1]['report_date'], "%Y-%m-%d"))
+            count = count + 1
  
     finally:
         for j in range(len(processes)):
@@ -6882,12 +6892,30 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
     sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if df is None:
         try:
-            query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
-            df = read_from_sql(query, sql_engine)
+            if recession:
+                if edate-sdate < timedelta(days=60):
+                    spread = relativedelta(weeks=1)
+                elif edate-sdate < timedelta(days=120):
+                    spread = relativedelta(weeks=2)
+                else:
+                    spread = relativedelta(months=2)
+                s = sdate - spread
+                e = edate + spread
+                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), s.strftime("%Y-%m-%d"), e.strftime("%Y-%m-%d"))
+                df = read_from_sql(query, sql_engine)
+                if df.empty:
+                    close_sql_connection(sql_engine)
+                    return betas
 
-            if df.empty:
-                close_sql_connection(sql_engine)
-                return betas
+                st_index = df.loc[s:sdate]['Adj Close'].idxmax()
+                en_index = df.loc[edate:e]['Adj Close'].idxmin()
+                df = df.loc[st_index:en_index]
+                sdate = pd.to_datetime(st_index).date()
+                edate = pd.to_datetime(en_index).date()
+            else:
+                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+                df = read_from_sql(query, sql_engine)
+
             ##from pandas_datareader.quandl import QuandlReader
             ##df = pdr.get_data_stooq(sym, sdate, edate, retry_count=3)
             ##print(df)
@@ -7097,13 +7125,13 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
         except Exception as e:
             betas.update({"since_then":nan})
         try:
-            sdate = edate + timedelta(1)
+            sdate = edate #+ timedelta(1)
             recession_keys = list(recessions.keys())
             recession_year_index = recession_keys.index(recession_year)
             if recession_year_index < len(recession_keys)-1:
                 #edate = dt.strptime(recessions[recession_keys[recession_year_index+1]]['start'], "%d %B %Y").date() - timedelta(1)
                 edate = dt.strptime(recessions[list(recessions.keys())[-1]]['start'], "%d %B %Y").date() - timedelta(1)
-                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+                query = 'select Date, `Adj Close`, Close from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
                 df = read_from_sql(query, sql_engine)
                 #df = hdf5.read_from_hdf(country, sym, sdate, edate)
                 # Calculate CAGR
@@ -7227,12 +7255,12 @@ def update_stock_betas(country, collection, price_engine, beta_engine, stk, core
         sym = stk['bscs']['symbol']
         table_name = get_symbol_table_name(sym)
         
-        ##print("beta: %r: %r" %(stk['sno'], sym))
-        #if 'since' not in stk['bscs'].keys() \
-        #        or stk['bscs']['since'] == dt.min:
-        #    mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
-        #    #stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
-        #    close_sql_connection(mysql_engine)
+        #print("beta: %r: %r" %(stk['sno'], sym))
+        if 'since' not in stk['bscs'].keys() \
+                or stk['bscs']['since'] == dt.min:
+            mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+            stk  = update_since_dataframe(mysql_engine, table_name, collection, stk)
+            close_sql_connection(mysql_engine)
 
         since = stk['bscs']['since']
         #print("since: %r" %(since))

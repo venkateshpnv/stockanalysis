@@ -715,6 +715,16 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
 
+            query = 'select max(`Adj Close`) from {}'.format(table_name)
+            result = sql_engine.execute(query)
+            all_time_high_price = result.first()[0]
+            if not all_time_high_price or all_time_high_price == 0:
+                change = 0
+            else:
+                change = percent_change(all_time_high_price, price)
+
+            DB.update_field(collection, sym, "price_change.with_all_time_high", change)
+
             query = 'SELECT Date, Volume FROM (SELECT * FROM {} ORDER BY Date DESC LIMIT 60) AS sub ORDER BY Date ASC'.format(table_name)
 
             df = DB.read_from_sql(query, sql_engine)
@@ -864,7 +874,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'AULT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CVNA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
