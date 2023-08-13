@@ -1661,7 +1661,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'AULT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'AEMD'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
 
         for stk in stocks:
@@ -6893,6 +6893,8 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
     if df is None:
         try:
             if recession:
+                sdate = pd.Timestamp(sdate)
+                edate = pd.Timestamp(edate)
                 if edate-sdate < timedelta(days=60):
                     spread = relativedelta(weeks=1)
                 elif edate-sdate < timedelta(days=120):
@@ -6907,8 +6909,15 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
                     close_sql_connection(sql_engine)
                     return betas
 
-                st_index = df.loc[s:sdate]['Adj Close'].idxmax()
-                en_index = df.loc[edate:e]['Adj Close'].idxmin()
+                if s in df.index and sdate in df.index:
+                    st_index = df.loc[s:sdate]['Adj Close'].idxmax()
+                else:
+                    st_index = df['Adj Close'].idxmax()
+                if e in df.index and edate in df.index:
+                    en_index = df.loc[edate:e]['Adj Close'].idxmin()
+                else:
+                    en_index = df['Adj Close'].idxmin()
+
                 df = df.loc[st_index:en_index]
                 sdate = pd.to_datetime(st_index).date()
                 edate = pd.to_datetime(en_index).date()
@@ -6922,7 +6931,7 @@ def get_beta(country, sym, sdate, edate, df=None, recession=False, recession_yea
             ##df = hdf5.get_dataframe(country, sym, sdate, edate)
             #df = hdf5.read_from_hdf(country, sym, sdate, edate)
         except Exception as e:
-            print("Could not get data for %s. Failed to calculate beta, query: %s" %(sym, query))
+            print("Could not get data for %s. Failed to calculate beta, query: %s, err: %s" %(sym, query, str(e)))
             close_sql_connection(sql_engine)
             return None
     if df.empty:
@@ -7195,7 +7204,7 @@ def update_stock_recession_betas(country, collection, doc, sym, df=None):
                     #print(st_date)
                     #print(en_date)
                     betas = get_beta(country, sym, st_date, en_date, df=None, recession=True, recession_year=year)
-                    if betas != {}:
+                    if betas != None and betas != {}:
                         #print("Beta: %r" %(betas))
                         field="fig.betas.recession.%s" %(year)
                         collection.update({'bscs.symbol':sym},{'$set': {field : betas}})
@@ -7467,7 +7476,7 @@ def update_all_stock_betas(country, recession_only=False):
                                     no_cursor_timeout=True).batch_size(10).sort([["dates.betas_calc_date",1]]).allow_disk_use(True)
 
     print("Update Betas: Total Stocks: %r" %(docs.count()))
-    #docs = db.US_Stocks.find({"bscs.symbol" : "MFA"})
+    #docs = db.US_Stocks.find({"bscs.symbol" : "CREXW"})
 
     #max_threads = thread_factor
     #sem = threading.BoundedSemaphore(max_threads)
