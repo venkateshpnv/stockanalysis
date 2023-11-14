@@ -724,6 +724,14 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
                 change = percent_change(all_time_high_price, price)
 
             DB.update_field(collection, sym, "price_change.with_all_time_high", change)
+            DB.update_field(collection, sym, "price_change.all_time_high_price", all_time_high_price)
+           
+            if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys():
+                num_shares = stk['Highlights']['MarketCapitalization']/price
+                all_time_high_mcap = num_shares * all_time_high_price
+                DB.update_field(collection, sym, "price_change.all_time_high_mcap", all_time_high_mcap)
+            else:
+                DB.update_field(collection, sym, "price_change.all_time_high_mcap", nan)
 
             query = 'SELECT Date, Volume FROM (SELECT * FROM {} ORDER BY Date DESC LIMIT 60) AS sub ORDER BY Date ASC'.format(table_name)
 
@@ -967,7 +975,9 @@ def update_all_stocks_price_change(country):
     #betas_process.join()
 
 def pcent(val):
-    return str(round(val *100, 2))+'%'
+    if val != None:
+        return str(round(val *100, 2))+'%'
+    return ""
 
 #Minimum percent changes per day, week, month etc that should
 # be considered for stocks with different ranges of mcaps
@@ -992,6 +1002,243 @@ half_year_col = quarter_col + 1
 year_col = half_year_col + 1
 
 highlight_columns = { 'day': day_col, 'week':week_col, 'month':month_col, 'quarter':quarter_col, 'half_year':half_year_col, 'year':year_col }
+
+def get_stocks_max_mcap_change(country, low_mcap, high_mcap, direction, change, limit=-1):
+    max_change='price_change.with_all_time_high'
+    if direction == -1:
+        cond = '$lte'
+    else:
+        cond = '$gte'
+
+    factor = 1
+    Mn = 1000000
+    Bn = 1000*Mn
+    Tn = 1000*Bn
+
+    if country == 'US':
+        mcap = "MCap in Millions"
+        #Convert to billions for mcap greater than 1 billion.
+        if high_mcap > 1000:
+            factor = 1/1000
+            mcap = "Mcap Bn"
+    elif country == 'India':
+        mcap = "MCap in Crores"
+
+    db = DB.open_db('Stocks')
+    collection = DB.get_collection(country, db)
+    
+    entries = []
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Alltime Hgh MCap", "With Alltime Hgh", "Vol", "Vol*Price Mn", "Vol %Mcap", "Price", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg"]
+
+    entries.append(head)
+    today = dt.combine(dt.now(), dt.min.time())
+    if today == DB.get_latest_trading_day():
+        latest_date = DB.get_latest_trading_day()
+    else:
+        latest_date = DB.get_previous_trading_day()
+
+    #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
+
+    conditions = [\
+                 #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+                 {"dates.mysql_price_pull_success": True},\
+                 {'price_change.all_time_high_mcap':{'$gte':low_mcap, '$lt':high_mcap}},\
+                 {'General.IsDelisted': False},\
+                 {'General.Type':'Common Stock'},\
+                 #{'General.Exchange':{"$in":major_exchanges}},\
+                 {"$or": [\
+                             {'General.Exchange':{"$in":major_exchanges}},\
+                             {"$and": [ \
+                                         {'General.Exchange':{"$nin":major_exchanges}},\
+                                         {'bscs.tracking':{'$exists':True}}, \
+                                     ] \
+                             },\
+                         ]\
+                 },\
+                ]
+
+    if direction > 0 :
+        conditions.append({max_change:{cond:change}})
+        if limit > 0:
+            stocks = collection.find({'$and':conditions}).limit(limit).sort([[max_change,-1]])
+        else:
+            stocks = collection.find({'$and':conditions}).sort([[max_change,-1]])
+        #stocks = collection.find({'$and':[\
+        #                                    #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+        #                                    {"dates.mysql_price_pull_success": True},\
+        #                                    {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+        #                                    {'General.IsDelisted': False},\
+        #                                    {'General.Type':'Common Stock'},\
+        #                                    #{'General.Exchange':{"$in":major_exchanges}},\
+        #                                    {"$or": [\
+        #                                                {'General.Exchange':{"$in":major_exchanges}},\
+        #                                                {"$and": [ \
+        #                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+        #                                                            {'bscs.tracking':{'$exists':True}}, \
+        #                                                        ] \
+        #                                                },\
+        #                                            ]\
+        #                                    },\
+        #                                    {rsi_change:{cond:change}},\
+        #                                    ]}).sort([[rsi_change,-1]])
+    else:
+        conditions.append({max_change:{cond:change}})
+        if limit > 0:
+            stocks = collection.find({'$and':conditions}).limit(limit).sort([[max_change,1]])
+        else:
+            stocks = collection.find({'$and':conditions}).sort([[max_change,1]])
+
+        #stocks = collection.find({'$and':[\
+        #                                    #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+        #                                    {"dates.mysql_price_pull_success": True},\
+        #                                    {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+        #                                    {'General.IsDelisted': False},\
+        #                                    {'General.Type':'Common Stock'},\
+        #                                    #{'General.Exchange':{"$in":major_exchanges}},\
+        #                                    {"$or": [\
+        #                                                {'General.Exchange':{"$in":major_exchanges}},\
+        #                                                {"$and": [ \
+        #                                                            {'General.Exchange':{"$nin":major_exchanges}},\
+        #                                                            {'bscs.tracking':{'$exists':True}}, \
+        #                                                        ] \
+        #                                                },\
+        #                                            ]\
+        #                                    },\
+        #                                    #{rsi_change:{'$gte':change}},\
+        #                                    {rsi_change:{'$lte':0}},\
+        #                                    ]}).sort([[rsi_change,1]]).limit(10)
+
+    #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
+    #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
+    i = 0
+    for stk in stocks:
+        if limit > 0 and i > limit:
+            break
+        #if DB.ignore_stock(stk):
+        #    continue
+
+        bscs  = stk['bscs']
+        pchg = stk['price_change']
+        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
+        entry = [ ]
+        entry.append(bscs['symbol'])
+        entry.append(stk['General']['Name'])
+        entry.append(stk['General']['IPODate'])
+        if stk['General']['GicSubIndustry']:
+            entry.append(stk['General']['GicSubIndustry'])
+        else:
+            entry.append("")
+
+        cur_mcap = stk['Highlights']['MarketCapitalizationMln']
+        num = " Mn"
+        if cur_mcap > 1000:
+            cur_mcap = cur_mcap/1000
+            num = " Bn"
+        if cur_mcap > 1000:
+            cur_mcap = cur_mcap/1000
+            num = " Tn"
+ 
+        entry.append(str(round(cur_mcap, 2))+num)
+
+        if 'price_change' in stk.keys() and 'all_time_high_mcap' in stk['price_change'].keys():
+            all_high_mcap = stk['price_change']['all_time_high_mcap']/Mn
+            num = " Mn"
+            if all_high_mcap > 1000:
+                all_high_mcap = all_high_mcap/1000
+                num = " Bn"
+            if all_high_mcap > 1000:
+                all_high_mcap = all_high_mcap/1000
+                num = " Tn"
+            entry.append(str(round(all_high_mcap,2))+num)
+        else:
+            entry.append("")
+
+        if 'with_all_time_high' in pchg.keys():
+            entry.append(pcent(pchg['with_all_time_high']))
+        else:
+            entry.append("")
+ 
+        if 'price_change' in stk.keys() and \
+            'volume' in stk['price_change'].keys():
+            entry.append(str(round(stk['price_change']['volume']/1000, 2))+'k')
+        else:
+            entry.append("-")
+        if 'price_change' in stk.keys() and \
+            'avg_volume' in stk['price_change'].keys():
+            entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
+        else:
+            entry.append("-")
+        if 'price' in stk['price_change'].keys() and 'avg_volume' in stk['price_change'].keys():
+            entry.append(str(round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2)))
+        else:
+            entry.append("")
+       
+        if 'price_change' in stk.keys() and 'price' in stk['price_change'].keys():
+            entry.append(str(stk['price_change']['price']))
+        else:
+            entry.append("")
+        entry.append(pcent(pchg['day']))
+        entry.append(pcent(pchg['week']))
+        entry.append(pcent(pchg['month']))
+        entry.append(pcent(pchg['quarter']))
+        entry.append(pcent(pchg['half_year']))
+        entry.append(pcent(pchg['year']))
+ 
+        entries.append(entry)
+        i = i + 1
+
+    DB.close_db()
+    return entries
+
+def build_html_max_mcap(s, country, low_mcap, high_mcap, change, segment, uplimit=-1,downlimit=-1): 
+    direction = 1
+    highlight_column = 6
+    s = parse_html.html_text(s, segment)
+    e = get_stocks_max_mcap_change(country, low_mcap, high_mcap, -direction, change, uplimit)
+    if len(e) > 1:
+        #entries = [["Up"]]
+        entries = e
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries, highlight_column)
+    #e = get_stocks_max_mcap_change(country, low_mcap, high_mcap, -direction, -change, downlimit)
+    #if len(e) > 1:
+    #    #entries = [["Up"]]
+    #    entries = e
+    #    s = parse_html.html_set_line(s)
+    #    s = parse_html.html_text(s, entries, highlight_column)
+
+    return s
+
+def get_max_mcap_changes(s, country):
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    Tn = 1000*Bn
+    #s = parse_html.html_set_line(s)
+    print("MCap 100 Bn and above")
+    s = build_html_max_mcap(s, country, 100*Bn, 100*Tn, -0.70, ["Max MCap 100 Bn and above"])
+    print("MCap 10 Bn and 100 Bn")
+    s = build_html_max_mcap(s, country, 10*Bn, 100*Bn,  -0.70, ["Max MCap 10 Bn and 100 Bn"], downlimit=20)
+    print("MCap 5 Bn and 10 Bn")
+    s = build_html_max_mcap(s, country, 5*Bn, 10*Bn,    -0.70, ["Max MCap 5 Bn and 10 Bn"], downlimit=20)
+    print("MCap 1 Bn and 5 Bn")
+    s = build_html_max_mcap(s, country, 1*Bn, 5*Bn,     -0.70, ["Max MCap 1 Bn and 5 Bn"], downlimit=20)
+    print("MCap 500Mn and 1 Bn")
+    s = build_html_max_mcap(s, country, 500*Mn, 1*Bn,   -0.70, ["MCap 500Mn and 1 Bn"], uplimit=20, downlimit=20)
+    print("MCap < 500 Mn")
+    s = build_html_max_mcap(s, country, 1, 500*Mn,      -0.90, ["MCap < 500 Mn"], uplimit=20, downlimit=20)
+    return s
+
+def send_email_max_mcap_changes(country):
+    disconnect_vpn()
+
+    s = parse_html.html_head()
+    s = parse_html.html_text(s, ["All Time Low Price Snapshot"])
+    s = parse_html.html_set_line(s)
+    s = get_max_mcap_changes(s, country)
+    s = parse_html.html_set_line(s)
+    subject='%s: All Time Low Snapshot: %r' %(country, str(datetime.datetime.now().date()))
+    send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
 
 def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit=-1):
     rsi_change='technicals.rsi.cur_price_max_rsi_change'
@@ -1125,8 +1372,8 @@ def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit
             entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
         else:
             entry.append("-")
-        if 'price' in stk['price_change'].keys():
-            entry.append(str(stk['price_change']['price']))
+        if 'price' in stk['price_change'].keys() and 'avg_volume' in stk['price_change'].keys():
+            entry.append(str(round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2)))
         else:
             entry.append("")
         #try:
@@ -1224,11 +1471,11 @@ def send_email_rsi_changes(country):
     disconnect_vpn()
 
     s = parse_html.html_head()
-    s = parse_html.html_text(s, ["RSI Price Surprises"])
+    s = parse_html.html_text(s, ["RSI Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_rsi_changes(s, country)
     s = parse_html.html_set_line(s)
-    subject='%s: RSI Surprises: %r' %(country, str(datetime.datetime.now().date()))
+    subject='%s: RSI Snapshot: %r' %(country, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
 
 # direction : -1 -> ascending order. Used for negative percent change
@@ -1259,7 +1506,7 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
     
     entries = []
     if country == 'US':
-        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw", "With Alltime Hgh"]
     else:
         head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
@@ -1350,6 +1597,10 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
             entry.append(pcent(pchg['with_52week_low']))
         else:
             entry.append("")
+        if 'with_all_time_high' in pchg.keys():
+            entry.append(pcent(pchg['with_all_time_high']))
+        else:
+            entry.append("")
         
         entries.append(entry)
 
@@ -1405,30 +1656,30 @@ def send_email_price_changes(country):
     disconnect_vpn()
 
     s = parse_html.html_head()
-    s = parse_html.html_text(s, ["Daily Price Surprises"])
+    s = parse_html.html_text(s, ["Daily Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'day')
     #subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
     #send_email2('petlafin@gmail.com', 'shravanrdstocks@gmail.com', subject, s)
-    s = parse_html.html_text(s, ["Weekly Price Surprises"])
+    s = parse_html.html_text(s, ["Weekly Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'week')
-    s = parse_html.html_text(s, ["Monthly Price Surprises"])
+    s = parse_html.html_text(s, ["Monthly Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'month')
-    s = parse_html.html_text(s, ["Quarterly Price Surprises"])
+    s = parse_html.html_text(s, ["Quarterly Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'quarter')
-    s = parse_html.html_text(s, ["Half Yearly Price Surprises"])
+    s = parse_html.html_text(s, ["Half Yearly Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'half_year')
-    s = parse_html.html_text(s, ["Yearly Price Surprises"])
+    s = parse_html.html_text(s, ["Yearly Price Snapshot"])
     s = parse_html.html_set_line(s)
     s = get_price_changes(s, country, 'year')
     #f = open("/tmp/test.html","w")
     #f.write(s)
     #f.close()
-    subject='%s: Price Surprises: %r' %(country, str(datetime.datetime.now().date()))
+    subject='%s: Price Snapshot: %r' %(country, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
 
 def price_surprises(country, change_percent, criteria, db_type, excel_type):
