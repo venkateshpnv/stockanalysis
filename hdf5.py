@@ -34,7 +34,7 @@ US_Cal = get_calendar('USFederalHolidayCalendar')
 vpn_change_time = dt.now()
 
 def construct_price_data_url(symbol, start, end, index=False):
-    url = 'https://eodhistoricaldata.com/api/eod/'+symbol
+    url = 'https://eodhd.com/api/eod/'+symbol
     if index:
         url = url + '.INDX?'
     else:
@@ -1031,7 +1031,7 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         local_sql = True
 
     try:
-        table = get_symbol_table_name(symbol)
+        table = DB.get_symbol_table_name(symbol)
         query='select Date from ' + table + ' order by Date desc limit 1' 
         rdf = read_from_sql(query, sql_engine)
         if len(rdf) != 1:
@@ -1040,6 +1040,11 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         if rdf.iloc[-1]['Date'] != str(DB.get_previous_trading_day().date()):
             print("Symbol : %s price data was updated on %s date which is not the previous date. Skipping bulk update for this symbol" %(symbol, rdf.iloc[-1]['Date']))
             return
+        if stk_df['Date'] != str(DB.get_latest_trading_day()):
+            print("Symbol : %s, stk date: %s, latest trading day: %s, latest price data is not same as latest trading day. Skipping bulk update for this symbol" %(symbol, stk['Date'], str(DB.get_latest_trading_day())))
+            return
+        
+        print("Symbol: %s, date: %s bulk eod price update" %(symbol, str(DB.get_latest_trading_day())))
         DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']), stk_df, insert=True, check=True, date_column=False, format_columns=False)
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", stk_df['Adj Close'][-1])
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.volume", int(stk_df['Volume'][-1]))
@@ -1047,7 +1052,8 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_date", DB.get_latest_trading_day())
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_success", True)
-        multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk), core, None, False)).start()
+        #multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk), core, None, False)).start()
+
     finally:
         if local_mdb:
             DB.close_db_client(c)
@@ -1056,7 +1062,19 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         if sem:
             sem.release()
 
-def bulk_update_price_volume(country, db, sql_engine):
+def bulk_update_price_volume(country, db=None, sql_engine=None):
+    local_mdb = False
+    local_sql = False
+    if db is None:
+        c = DB.open_db_client()
+        db = c['Stocks']
+        local_mdb = True
+    if sql_engine is None:
+        collection = DB.get_collection(country, db)
+        sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        local_sql = True
+
+
     sort = [1, -1][dt.now().day % 2 == 0]
     num_processes = DB.num_cores * 4
     sem = multiprocessing.BoundedSemaphore(num_processes)
@@ -1070,9 +1088,36 @@ def bulk_update_price_volume(country, db, sql_engine):
     # To overcome this issue, check if the stock has up-to-date price data till the 
     # last trading day and then add today's data. Else don't touch that stock.
     # They will be taken care in a different execution path.
-    stocks = db.US_Stocks.find({"$and" : [\
+    #stocks = db.US_Stocks.find({"$and" : [\
+    #                                        {'General.Type':'Common Stock'},\
+    #                                        #{'General.Exchange':{"$in":major_exchanges}},\
+    #                                        {"$or": [\
+    #                                                    {'General.Exchange':{"$in":major_exchanges}},\
+    #                                                    {"$and": [ \
+    #                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+    #                                                                {'bscs.tracking':{'$exists':True}}, \
+    #                                                            ] \
+    #                                                    },\
+    #                                                ]\
+    #                                        },\
+    #                                        {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
+    #                                        {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
+    #                                        {"$or": [\
+    #                                                    {'failcount.mysql_price_failcount': {'$exists': False}},\
+    #                                                    {"failcount.mysql_price_failcount":{"$lt": MAX_FAIL_COUNT}}\
+    #                                                ]\
+    #                                        },\
+    #                                        #{"$or": [\
+    #                                        #            {"bscs.lastSplitUpdateDate": {"$exists": False}},\
+    #                                        #            {"bscs.lastSplitUpdateDate":{"$lte": dt.now()-timedelta(7)}}\
+    #                                        #        ]\
+    #                                        #},\
+    #                                    ]\
+    #                            }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            {"dates.mysql_price_date": {"$eq": DB.get_previous_trading_day()}},\
+                                            {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
-                                            #{'General.Exchange':{"$in":major_exchanges}},\
                                             {"$or": [\
                                                         {'General.Exchange':{"$in":major_exchanges}},\
                                                         {"$and": [ \
@@ -1082,24 +1127,20 @@ def bulk_update_price_volume(country, db, sql_engine):
                                                         },\
                                                     ]\
                                             },\
-                                            {'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}},\
-                                            {'dates.mysql_price_date':{'$eq': DB.get_previous_trading_day()}},\
-                                            {"$or": [\
-                                                        {'failcount.mysql_price_failcount': {'$exists': False}},\
-                                                        {"failcount.mysql_price_failcount":{"$lt": MAX_FAIL_COUNT}}\
-                                                    ]\
-                                            },\
+                                            {'dates.technicals_pull_date': {'$eq':DB.get_latest_trading_day()}},\
                                             #{"$or": [\
-                                            #            {"bscs.lastSplitUpdateDate": {"$exists": False}},\
-                                            #            {"bscs.lastSplitUpdateDate":{"$lte": dt.now()-timedelta(7)}}\
+                                            #            {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                            #            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                             #        ]\
-                                            #},\
+                                            #}
                                         ]\
-                                }).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+                                }\
+                                ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+
     print("Total bulk stock candidates: %r" %(stocks.count()))
 
     if stocks.count() != 0:
-        url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
+        url='https://eodhd.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
         ret = requests.get(url)
         df  = pd.read_csv(StringIO(ret.text), skipfooter=0, parse_dates=[0], index_col=0, engine='python')
         df.rename(columns={'Adjusted_close':'Adj Close'}, inplace=True)
@@ -1119,14 +1160,18 @@ def bulk_update_price_volume(country, db, sql_engine):
                     del stk_df['Symbol']
  
                     sem.acquire()
-                    update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
-                    #processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
-                    #processes[i%num_processes].start()
+                    #update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
+                    processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
+                    processes[i%num_processes].start()
                     i = i + 1
         finally:
             for j in range(len(processes)):
                 if processes[j] is not None:
                     processes[j].join()
+            if local_mdb:
+                DB.close_db_client(c)
+            if local_sql:
+                DB.close_sql_connection(sql_engine)
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True, percent_change=True, check_since_ipo_date=False):
 

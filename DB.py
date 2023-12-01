@@ -3026,7 +3026,7 @@ def get_iex_symbols():
     return entries
 
 def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock'):
-    url = 'https://eodhistoricaldata.com/api/exchange-symbol-list/US?api_token='+get_eod_token_id()
+    url = 'https://eodhd.com/api/exchange-symbol-list/US?api_token='+get_eod_token_id()
     ret = requests.get(url)
     df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
     df['Symbol'] = df.index
@@ -3165,7 +3165,7 @@ def get_eod_symbols():
             #stk  = {"bscs" : bscs, "sno": j}
             #db.US_Stocks.insert_one(stk)
 
-            #url='https://eodhistoricaldata.com/api/fundamentals/'+d['Symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+            #url='https://eodhd.com/api/fundamentals/'+d['Symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
             #ret = requests.get(url)
             #if ret.status_code == 200:
             #    general = ret.json()
@@ -4107,7 +4107,7 @@ def update_US_stock_earnings_trend(stk, core, sem=None):
 
     insert = True
     df  = pd.DataFrame()
-    url='https://eodhistoricaldata.com/api/calendar/trends?api_token=' + \
+    url='https://eodhd.com/api/calendar/trends?api_token=' + \
                 get_eod_token_id() + \
                 '&fmt=json&symbols=' + \
                 stk['bscs']['symbol'] + \
@@ -4542,7 +4542,7 @@ def update_US_stock_fin_information(stk, core, sem):
         #    if not ddf.empty:
         #        return
 
-        url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()+'&filter=Financials'
+        url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()+'&filter=Financials'
         try:
             ret = requests.get(url)
             if ret.status_code != 200:
@@ -4666,7 +4666,7 @@ def update_short_interests(stk, core, sem=None):
             rdf = read_from_sql(query, mysql_engine)
  
         #short_interest
-        url='https://eodhistoricaldata.com/api/shorts/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+        url='https://eodhd.com/api/shorts/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
 
         if not rdf.empty:
             url = url + \
@@ -4784,7 +4784,7 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
         if df.empty:
             return
 
-        print("Total split stocks: %d" %(len(df)))
+        print("Total split stocks: %d, repopulating these stocks" %(len(df)))
 
         del df['Date']
         count = 0
@@ -4940,13 +4940,14 @@ def update_splits(stk, core, sem=None):
             query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date DESC limit 1'.format(stk['bscs']['symbol'])
             rdf = read_from_sql(query, mysql_engine)
  
-        url='https://eodhistoricaldata.com/api/splits/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+        url='https://eodhd.com/api/splits/'+stk['bscs']['symbol']+'.US?fmt=json'#&&api_token='+get_eod_token_id()
 
         if not rdf.empty:
             url = url + \
                     '&from='+ \
                     str(dt.strptime(rdf['Date'][0], "%Y-%m-%d").date() + timedelta(1))
- 
+
+        url = url + '&&api_token='+get_eod_token_id()
         try:
             while True:
                 ret = requests.get(url)
@@ -4965,7 +4966,8 @@ def update_splits(stk, core, sem=None):
 
         print("Ratelimit: %r" %(int(ret.headers['X-RateLimit-Remaining'])))
 
-        df = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+        #df = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
+        df = pd.DataFrame(ret.json())
 
         update = True
         df = df.dropna()
@@ -4974,10 +4976,15 @@ def update_splits(stk, core, sem=None):
             df['Split_Num']=nan
             df['Split_Denom']=nan
             for i, d in df.iterrows():
-                df.loc[i, 'Split_Num']   = float(d['Stock Splits'].split('/')[0])
-                df.loc[i, 'Split_Denom'] = float(d['Stock Splits'].split('/')[1])
+                #df.loc[i, 'Split_Num']   = float(d['Stock Splits'].split('/')[0])
+                #df.loc[i, 'Split_Denom'] = float(d['Stock Splits'].split('/')[1])
+                df.loc[i, 'Split_Num']   = float(d['split'].split('/')[0])
+                df.loc[i, 'Split_Denom'] = float(d['split'].split('/')[1])
 
-            del df['Stock Splits']
+            #del df['Stock Splits']
+            del df['split']
+            df.rename(columns={'date':'Date'}, inplace=True)
+            df.index=df['Date']
 
             mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='price', temp=False, date_column=True, format_columns=False, primary_key=False, empty_table=False, fin_table=True)
  
@@ -5046,7 +5053,7 @@ def update_all_splits(all=False):
                                     },\
                                     no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
     #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"$or":[{"dates.splits_pull_date": {"$lt": today}}, {"dates.splits_pull_date": {"$exists": False}}]}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({"bscs.symbol":'BRQS'})
+    #stocks = db.US_Stocks.find({"bscs.symbol":'NVO'})
     #stocks = db.US_Stocks.find({"General.Exchange":'NASDAQ'})
     print("Update_Splits: Total stocks count: %r " %(stocks.count()))
 
@@ -5067,7 +5074,7 @@ def update_all_splits(all=False):
     # This is required because the bulk pull does not return information like recorded date etc.
     # It only returns the split factor.
 
-    url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=splits'
+    url='https://eodhd.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=splits'
     ret = requests.get(url)
     df  = pd.read_csv(StringIO(ret.text), skipfooter=1, parse_dates=[0], index_col=0, engine='python')
     df  = df.dropna()
@@ -5080,7 +5087,7 @@ def update_all_splits(all=False):
         if 'date' in df.columns:
             df.rename(columns = {'date': 'Date'}, inplace=True)
         if 'Split' in df.columns:
-            df.rename(columns = {'Split': 'Stock Splits'}, inplace=True)
+            df.rename(columns = {'Split': 'split'}, inplace=True)
 
         df['Split_Num']=nan
         df['Split_Denom']=nan
@@ -5115,7 +5122,7 @@ def update_all_splits(all=False):
             #mysql_update_table(mysql_engine, table_name, stk_df, insert=True, check=True, date_column=False, format_columns=False)
             #update_field(db.US_Stocks, d['Symbol'], 'dates.splits_pull_date', dt.combine(dt.now(), dt.min.time()))
             #update_field(db.US_Stocks, d['Symbol'], 'dates.last_split_date', dt.strptime(stk_df.iloc[-1]['Date'], "%Y-%m-%d"))
-        del df['Stock Splits']
+        #del df['Stock Splits']
     
     repopulate_split_stocks()
 
@@ -5150,7 +5157,7 @@ def update_dividends(stk, core, sem=None):
             if not rdf.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'SplitsDividends.DividendsRecentAmount', rdf.iloc[-1]['value'])
  
-        url='https://eodhistoricaldata.com/api/div/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+        url='https://eodhd.com/api/div/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
 
         if not rdf.empty:
             url = url + \
@@ -5287,7 +5294,7 @@ def update_all_dividends(all=False):
             if processes[j] is not None:
                 processes[j].join()
 
-        url='https://eodhistoricaldata.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=dividends&fmt=json'
+        url='https://eodhd.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&type=dividends&fmt=json'
         ret = requests.get(url)
         if ret.status_code != 200:
             return
@@ -5373,7 +5380,7 @@ def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_ev
         #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'options.putCallOpenInterestRatio', df.iloc[-1]['putCallOpenInterestRatio'])
         #    return
 
-        url = 'https://eodhistoricaldata.com/api/options/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
+        url = 'https://eodhd.com/api/options/'+stk['bscs']['symbol']+'.US?api_token='+get_eod_token_id()
 
         try:
             while True:
@@ -5734,7 +5741,7 @@ def update_earnings(stk, core, sem=None, all=False):
                     rdf = rdf[rdf['actual'].notna()]
                     insert = False
  
-        url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&symbols='+stk['bscs']['symbol']+'.US'
+        url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&symbols='+stk['bscs']['symbol']+'.US'
         if not rdf.empty:
             url = url + \
                     '&from='+ \
@@ -5878,8 +5885,8 @@ def update_all_earnings(all=False):
         try:
             while True:
                 # Now fetch the bulk earnings for the next 60 days
-                #url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
-                url='https://eodhistoricaldata.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&from='+str(dt.now().date())+'&to='+str(dt.now().date()+timedelta(60))+'&fmt=json'
+                #url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
+                url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&from='+str(dt.now().date())+'&to='+str(dt.now().date()+timedelta(60))+'&fmt=json'
                 ret = requests.get(url)
                 if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
                     print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
@@ -5973,7 +5980,7 @@ def update_all_earnings(all=False):
 
 def update_ipos():
     start_date = date(date.today().year, 1, 1)
-    url = 'https://eodhistoricaldata.com/api/calendar/ipos?api_token='+get_eod_token_id()+'&fmt=json'
+    url = 'https://eodhd.com/api/calendar/ipos?api_token='+get_eod_token_id()+'&fmt=json'
     url = url + '&from=' + str(start_date)
 
     ret = requests.get(url)
@@ -6016,7 +6023,7 @@ def add_crypto_symbols():
     db = c['Cryptos']
     try:
         for i, sym in enumerate(crypto_symbols):
-            url = 'https://eodhistoricaldata.com/api/fundamentals/'+sym+'-USD.CC?api_token='+get_eod_token_id()
+            url = 'https://eodhd.com/api/fundamentals/'+sym+'-USD.CC?api_token='+get_eod_token_id()
             ret = requests.get(url)
             if ret.status_code != 200:
                 print("Failed to get data for %s" %(c))
@@ -6033,7 +6040,7 @@ def update_crypto_fundamentals(crypto):
     c  = open_db_client()
     db = c['Cryptos']
     try:
-        url = 'https://eodhistoricaldata.com/api/fundamentals/'+crypto['bscs']['symbol']+'-USD.CC?api_token='+get_eod_token_id()
+        url = 'https://eodhd.com/api/fundamentals/'+crypto['bscs']['symbol']+'-USD.CC?api_token='+get_eod_token_id()
         ret = requests.get(url)
         if ret.status_code != 200:
             print("Failed to get data for %s" %(c))
@@ -6095,7 +6102,7 @@ def update_crypto_prices(symbol, sql_engine=False):
 
         if start < end:
             print("getting price data for %r" %(symbol))
-            url = 'https://eodhistoricaldata.com/api/eod/'+symbol+'-USD.CC?api_token='+get_eod_token_id()+'&order=d&from='+str(start)+'&to='+str(end)
+            url = 'https://eodhd.com/api/eod/'+symbol+'-USD.CC?api_token='+get_eod_token_id()+'&order=d&from='+str(start)+'&to='+str(end)
 
             ret = requests.get(url)
             if ret.status_code != 200:
@@ -6259,7 +6266,7 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         ##    update = False
         ##    return
 
-        #url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
+        #url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General'
 
         #try:
         #    ret = requests.get(url)
@@ -6288,9 +6295,9 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
         #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals}})
  
         if general_only == True:
-            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights'
+            url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights'
         else:
-            url='https://eodhistoricaldata.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
+            url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
 
         try:
             while True:
@@ -6690,7 +6697,7 @@ def update_US_holiday_list():
     ret = False
     start = date(date.today().year, 1, 1)
     end = date(date.today().year,12,31)
-    url='https://eodhistoricaldata.com/api/exchange-details/US?api_token='+\
+    url='https://eodhd.com/api/exchange-details/US?api_token='+\
             get_eod_token_id()+\
             '&from='+str(start)+\
             '&to='+str(end)
@@ -9064,10 +9071,10 @@ def US_Update_Symbol_Changes():
         query = 'select * from {} order by Date desc limit 1'.format('Symbol_Changes')
         df = read_from_sql(query, mysql_engine, date=False)
         if df.empty:
-            url = 'https://eodhistoricaldata.com/api/symbol-change-history?from=2020-01-01&api_token='+get_eod_token_id()
+            url = 'https://eodhd.com/api/symbol-change-history?from=2020-01-01&api_token='+get_eod_token_id()
         else:
             date = str((pd.to_datetime(df.iloc[-1]['Date'])+timedelta(1)).date())
-            url = 'https://eodhistoricaldata.com/api/symbol-change-history?from='+date+'&api_token='+get_eod_token_id()
+            url = 'https://eodhd.com/api/symbol-change-history?from='+date+'&api_token='+get_eod_token_id()
 
         ret = requests.get(url)
         if ret.status_code != 200:
