@@ -2242,7 +2242,7 @@ def calc_psar(df, duration=None, trend_only=False):
 
         # Calculate Trend Pattern
         # Like 5L_6S_4L_12S etc
-        # This indicates % long days, 6 short days of trend etc consecutively.
+        # This indicates 5 long days, 6 short days of trend etc consecutively.
         #psar.loc[psar.query("r == True")['long'].first_valid_index():]
         trend_sequence = ""
         long_short_df = psar.query("r == True").tail(10) # Get only last 10 trends
@@ -4626,9 +4626,9 @@ def update_US_all_stock_fin_information():
     for i, stk in enumerate(stocks):
         print("%d: %r" %(i, stk['bscs']['symbol']))
         sem.acquire()
-        update_US_stock_fin_information(stk, 0, sem)
-        #processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, i%num_cores, sem))
-        #processes[j%num_processes].start()
+        #update_US_stock_fin_information(stk, 0, sem)
+        processes[j%num_processes] = multiprocessing.Process(target=update_US_stock_fin_information, args=(stk, i%num_cores, sem))
+        processes[j%num_processes].start()
         j = j + 1
 
     for j in range(len(processes)):
@@ -5517,7 +5517,7 @@ def update_all_put_call_ratios(country='US'):
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({'General.Code': 'MTDR'})
+    stocks = db.US_Stocks.find({'General.Code': 'TSLA'})
     print("Total stocks: %r" %(stocks.count()))
     try:
         for stk in stocks:

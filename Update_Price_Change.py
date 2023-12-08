@@ -58,12 +58,13 @@ if __name__ == "__main__":
         if len(sys.argv) == 2:
             internet.send_email_price_changes('US')
             internet.send_email_rsi_changes('US')
+            internet.send_email_trend_changes('US')
     except Exception as e:
         print('Failed to send email, err: %s' %(str(e)))
         pass
 
     ## Radar Stocks
-    #excel.get_radar_stocks('US')
+    excel.get_radar_stocks('US')
 
     #DB.clear_all_zero_volume_rows()
     #DB.update_all_since()

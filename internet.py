@@ -726,7 +726,7 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             DB.update_field(collection, sym, "price_change.with_all_time_high", change)
             DB.update_field(collection, sym, "price_change.all_time_high_price", all_time_high_price)
            
-            if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys():
+            if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalization'] != None:
                 num_shares = stk['Highlights']['MarketCapitalization']/price
                 all_time_high_mcap = num_shares * all_time_high_price
                 DB.update_field(collection, sym, "price_change.all_time_high_mcap", all_time_high_mcap)
@@ -739,8 +739,18 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             if not df.empty:
                 vol_mean = df['Volume'].mean()
                 DB.update_field(collection, sym, "price_change.avg_volume", vol_mean)
+
+                price_times_avg_vol_in_mn = round((price*vol_mean)/1000000,2)
+                DB.update_field(collection, sym, "price_change.price_times_avg_vol_in_mn", price_times_avg_vol_in_mn)
+                if 'Highlights' in stk.keys() and 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] != None:
+                    avg_vol_pcent_in_mcap_mn = round(((price*vol_mean)/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2)
+                    DB.update_field(collection, sym, "price_change.avg_vol_pcent_in_mcap_mn",avg_vol_pcent_in_mcap_mn)
+                else:
+                    DB.update_field(collection, sym, "price_change.avg_vol_in_mcap_mn", None)
             else:
                 DB.update_field(collection, sym, "price_change.avg_volume", None)
+                DB.update_field(collection, sym, "price_change.price_times_avg_vol_in_mn", None)
+                DB.update_field(collection, sym, "price_change.avg_vol_pcent_in_mcap_mn", None)
  
         else:
             change=None
@@ -882,7 +892,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'CVNA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'WS'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
@@ -1240,6 +1250,210 @@ def send_email_max_mcap_changes(country):
     subject='%s: All Time Low Snapshot: %r' %(country, str(datetime.datetime.now().date()))
     send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
 
+def get_stocks_trend_change(country, low_mcap, high_mcap, change, limit=-1):
+    trend_change='technicals.sar.ta_psar_trend'
+
+    factor = 1
+    if country == 'US':
+        mcap = "MCap in Millions"
+        #Convert to billions for mcap greater than 1 billion.
+        if high_mcap > 1000:
+            factor = 1/1000
+            mcap = "Mcap Bn"
+    elif country == 'India':
+        mcap = "MCap in Crores"
+
+    db = DB.open_db('Stocks')
+    collection = DB.get_collection(country, db)
+    
+    entries = []
+    head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Vol*Price Mn", "Vol %Mcap", "PSAR Prev", "PSAR Cur", "Cur Trend", "Full Trend", "Price", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "RSI", "RSI_Min_Diff", "RSI_Max_Diff", "RSI_PR_Chg"]
+
+    entries.append(head)
+    today = dt.combine(dt.now(), dt.min.time())
+    if today == DB.get_latest_trading_day():
+        latest_date = DB.get_latest_trading_day()
+    else:
+        latest_date = DB.get_previous_trading_day()
+
+    conditions = [\
+                 {"dates.mysql_price_date": {"$gte": DB.get_previous_trading_day()}},\
+                 {"dates.mysql_price_pull_success": True},\
+                 {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
+                 {'General.IsDelisted': False},\
+                 {'General.Type':'Common Stock'},\
+                 #{'General.Exchange':{"$in":major_exchanges}},\
+                 {"$or": [\
+                             {'General.Exchange':{"$in":major_exchanges}},\
+                             {"$and": [ \
+                                         {'General.Exchange':{"$nin":major_exchanges}},\
+                                         {'bscs.tracking':{'$exists':True}}, \
+                                     ] \
+                             },\
+                         ]\
+                 },\
+                 {'technicals.sar.ta_psar_trend':{"$gte":1, '$lte':5}},\
+                 {'technicals.sar.ta_psar_prev_trend':{"$lte":-15}},\
+                 {"$or": [\
+                            {'price_change.price_times_avg_vol_in_mn':{"$gte": 100}},\
+                            {'price_change.avg_vol_pcent_in_mcap_mn':{"gte": 4}},\
+                        ]\
+                 },\
+                 #{'technicals.sar.ta_psar_cur_trend_price_change': {"gte": 0.05}},\
+                ]
+
+    if limit > 0:
+        stocks = collection.find({'$and':conditions}).limit(limit).sort([['technicals.sar.ta_psar_cur_trend_price_change',-1]])
+    else:
+        stocks = collection.find({'$and':conditions}).sort([['technicals.sar.ta_psar_cur_trend_price_change',-1]])
+
+    #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
+    #stocks = db.US_Stocks.find(query).sort([[price_change,direction]])
+    i = 0
+    for stk in stocks:
+        if limit > 0 and i > limit:
+            break
+        #if DB.ignore_stock(stk):
+        #    continue
+
+        bscs  = stk['bscs']
+        pchg = stk['price_change']
+        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
+        entry = [ ]
+        entry.append(bscs['symbol'])
+        entry.append(stk['General']['Name'])
+        entry.append(stk['General']['IPODate'])
+        if stk['General']['GicSubIndustry']:
+            entry.append(stk['General']['GicSubIndustry'])
+        else:
+            entry.append("")
+        entry.append(str(round(stk['Highlights']['MarketCapitalizationMln']*factor, 2)))
+        if 'price_change' in stk.keys() and \
+            'volume' in stk['price_change'].keys():
+            entry.append(str(round(stk['price_change']['volume']/1000, 2))+'k')
+        else:
+            entry.append("-")
+        if 'price_change' in stk.keys() and \
+            'avg_volume' in stk['price_change'].keys():
+            #entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
+            entry.append(str(round((stk['price_change']['price']*stk['price_change']['volume'])/1000000, 2))+'Mn')
+        else:
+            entry.append("-")
+        if 'price' in stk['price_change'].keys() and 'avg_volume' in stk['price_change'].keys():
+            #entry.append(str(round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2)))
+            entry.append(str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%')
+        else:
+            entry.append("")
+        #try:
+        if 'technicals' in stk.keys() and \
+                'sar' in stk['technicals'].keys():
+                if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys() and \
+                    stk['technicals']['sar']['ta_psar_prev_trend_price_change'] != None:
+                        entry.append(str(round(stk['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2))+'%')
+                else:
+                    entry.append("-")
+                if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys() and \
+                    stk['technicals']['sar']['ta_psar_cur_trend_price_change'] != None:
+                    entry.append(str(round(stk['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2))+'%')
+                else:
+                    entry.append("-")
+                if 'ta_psar_trend' in stk['technicals']['sar'].keys():
+                    trend = stk['technicals']['sar']['ta_psar_trend']
+                    if trend > 0:
+                        cur_trend = str(trend) + 'L'
+                    else:
+                        cur_trend = str(-trend) + 'S'
+                else:
+                    entry.append("-")
+                entry.append(cur_trend)
+
+                if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
+                    entry.append(stk['technicals']['sar']['ta_psar_trend_sequence'])
+                else:
+                    entry.append("-")
+        else:
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+       
+        if 'price_change' in stk.keys() and 'price' in stk['price_change'].keys():
+            entry.append(str(stk['price_change']['price']))
+        else:
+            entry.append("")
+        entry.append(pcent(pchg['day']))
+        entry.append(pcent(pchg['week']))
+        entry.append(pcent(pchg['month']))
+        entry.append(pcent(pchg['quarter']))
+        entry.append(pcent(pchg['half_year']))
+        entry.append(pcent(pchg['year']))
+
+        if 'technicals' in stk.keys() and \
+            'rsi' in stk['technicals'].keys() and \
+            'latest' in stk['technicals']['rsi'].keys() and \
+            stk['technicals']['rsi']['latest'] != None:
+            entry.append(str(round(stk['technicals']['rsi']['latest'], 2)))
+            min_diff = stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min']
+            max_diff = stk['technicals']['rsi']['60day_max'] - stk['technicals']['rsi']['latest']
+            entry.append(str(round(min_diff,2)))
+            entry.append(str(round(max_diff,2)))
+            entry.append(str(round(stk['technicals']['rsi']['cur_price_max_rsi_change']*100, 2))+'%')
+        else:
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+            entry.append("-")
+ 
+        entries.append(entry)
+        i = i + 1
+
+    DB.close_db()
+    return entries
+
+def build_html_trend(s, country, low_mcap, high_mcap, change, segment, limit=-1): 
+    highlight_column = 9
+    s = parse_html.html_text(s, segment)
+    e = get_stocks_trend_change(country, low_mcap, high_mcap, change, limit)
+    if len(e) > 1:
+        #entries = [["Up"]]
+        entries = e
+        s = parse_html.html_set_line(s)
+        s = parse_html.html_text(s, entries, highlight_column)
+    return s
+
+def get_trend_changes(s, country):
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    Tn = 1000*Bn
+    #s = parse_html.html_set_line(s)
+    print("MCap 100 Bn and above")
+    s = build_html_trend(s, country, 100*Bn, 100*Tn, 0.10, ["MCap 100 Bn and above"])
+    print("MCap 10 Bn and 100 Bn")
+    s = build_html_trend(s, country, 10*Bn, 100*Bn,  0.10, ["MCap 10 Bn and 100 Bn"], limit=20)
+    print("MCap 5 Bn and 10 Bn")
+    s = build_html_trend(s, country, 5*Bn, 10*Bn,    0.15, ["MCap 5 Bn and 10 Bn"], limit=20)
+    print("MCap 1 Bn and 5 Bn")
+    s = build_html_trend(s, country, 1*Bn, 5*Bn,     0.15, ["MCap 1 Bn and 5 Bn"], limit=20)
+    #print("MCap 500Mn and 1 Bn")
+    #s = build_html_trend(s, country, 500*Mn, 1*Bn,   0.20, ["MCap 500Mn and 1 Bn"], uplimit=20, downlimit=20)
+    #print("MCap < 500 Mn")
+    #s = build_html_trend(s, country, 1, 500*Mn,      0.30, ["MCap < 500 Mn"], uplimit=20, downlimit=20)
+    return s
+
+def send_email_trend_changes(country='US'):
+    disconnect_vpn()
+
+    s = parse_html.html_head()
+    s = parse_html.html_text(s, ["Trend Snapshot"])
+    s = parse_html.html_set_line(s)
+    s = get_trend_changes(s, country)
+    s = parse_html.html_set_line(s)
+    subject='%s: Trend Snapshot: %r' %(country, str(datetime.datetime.now().date()))
+    send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, s)
+
+
+############
 def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit=-1):
     rsi_change='technicals.rsi.cur_price_max_rsi_change'
     if direction == -1:
@@ -1287,6 +1501,11 @@ def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit
                                      ] \
                              },\
                          ]\
+                 },\
+                 {"$or": [\
+                            {'price_change.price_times_avg_vol_in_mn':{"$gte": 100}},\
+                            {'price_change.avg_vol_pcent_in_mcap_mn':{"gte": 4}},\
+                        ]\
                  },\
                 ]
 
@@ -1369,11 +1588,13 @@ def get_stocks_rsi_change(country, low_mcap, high_mcap, direction, change, limit
             entry.append("-")
         if 'price_change' in stk.keys() and \
             'avg_volume' in stk['price_change'].keys():
-            entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
+            #entry.append((str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%'))
+            entry.append(str(round((stk['price_change']['price']*stk['price_change']['volume'])/1000000, 2))+'Mn')
         else:
             entry.append("-")
         if 'price' in stk['price_change'].keys() and 'avg_volume' in stk['price_change'].keys():
-            entry.append(str(round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2)))
+            #entry.append(str(round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2)))
+            entry.append(str(round(((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000))*100, 2))+'%')
         else:
             entry.append("")
         #try:
@@ -1506,7 +1727,7 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
     
     entries = []
     if country == 'US':
-        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw", "With Alltime Hgh"]
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw", "With Alltime Hgh", "PSAR Trend"]
     else:
         head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
@@ -1602,6 +1823,10 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
         else:
             entry.append("")
         
+        if 'technicals' in stk.keys() and 'sar' in stk['technicals'].keys() and 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
+            entry.append(stk['technicals']['sar']['ta_psar_trend_sequence'])
+        else:
+            entry.append("-")
         entries.append(entry)
 
     DB.close_db()
