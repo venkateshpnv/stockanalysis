@@ -644,4 +644,6 @@ pp_file='/home/vpetla/PP.csv'
 
 # EOD Token file
 eod_token_file='/home/vpetla/eod_token_file.txt'
+telegram_token_file='/home/vpetla/telegram_token_file.txt'
+telegram_chat_id_file='/home/vpetla/telegram_chat_id_file.txt'
 

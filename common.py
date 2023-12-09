@@ -30,7 +30,7 @@ import multiprocessing
 import internet
 import DB
 
-from datastructures import eod_token_file
+from datastructures import *
 
 MAX_FAIL_COUNT=10
 YEAR=1
@@ -323,6 +323,16 @@ def get_proxy():
 
 def get_eod_token_id():
     with open(eod_token_file, 'r') as f:
+        data = f.read()
+    return data.strip()
+
+def get_telegram_token_id():
+    with open(telegram_token_file, 'r') as f:
+        data = f.read()
+    return data.strip()
+
+def get_telegram_chat_id():
+    with open(telegram_chat_id_file, 'r') as f:
         data = f.read()
     return data.strip()
 
