@@ -4621,7 +4621,7 @@ def update_US_all_stock_fin_information():
                                         ]\
                                 }, no_cursor_timeout=True).sort([["General.Code",sort]]).allow_disk_use(True)
     print(stocks.count())
-    stocks = db.US_Stocks.find({'bscs.symbol':'HLMNW'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = db.US_Stocks.find({'bscs.symbol':'HLMNW'}, no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
 
     for i, stk in enumerate(stocks):
         print("%d: %r" %(i, stk['bscs']['symbol']))
@@ -5517,15 +5517,15 @@ def update_all_put_call_ratios(country='US'):
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
-    stocks = db.US_Stocks.find({'General.Code': 'TSLA'})
+    #stocks = db.US_Stocks.find({'General.Code': 'TSLA'})
     print("Total stocks: %r" %(stocks.count()))
     try:
         for stk in stocks:
            print("%d: Options: Checking: %r" %(i, stk['bscs']['symbol']))
            sem.acquire()
-           update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
-           #processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
-           #processes[i%num_processes].start()
+           #update_put_call_ratio(stk, core=0, sem=sem, eod_token=True)
+           processes[i%num_processes] = multiprocessing.Process(target=update_put_call_ratio, args=(copy.deepcopy(stk), i%num_cores, sem, eod_token))
+           processes[i%num_processes].start()
            i = i + 1
 
     finally:
