@@ -1030,17 +1030,18 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         sql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
         local_sql = True
 
+    symbol = stk['bscs']['symbol']
     try:
         table = DB.get_symbol_table_name(symbol)
         query='select Date from ' + table + ' order by Date desc limit 1' 
-        rdf = read_from_sql(query, sql_engine)
+        rdf = DB.read_from_sql(query, sql_engine)
         if len(rdf) != 1:
             printf("Table for symbol %s doesn't exist, skipping bulk update" %(symbol))
             return
         if rdf.iloc[-1]['Date'] != str(DB.get_previous_trading_day().date()):
             print("Symbol : %s price data was updated on %s date which is not the previous date. Skipping bulk update for this symbol" %(symbol, rdf.iloc[-1]['Date']))
             return
-        if stk_df['Date'] != str(DB.get_latest_trading_day()):
+        if stk_df.iloc[0]['Date'] != str(DB.get_latest_trading_day().date()):
             print("Symbol : %s, stk date: %s, latest trading day: %s, latest price data is not same as latest trading day. Skipping bulk update for this symbol" %(symbol, stk['Date'], str(DB.get_latest_trading_day())))
             return
         
