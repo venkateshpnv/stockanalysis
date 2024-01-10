@@ -129,7 +129,7 @@ def get_usd_to_inr():
 
 def get_symbol_prices(sym, name, country, index, shortlist_price):
     entry = []
-    if sym == 'INS':
+    if sym == 'SRNE':
         print("Symbol")
     sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     if not index:
@@ -138,10 +138,6 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
     price = DB.mysql_get_latest_price(sql_engine, country, sym)
     if not index:
         stk =  DB.get_stock_from_db(country, sym)
-        if stk['fig']['betas']['six_months']:
-            entry.append(str(round(stk['fig']['betas']['six_months']['beta'], 2)))
-        else:
-            entry.append("-")
         del stk
     if price is not None:
         entry.append(str(round(price,2)))
@@ -163,15 +159,39 @@ def get_symbol_prices(sym, name, country, index, shortlist_price):
             if index:
                 entry.append(str(round((df['Adj Close'][0] - df['Adj Close'][1]),2)))
             df = df.iloc[0]
-            entry.append(str(round(df['Day Change']*100, 2))+'%')
-            entry.append(str(round(df['Week Change']*100, 2))+'%')
-            entry.append(str(round(df['Month Change']*100, 2))+'%')
-            entry.append(str(round(df['Quarter Change']*100, 2))+'%')
-            entry.append(str(round(df['Half Year Change']*100, 2))+'%')
-            entry.append(str(round(df['Year Change']*100, 2))+'%')
+            if df['Day Change'] != None:
+                entry.append(str(round(df['Day Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
+            if df['Week Change'] != None:
+                entry.append(str(round(df['Week Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
+            if df['Month Change'] != None:
+                entry.append(str(round(df['Month Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
+            if df['Quarter Change'] != None:
+                entry.append(str(round(df['Quarter Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
+            if df['Half Year Change'] != None:
+                entry.append(str(round(df['Half Year Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
+            if df['Year Change'] != None:
+                entry.append(str(round(df['Year Change']*100, 2))+'%')
+            else:
+                entry.append(' ')
             if index:
-                entry.append(str(round(df['Five Year Change']*100, 2))+'%')
-                entry.append(str(round(df['Ten Year Change']*100, 2))+'%')
+                if df['Five Year Change'] != None:
+                    entry.append(str(round(df['Five Year Change']*100, 2))+'%')
+                else:
+                    entry.append(' ')
+                if df['Ten Year Change'] != None:
+                    entry.append(str(round(df['Ten Year Change']*100, 2))+'%')
+                else:
+                    entry.append(' ')
     except Exception as e:
         print("excel.py: get_symbol_prices(): %r" %(str(e)))
         sys.exit()
@@ -227,7 +247,7 @@ def get_radar_stocks(country):
         s = parse_html.html_text(s, [wb.sheet_names()[j]])
         s = parse_html.html_set_line(s)
         #Stocks
-        head=["Symbol", "Name", "6MBeta", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
+        head=["Symbol", "Name", "Price", "Shlist Price", "Since Shlist", "Day Change", "Week Change", "Month Change", "Quarter Change", "Half Year", "Year Change"]
         entries.append(head)
         #for i in range(1,3):
         for i in range(1,sheet.nrows):
