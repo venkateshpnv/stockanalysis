@@ -5,9 +5,10 @@ import urllib, requests
 from xlwt import Workbook, Formula
 from datetime import timedelta
 
-from datastructures import *
-from common import *
+import datastructures 
 import DB
+import common
+import hdf5
 
 #def send_telegram_message(message: str,
 #                          chat_id: str,
@@ -36,44 +37,78 @@ def notify_message(message):
     if message is None or message == "":
         return
 
-    chat_id = get_telegram_chat_id()
-    token = get_telegram_token_id()
+    chat_id = common.get_telegram_chat_id()
+    token = common.get_telegram_token_id()
     url = 'https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s' % (
         token, chat_id, urllib.parse.quote_plus(message))
     resp = requests.get(url, timeout=10)
     #print(resp)
+    if resp.status_code != 200:
+        print("Failed to send notification with message: %s, err code: %r, err: %r" %(message, resp.status_code, resp.text))
 
-def get_instrument(sym, db_client):
+def get_instrument_from_db(sym, db_client):
     if sym is None or sym == "":
         print("Error: Symbol is empty, pass one")
-        return None
+        return None, None
 
     if db_client is None:
         print("Error: db_client is empty, pass one")
-        return None
+        return None, None
 
     db = db_client['Stocks']
     stocks = db.US_Stocks
     db = db_client['Cryptos']
     cryptos = db.Cryptos
     #db = db_client['ETFs']
-    #etfs = db.ETFs
+    #Etfs = db.ETFs
 
     stks = stocks.find({'bscs.symbol':sym})
-    cryptos = cryptos.find({'bscs.symbol':sym})
-    #etfs = etfs.find({'bscs.symbol':sym})
+    crypts = cryptos.find({'bscs.symbol':sym})
+    #etfs = Etfs.find({'bscs.symbol':sym})
     if stks.count() != 0:
         instrument = stks[0]
+        instruments = stocks
     elif cryptos.count() != 0:
-        instrument = cryptos[0]
+        instrument = crypts[0]
+        instruments = cryptos
     #elif etfs.count() != 0:
     #    instrument = etfs[0]
+    #    instruments = Etfs
     else:
         print("Instrument: %s doesn't exist" %(sym))
+        return None, None
+    return instrument, instruments
+
+def get_instrument(sym, db_client):
+    instrument, instruments = get_instrument_from_db(sym, db_client)
+    if instrument is None:
         return None
-    
+
+    try:
+        if instrument['dates']['mysql_price_pull_success'] != True:
+            return None
+        if instrument['dates']['mysql_price_date'] != DB.get_latest_trading_day():
+            return None
+        if instrument['price_change']['date'] != DB.get_latest_trading_day():
+            return None
+        if instrument['technicals']['date'] != DB.get_latest_trading_day():
+            return None
+    except Exception as e:
+        print("symbol: %s error" %(sym))
+        return None
+
     str = 'Symbol: '+ instrument['bscs']['symbol']
     if 'General' in instrument.keys():
+        if instrument['General']['Exchange'] not in datastructures.major_exchanges:
+            if 'tracking' not in instrument['bscs'].keys() or \
+                    instrument['bscs']['tracking'] is False: 
+                instrument['bscs']['tracking']=True
+                DB.add_all_stock_data(instrument)
+                DB.update_field(instruments, instrument['bscs']['symbol'], 'bscs.tracking', True)
+                instrument, instruments = get_instrument_from_db(sym, db_client)
+                if instrument is None:
+                    return None
+
         if 'Code' in instrument['General'].keys():
             str = str + ' Name: ' + instrument['General']['Code']
         elif 'Name' in instrument['General'].keys():
@@ -177,7 +212,7 @@ def notify_radar_stocks(country='US'):
     if country != 'US':
         return
 
-    wb = xlrd.open_workbook(radar_stocks_file)
+    wb = xlrd.open_workbook(datastructures.radar_stocks_file)
     if wb.nsheets < 1:
         print("No sheets found")
         return
@@ -196,6 +231,8 @@ def notify_radar_stocks(country='US'):
                     continue
                 name = str(sheet.cell_value(i, 1))
                 instrument = get_instrument(sym, db_client)
+                if instrument == None:
+                    continue
                 for call in calls.values():
                     call(instrument)
 
