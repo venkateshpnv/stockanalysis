@@ -322,3 +322,8 @@ importlib.reload(package_name)
 ex: importlib.reload(DB)
 import pandas as pd
 importlib.reload(pd)
+
+
+Python find location of site-packages
+# python3 -m site
+Generally under ~/.local/lib/python3.8/site-packages

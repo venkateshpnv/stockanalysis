@@ -30,6 +30,7 @@ import hdf5
 from hdf5 import *
 import pandas_ta as ta
 from io import StringIO
+from common import *
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column, text
@@ -1607,8 +1608,8 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         # Get the data in bulk mode for all the stocks in a single API call and update the database.
         # This will be much quicker than pulling data for the each stock.
         # This call does the data update for all the stocks having the price data till the previous trading day.
-        #if eod_token is True:
-        #    hdf5.bulk_update_price_volume(country, db, sql_engine)
+        if eod_token is True:
+            hdf5.bulk_update_price_volume(country, db, sql_engine)
 
         # As the bulk mode would have updated most of the stocks, now update the remaining stocks.
         # They include 
@@ -1695,7 +1696,11 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                                 },\
 
                                                 {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
-                                                {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                {"$or": [\
+                                                        {'failcount.mysql_price_failcount': {'$exists': False}},\
+                                                        {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                    ]\
+                                                },\
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -2178,15 +2183,46 @@ def update_candlesticks(collection, sym, df):
     update_field(collection, sym, "technicals.candlesticks.UPSIDEGAP2CROWS",float(talib.CDLUPSIDEGAP2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
     update_field(collection, sym, "technicals.candlesticks.XSIDEGAP3METHODS",float(talib.CDLXSIDEGAP3METHODS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
 
+# When a split happens or dividends are issued, the 'Close' price value is accordingly adjusted and stored in 'Adj Close'. For such cases, the 'High' and 'Low' values are only in sync with the 'Close'. But as we are using 'Adj Close' for our calculations, we should adjust the 'High' and 'Low' values accordingly. Calculate the percentage change between 'Close', 'High' and 'Close', 'Low'. Adjust the new 'High' and 'Low' to such change in percentage with 'Adj Close'. This way, we have the perfectly 'Adj Close', 'Adj High' and 'Adj Low'
+def normalize_cols_with_adj_close(df, cols=None):
+    def normalise(row, col):
+        try:
+            if row['Close'] != row['Adj Close']:
+                # Handle 'Volume' seperately
+                if col == 'Volume':
+                    new_val = (row['Close'] * row['Volume'])/row['Adj Close']
+                else:
+                    change = percent_change(row['Close'], row[col])
+                    new_val = row['Adj Close'] * (1 + change)
+            else:
+                new_val = row[col]
+        finally:
+            return new_val
+    if 'Close' not in df.columns or 'Adj Close' not in df.columns:
+        print("Columns 'Close' or 'Adj Close' doesn't exist, available columns: %r" %(df.columns))
+        return pd.DataFrame()
+
+    if cols == None or len(cols) == 0:
+        cols = list(df.columns)
+        for col in cols:
+            if col not in ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']:
+                cols.remove(col)
+    for col in cols:
+        if col in df.columns:
+            df[col] = df.apply(normalise, args=(col,), axis=1)
+    return df
+
+
+
 # Calculates estimated profit and returns the df back
-def calculate_ep(df, val):
+def calculate_ep(df, val, col = 'ep'):
     ep0 = val
     def ep(row):
         nonlocal ep0
         epn = ep0 * (1 + row['pct_change'])
         ep0 = epn
         return epn
-    df['ep'] = df.apply(ep, axis=1)
+    df[col] = df.apply(ep, axis=1)
     return df
 
 def calc_psar(df, duration=None, trend_only=False):
@@ -2715,10 +2751,12 @@ def update_tech_analysis_params(sym, core=None, sem=None, type='Stocks'):
             update_field(collection, sym, "technicals.ulcer_index", nan)
             update_field(collection, sym, "technicals.price_trend", {})
             return
-        query = 'select Date, Open, High, Low, Volume, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+        query = 'select Date, Open, High, Low, Volume, Close, `Adj Close` from {}'.format(get_symbol_table_name(sym))
         #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
         df = read_from_sql(query, mysql_engine)
  
+        df = normalize_cols_with_adj_close(df)
+
         if df.empty or len(df.index) == 1:
             print("Empty df")
             update_field(collection, sym, "technicals.rsi", {})
@@ -3042,6 +3080,13 @@ def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock
 
     return df
 
+def add_all_stock_data(stk, general_only=False):
+    update_technicals(stk, general_only=general_only)
+    hdf5.update_dataframe_price_volume('US', None, None, stk['bscs']['symbol'], None, stk, 0, None)
+    internet.update_price_change('US', stk, 0)
+    update_tech_analysis_params(stk['bscs']['symbol'])
+    update_stock_betas2('US', stk, recession_only=True)
+ 
 def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False):
     local_db    = False
     local_mysql = False
@@ -6502,7 +6547,7 @@ def update_all_technicals():
     df = adf[adf['Type']=='Common Stock']
     # Filter based on exchange
     # All major exchange symbols
-    df = adf[adf['Exchange'].isin(major_exchanges)]
+    df = df[df['Exchange'].isin(major_exchanges)]
     # All pink symbols
     pink_df = adf[~adf['Exchange'].isin(major_exchanges)]
     pink_df_trimmed = copy.deepcopy(pink_df)
@@ -6695,7 +6740,8 @@ def update_all_technicals():
 
 def update_US_holiday_list():
     ret = False
-    start = date(date.today().year, 1, 1)
+#    start = date(date.today().year, 1, 1)
+    start = dt.strptime("1970-01-01", "%Y-%m-%d").date()
     end = date(date.today().year,12,31)
     url='https://eodhd.com/api/exchange-details/US?api_token='+\
             get_eod_token_id()+\
@@ -8258,7 +8304,7 @@ def US_fin_percent_change(mysql_engine, mysql_fin_engine, db, stk, sem=None):
         #print("%s sec: sem release: %r: %r: %r" %(time.time()-t, threading.current_thread().name, stk['bscs']['symbol'], stk['bscs']['name']))
         sem.release()
 
-def US_fin_percent_per_process(stk, sem, core=None, mysql_engine=None, mysql_fin_change_engine=None):
+def US_fin_percent_per_process(stk, sem=None, core=None, mysql_engine=None, mysql_fin_change_engine=None):
     if core is not None:
         # Set process affinity
         aff = 0 | 1 << core
