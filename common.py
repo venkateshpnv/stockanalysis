@@ -30,7 +30,7 @@ import multiprocessing
 import internet
 import DB
 
-from datastructures import *
+import datastructures
 
 MAX_FAIL_COUNT=10
 YEAR=1
@@ -211,6 +211,18 @@ def get_holiday_list(start=None, end=None, datetime_format=True):
         return [dt.strptime(x, "%Y-%m-%d").date() for x in list(df['Date'])]
     return list(df['Date'])
 
+def get_duration_human(start, end):
+    delta = relativedelta.relativedelta(end, start)
+    dur = ""
+    if delta.years > 0:
+        dur = dur + str(delta.years) + " years"
+    if delta.months > 0:
+        dur = dur + str(delta.months) + " months"
+    if delta.days > 0:
+        dur = dur + str(delta.days) + " days"
+
+    return dur
+
 # Returns number of days between two days excluding weekends
 # and holidays(if provided)
 # start and end should be of type datetime.date()
@@ -322,17 +334,17 @@ def get_proxy():
     #return '110.39.0.30:8080'
 
 def get_eod_token_id():
-    with open(eod_token_file, 'r') as f:
+    with open(datastructures.eod_token_file, 'r') as f:
         data = f.read()
     return data.strip()
 
 def get_telegram_token_id():
-    with open(telegram_token_file, 'r') as f:
+    with open(datastructures.telegram_token_file, 'r') as f:
         data = f.read()
     return data.strip()
 
 def get_telegram_chat_id():
-    with open(telegram_chat_id_file, 'r') as f:
+    with open(datastructures.telegram_chat_id_file, 'r') as f:
         data = f.read()
     return data.strip()
 
@@ -621,6 +633,13 @@ def knee_locator_df(df, column, S, curve, direction, online=True):
     y=list(df[column])
     return knee_locator(x, y, S, curve, direction, online)
 
+# curve is concave for knee and convex for elbow
+# direction is increasing for positive slope and decreasing for negative slope
+# online: Knee/elbow as first element detected (False) or correcting “old” knee/elbow values if necessary if points are received (True)
+# S: Sensitivity for knee/elbow detection (S=0 or bigger); Satopää et alia [2] state that 
+#    “kneedle” has perfect information in offline setting when sensitivity is 0 whereas in 
+#    online settings, overall a sensitivity of 1 shows the best overall performance, 
+#    but it can vary from the data points received.
 def knee_locator(x, y, S, curve, direction, online=True):
     kneedle = KneeLocator(x, y, S=S, curve=curve, direction=direction, online=online)
     knee = kneedle.knee
