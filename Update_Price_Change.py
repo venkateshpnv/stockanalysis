@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
 
     print("Start Time: %r" %(str(dt.now())))
-    # Get today's price from yahoo and update db and hdf5
+    ## Get today's price from yahoo and update db and hdf5
     try:
        DB.update_all_price_volume_db('US')
     except Exception as e:
@@ -50,7 +50,6 @@ if __name__ == "__main__":
     #except Exception as e:
     #    print('Failed to update bond yields')
 
-
     DB.update_all_US_fin_percent_change()
 
     # send email
@@ -59,12 +58,12 @@ if __name__ == "__main__":
             internet.send_email_price_changes('US')
             internet.send_email_rsi_changes('US')
             internet.send_email_trend_changes('US')
+            # Radar Stocks
+            excel.get_radar_stocks('US')
     except Exception as e:
         print('Failed to send email, err: %s' %(str(e)))
         pass
 
-    ## Radar Stocks
-    excel.get_radar_stocks('US')
 
     #DB.clear_all_zero_volume_rows()
     #DB.update_all_since()

@@ -72,8 +72,14 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 try:
                     ret = requests.get(url)
                     if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
-                        print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))
-                        time.sleep(10)
+                        remaining_time = int(ret.headers['X-RateLimit-Remaining']) + 1
+                        print("%s: Ratelimit: waiting for remaining time %d secs " %(stk['bscs']['symbol'], remaining_time))
+                        if vpn_event:
+                            vpn_event.clear()
+                            time.sleep(remaining_time)
+                            vpn_event.set()
+                        else:
+                            time.sleep(10)
                         continue
                     elif ret.status_code == 404:
                         print("Failed to get price data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
@@ -85,8 +91,14 @@ def get_stock_data(country, stk, start, end, vpn_event=None, tick=None, proxy=Fa
                 except Exception as E:
                     print("get_stock_data(): Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
                     if isinstance(E, x-ratelimit-remaining):
-                        print("%s: ratelimit exception. sleep and retry." %(stk['bscs']['symbol']))
-                        time.sleep(10)
+                        remaining_time = int(ret.headers['X-RateLimit-Remaining']) + 1
+                        print("%s: ratelimit exception. sleep remaining time %d and retry." %(stk['bscs']['symbol'], remaining_time))
+                        if vpn_event:
+                            vpn_event.clear()
+                            time.sleep(remaining_time)
+                            vpn_event.set()
+                        else:
+                            time.sleep(10)
                         continue
                     return
 
@@ -1042,7 +1054,7 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
             print("Symbol : %s price data was updated on %s date which is not the previous date. Skipping bulk update for this symbol" %(symbol, rdf.iloc[-1]['Date']))
             return
         if stk_df.iloc[0]['Date'] != str(DB.get_latest_trading_day().date()):
-            print("Symbol : %s, stk date: %s, latest trading day: %s, latest price data is not same as latest trading day. Skipping bulk update for this symbol" %(symbol, stk['Date'], str(DB.get_latest_trading_day())))
+            print("Symbol : %s, stk date: %s, latest trading day: %s, latest price data is not same as latest trading day. Skipping bulk update for this symbol" %(symbol, stk_df.iloc[0]['Date'], str(DB.get_latest_trading_day())))
             return
         
         print("Symbol: %s, date: %s bulk eod price update" %(symbol, str(DB.get_latest_trading_day())))
@@ -1063,6 +1075,19 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         if sem:
             sem.release()
 
+def add_new_symbol(d, db, sem=None):
+    DB.add_symbol_to_database(d, db, tracking=True, only_mongo=True, technicals=True)
+    stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+    stk = stks[0]
+    if 'General' in stk.keys() and \
+            isinstance(stk['General'], dict) and \
+            stk['General']['Type'] == 'Common Stock':
+        if 'tracking' in stk['bscs'].keys() or \
+            stk['General']['Exchange'] in major_exchanges:
+            DB.add_all_stock_data(stk)
+    if sem:
+        sem.release()
+ 
 def bulk_update_price_volume(country, db=None, sql_engine=None):
     local_mdb = False
     local_sql = False
@@ -1119,16 +1144,16 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
                                             {"dates.mysql_price_date": {"$eq": DB.get_previous_trading_day()}},\
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
-                                            {"$or": [\
-                                                        {'General.Exchange':{"$in":major_exchanges}},\
-                                                        {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                    {'bscs.tracking':{'$exists':True}}, \
-                                                                ] \
-                                                        },\
-                                                    ]\
-                                            },\
-                                            {'dates.technicals_pull_date': {'$eq':DB.get_latest_trading_day()}},\
+                                            #{"$or": [\
+                                            #            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #            {"$and": [ \
+                                            #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                            #                        {'bscs.tracking':{'$exists':True}}, \
+                                            #                    ] \
+                                            #            },\
+                                            #        ]\
+                                            #},\
+                                            #{'dates.technicals_pull_date': {'$eq':DB.get_latest_trading_day()}},\
                                             #{"$or": [\
                                             #            {'failcount.mysql_price_failcount': {"$exists": False}},\
                                             #            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
@@ -1140,7 +1165,7 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
 
     print("Total bulk stock candidates: %r" %(stocks.count()))
 
-    if stocks.count() != 0:
+    if stocks.count() > 0:
         url='https://eodhd.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
         ret = requests.get(url)
         df  = pd.read_csv(StringIO(ret.text), skipfooter=0, parse_dates=[0], index_col=0, engine='python')
@@ -1149,14 +1174,14 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
         if 'Ex' in df.columns:
             del df['Ex']
 
-
+    i = 0
         t = None
         try:
             #for index, d in df.iterrows():
             for stk in stocks:
                 stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
                 if not stk_df.empty:
-                    print("Bulk Update: %r: %r: %r" %(stk['sno'], stk['General']['Code'], stk['General']['Name']))
+                    print("Bulk Update: %r: sno: %r: %r: %r" %(i, stk['sno'], stk['General']['Code'], stk['General']['Name']))
                     stk_df.index = stk_df['Date']
                     del stk_df['Symbol']
  
@@ -1169,10 +1194,32 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
             for j in range(len(processes)):
                 if processes[j] is not None:
                     processes[j].join()
+
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    i = 0
+    print("Checking if any new symbols are added")
+    try:
+        syms = DB.get_symbols_from_mongo()
+        for index, d in df.iterrows():
+            #stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+            #if stks.count() == 0:
+            if d['Symbol'] not in syms:
+                sem.acquire()
+                #add_new_symbol(d, db, sem)
+                processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
+                processes[i%num_processes].start()
+                i = i + 1
+    finally:
+            for j in range(len(processes)):
+                if processes[j] is not None:
+                    processes[j].join()
             if local_mdb:
                 DB.close_db_client(c)
             if local_sql:
                 DB.close_sql_connection(sql_engine)
+
+
 
 def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk, core, sem, vpn_event=None, eod_token=True, percent_change=True, check_since_ipo_date=False):
 
@@ -1446,7 +1493,8 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     #write_to_hdf_store(country, rdf, stk['bscs']['symbol'])
                     # Update the date on which the price is updated
                     #DB.update_field(collection, symbol, "ignore", "NO")
-                else:
+                #else:
+                if df.empty:
                     if not index:
                         PRINT_ERR("df empty for %r" %(symbol))
                         DB.update_field(collection, symbol, "ignore", "YES")

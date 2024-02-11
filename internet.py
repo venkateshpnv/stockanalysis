@@ -487,7 +487,7 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
-def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'):
+def update_price_change(country, stk, core, sem=None, index=False, type='Stocks', price_change_last_only=False):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
 
@@ -505,8 +505,21 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
-    
-    sym = stk['bscs']['symbol']
+   
+    try:
+        sym = stk['bscs']['symbol']
+    except Exception as E:
+        print("error: %s, stk : %s" %(str(E), stk))
+
+    if isinstance(stk, dict):
+            if 'General' in stk.keys() and \
+                isinstance(stk['General'], dict) and \
+                'Exchange' in stk['General'].keys() and \
+                stk['General']['Exchange'] not in major_exchanges:
+                price_change_last_only=True
+    else:
+        print("internet.py:521, stk: %s" %(stk))
+
     try:
         table_name = DB.get_symbol_table_name(sym)
         change = 0
@@ -528,7 +541,10 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
                     sys.exit(1)
 
             for i, field in enumerate([*price_change_fields][:-2]):
-                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+                if price_change_last_only:
+                    query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
+                else:
+                    query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
                 #print(query)
                 #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
                 #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
@@ -588,13 +604,16 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
                 start_date = df.index[0].strftime("%Y-%m-%d")
 
             #print(query)
-            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
             df = DB.read_from_sql(query, sql_engine)
             start_price = df['Adj Close'][0]
 
             # Whole Change
             field = [*price_change_fields][-2]
-            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            if price_change_last_only:
+                query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
+            else:
+                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
             df = DB.read_from_sql(query, sql_engine)
             if not df.empty:
                 wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
@@ -615,7 +634,10 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             # YTD Change
             field = [*price_change_fields][-1]
-            query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
+            if price_change_last_only:
+                query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
+            else:
+                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
             df = DB.read_from_sql(query, sql_engine)
             if not df.empty:
                 wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
@@ -864,24 +886,25 @@ def fork_hdf5_process(country):
 
         #stocks = db.US_Stocks.find({"$and" : [{"price_change.date": {"$lt": DB.get_latest_trading_day()}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
         stocks=db.US_Stocks.find({"$and":[\
-                                            #{'General.Exchange':{"$in":major_exchanges}},\
-                                            {"$or": [\
-                                                        {'General.Exchange':{"$in":major_exchanges}},\
-                                                        {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                    {'bscs.tracking':{'$exists':True}}, \
-                                                                ] \
-                                                        },\
-                                                    ]\
-                                            },\
+                                            ##{'General.Exchange':{"$in":major_exchanges}},\
+                                            #{"$or": [\
+                                            #            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #            {"$and": [ \
+                                            #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                            #                        {'bscs.tracking':{'$exists':True}}, \
+                                            #                    ] \
+                                            #            },\
+                                            #        ]\
+                                            #},\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
                                             {"$or": [\
-                                                        {'dates.mysql_price_date': {'exists':False}},\
+                                                        #{'dates.mysql_price_date': {'exists':False}},\
                                                         {"$and": [ \
                                                                     {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                                                     {'dates.mysql_price_pull_success': True},\
-                                                                    {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                                    {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                                    #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                                                 ]\
                                                         }, \
                                                     ] \

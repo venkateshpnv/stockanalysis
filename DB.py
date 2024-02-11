@@ -557,7 +557,8 @@ def get_symbols_from_mongo(collection=None, country='US'):
     if not collection:
         close_db_client(c)
 
-    return sorted(symbols)
+    return symbols[1:]
+    #return sorted(symbols[1:])
 
 def get_symbols_names_from_mongo(collection=None, country='US'):
     if not collection:
@@ -652,6 +653,40 @@ def get_symbols_from_sql(country, engine):
     #    symbols = list(rdf['Symbol'])
     #return symbols
 
+def get_radar_symbols(country='US'):
+    if country != 'US':
+        return
+
+    c = open_db_client()
+    db = c['Stocks']
+
+    wb = xlrd.open_workbook(radar_stocks_file)
+    if wb.nsheets < 1:
+        print("No sheets found")
+        return
+
+    db_client = DB.open_db_client()
+
+    syms = []
+    try:
+        for j in range(1,wb.nsheets):
+            entries = []
+            sheet = wb.sheet_by_index(j)
+            #for i in range(1,3):
+            for i in range(1,sheet.nrows):
+                entry = []
+                sym  = str(sheet.cell_value(i, 0))
+                if sym == '' or sym is None:
+                    continue
+                stks = db.US_Stocks.find({"hscs.symbol":sym})
+                if stks.count() == 0:
+                    continue
+                syms.append(sym)
+
+    finally:
+        DB.close_db_client(db_client)
+
+    return syms
 
 j = 0
 class dbObject:
@@ -1652,9 +1687,10 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                                             },\
                                                         ]\
                                                 },\
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
                                                             {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                                            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
                                                             {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
                                                         ]\
                                                 }
@@ -1662,7 +1698,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'AEMD'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'ABZT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
 
         for stk in stocks:
@@ -2190,7 +2226,10 @@ def normalize_cols_with_adj_close(df, cols=None):
             if row['Close'] != row['Adj Close']:
                 # Handle 'Volume' seperately
                 if col == 'Volume':
-                    new_val = (row['Close'] * row['Volume'])/row['Adj Close']
+                    if row['Adj Close'] == 0:
+                        new_val = 0
+                    else:
+                        new_val = (row['Close'] * row['Volume'])/row['Adj Close']
                 else:
                     change = percent_change(row['Close'], row[col])
                     new_val = row['Adj Close'] * (1 + change)
@@ -2265,7 +2304,7 @@ def calc_psar(df, duration=None, trend_only=False):
         # number of days from start to today.
         psar_query_df = psar.query("r == True and {} == {}".format(position, position))
         if psar_query_df.empty:
-            return pd.DataFrame(),np.nan, np.nan, np.nan, np.nan, ""
+            return pd.DataFrame(),np.nan, np.nan, np.nan, np.nan, "", "", []
 
         start = psar_query_df.index[-1]
         end   = psar.index[-1]
@@ -2281,6 +2320,8 @@ def calc_psar(df, duration=None, trend_only=False):
         # This indicates 5 long days, 6 short days of trend etc consecutively.
         #psar.loc[psar.query("r == True")['long'].first_valid_index():]
         trend_sequence = ""
+        trend_pcnt_change = ""
+        trend_pcnt_change_list = []
         long_short_df = psar.query("r == True").tail(10) # Get only last 10 trends
 
         # Create a small dictionary of trends switch
@@ -2302,6 +2343,25 @@ def calc_psar(df, duration=None, trend_only=False):
             trend_sequence = trend_sequence +\
                                 str(num_days) +\
                                 trend + '-'
+            st = start - timedelta(1)
+            st = get_nearest_index(df, st)
+            st_price = df.iloc[st]['Adj Close']
+            en = end - timedelta(1)
+            #en = get_valid_date('US', en)
+            en = get_nearest_index(df, en)
+            en_price = df.iloc[en]['Adj Close']
+            change = percent_change(st_price, en_price)
+            #change = percent_change(long_short_df.index[start]['Adj Close'], long_short_df.index[end]['Adj Close'])
+            #if change > 0:
+            #    trend_pcnt_change = trend_pcnt_change + \
+            #                            str(round(change*100, 2)) + "%" + ','
+            #else:
+            trend_pcnt_change = trend_pcnt_change +\
+                                        str(num_days) + trend +\
+                                        "(" + \
+                                        str(round(change*100, 2)) + "%)" + ','
+            trend_pcnt_change_list.append(round(change*100,2))
+
             # Now move to next trend
             #trend = ('L','S')[isnan(d['long'])]
             trend = trends_switch[trend]
@@ -2313,11 +2373,33 @@ def calc_psar(df, duration=None, trend_only=False):
             prev_trend_days = (int(num_days),int(-num_days))[trend == 'L']
 
         # Calculate prev_trend price percentage change
-        pt_pr_change = long_short_df['Adj Close'][-2:].pct_change()[-1]
+        if len(long_short_df) < 2:
+            pt_pr_change = nan
+        else:
+            s = long_short_df.index[-2]
+            st_price = df.loc[s]['Adj Close']
+            e = long_short_df.index[-1] - timedelta(1)
+            #e = get_valid_date('US', e)
+            e = get_nearest_index(df, e)
+            en_price = df.iloc[e]['Adj Close']
+            pt_pr_change = percent_change(st_price, en_price)
+            #pt_pr_change = long_short_df['Adj Close'][-2:].pct_change()[-1]
 
         # Add latest on-going trend
         trend_sequence = trend_sequence + str(trend_days) + ('S','L')[trend_days>0]
-        return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_sequence
+        st = long_short_df.index[-1] - timedelta(1)
+        st = get_nearest_index(df, st)
+        st_price = df.iloc[st]['Adj Close']
+        en = df.index[-1]# - timedelta(1)
+        en = get_nearest_index(df, en)
+        en_price = df.iloc[en]['Adj Close']
+        change = percent_change(st_price, en_price)
+        #change = percent_change(long_short_df.iloc[-1]['Adj Close'], df.iloc[-1]['Adj Close'])
+        trend_pcnt_change = trend_pcnt_change + \
+                                str(trend_days) + ('S','L')[trend_days>0] +\
+                                "(" + str(round(change*100, 2)) + "%)"
+        trend_pcnt_change_list.append(round(change*100,2))
+        return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_sequence, trend_pcnt_change, trend_pcnt_change_list
 
     # Get the dates of switch between long and short positions of the stock
     # For example,
@@ -2438,12 +2520,14 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_month.price_change", change)
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
 
-        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_sequence = calc_psar(copy.deepcopy(df), trend_only=True)
+        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(copy.deepcopy(df), trend_only=True)
         update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
         update_field(collection, sym, "technicals.sar.ta_psar_cur_trend_price_change", cur_trend_pr_change)
         update_field(collection, sym, "technicals.sar.ta_psar_prev_trend", prev_trend_days)
         update_field(collection, sym, "technicals.sar.ta_psar_prev_trend_price_change", prev_trend_pr_change)
         update_field(collection, sym, "technicals.sar.ta_psar_trend_sequence", trend_sequence)
+        update_field(collection, sym, "technicals.sar.ta_psar_trend_pcnt_change", trend_pcnt_change)
+        update_field(collection, sym, "technicals.sar.ta_psar_trend_pcnt_change_list", trend_pcnt_change_list)
 
         if psar.empty:
             update_field(collection, sym, "technicals.sar.change", nan)
@@ -2778,7 +2862,7 @@ def update_tech_analysis_params(sym, core=None, sem=None, type='Stocks'):
             # A high or low are tracked by AROON up and AROON down respectively.
             update_AROON_params(collection, sym, df)
 
-            # SAR Calculation
+            ## SAR Calculation
             update_SAR_params(collection, sym, df)
 
             # 100 day Exponential Moving Avegare Calculation
@@ -2831,20 +2915,25 @@ def update_all_tech_analysis_params(country='US'):
 
     sort = [1, -1][dt.now().day % 2 == 0]
     stocks=db.US_Stocks.find({"$and":[ \
-                                        #{'General.Exchange':{"$in":major_exchanges}},\
-                                        {"$or": [\
-                                                    {'General.Exchange':{"$in":major_exchanges}},\
-                                                    {"$and": [ \
-                                                                {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                {'bscs.tracking':{'$exists':True}}, \
-                                                            ] \
-                                                    },\
-                                                ]\
-                                        },\
+                                        ##{'General.Exchange':{"$in":major_exchanges}},\
+                                        #{"$or": [\
+                                        #            {'General.Exchange':{"$in":major_exchanges}},\
+                                        #            {"$and": [ \
+                                        #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                        #                        {'bscs.tracking':{'$exists':True}}, \
+                                        #                    ] \
+                                        #            },\
+                                        #        ]\
+                                        #},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
-                                        {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                        {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        {'$or':[\
+                                                {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                                {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                ]\
+                                        },\
+                                        #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                        #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
                                         {'$or':[\
                                                 {'technicals.date': {"$exists": False}},\
                                                 {'technicals.date':{'$lt': get_latest_trading_day()}}
@@ -2855,7 +2944,7 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'TSLA'})
+    #stocks=db.US_Stocks.find({'General.Code':'PMNT'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -2935,9 +3024,9 @@ def update_all_price_volume_db(country):
     #max_threads = thread_factor
     hdf5_sem = threading.BoundedSemaphore(max_threads)
     db_sem = threading.BoundedSemaphore(max_threads)
-    #vpn_event = threading.Event()
-    #vpn_event.set()
-    vpn_event=None
+    vpn_event = threading.Event()
+    vpn_event.set()
+    #vpn_event=None
     db_lock = threading.Lock()
     today=str(dt.now().date())
     count=0
@@ -2998,15 +3087,20 @@ def get_previous_trading_day():
     day = trading_day() - timedelta(1)
     return trading_day(day)
 
-# Don't use. Doesn't work
 def get_next_trading_day(date=None):
     if date is None:
-        day = trading_day(date + timedelta(1))
+        date = dt.now().date()            
     else:
         if isinstance(date, str):
             date = dt.strptime(date, "%Y-%m-%d").date()
-        day = dt.combine(date, dt.min.time())
-        day = day + timedelta(1)
+        date = dt.combine(date, dt.min.time())
+
+    if date.weekday() == 4:
+        day = date + timedelta(3)
+    elif date.weekday() == 5:
+        day = date + timedelta(2)
+    else:
+        day = date + timedelta(1)
     return trading_day(day)
 
 def trading_day(lt_date=None):
@@ -3081,13 +3175,29 @@ def get_eod_all_trading_symbols(exchanges=all_exchanges, quoteType='Common Stock
     return df
 
 def add_all_stock_data(stk, general_only=False):
-    update_technicals(stk, general_only=general_only)
-    hdf5.update_dataframe_price_volume('US', None, None, stk['bscs']['symbol'], None, stk, 0, None)
-    internet.update_price_change('US', stk, 0)
-    update_tech_analysis_params(stk['bscs']['symbol'])
-    update_stock_betas2('US', stk, recession_only=True)
- 
-def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False):
+    c  = open_db_client()
+    db = c['Stocks']
+    try:
+        stks = db.US_Stocks.find({'bscs.symbol': stk['bscs']['symbol']})
+        if stks.count() != 0:
+            stk = stks[0]
+            if isinstance(stk['General'], dict) and \
+                    'Type' in stk['General'].keys() and \
+                    stk['General']['Type'] == 'Common Stock':
+                if 'tracking' in stk['bscs'].keys() or \
+                    stk['General']['Exchange'] in major_exchanges:
+                    print("Adding all stock data for %s" %(stk['bscs']['symbol']))
+                    update_technicals(stk, general_only=general_only)
+                    hdf5.update_dataframe_price_volume('US', None, None, stk['bscs']['symbol'], None, stk, 0, None, percent_change=False)
+                    internet.update_price_change('US', stk, 0)
+                    update_tech_analysis_params(stk['bscs']['symbol'])
+                    update_stock_betas2('US', stk, recession_only=True)
+    except Exception as E:
+        print("add_all_stock_data, :%s, err: %s" %(stk['bscs']['symbol'], str(E)))
+    finally:
+        close_db_client(c)
+
+def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False, technicals=True):
     local_db    = False
     local_mysql = False
 
@@ -3101,28 +3211,63 @@ def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_m
         local_mysql = True
 
     sno = db.US_Stocks.find({}).count()
-    bscs = {"symbol" : d['Symbol'], "name" : d['Name'], "exchange": d['Exchange'], "quoteType": d['Type'], "since": dt.combine(dt.now(), dt.min.time())}
+    bscs = {}
+
+    bscs["symbol"] = d['Symbol']
+    if 'Name' in d.keys():
+        bscs["name"] = d['Name']
+    if 'Exchange' in d.keys():
+        bscs["exchange"] = d['Exchange']
+    if 'Type' in d.keys():
+        bscs["quoteType"] = d['Type']
+
+    bscs["since"] = dt.combine(dt.now(), dt.min.time())
+
     stk  = {"bscs" : bscs, "sno": sno}
 
-    if tracking:
-        general_only=True
-    else :
-        if d['Exchange'] not in major_exchanges:
-            general_only=True
-        else:
-            general_only=False
+    general_only = False
+    #general_only = True
+
+    #if tracking:
+    #    general_only=True
+    #else :
+    #    if 'Exchange' in d.keys():
+    #        if d['Exchange'] not in major_exchanges:
+    #            general_only=True
+    #        else:
+    #            general_only=False
 
     stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
     if stks.count() != 0:
-        print("Trying to add new symbol %s: %r to mongodb, but already exists" %(d['Symbol'], d['Name']))
-        update_technicals(stk, general_only=general_only)
+        if technicals:
+            print("Trying to add new symbol %s: %r to mongodb, but already exists" %(d['Symbol'], d['Name']))
+            update_technicals(stk, general_only=general_only)
         return
 
-    print("Adding new symbol: %s: %s" %(d['Symbol'], d['Name']))
+    print("Adding new symbol: %s" %(d['Symbol']))
     db.US_Stocks.insert_one(stk)
     db.US_Stocks_Added.insert_one(stk)
     
-    update_technicals(stk, general_only=general_only)
+    if technicals:
+        update_technicals(stk, general_only=general_only)
+    stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+    if stks.count() != 0:
+        stk = stks[0]
+        if 'General' in stk.keys() and isinstance(stk['General'], dict):
+            if 'Exchange' in stk['General'].keys():
+                update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.exchange", stk['General']['Exchange'])
+            if 'Type' in stk['General'].keys():
+                update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.quoteType", stk['General']['Type'])
+            if 'Name' in stk['General'].keys():
+                update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.name", stk['General']['Name'])
+
+    # Tracking not required for symbols in major exchanges
+    # If General is not there, ignore the stock 
+    if tracking :
+        if 'General' in stk.keys() and isinstance(stk['General'], dict):
+            if 'Type' in stk['General'].keys() and stk['General']['Type'] == 'Common Stock':
+                if 'Exchange' in stk['General'].keys() and stk['General']['Exchange'] not in major_exchanges:
+                     update_field(db.US_Stocks, stk['bscs']['symbol'], "bscs.tracking", True)
     
     if only_mongo:
         return
@@ -6339,10 +6484,10 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
 
         #db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals}})
  
-        if general_only == True:
-            url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights'
-        else:
-            url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
+        #if general_only == True:
+        #    url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights'
+        #else:
+        url='https://eodhd.com/api/fundamentals/'+stk['bscs']['symbol']+'?api_token='+get_eod_token_id()+'&filter=General,Highlights,Valuation,SharesStats,Technicals,SplitsDividends,AnalystRatings,Financials'
 
         try:
             while True:
@@ -6415,13 +6560,26 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
 
         # Update general information
         if 'General' in technicals.keys():
+            general_only = True
             db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
-            if technicals['General'] != 'NA' and 'Exchange' in technicals['General'].keys():
-                db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'bscs.exchange': technicals['General']['Exchange']}})
+
+            if isinstance(technicals['General'], dict):
+                if 'Exchange' in technicals['General'].keys():
+                    db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'bscs.exchange': technicals['General']['Exchange']}})
+
+                if 'Type' in technicals['General'].keys() and technicals['General']['Type'] == 'Common Stock':
+                    if 'Exchange' in technicals['General'].keys():
+                        if technicals['General']['Exchange'] in major_exchanges:
+                            general_only = False
+
             del technicals['General']
-        
+       
+        if general_only == True:
+            update = True
+            return
+
         # Update financial sheets
-        if 'Financials' in technicals.keys():
+        if 'Financials' in technicals.keys() and isinstance(technicals['Financials'], dict):
             update_US_stock_fin_information_data(db,technicals['Financials'], stk, None)
             freeCashFlow = nan
             if 'Cash_Flow' in technicals['Financials'].keys():
@@ -6434,12 +6592,9 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
             db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'Ratios.freeCashFlow': freeCashFlow}})
             del technicals['Financials']
 
-        if general_only == True:
-            return
-
         df = pd.DataFrame()
         for k in technicals.keys():
-            if technicals[k] != 'NA':
+            if isinstance(technicals[k], dict):
                 #df = pd.concat([df, pd.DataFrame.from_dict(technicals[k], orient='index')])
                 df1 = pd.DataFrame.from_dict(technicals[k], orient='index')
                 df1.dropna(inplace=True)
@@ -6574,7 +6729,7 @@ def update_all_technicals():
                             no_cursor_timeout=True).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
     syms=[]
     for stk in stks:
-        print("Pink Stock: %s: %s" %(stk['General']['Code'], stk['General']['Name']))
+        #print("Pink Stock: %s: %s" %(stk['General']['Code'], stk['General']['Name']))
         syms.append(stk['bscs']['symbol'])
 
     stk_df=pd.DataFrame(syms, columns=['Symbol'])
@@ -9174,7 +9329,7 @@ def US_Update_Symbol_Changes():
                 continue
             else:
                 stk = stks[0]
-                if stk['General'] != 'NA' and \
+                if isinstance(stk['General'], dict) and \
                         'Type' in stk['General'].keys() and \
                         stk['General']['Type'] != 'Common Stock':
                     print("Symbol: %s, name: %s, Type: %s is not Common Stock. Skipping" %(stk['General']['Code'], stk['General']['Name'], stk['General']['Type']))
