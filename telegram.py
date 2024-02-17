@@ -8,7 +8,7 @@ from datetime import datetime as dt
 import time
 import pandas as pd
 
-import datastructures 
+from datastructures import *
 import DB
 import common
 import hdf5
@@ -36,13 +36,18 @@ import hdf5
 #                             verify=False)
 #    return response
 
-def notify_message(message):
+def notify_message(message, token='stock_notify'):
     if message is None or message == "":
         return
 
     time.sleep(1)
-    chat_id = common.get_telegram_chat_id()
-    token = common.get_telegram_token_id()
+    chat_id = common.get_telegram_chat_id(token=token)
+    token = common.get_telegram_token_id(token=token)
+
+    if len(chat_id) == 0 or len(token) == 0:
+        print("Invalid token or chat id for %s", token)
+        return
+
     url = 'https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s' % (
         token, chat_id, urllib.parse.quote_plus(message))
     resp = requests.get(url, timeout=10)
@@ -104,7 +109,7 @@ def get_instrument(sym, db_client):
 
     str = 'Symbol: '+ instrument['bscs']['symbol']
     if 'General' in instrument.keys():
-        if instrument['General']['Exchange'] not in datastructures.major_exchanges:
+        if instrument['General']['Exchange'] not in major_exchanges:
             if 'tracking' not in instrument['bscs'].keys() or \
                     instrument['bscs']['tracking'] is False: 
                 instrument['bscs']['tracking']=True
@@ -310,7 +315,7 @@ def earnings_date(instrument, radar_syms=None):
 
 # Earnings with in a week
 def week_earnings_date():
-    wb = xlrd.open_workbook(datastructures.radar_stocks_file)
+    wb = xlrd.open_workbook(radar_stocks_file)
     if wb.nsheets < 1:
         print("No sheets found")
         return
@@ -413,7 +418,7 @@ def notify_radar_stocks(country='US'):
     if country != 'US':
         return
 
-    wb = xlrd.open_workbook(datastructures.radar_stocks_file)
+    wb = xlrd.open_workbook(radar_stocks_file)
     if wb.nsheets < 1:
         print("No sheets found")
         return
@@ -449,9 +454,9 @@ def notify_all_stocks():
 
     stocks = db.US_Stocks.find({"$and":[\
                                             {"$or": [\
-                                                        {'General.Exchange':{"$in":datastructures.major_exchanges}},\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
                                                         {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":datastructures.major_exchanges}},\
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
                                                                     {'bscs.tracking':{'$exists':True}}, \
                                                                 ] \
                                                         },\
@@ -461,9 +466,10 @@ def notify_all_stocks():
                                             {'General.IsDelisted': False},\
                                             {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
                                             {"$and": [ \
-                                                        {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                                        #{'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                                         {'dates.mysql_price_pull_success': True},\
-                                                        {'failcount.mysql_price_failcount': {'$lt': common.MAX_FAIL_COUNT}},\
+                                                        {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                        #{'failcount.mysql_price_failcount': {'$lt': common.MAX_FAIL_COUNT}},\
                                                     ]\
                                             }, \
                                             #{"$or":[\
@@ -487,6 +493,7 @@ def notify_all_stocks():
                     'MCap':float()
                 }
     uptrend_df = pd.DataFrame(fields, index=[])
+    mstar_df = pd.DataFrame(fields, index=[])
 
     #for i, stk in enumerate(stocks):
     #        print("%d: %s: %s" %(i, stk['bscs']['symbol'], stk['General']['Name']))
@@ -498,14 +505,91 @@ def notify_all_stocks():
             df = get_uptrend(stk)
             if len(df) > 0:
                 uptrend_df = pd.concat([uptrend_df, df])
+            df = get_mstar(stk)
+            if len(df) > 0:
+                mstar_df = pd.concat([mstar_df, df])
     #for i, stk in enumerate(stocks):
     #        price_change_week(stk)
 
+    #send_uptrend_message(uptrend_df)
+    send_mstar_message(mstar_df)
+
+    DB.close_db_client(c)
+
+def get_uptrend():
+    fields = {
+                    'Name':'',
+                    'Trend':int(),
+                    'Price': float(), 
+                    'Day_Change': float(),
+                    'Avg_Vol_X_Price_Mn': float(),
+                    'Cur_Price_Max_Rsi_Change': float(),
+                    'Trend_Sequence':'',
+                    'Trend_Sequence_Change':'',
+                    'Prev_Trend_Change':float(),
+                    'MCap':float()
+                }
+    uptrend_df = pd.DataFrame(fields, index=[])
+
+    c  = DB.open_db_client()
+    db = c['Stocks']
+
+    stocks = db.US_Stocks.find({"$and":[\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.IsDelisted': False},\
+                                            {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
+                                            {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+                                            {"$and": [ \
+                                                        {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                                        {'dates.mysql_price_pull_success': True},\
+                                                        {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                        #{'failcount.mysql_price_failcount': {'$lt': common.MAX_FAIL_COUNT}},\
+                                                    ]\
+                                            }, \
+                                            {"$or":[\
+                                                    {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+                                                    {'price_change.date': {"$exists": False}}\
+                                                    ]\
+                                            },\
+ 
+                                        ]}).batch_size(10)
+    print("uptrend stocks: %d" %(stocks.count()))
+
+    # Uptrend
+    try:
+        for i, instrument in enumerate(stocks):
+            if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
+                trend = instrument['technicals']['sar']['ta_psar_trend']
+                cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
+                pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change'] * 100
+                uptrend_df.loc[instrument['bscs']['symbol']] = [
+                                        instrument['General']['Name'], 
+                                        trend, 
+                                        round(instrument['price_change']['price'],2),
+                                        round(instrument['price_change']['day']*100,2),
+                                        round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                        cur_price_max_rsi_change,
+                                        str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                        str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                        round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
+                                        #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
+                                        ]
+    except Exception as E:
+        print("Uptrend: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
+    finally:
+        DB.close_db_client(c)
+
+    if len(uptrend_df) == 0:
+        return
     # Get only stocks whose previous trend has lost atleast 20%
     trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -20].sort_values(by=['Prev_Trend_Change'], ascending=True)
+    trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
     trend1 = trend1.iloc[0:9]
     # Get only stocks that are atleast 5% up on today
-    trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
+    #trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
+    trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
+    trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
     trend2 = trend2.iloc[0:9]
     uptrend_df = pd.concat([trend1, trend2])
     uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
@@ -514,14 +598,19 @@ def notify_all_stocks():
         message = "Stocks Uptrend:\n=====================\n"
         for index,d in trend1.iterrows():
             s = str(index) + ":" +d['Name'] +"\n" +\
-                    "uptrend: "+ str(d['Trend']) + "L\n" + \
-                    "price: $"+ str(d['Price']) + "\n" +\
-                    "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-                    "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-                    "trend: " + d['Trend_Sequence'] + "\n" +\
-                    "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-                    "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-                    "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+                    "trend: "
+            if d['Trend'] > 0:
+                s = s + str(d['Trend']) + "L\n"
+            else:
+                s = s + str(abs(d['Trend'])) + "S\n"
+            s = s + "price: $"+ str(d['Price']) + "\n" +\
+                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+                "trend: " + d['Trend_Sequence'] + "\n" +\
+                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
 
             message = message + s
         notify_message(message)
@@ -533,6 +622,7 @@ def notify_all_stocks():
                     "price: $"+ str(d['Price']) + "\n" +\
                     "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
                     "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                    "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
                     "trend: " + d['Trend_Sequence'] + "\n" +\
                     "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
                     "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
@@ -541,36 +631,60 @@ def notify_all_stocks():
             message = message + s
         notify_message(message)
 
-
-    DB.close_db_client(c)
-
-def get_uptrend(instrument):
+def get_mstar():
     fields = {
                     'Name':'',
                     'Trend':int(),
                     'Price': float(), 
-                    'Day_Change': float(), 
+                    'Day_Change': float(),
+                    'Avg_Vol_X_Price_Mn': float(),
                     'Cur_Price_Max_Rsi_Change': float(),
                     'Trend_Sequence':'',
                     'Trend_Sequence_Change':'',
                     'Prev_Trend_Change':float(),
                     'MCap':float()
                 }
-    uptrend_df = pd.DataFrame(fields, index=[])
+    mstar_df = pd.DataFrame(fields, index=[])
+    c  = DB.open_db_client()
+    db = c['Stocks']
 
-    # Uptrend
+    stocks = db.US_Stocks.find({"$and":[\
+                                            {'General.Type':'Common Stock'},\
+                                            {'General.IsDelisted': False},\
+                                            {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
+                                            {'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
+                                            {"$and": [ \
+                                                        {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                                        {'dates.mysql_price_pull_success': True},\
+                                                        {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                        #{'failcount.mysql_price_failcount': {'$lt': common.MAX_FAIL_COUNT}},\
+                                                    ]\
+                                            }, \
+                                            {"$or":[\
+                                                    {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+                                                    {'price_change.date': {"$exists": False}}\
+                                                    ]\
+                                            },\
+ 
+                                        ]}).batch_size(10)
+    print("morning star stocks: %d" %(stocks.count()))
+
+
+    # Mstar
     try:
-        if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
-            trend = instrument['technicals']['sar']['ta_psar_trend']
-            if trend == 1:
-            #if trend > 0 and trend <= 3:
+        for i, instrument in enumerate(stocks):
+            print("%d: %s: %s" %(i, instrument['bscs']['symbol'], instrument['General']['Code']))
+            if 'technicals' in instrument.keys() and \
+                    'sar' in instrument['technicals'].keys() and \
+                    'rsi' in instrument['technicals'].keys():
+                trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
-                pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change'] * 100
-                uptrend_df.loc[instrument['bscs']['symbol']] = [
+                mstar_df.loc[instrument['bscs']['symbol']] = [
                                         instrument['General']['Name'], 
                                         trend, 
                                         round(instrument['price_change']['price'],2),
                                         round(instrument['price_change']['day']*100,2),
+                                        round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
                                         cur_price_max_rsi_change,
                                         str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
                                         str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
@@ -579,8 +693,36 @@ def get_uptrend(instrument):
                                         #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
                                         ]
     except Exception as E:
-        print("Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
-    return uptrend_df
+        print("Mstar: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
+    finally:
+        DB.close_db_client(c)
+    if len(mstar_df) == 0:
+        return
+
+    message = "Stocks MStar:\n=====================\n"
+    #mstar_df = mstar_df.sort_values(by=['MCap'], ascending=False)
+    mstar_df = mstar_df[mstar_df.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+    mstar_df = mstar_df.iloc[0:5]
+    for index,d in mstar_df.iterrows():
+        s = str(index) + ":" +d['Name'] +"\n" +\
+                "trend: "
+        if d['Trend'] > 0:
+            s = s + str(d['Trend']) + "L\n"
+        else:
+            s = s + str(abs(d['Trend'])) + "S\n"
+        s = s + "price: $"+ str(d['Price']) + "\n" +\
+                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                "trend: " + d['Trend_Sequence'] + "\n" +\
+                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+
+        message = message + s
+    notify_message(message, token='mstar')
+
+
 calls = {
         ##'min_rsi': min_rsi,
         ##'max_rsi': max_rsi,
@@ -593,7 +735,29 @@ calls = {
         #'price_change_week': price_change_week,
         }
 
+def send_mstar_message(mstar_df):
+    if len(mstar_df) == 0:
+        return
+    message = "Stocks MStar:\n=====================\n"
+    mstar_df = mstar_df.sort_values(by=['MCap'], ascending=False)
+    for index,d in mstar_df.iterrows():
+        s = str(index) + ":" +d['Name'] +"\n" +\
+                "trend: "+ str(d['Trend']) + "L\n" + \
+                "price: $"+ str(d['Price']) + "\n" +\
+                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                "trend: " + d['Trend_Sequence'] + "\n" +\
+                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+
+        message = message + s
+    notify_message(message, token='mstar')
+
 
 #week_earnings_date()
 #notify_radar_stocks()
-notify_all_stocks()
+#notify_all_stocks()
+#notify_message("test")
+get_uptrend()
+get_mstar()

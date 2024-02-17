@@ -1174,7 +1174,7 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
         if 'Ex' in df.columns:
             del df['Ex']
 
-    i = 0
+        i = 0
         t = None
         try:
             #for index, d in df.iterrows():

@@ -647,3 +647,17 @@ eod_token_file='/home/vpetla/eod_token_file.txt'
 telegram_token_file='/home/vpetla/telegram_token_file.txt'
 telegram_chat_id_file='/home/vpetla/telegram_chat_id_file.txt'
 
+telegram_tokens = {
+                'stock_notify' : {
+                    'token': '/home/vpetla/telegram/stock_notify_token.txt',
+                    'chat_id': '/home/vpetla/telegram/stock_notify_chat_id.txt'
+                    },
+                'mstar' : {
+                    'token': '/home/vpetla/telegram/mstar_token.txt',
+                    'chat_id': '/home/vpetla/telegram/mstar_chat_id.txt'
+                    },
+                }
+
+databases_list = {
+        'US_Stocks': ['Date'],
+        }

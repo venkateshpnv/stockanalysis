@@ -20,6 +20,7 @@ from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler
 from scipy import stats
 from kneed import KneeLocator
 import copy
+from os import path
 
 import psutil
 
@@ -338,15 +339,29 @@ def get_eod_token_id():
         data = f.read()
     return data.strip()
 
-def get_telegram_token_id():
-    with open(datastructures.telegram_token_file, 'r') as f:
-        data = f.read()
-    return data.strip()
+def get_telegram_token_id(token='stock_notify'):
+    if token not in datastructures.telegram_tokens.keys() or \
+            'token' not in datastructures.telegram_tokens[token].keys() or \
+            not path.isfile(datastructures.telegram_tokens[token]['token']):
+        return ""
 
-def get_telegram_chat_id():
-    with open(datastructures.telegram_chat_id_file, 'r') as f:
+    token_file = datastructures.telegram_tokens[token]['token']
+    with open(token_file, 'r') as f:
         data = f.read()
-    return data.strip()
+        return data.strip()
+    return ""
+
+def get_telegram_chat_id(token='stock_notify'):
+    if token not in datastructures.telegram_tokens.keys() or \
+            'chat_id' not in datastructures.telegram_tokens[token].keys() or \
+            not path.isfile(datastructures.telegram_tokens[token]['chat_id']):
+        return ""
+
+    token_file = datastructures.telegram_tokens[token]['chat_id']
+    with open(token_file, 'r') as f:
+        data = f.read()
+        return data.strip()
+    return ""
 
 def disconnect_vpn():
     return

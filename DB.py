@@ -423,8 +423,24 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
                         inspector = sqlalchemy.inspect(mysql_engine)
                         primary_keys = inspector.get_primary_keys(table_name)
                         if len(primary_keys) == 0:
-                            print("No primary keys for table %s, skipping table update" %(table_name))
-                            return
+                            print("No primary keys for table %s in %s, trying to add some" %(table_name, mysql_engine))
+                            #query = 'alter table {} add primary key (Date)'.format(table_name)
+                            db = db_name(mysql_engine)
+                            keys = databases_list[db]
+                            if len(keys) == 0:
+                                print("No primary keys specified for database: %s, table: %s" %(db, table_name))
+                                return
+                            query='alter table ' + table_name + \
+                                    ' add primary key('\
+                                    +",".join(list(keys))+ ')'
+                            mysql_engine.execute(query)
+                            inspector = sqlalchemy.inspect(mysql_engine)
+                            primary_keys = inspector.get_primary_keys(table_name)
+                            if len(primary_keys) == 0:
+                                print("Failed to add primary key %s for %s, db: %s" %(keys, stk['General']['Code'], db))
+                                return
+                            print("Successfully added primary keys %s for table %s in %s, trying to add some" %(keys, table_name, mysql_engine))
+
                         # No items to insert, go to next row
                         if len(items) == 0:
                             continue
@@ -678,7 +694,7 @@ def get_radar_symbols(country='US'):
                 sym  = str(sheet.cell_value(i, 0))
                 if sym == '' or sym is None:
                     continue
-                stks = db.US_Stocks.find({"hscs.symbol":sym})
+                stks = db.US_Stocks.find({"bscs.symbol":sym})
                 if stks.count() == 0:
                     continue
                 syms.append(sym)
@@ -2336,10 +2352,10 @@ def calc_psar(df, duration=None, trend_only=False):
         start = long_short_df.index[0]
         num_days = np.nan
         for end, d in long_short_df.iloc[1:].iterrows():
-            num_days = date_difference(start.date(),\
+            num_days = abs(date_difference(start.date(),\
                                         end.date(),\
                                         holidays=get_holiday_list(start.date(),end.date())\
-                                        )
+                                        ))
             trend_sequence = trend_sequence +\
                                 str(num_days) +\
                                 trend + '-'
@@ -2376,14 +2392,16 @@ def calc_psar(df, duration=None, trend_only=False):
         if len(long_short_df) < 2:
             pt_pr_change = nan
         else:
-            s = long_short_df.index[-2]
-            st_price = df.loc[s]['Adj Close']
-            e = long_short_df.index[-1] - timedelta(1)
-            #e = get_valid_date('US', e)
-            e = get_nearest_index(df, e)
-            en_price = df.iloc[e]['Adj Close']
-            pt_pr_change = percent_change(st_price, en_price)
-            #pt_pr_change = long_short_df['Adj Close'][-2:].pct_change()[-1]
+            #s = long_short_df.index[-2] - timedelta(1)
+            #s = get_nearest_index(df, s)
+            #st_price = df.iloc[s]['Adj Close']
+            #en = long_short_df.index[-1] - timedelta(1)
+            ##en = get_valid_date('US', en)
+            #en = get_nearest_index(df, en)
+            #en_price = df.iloc[en]['Adj Close']
+ 
+            #pt_pr_change = percent_change(st_price, en_price)
+            pt_pr_change = trend_pcnt_change_list[-1]
 
         # Add latest on-going trend
         trend_sequence = trend_sequence + str(trend_days) + ('S','L')[trend_days>0]
@@ -2802,7 +2820,7 @@ def update_price_trend_params(collection, sym, df):
     update_price_trend(collection, sym, df, end, relativedelta(weeks=1), 'week')
     
 
-def update_tech_analysis_params(sym, core=None, sem=None, type='Stocks'):
+def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
 
     if core is not None:
         aff = 0 | 1 << core
@@ -2811,7 +2829,7 @@ def update_tech_analysis_params(sym, core=None, sem=None, type='Stocks'):
     #set_cpu_affinity()
 
     c  = open_db_client()
-    if type == 'Stocks':
+    if Type == 'Stocks':
         db = c['Stocks']
         collection=db.US_Stocks
         mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
@@ -2944,7 +2962,7 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'PMNT'})
+    #stocks=db.US_Stocks.find({'General.Code':'AAPL'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -6250,14 +6268,15 @@ def update_all_crypto_fundamentals():
         db.create_collection("Cryptos")
         add_crypto_symbols()
 
-    cryptos = db.Cryptos.find({"$or" : [ \
-                                            {"dates.crypto_fundamentals_pull_date": {"$exists": False }},\
-                                            {"dates.crypto_fundamentals_pull_date": {"$lt": dt.now().date()}},\
-                                        ]\
-                                }\
-                                )
+    #cryptos = db.Cryptos.find({"$or" : [ \
+    #                                        {"dates.crypto_fundamentals_pull_date": {"$exists": False }},\
+    #                                        {"dates.crypto_fundamentals_pull_date": {"$lt": dt.now().date()}},\
+    #                                    ]\
+    #                            }\
+    #                            )
 
     #cryptos = db.Cryptos.find({"dates.crypto_fundamentals_pull_date": {"$exists": True }})
+    cryptos = db.Cryptos.find({})
 
     try:
         for i, crypto in enumerate(cryptos):
@@ -6362,7 +6381,7 @@ def update_all_crypto_technicals():
     try:
         for i, crypto in enumerate(cryptos):
             print("%d: %r" %(i, crypto['bscs']['symbol']))
-            update_tech_analysis_params(crypto['bscs']['symbol'], 0, type='Cryptos')
+            update_tech_analysis_params(crypto['bscs']['symbol'], 0, Type='Cryptos')
 
     finally:
         close_db_client(c)
@@ -9382,7 +9401,10 @@ def check_stock_uniqueness(stk, mysql_engine=None, sem=None, core=None):
             print("No primary keys exist for %s, adding Date as primary key" %(stk['General']['Code']))
             query = 'alter table {} add primary key (Date)'.format(table_name)
             mysql_engine.execute(query)
-            return
+            primary_keys = inspector.get_primary_keys(table_name)
+            if len(primary_keys) == 0:
+                print("Failed to add primary key Date for %s" %(stk['General']['Code']))
+                return
 
         query='Select Date, `Adj Close` from {} order by Date desc limit 10'.format(table_name)
         df = DB.read_from_sql(query, mysql_engine)

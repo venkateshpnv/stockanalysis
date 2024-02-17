@@ -915,7 +915,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'WS'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'EG'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()
