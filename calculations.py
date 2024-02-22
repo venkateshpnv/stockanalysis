@@ -266,6 +266,7 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
         ash['500mn_1bn'] = add_wb_sheet(all_stk, "500mn to 1Bn")
         ash['250mn_500mn'] = add_wb_sheet(all_stk, "250mn to 500mn")
         ash['Below_250mn'] = add_wb_sheet(all_stk, "Below 250mn")
+        ash['OTC'] = add_wb_sheet(all_stk, "OTC")
         ash['All'] = add_wb_sheet(all_stk, "All")
 
         add_dcf_header(ash, years, prices_only)
@@ -340,16 +341,16 @@ def calculate_dcf_all_stocks(country, years, data_type, criteria, beta, db_state
 
     sort = [1, -1][dt.now().day % 2 == 0]
     stocks = collection.find({"$and":[\
-                                        #{'General.Exchange':{"$in":major_exchanges}}, \
-                                        {"$or": [\
-                                                    {'General.Exchange':{"$in":major_exchanges}},\
-                                                    {"$and": [ \
-                                                                {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                {'bscs.tracking':{'$exists':True}}, \
-                                                            ] \
-                                                    },\
-                                                ]\
-                                        },\
+                                        ##{'General.Exchange':{"$in":major_exchanges}}, \
+                                        #{"$or": [\
+                                        #            {'General.Exchange':{"$in":major_exchanges}},\
+                                        #            {"$and": [ \
+                                        #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                        #                        {'bscs.tracking':{'$exists':True}}, \
+                                        #                    ] \
+                                        #            },\
+                                        #        ]\
+                                        #},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted':False}, \
                                         {'failcount.mysql_price_failcount':{'$eq':0}}, \

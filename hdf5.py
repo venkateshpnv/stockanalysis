@@ -1026,9 +1026,9 @@ def update_percent_change_all(country):
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
 
-def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=None, sem=None):
-    if core is not None:
-        aff = 0 | 1 << core
+def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, i=None, sem=None):
+    if i is not None:
+        aff = 0 | 1 << i%DB.num_cores
         os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
 
     local_mdb = False
@@ -1057,7 +1057,6 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
             print("Symbol : %s, stk date: %s, latest trading day: %s, latest price data is not same as latest trading day. Skipping bulk update for this symbol" %(symbol, stk_df.iloc[0]['Date'], str(DB.get_latest_trading_day())))
             return
         
-        print("Symbol: %s, date: %s bulk eod price update" %(symbol, str(DB.get_latest_trading_day())))
         DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(stk['bscs']['symbol']), stk_df, insert=True, check=True, date_column=False, format_columns=False)
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", stk_df['Adj Close'][-1])
         DB.update_field(collection, stk['bscs']['symbol'], "price_change.volume", int(stk_df['Volume'][-1]))
@@ -1066,6 +1065,7 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, core=N
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_date", dt.combine(dt.now(), dt.min.time()))
         DB.update_field(collection, stk['bscs']['symbol'], "dates.mysql_price_pull_success", True)
         #multiprocessing.Process(target=internet.update_price_change, args=('US', copy.deepcopy(stk), core, None, False)).start()
+        print("%d: Symbol: %s, date: %s bulk eod price update completed" %(i, symbol, str(DB.get_latest_trading_day())))
 
     finally:
         if local_mdb:
@@ -1181,13 +1181,16 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
             for stk in stocks:
                 stk_df = df[df['Symbol'] == stk['bscs']['symbol']]
                 if not stk_df.empty:
-                    print("Bulk Update: %r: sno: %r: %r: %r" %(i, stk['sno'], stk['General']['Code'], stk['General']['Name']))
+                    try:
+                        print("Bulk Update: %r: sno: %r: %r: %r" %(i, stk['sno'], stk['General']['Code'], stk['General']['Name']))
+                    except Exception as E:
+                        print("bulk_update: error: %s" %(str(E)))
                     stk_df.index = stk_df['Date']
                     del stk_df['Symbol']
  
                     sem.acquire()
                     #update_bulk_price_data(stk, stk_df, db.US_Stocks, sql_engine, i%DB.num_cores, sem)
-                    processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i%DB.num_cores, sem))
+                    processes[i%num_processes] = multiprocessing.Process(target=update_bulk_price_data, args=(copy.deepcopy(stk), stk_df, None, None, i, sem))
                     processes[i%num_processes].start()
                     i = i + 1
         finally:

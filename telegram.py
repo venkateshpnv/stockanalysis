@@ -7,6 +7,7 @@ from datetime import timedelta
 from datetime import datetime as dt
 import time
 import pandas as pd
+import copy
 
 from datastructures import *
 import DB
@@ -722,6 +723,79 @@ def get_mstar():
         message = message + s
     notify_message(message, token='mstar')
 
+def get_indicator(indicator, conditions, fields=None):
+    if fields is None:
+        fields = {
+                        'Name':'',
+                        'Trend':int(),
+                        'Price': float(), 
+                        'Day_Change': float(),
+                        'Avg_Vol_X_Price_Mn': float(),
+                        'Cur_Price_Max_Rsi_Change': float(),
+                        'Trend_Sequence':'',
+                        'Trend_Sequence_Change':'',
+                        'Prev_Trend_Change':float(),
+                        'MCap':float()
+                    }
+    df = pd.DataFrame(fields, index=[])
+    c  = DB.open_db_client()
+    db = c['Stocks']
+    collection = db.US_Stocks
+
+    stocks = collection.find({'$and':conditions}).batch_size(10)
+    print("Indicator: %s, stocks: %d" %(indicator, stocks.count()))
+
+    try:
+        for i, instrument in enumerate(stocks):
+            print("%d: %s: %s" %(i, instrument['bscs']['symbol'], instrument['General']['Code']))
+            if 'technicals' in instrument.keys() and \
+                    'sar' in instrument['technicals'].keys() and \
+                    'rsi' in instrument['technicals'].keys():
+                trend = instrument['technicals']['sar']['ta_psar_trend']
+                cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
+                df.loc[instrument['bscs']['symbol']] = [
+                                        instrument['General']['Name'], 
+                                        trend, 
+                                        round(instrument['price_change']['price'],2),
+                                        round(instrument['price_change']['day']*100,2),
+                                        round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                        cur_price_max_rsi_change,
+                                        str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                        str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                        round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
+                                        #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
+                                        ]
+    except Exception as E:
+        print("Indicator: %s: Err for sym: %s, err: %s" %(indicator, instrument['bscs']['symbol'], str(E)))
+    finally:
+        DB.close_db_client(c)
+    if len(df) == 0:
+        return
+
+    message = "Stocks " + indicator + "\n=====================\n"
+    #df = df.sort_values(by=['MCap'], ascending=False)
+    df = df[df.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+    df = df.iloc[0:5]
+    for index,d in df.iterrows():
+        s = str(index) + ":" +d['Name'] +"\n" +\
+                "trend: "
+        if d['Trend'] > 0:
+            s = s + str(d['Trend']) + "L\n"
+        else:
+            s = s + str(abs(d['Trend'])) + "S\n"
+        s = s + "price: $"+ str(d['Price']) + "\n" +\
+                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                "trend: " + d['Trend_Sequence'] + "\n" +\
+                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+
+        message = message + s
+    notify_message(message, token=indicator)
+
 
 calls = {
         ##'min_rsi': min_rsi,
@@ -755,9 +829,60 @@ def send_mstar_message(mstar_df):
     notify_message(message, token='mstar')
 
 
+def get_all_indicators():
+    fields = {
+                    'Name':'',
+                    'Trend':int(),
+                    'Price': float(), 
+                    'Day_Change': float(),
+                    'Avg_Vol_X_Price_Mn': float(),
+                    'Cur_Price_Max_Rsi_Change': float(),
+                    'Trend_Sequence':'',
+                    'Trend_Sequence_Change':'',
+                    'Prev_Trend_Change':float(),
+                    'MCap':float()
+                }
+ 
+    conditions = [\
+                    {'General.Type':'Common Stock'},\
+                    {'General.IsDelisted': False},\
+                    {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
+                    {'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
+                    {"$and": [ \
+                                {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                {'dates.mysql_price_pull_success': True},\
+                                {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                #{'failcount.mysql_price_failcount': {'$lt': common.MAX_FAIL_COUNT}},\
+                            ]\
+                    }, \
+                    {"$or":[\
+                            {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+                            {'price_change.date': {"$exists": False}}\
+                            ]\
+                    },\
+                ]
+
+    # morning doji star
+    conds = conditions + [{'technicals.candlesticks.MORNINGDOJISTAR':{"$eq":100}}]
+    get_indicator('dojimstar', conds, fields)
+
+
+    # morning star
+    conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
+    get_indicator('mstar', conds, fields)
+
+    # evening doji star
+    conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
+    get_indicator('dojiestar', conds, fields)
+
+    # evening star
+    conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
+    get_indicator('estar', conds, fields)
+
 #week_earnings_date()
 #notify_radar_stocks()
 #notify_all_stocks()
 #notify_message("test")
+get_all_indicators()
 get_uptrend()
-get_mstar()
+#get_mstar()

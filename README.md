@@ -327,3 +327,29 @@ importlib.reload(pd)
 Python find location of site-packages
 # python3 -m site
 Generally under ~/.local/lib/python3.8/site-packages
+
+    conditions = [\
+                 #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+                 {"dates.mysql_price_pull_success": True},\
+                 {'price_change.all_time_high_mcap':{'$gte':low_mcap, '$lt':high_mcap}},\
+                 {'General.IsDelisted': False},\
+                 {'General.Type':'Common Stock'},\
+                 #{'General.Exchange':{"$in":major_exchanges}},\
+                 {"$or": [\
+                             {'General.Exchange':{"$in":major_exchanges}},\
+                             {"$and": [ \
+                                         {'General.Exchange':{"$nin":major_exchanges}},\
+                                         {'bscs.tracking':{'$exists':True}}, \
+                                     ] \
+                             },\
+                         ]\
+                 },\
+                ]
+
+    if direction > 0 :
+        conditions.append({max_change:{cond:change}})
+        if limit > 0:
+            stocks = collection.find({'$and':conditions}).limit(limit).sort([[max_change,-1]])
+        else:
+            stocks = collection.find({'$and':conditions}).sort([[max_change,-1]])
+ 

@@ -22,6 +22,8 @@ from common import *
 import  hdf5
 from datastructures import *
 
+exchange = ''
+
 def get_pattern(color):
     pattern = xlwt.Pattern()
     pattern.pattern = xlwt.Pattern.SOLID_PATTERN
@@ -97,7 +99,7 @@ def sh_write(exl_sht, row, column, data, style=None, ashs=None, recent_ipos=Fals
             exl_sht.write(row, column, data, style)
         else:
             exl_sht.write(row, column, data)
-        if ashs is not None:
+        if ashs is not None and exchange != 'OTC':
             if style:
                 ashs['All'].write(conf.ALL_COUNT, column, data, style)
             else:
@@ -2128,6 +2130,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
                 ash = ashs['Radar_Stocks']
             elif pp_stocks:
                 ash = ashs['Portfolio_Stocks']
+            elif stk['General']['Exchange'] not in major_exchanges:
+                ash = ashs['OTC']
+                exchange = 'OTC'
             elif stk['Highlights']['MarketCapitalization'] > 100 * Bn:
                 ash = ashs['Above_100bn']
             elif stk['Highlights']['MarketCapitalization'] > 50 * Bn:
@@ -2380,7 +2385,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
     sheet.write(i, 3, "Volume")
     #sheet.write(i, 4, stk['price_change']['volume'])
-    if 'MarketCapitalizationMln' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalizationMln'] is not None:
+    if 'MarketCapitalizationMln' in stk['Highlights'].keys() and (stk['Highlights']['MarketCapitalizationMln'] is not None and stk['Highlights']['MarketCapitalizationMln'] > 0):
         sh_write(ash, conf.COUNT, conf.VOL, (stk['price_change']['price']*stk['price_change']['volume'])/1000000, style=style_decimal, ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.AVG_VOL, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/1000000,2), style=style_decimal, ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.VOL_MCAP, round((stk['price_change']['price']*stk['price_change']['avg_volume'])/(stk['Highlights']['MarketCapitalizationMln'] * 1000000), 4), style=style_percent, ashs=ashs, recent_ipos=recent_ipos)
@@ -2767,13 +2772,15 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:
             sh_write(ash, conf.COUNT, conf.MSTAR, stk['technicals']['candlesticks']['MORNINGSTAR'], style_text, ashs=ashs, recent_ipos=recent_ipos)
 
-    if 'options' in stk.keys():
-        if stk['options']['putCallRatio'] > 0:
+    if 'options' in stk.keys() and len(stk['options']) != 0:
+        if 'putCallRatio' in stk['options'].keys() and stk['options']['putCallRatio'] > 0:
             sh_write(ash, conf.COUNT, conf.PUT_CALL_RATIO, round(stk['options']['putCallRatio'],2), styles['PUT_CALL_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
-        if stk['options']['putCallOpenInterestRatio'] > 0:
+        if 'putCallOpenInterestRatio' in stk['options'].keys() and stk['options']['putCallOpenInterestRatio'] > 0:
             sh_write(ash, conf.COUNT, conf.PUT_CALL_OPEN_RATIO, round(stk['options']['putCallOpenInterestRatio'],2), styles['PUT_CALL_OPEN_RATIO'], ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.PUTS_VOLUME, stk['options']['putVolume'], styles['PUTS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
-        sh_write(ash, conf.COUNT, conf.CALLS_VOLUME, stk['options']['callVolume'], styles['CALLS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'putVolume' in stk['options'].keys() and stk['options']['putVolume'] > 0:
+            sh_write(ash, conf.COUNT, conf.PUTS_VOLUME, stk['options']['putVolume'], styles['PUTS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'callVolume' in stk['options'].keys() and stk['options']['callVolume'] > 0:
+            sh_write(ash, conf.COUNT, conf.CALLS_VOLUME, stk['options']['callVolume'], styles['CALLS_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.PUTS_OPEN_VOLUME, stk['options']['putOpenInterest'], styles['PUTS_OPEN_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
         sh_write(ash, conf.COUNT, conf.CALLS_OPEN_VOLUME, stk['options']['callOpenInterest'], styles['CALLS_OPEN_VOLUME'], ashs=ashs, recent_ipos=recent_ipos)
 

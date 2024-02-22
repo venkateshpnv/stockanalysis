@@ -1694,15 +1694,15 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                                 },\
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                {"$or": [\
-                                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                                            {"$and": [ \
-                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                                    ] \
-                                                            },\
-                                                        ]\
-                                                },\
+                                                #{"$or": [\
+                                                #            {'General.Exchange':{"$in":major_exchanges}},\
+                                                #            {"$and": [ \
+                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                #                        {'bscs.tracking':{'$exists':True}}, \
+                                                #                    ] \
+                                                #            },\
+                                                #        ]\
+                                                #},\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
                                                             {'failcount.mysql_price_failcount': {"$exists": False}},\
@@ -3228,6 +3228,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_m
         mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
         local_mysql = True
 
+    
     sno = db.US_Stocks.find({}).count()
     bscs = {}
 
@@ -3258,7 +3259,7 @@ def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_m
     stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
     if stks.count() != 0:
         if technicals:
-            print("Trying to add new symbol %s: %r to mongodb, but already exists" %(d['Symbol'], d['Name']))
+            print("Trying to add new symbol %s: to mongodb, but already exists" %(d['Symbol']))
             update_technicals(stk, general_only=general_only)
         return
 
@@ -6574,28 +6575,39 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
 
         technicals = ret.json()
         if len(technicals) == 0 or not isinstance(technicals, dict):
+            print("Unable to get technicals for %s" %(stk['bscs']['symbol']))
             update = True
             return
 
         # Update general information
         if 'General' in technicals.keys():
-            general_only = True
+            #general_only = True
             db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'General': technicals['General']}})
 
             if isinstance(technicals['General'], dict):
                 if 'Exchange' in technicals['General'].keys():
                     db.US_Stocks.update({'bscs.symbol': stk['bscs']['symbol']}, {'$set': {'bscs.exchange': technicals['General']['Exchange']}})
 
-                if 'Type' in technicals['General'].keys() and technicals['General']['Type'] == 'Common Stock':
-                    if 'Exchange' in technicals['General'].keys():
-                        if technicals['General']['Exchange'] in major_exchanges:
-                            general_only = False
+                #if 'Type' in technicals['General'].keys() and technicals['General']['Type'] == 'Common Stock':
+                #    if 'Exchange' in technicals['General'].keys():
+                #        if technicals['General']['Exchange'] in major_exchanges:
+                #            general_only = False
 
-            del technicals['General']
-       
         if general_only == True:
             update = True
             return
+
+        # For non stock symbols return
+        if isinstance(technicals['General'], dict):
+            if 'Type' in technicals['General'].keys() and technicals['General']['Type'] != 'Common Stock':
+                update = True
+                return
+        else:
+            print("%s General is not a dict" %(stk['bscs']['symbol']))
+            update = True
+            return
+
+        del technicals['General']
 
         # Update financial sheets
         if 'Financials' in technicals.keys() and isinstance(technicals['Financials'], dict):
@@ -6637,7 +6649,15 @@ def update_technicals(stk, core=None, sem=None, general_only=False, ratelimit_ev
             # Remove duplicate columns
             df = df.loc[:,~df.columns.duplicated()]
 
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='general', temp=False, date_column=False, format_columns=False, primary_key=True, empty_table=False, fin_table=False)
+            if mysql_exists_table(mysql_engine, table_name):
+                query = 'select Date from {} order by date desc limit 1'.format(table_name)
+                rdf = DB.read_from_sql(query, mysql_engine)
+                last_updated_date = rdf.index[0]
+            else:
+                last_updated_date = None
+            # If already updated, skip
+            if last_updated_date != get_latest_trading_day().date():
+                mysql_update_table(mysql_engine, table_name, df, check=True, insert=True, unknown_table=False, cols_type='general', temp=False, date_column=False, format_columns=False, primary_key=True, empty_table=False, fin_table=False)
             update = True
  
     finally:
@@ -6727,33 +6747,36 @@ def update_all_technicals():
     pink_df_trimmed = copy.deepcopy(pink_df)
     pink_df_trimmed['Name']=pink_df_trimmed.Name.str.replace('.','').replace('-','')
 
-    # Get all stocks that are not in major exchanges
-    # but we are tracking. Add them to the above symbols
-    # that are trading in major exchanges.
-    stks = db.US_Stocks.find({ "$and" : [ \
-                                {'General.Type':'Common Stock'},\
-                                #{'bscs.tracking':{'$exists':True}} , \
-                                #{'General.Exchange':{"$nin":major_exchanges}}, \
-                                {"$or": [\
-                                            #{'General.Exchange':{"$in":major_exchanges}},\
-                                            {"$and": [ \
-                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                    ] \
-                                            },\
-                                        ]\
-                                },\
-                                ]\
-                             }, \
-                            no_cursor_timeout=True).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
-    syms=[]
-    for stk in stks:
-        #print("Pink Stock: %s: %s" %(stk['General']['Code'], stk['General']['Name']))
-        syms.append(stk['bscs']['symbol'])
+    ## Get all stocks that are not in major exchanges
+    ## but we are tracking. Add them to the above symbols
+    ## that are trading in major exchanges.
+    #stks = db.US_Stocks.find({ "$and" : [ \
+    #                            {'General.Type':'Common Stock'},\
+    #                            #{'bscs.tracking':{'$exists':True}} , \
+    #                            #{'General.Exchange':{"$nin":major_exchanges}}, \
+    #                            {"$or": [\
+    #                                        #{'General.Exchange':{"$in":major_exchanges}},\
+    #                                        {"$and": [ \
+    #                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+    #                                                    {'bscs.tracking':{'$exists':True}}, \
+    #                                                ] \
+    #                                        },\
+    #                                    ]\
+    #                            },\
+    #                            ]\
+    #                         }, \
+    #                        no_cursor_timeout=True).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+    #syms=[]
+    #for stk in stks:
+    #    #print("Pink Stock: %s: %s" %(stk['General']['Code'], stk['General']['Name']))
+    #    syms.append(stk['bscs']['symbol'])
 
-    stk_df=pd.DataFrame(syms, columns=['Symbol'])
-    stk_df.index=stk_df['Symbol']
-    df = df.append(stk_df)
+    #stk_df=pd.DataFrame(syms, columns=['Symbol'])
+    #stk_df.index=stk_df['Symbol']
+    #df = df.append(stk_df)
+
+    # Track all both pink and major exchange stocks
+    df = df.append(pink_df_trimmed)
     df.index=df['Symbol']
 
     try:
@@ -6763,16 +6786,16 @@ def update_all_technicals():
         stks = db.US_Stocks.find({"$and" : [ \
                                                 {'General.Type':'Common Stock'},\
                                                 {"General.IsDelisted": False},\
-                                                #{'General.Exchange':{"$in":major_exchanges}},\
-                                                {"$or": [\
-                                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                                            {"$and": [ \
-                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                                    ] \
-                                                            },\
-                                                        ]\
-                                                },\
+                                                ##{'General.Exchange':{"$in":major_exchanges}},\
+                                                #{"$or": [\
+                                                #            {'General.Exchange':{"$in":major_exchanges}},\
+                                                #            {"$and": [ \
+                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                #                        {'bscs.tracking':{'$exists':True}}, \
+                                                #                    ] \
+                                                #            },\
+                                                #        ]\
+                                                #},\
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
@@ -6807,31 +6830,33 @@ def update_all_technicals():
             stk_name = stk['General']['Name'].replace('.','').replace('-','').lstrip().rstrip()
             #sdf = pink_df[pink_df['Name'] == stk['General']['Name']]
             sdf = pink_df_trimmed.loc[pink_df_trimmed['Name'].str.contains(stk['General']['Name'], case=False)]
-            if len(sdf) != 0:
-                sdf = pink_df.loc[sdf.index[0]]
-                if sdf['Symbol'] != stk['bscs']['symbol']:
-                    print("Adding symbol to db: %s, new symbol %s" %(stk['bscs']['symbol'], sdf['Symbol']))
-                    add_symbol_to_database(sdf, db, tracking=True)
-                    copy_data(stk['bscs']['symbol'], sdf['Symbol'])
-                    update_field(db.US_Stocks, sdf['Symbol'], 'bscs.tracking', True)
-                    # Update old symbol's data with the new symbol information
-                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'bscs.other_symbol', sdf['Symbol'])
-                    #update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
-                    db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
-                pink = pink + 1
-                pink_old_symbols.append(stk['General']['Code'])
-                pink_new_symbols.append(sdf['Symbol'])
-                pink_names.append(stk['General']['Name'])
+            try:
+                if len(sdf) != 0:
+                    sdf = pink_df.loc[sdf.index[0]]
+                    if sdf['Symbol'] != stk['bscs']['symbol']:
+                        print("Adding symbol to db: %s, new symbol %s" %(stk['bscs']['symbol'], sdf['Symbol']))
+                        add_symbol_to_database(sdf, db, tracking=True)
+                        copy_data(stk['bscs']['symbol'], sdf['Symbol'])
+                        update_field(db.US_Stocks, sdf['Symbol'], 'bscs.tracking', True)
+                        # Update old symbol's data with the new symbol information
+                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'bscs.other_symbol', sdf['Symbol'])
+                        #update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+                        db.US_Stocks.update({"bscs.symbol":stk['bscs']['symbol']}, {'$unset': {'bscs.tracking':1}}, False, True)
+                    pink = pink + 1
+                    pink_old_symbols.append(stk['General']['Code'])
+                    pink_new_symbols.append(sdf['Symbol'])
+                    pink_names.append(stk['General']['Name'])
 
-            print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
-            i = i + 1
-
+                print("Delisting %d: %r, %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'General.IsDelisted', True)
+                i = i + 1
+            except Exception as e:
+                print("Failed to add symbol: %s" %(sdf['Symbol']))
         if pink > 0:
             try:
                 print("Total stocks moved from major exchanges to PINK: %s" %(pink))
                 stk_df=pd.DataFrame(data = {'Name': pink_names, 'Old_Symbol':pink_old_symbols, 'New_Symbol':pink_new_symbols})
-                stk_df.index=stk_df['Symbol']
+                stk_df.index=stk_df['New_Symbol']
                 subject='Companies moved to OTC: %r' %(str(datetime.datetime.now().date()))
                 internet.send_email2('petlafin@gmail.com', 'petlafin@gmail.com', subject, stk_df.to_html())
             except Exception as e:
@@ -6877,6 +6902,7 @@ def update_all_technicals():
         #    #processes[j%num_processes].start()
         #    #j = j + 1
 
+        df.sort_index(inplace=True)
         for sym, d in df.iterrows():
             #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
             stks = db.US_Stocks.find({'bscs.symbol': sym})
@@ -7654,16 +7680,16 @@ def update_all_stock_betas(country, recession_only=False):
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                #{'General.Exchange':{"$in":major_exchanges}},\
-                                                {"$or": [\
-                                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                                            {"$and": [ \
-                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                                    ] \
-                                                            },\
-                                                        ]\
-                                                },\
+                                                ##{'General.Exchange':{"$in":major_exchanges}},\
+                                                #{"$or": [\
+                                                #            {'General.Exchange':{"$in":major_exchanges}},\
+                                                #            {"$and": [ \
+                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                #                        {'bscs.tracking':{'$exists':True}}, \
+                                                #                    ] \
+                                                #            },\
+                                                #        ]\
+                                                #},\
                                                 {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
@@ -7680,16 +7706,16 @@ def update_all_stock_betas(country, recession_only=False):
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                #{'General.Exchange':{"$in":major_exchanges}},\
-                                                {"$or": [\
-                                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                                            {"$and": [ \
-                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                                    ] \
-                                                            },\
-                                                        ]\
-                                                },\
+                                                ##{'General.Exchange':{"$in":major_exchanges}},\
+                                                #{"$or": [\
+                                                #            {'General.Exchange':{"$in":major_exchanges}},\
+                                                #            {"$and": [ \
+                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                #                        {'bscs.tracking':{'$exists':True}}, \
+                                                #                    ] \
+                                                #            },\
+                                                #        ]\
+                                                #},\
                                                 {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
@@ -8513,16 +8539,16 @@ def update_all_US_fin_percent_change():
     stocks = db.US_Stocks.find({"$and" : [ \
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
-                                            #{'General.Exchange':{"$in":major_exchanges}},\
-                                            {"$or": [\
-                                                        {'General.Exchange':{"$in":major_exchanges}},\
-                                                        {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                    {'bscs.tracking':{'$exists':True}}, \
-                                                                ] \
-                                                        },\
-                                                    ]\
-                                            },\
+                                            ##{'General.Exchange':{"$in":major_exchanges}},\
+                                            #{"$or": [\
+                                            #            {'General.Exchange':{"$in":major_exchanges}},\
+                                            #            {"$and": [ \
+                                            #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                            #                        {'bscs.tracking':{'$exists':True}}, \
+                                            #                    ] \
+                                            #            },\
+                                            #        ]\
+                                            #},\
                                             {"$or": [\
                                                         {"dates.fin_percent_update_date": {"$exists": False }},\
                                                         {"dates.fin_percent_update_date": {"$lt": get_latest_trading_day()}}\
@@ -9261,7 +9287,7 @@ def copy_data(old_symbol, new_symbol):
             prev_names = stk['bscs']['previous_symbols']['Company_Names']
     
     prev_syms.append(old_symbol)
-    prev_names.append(stk['bscs']['name'])
+    prev_names.append(stk['General']['Name'])
     db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Names": prev_syms}})
     db.US_Stocks.update({'bscs.symbol': new_symbol}, {'$set': {"bscs.previous_symbols.Company_Names": prev_names}})
     

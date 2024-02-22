@@ -656,6 +656,19 @@ telegram_tokens = {
                     'token': '/home/vpetla/telegram/mstar_token.txt',
                     'chat_id': '/home/vpetla/telegram/mstar_chat_id.txt'
                     },
+                'dojimstar' : {
+                    'token': '/home/vpetla/telegram/dstar_token.txt',
+                    'chat_id': '/home/vpetla/telegram/dstar_chat_id.txt'
+                    },
+                 'estar' : {
+                    'token': '/home/vpetla/telegram/estar_token.txt',
+                    'chat_id': '/home/vpetla/telegram/estar_chat_id.txt'
+                    },
+                 'dojiestar' : {
+                    'token': '/home/vpetla/telegram/destar_token.txt',
+                    'chat_id': '/home/vpetla/telegram/destar_chat_id.txt'
+                    },
+ 
                 }
 
 databases_list = {

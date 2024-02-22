@@ -505,11 +505,12 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
     aff = 0 | 1 << core
     #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
-   
+  
+    sym = ""
     try:
         sym = stk['bscs']['symbol']
     except Exception as E:
-        print("error: %s, stk : %s" %(str(E), stk))
+        print("update_price_change: error: %s, stk : %s" %(str(E), stk))
 
     if isinstance(stk, dict):
             if 'General' in stk.keys() and \
@@ -521,6 +522,7 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
         print("internet.py:521, stk: %s" %(stk))
 
     try:
+        sym = stk['bscs']['symbol']
         table_name = DB.get_symbol_table_name(sym)
         change = 0
 
@@ -749,7 +751,10 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             DB.update_field(collection, sym, "price_change.all_time_high_price", all_time_high_price)
            
             if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalization'] != None:
-                num_shares = stk['Highlights']['MarketCapitalization']/price
+                if price > 0:
+                    num_shares = stk['Highlights']['MarketCapitalization']/price
+                else:
+                    num_shares = 0
                 all_time_high_mcap = num_shares * all_time_high_price
                 DB.update_field(collection, sym, "price_change.all_time_high_mcap", all_time_high_mcap)
             else:
@@ -789,8 +794,9 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
  
     except Exception as E:
-        print("Error: price_change: %r, %r" %(stk['bscs'], str(E)))
+        print("Error: price_change: %r, %s" %(stk['bscs'], str(E)))
     finally:
+        print("price_change: sym: %s" %(sym))
         DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
@@ -915,7 +921,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'EG'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'EKNL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

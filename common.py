@@ -648,9 +648,15 @@ def knee_locator_df(df, column, S, curve, direction, online=True):
     y=list(df[column])
     return knee_locator(x, y, S, curve, direction, online)
 
-# curve is concave for knee and convex for elbow
-# direction is increasing for positive slope and decreasing for negative slope
-# online: Knee/elbow as first element detected (False) or correcting “old” knee/elbow values if necessary if points are received (True)
+# curve
+# - concave[)(] for knee
+# - convex[()] for elbow
+# direction 
+# - increasing for positive slope 
+# - decreasing for negative slope
+# online: 
+# - False: (Knee/elbow as first element detected)
+# - True: (correcting “old” knee/elbow values if necessary if points are received)
 # S: Sensitivity for knee/elbow detection (S=0 or bigger); Satopää et alia [2] state that 
 #    “kneedle” has perfect information in offline setting when sensitivity is 0 whereas in 
 #    online settings, overall a sensitivity of 1 shows the best overall performance, 
