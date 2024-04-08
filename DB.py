@@ -192,6 +192,9 @@ def mysql_exists_table(mysql_engine, table_name):
     #return True
 
 def mysql_check_n_create_table(mysql_engine, table_name, unknown_table=False, primary_key=True, empty_table=False, fin_table=False):
+    if table_name is None or not isinstance(table_name, str):
+        print("mysql_check_n_create_table: Invalid table_name: %r", table_name)
+        return
     if not mysql_exists_table(mysql_engine, table_name):
         print("Creating table: %r" %(table_name))
         #query = 'create table '+ table_name + ' like test2;'
@@ -309,6 +312,9 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
     if df.empty:
         return
 
+    if table_name is None or not isinstance(table_name, str):
+        print("mysql_update_table: Invalid table_name: %v" %(table_name))
+        return
     check_mysql_replication_status(mysql_engine)
 
     if date_column:
@@ -553,6 +559,13 @@ def check_n_write_to_sql(engine, table, df, fields=None):
         #df.to_sql(name=table, con=engine,index=False,if_exists='append')
 
 def get_symbol_table_name(symbol):
+    try:
+        if not isinstance(symbol,str):
+            print("Invalid symbol type %r for symbol: %s" %(type(symbol),symbol))
+            return None
+    except Exception as E:
+        print("get_symbol_table_name: %s: err: %s" %(symbol, str(E)))
+        return None
     if symbol in India_indices.keys():
         symbol = India_indices[symbol]
     elif symbol in US_indices.keys():
@@ -1734,25 +1747,26 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         stocks = db.US_Stocks.find({"$and" : [ \
                                                 {'dates.mysql_price_pull_date': {'$lt':get_latest_trading_day()}},\
                                                 {'dates.mysql_price_pull_success': False},\
+                                                {"dates.mysql_price_date": {"$eq": DB.get_previous_trading_day()}},\
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
-                                                #{'General.Exchange':{"$in":major_exchanges}},\
-                                                {"$or": [\
-                                                            {'General.Exchange':{"$in":major_exchanges}},\
-                                                            {"$and": [ \
-                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                        {'bscs.tracking':{'$exists':True}}, \
-                                                                    ] \
-                                                            },\
-                                                        ]\
-                                                },\
+                                                ##{'General.Exchange':{"$in":major_exchanges}},\
+                                                #{"$or": [\
+                                                #            {'General.Exchange':{"$in":major_exchanges}},\
+                                                #            {"$and": [ \
+                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                #                        {'bscs.tracking':{'$exists':True}}, \
+                                                #                    ] \
+                                                #            },\
+                                                #        ]\
+                                                #},\
 
-                                                {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
-                                                {"$or": [\
-                                                        {'failcount.mysql_price_failcount': {'$exists': False}},\
-                                                        {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                                    ]\
-                                                },\
+                                                ##{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                #{"$or": [\
+                                                #        {'failcount.mysql_price_failcount': {'$exists': False}},\
+                                                #        {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                #    ]\
+                                                #},\
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -2404,7 +2418,7 @@ def calc_psar(df, duration=None, trend_only=False):
             pt_pr_change = trend_pcnt_change_list[-1]
 
         # Add latest on-going trend
-        trend_sequence = trend_sequence + str(trend_days) + ('S','L')[trend_days>0]
+        trend_sequence = trend_sequence + str(abs(trend_days)) + ('S','L')[trend_days>0]
         st = long_short_df.index[-1] - timedelta(1)
         st = get_nearest_index(df, st)
         st_price = df.iloc[st]['Adj Close']
@@ -3256,6 +3270,8 @@ def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_m
     #        else:
     #            general_only=False
 
+    if d['Symbol'] is None or not isinstance(d['Symbol'], str):
+        return
     stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
     if stks.count() != 0:
         if technicals:
@@ -7676,7 +7692,7 @@ def update_all_stock_betas(country, recession_only=False):
     #docs = collection.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'},{"$or":[{'dates.betas_calc_date': {"$exists": False}}, {'dates.betas_calc_date': {"$lt": get_previous_trading_day()}}]}]}, no_cursor_timeout=True).batch_size(2).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     if recession_only:
-        num_processes = num_cores * 5 
+        num_processes = num_cores * 8 
         docs = db.US_Stocks.find({"$and" : [ \
                                                 {"General.IsDelisted": False},\
                                                 {'General.Type':'Common Stock'},\
@@ -8582,6 +8598,35 @@ def update_all_US_fin_percent_change():
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
+def get_price_elbow_point(symbol):
+    odf = get_stock_prices(symbol, columns=['Date', 'Adj Close'])
+    odf['Mean'] = (odf['Adj Close'] - odf['Adj Close'].mean())/odf['Adj Close'].std()
+    df = copy.deepcopy(odf)
+    df.index=pd.to_datetime(df['Date'])
+    duration=relativedelta(years=2)
+    i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
+    df = df.iloc[i:]
+    df = df.loc[df['Adj Close'].idxmax():]
+
+    knee, elbow = knee_locator_df(df, 'Mean', 1.0, "concave", "decreasing", online=True)
+    knee_pr, elbow_pr = knee_locator_df(df, 'Adj Close', 1.0, "convex", "decreasing", online=False)
+    fig, ax = plt.subplots(1,1, figsize=[15,7])
+    ax.plot(odf['Date'], odf['Adj Close'], label='Actual')
+    #ax.scatter(odf['Date'], odf['Adj Close'], color='green')
+    ax.set_title(symbol+': Price Chart')
+    ax.legend()
+    if elbow:
+        elbow_point = str(df.index[elbow].date())
+        ax.scatter(elbow_point, odf.loc[elbow_point]['Adj Close'], s=20, color='magenta', label='Elbow Point')
+
+    min_loc = df['Adj Close'].idxmin()
+    min_price = df['Adj Close'].loc[min_loc]
+    ax.scatter(str(min_loc.date()), min_price, s=10, color='green', label='Elbow Point Price')
+
+    plt.show()
+    #plt.savefig('/home/vpetla/tmp/charts/'+stk['bscs']['symbol']+'_'+duration+'.png')
+    plt.close()
+
 def plot_revenues(sym):
     c  = open_db_client()
     db = c['Stocks']
@@ -8591,9 +8636,10 @@ def plot_revenues(sym):
     f_field = 'revenueEstimateAvg'
     table = 'Income_Statement_yearly'
     future_table = 'Earnings_Trends'
-    num_stmts = 5
+    num_stmts = 15
 
-    query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
+    query = 'select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}'.format(field, table, sym, num_stmts)
+    #query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
     stmt_df = read_from_sql(query, mysql_engine)
     stmt_df.dropna(inplace=True)
 
@@ -8601,6 +8647,7 @@ def plot_revenues(sym):
     stmt_df.index = stmt_df['Date']
 
     if not stmt_df.empty:
+        #last_date = stmt_df.iloc[0]['Date']
         last_date = stmt_df.iloc[-1]['Date']
         query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
     else:
@@ -8618,6 +8665,7 @@ def plot_revenues(sym):
     f_stmt_df = f_stmt_df.reset_index(drop=True)
     # Drop duplicates on Date column. This will delete the duplicate entries of '+1y'
     f_stmt_df = f_stmt_df.drop_duplicates(subset=['Date'])
+    f_stmt_df = f_stmt_df.sort_values('Date', ascending=False)
     # Set the index back to the Date.
     f_stmt_df.index = f_stmt_df['Date']
 
@@ -8638,8 +8686,10 @@ def plot_revenues(sym):
     # Convex for elbow
     # Concave for knee
     knee = elbow = elbow_point = None
+    slope="decreasing"
+    #slope="increasing"
     if len(df) > 1:
-        knee, elbow = knee_locator_df(df, field, 1.0, "convex", "increasing")
+        knee, elbow = knee_locator_df(df, field, 1.0, "convex", slope)
 
     elbow_point = None
     if elbow is not None and elbow > 0:
@@ -8647,6 +8697,9 @@ def plot_revenues(sym):
 
     df['totalRevenue'] = round(df['totalRevenue']/10**9,2)
     stmt_df['totalRevenue'] = round(stmt_df['totalRevenue']/10**9,2)
+    #stmt_df['Date'] = pd.to_datetime(stmt_df['Date'], format="%Y-%m")
+    #stmt_df['Date'] = stmt_df['Date'].apply(lambda x: dt.strptime(x,'%Y-%m'))
+    dates = pd.to_datetime(stmt_df['Date'], format='%Y-%m').apply(lambda x: x.strftime('%Y-%m'))
     f_stmt_df['totalRevenue'] = round(f_stmt_df['totalRevenue']/10**9,2)
 
     fig, ax = plt.subplots(2,1, figsize=[15,7])
@@ -8656,20 +8709,20 @@ def plot_revenues(sym):
     for i in range(len(stmt_df)):
         ax[0].annotate(str(stmt_df.iloc[i]['totalRevenue'])+' Bn', (stmt_df.iloc[i]['Date'], stmt_df.iloc[i]['totalRevenue']+0.2))
 
-    ax[0].plot(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='orange', label='Projected')
-    ax[0].scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='red')
-    for i in range(len(f_stmt_df)):
-        ax[0].annotate(str(f_stmt_df.iloc[i]['totalRevenue'])+' Bn', (f_stmt_df.iloc[i]['Date'], f_stmt_df.iloc[i]['totalRevenue']-0.2))
+    #ax[0].plot(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='orange', label='Projected')
+    #ax[0].scatter(f_stmt_df['Date'], f_stmt_df['totalRevenue'], color='red')
+    #for i in range(len(f_stmt_df)):
+    #    ax[0].annotate(str(f_stmt_df.iloc[i]['totalRevenue'])+' Bn', (f_stmt_df.iloc[i]['Date'], f_stmt_df.iloc[i]['totalRevenue']-0.2))
     ax[0].set_title(sym+': Annual Revenues $Bn')
     ax[0].legend()
     if elbow:
-        ax[0].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'], s=100, color='magenta', label='Elbow Point')
+        ax[0].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'][0], s=100, color='magenta', label='Elbow Point')
 
     field = 'totalRevenue'
     f_field = 'revenueEstimateAvg'
     table = 'Income_Statement_quarterly'
     future_table = 'Earnings_Trends'
-    num_stmts = 5
+    num_stmts = 15
 
     query = 'select * from (select Date, {} from {} where Symbol=\'{}\' order by Date DESC limit {}) sub order by Date asc'.format(field, table, sym, num_stmts)
     stmt_df = read_from_sql(query, mysql_engine)
@@ -8679,7 +8732,8 @@ def plot_revenues(sym):
     stmt_df.index = stmt_df['Date']
 
     if not stmt_df.empty:
-        last_date = stmt_df.iloc[-1]['Date']
+        last_date = stmt_df.iloc[0]['Date']
+        #last_date = stmt_df.iloc[-1]['Date']
         query = 'select Date, period, {} from {} where Symbol=\'{}\' and Date >= \'{}\' and period LIKE %s'.format(f_field, future_table, sym, str(last_date))
     else:
         query = 'select Date, period, {} from {} where Symbol=\'{}\' and period LIKE %s'.format(f_field, future_table, sym)
@@ -8740,7 +8794,7 @@ def plot_revenues(sym):
     for i in range(len(f_stmt_df)):
         ax[1].annotate(str(f_stmt_df.iloc[i]['totalRevenue'])+' Bn', (f_stmt_df.iloc[i]['Date'], f_stmt_df.iloc[i]['totalRevenue']-0.2))
     if elbow:
-        ax[1].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'], s=100, color='magenta', label='Elbow Point')
+        ax[1].scatter(elbow_point, df.loc[elbow_point]['totalRevenue'][0], s=100, color='magenta', label='Elbow Point')
     ax[1].set_title(sym+': Quaterly Revenues $Bn')
     ax[1].legend()
 

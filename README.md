@@ -353,3 +353,5 @@ Generally under ~/.local/lib/python3.8/site-packages
         else:
             stocks = collection.find({'$and':conditions}).sort([[max_change,-1]])
  
+# Normalize the price data
+cur_df = (cur_df - cur_df.mean())/cur_df.std()

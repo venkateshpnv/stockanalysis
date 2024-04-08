@@ -33,7 +33,7 @@ import DB
 
 import datastructures
 
-MAX_FAIL_COUNT=10
+MAX_FAIL_COUNT=5
 YEAR=1
 QUARTER=2
 MONTH=4

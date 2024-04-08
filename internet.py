@@ -507,6 +507,7 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
     os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
   
     sym = ""
+    update = False
     try:
         sym = stk['bscs']['symbol']
     except Exception as E:
@@ -792,12 +793,13 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             DB.update_field(collection, sym, "bscs.fiftytwoweek_low", change)
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
- 
+        update = True
     except Exception as E:
-        print("Error: price_change: %r, %s" %(stk['bscs'], str(E)))
+        print("Error: price_change: %s, %s" %(stk['bscs'], str(E)))
     finally:
-        print("price_change: sym: %s" %(sym))
-        DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
+        if update:
+            print("price_change: sym: %s" %(sym))
+            DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
         if sem:
@@ -921,7 +923,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'EKNL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'MJARF'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

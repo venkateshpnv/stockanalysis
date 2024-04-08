@@ -652,6 +652,15 @@ telegram_tokens = {
                     'token': '/home/vpetla/telegram/stock_notify_token.txt',
                     'chat_id': '/home/vpetla/telegram/stock_notify_chat_id.txt'
                     },
+                'earnings_dates' : {
+                    'token': '/home/vpetla/telegram/earnings_dates_token.txt',
+                    'chat_id': '/home/vpetla/telegram/earnings_dates_chat_id.txt'
+                    },
+                'radar_stocks' : {
+                    'token': '/home/vpetla/telegram/radar_stocks_token.txt',
+                    'chat_id': '/home/vpetla/telegram/radar_stocks_chat_id.txt'
+                    },
+
                 'mstar' : {
                     'token': '/home/vpetla/telegram/mstar_token.txt',
                     'chat_id': '/home/vpetla/telegram/mstar_chat_id.txt'
