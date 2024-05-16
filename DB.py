@@ -5574,6 +5574,361 @@ def update_all_dividends(all=False):
         close_db_client(c)
         close_sql_connection(mysql_engine)
 
+def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
+    if core is not None:
+        aff = 0 | 1 << core
+        #print("%s: Pid: %r, Core: %r, new_aff: %r" %(stk['bscs']['symbol'], os.getpid(), core, aff))
+        #print("Setting %d's affinity to core: %d" %(os.getpid(), core))
+        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+
+    table_name = get_symbol_table_name(stk['bscs']['symbol'])
+    ratios = {}
+    df = pd.DataFrame()
+    earnings_date = nan
+
+    local_db = False
+    empty = True
+    puts_empty = True
+    try:
+        if db is None:
+            c  = open_db_client()
+            db = c['Stocks']
+            local_db = True
+
+        token = 'dHVKZE1BOFltVVEwLWhsdF9scC15N2h5X1NaVjF6Yldtdnlzd21mTV85ND0'
+        headers = {
+                'Accept': 'application/json',
+                'Authorization': f'Bearer '+token
+                }
+
+        d = dt.now().date()
+        if d.weekday() >= 4:
+            dte = (7 - (d.weekday() + 1)) + 5
+        else:
+            # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
+            dte = 4 - d.weekday()
+            #url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=call&weekly=true'
+
+        call_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=call&range=otm&strikeLimit=1&dte='+str(dte)
+        put_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=put&range=otm&strikeLimit=2&dte='+str(dte)
+        ##dte = 4 - d.weekday()
+        #url=url+'&dte='+str(dte)
+        ##url=url+'?dte='+str(dte)
+
+        try:
+            ret = requests.get(call_url, headers=headers)
+            if ret.status_code > 203:
+                empty = True
+                print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+            
+            print("%s: calls: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
+            if int(ret.headers['x-api-ratelimit-consumed']) == 0:
+                #empty = True
+                print("calls: No APIs consumed for %r, status_code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                #return
+                
+            odf = pd.DataFrame(ret.json())
+            #del odf['s']
+            #del odf['optionSymbol']
+            #del odf['underlying']
+            #del odf['firstTraded']
+            #del odf['updated']
+            
+            odf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
+            odf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
+
+            ret = requests.get(put_url, headers=headers)
+            if ret.status_code > 203:
+                empty = True
+                print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+            
+            print("%s: puts: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
+            if int(ret.headers['x-api-ratelimit-consumed']) == 0:
+                #empty = True
+                print("puts: No APIs consumed for %r, status_code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                #return
+ 
+            idf = pd.DataFrame(ret.json())
+            idf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
+            idf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
+
+            #df=pd.concat([odf, idf], axis=0)
+
+            #df.index=df.expiration
+            ## Get only out of the money contracts
+            #df = df.loc[df.inTheMoney == False]
+            ## Get only contracts where days to expire is 10 or lower
+            #df = df.loc[df.dte <= 10]
+
+            pr = odf.iloc[0]['underlyingPrice']
+            odf['mid_pr'] = odf['mid'].map(lambda x: round((x/pr)*100,2))
+            #odf = odf.sort_values(['mid_pr'],ascending=(False))
+            odf['all_pr'] = (odf['mid']+odf['strike']-odf['underlyingPrice'])/odf['underlyingPrice']*100
+            #odf = odf.sort_values(['all_pr'],ascending=(False))
+            #odf = odf.loc[odf.mid_pr >= 3]
+
+            ## First out of money entry index
+            #pos = df.loc[df.inTheMoney == False].index[0]
+            ## Get 
+            ##odf = odf.iloc[pos-2:pos+1]
+            otm = odf.iloc[0]
+            premium = otm['mid']#/2
+            premium_percent = (premium/pr) * 100
+            noloss_point = pr - premium/2
+            otm_strike = otm['strike']
+
+            pr = idf.iloc[0]['underlyingPrice']
+            idf['mid_pr'] = idf['mid'].map(lambda x: round((x/pr)*100,2))
+            #idf = idf.sort_values(['mid_pr'],ascending=(False))
+            idf['all_pr'] = (otm['mid']+idf['strike']-idf['underlyingPrice'])/idf['underlyingPrice']*100
+            #idf = idf.sort_values(['all_pr'],ascending=(False))
+            #idf = idf.loc[idf.mid_pr >= 3]
+
+            #cdf = df.query('strike >= @noloss_point & strike < @otm_strike')
+            #calls = cdf.loc[df.side == 'call']
+            #puts = cdf.loc[df.side == 'put']
+
+            calls = odf
+            puts = idf
+            
+            call_contracts = 10
+            #prem_100_contracts = premium * 100
+            #puts_investment = prem_100_contracts / 2
+            puts_investment = (premium * call_contracts) / 2
+
+            for i, d in puts.iterrows():
+                # In percentage
+                #investment_protected = puts_investment / d['mid']
+                ## In percentage
+                #investment_at_risk = 100 - investment_protected
+                num_puts_contracts = (puts_investment / d['mid'])
+                if num_puts_contracts > call_contracts:
+                    ## Balance money that cannot be used to buy puts from the total of puts_investment.
+                    ## That has to be considered as moved back to calls profit.
+                    unused_money_per_share = (((num_puts_contracts - call_contracts)+ (num_puts_contracts - int(num_puts_contracts)))*d['mid'])/100
+                    num_puts_contracts = call_contracts
+                else:
+                    ## Balance money that cannot be used to buy puts from the total of puts_investment.
+                    ## That has to be considered as moved back to calls profit.
+                    unused_money_per_share = ((num_puts_contracts - int(num_puts_contracts))*d['mid'])/100
+
+                investment_at_risk = ((call_contracts - num_puts_contracts)/call_contracts)*100
+                #100_percent_investment_at_risk = ((noloss_point - d['strike'])/pr)*100
+
+                # If the price goes by 20% down, what would be the total loss percent
+                twenty_percent_down = 20 - premium_percent/2
+
+                #                         15.06% of 50.3% of 39.865
+                loss_in_price = ((twenty_percent_down/100) * (investment_at_risk/100) * noloss_point)
+                #                  (3.0198/42) * 100
+                loss_in_percent = (loss_in_price/pr) * 100
+
+                puts.loc[i, 'noloss_point'] = noloss_point
+                puts.loc[i, 'risk_percent'] = investment_at_risk
+                puts.loc[i, 'twenty_percent_down'] = loss_in_percent
+                puts.loc[i, 'price_diff'] = abs(noloss_point - d['strike'])
+
+                # If the price goes by 10% down, what would be the total loss percent
+                ten_percent_down = 10 - premium_percent/2
+
+                #                         15.06% of 50.3% of 39.865
+                loss_in_price = ((ten_percent_down/100) * (investment_at_risk/100) * noloss_point)
+                #                  (3.0198/42) * 100
+                loss_in_percent = (loss_in_price/pr) * 100
+                puts.loc[i, 'ten_percent_down'] = loss_in_percent
+
+                #puts_investment = (premium * call_contracts) / 2
+                #num_puts_contracts = (puts_investment / d['mid'])
+                num_puts_contracts = int(num_puts_contracts)
+                noloss_point_abs = pr - premium/2 - unused_money_per_share
+
+                # In percentage
+                investment_at_risk = ((call_contracts - num_puts_contracts)/call_contracts)*100
+                #100_percent_investment_at_risk = ((noloss_point_abs - d['strike'])/pr)*100
+
+                # If the price goes by 20% down, what would be the total loss percent
+                twenty_percent_down = 20 - premium_percent/2
+
+                #                         15.06% of 50.3% of 39.865
+                loss_in_price = ((twenty_percent_down/100) * (investment_at_risk/100) * noloss_point_abs)
+                #                  (3.0198/42) * 100
+                loss_in_percent = (loss_in_price/pr) * 100
+
+                puts.loc[i, 'noloss_point_abs'] = noloss_point_abs
+                puts.loc[i, 'risk_percent_abs'] = investment_at_risk
+                puts.loc[i, 'twenty_percent_down_abs'] = loss_in_percent
+                puts.loc[i, 'price_diff_abs'] = abs(noloss_point_abs - d['strike'])
+ 
+                puts.loc[i, 'abs_price_diff'] = abs(pr - d['strike'])
+
+                # If the price goes by 10% down, what would be the total loss percent
+                ten_percent_down = 10 - premium_percent/2
+
+                #                         15.06% of 50.3% of 39.865
+                loss_in_price = ((ten_percent_down/100) * (investment_at_risk/100) * noloss_point_abs)
+                #                  (3.0198/42) * 100
+                loss_in_percent = (loss_in_price/pr) * 100
+
+                puts.loc[i, 'ten_percent_down_abs'] = loss_in_percent
+
+            if len(puts) > 0:
+                puts_empty = False
+
+                #puts = puts.sort_values(by=['risk_percent'], ascending=False)
+                puts = puts.sort_values(by=['price_diff'], ascending=True)
+                puts_entry=puts.iloc[0]
+
+                puts = puts.sort_values(by=['abs_price_diff'], ascending=True)
+                puts_abs_entry=puts.iloc[0]
+
+            if len(odf) == 0:
+                empty = True
+            else:
+                empty = False
+                #d = df.iloc[0]
+                d = otm
+
+            earnings_date = nan
+            url='https://api.marketdata.app/v1/stocks/earnings/'+stk['bscs']['symbol']+'/'
+            today = dt.now().date()
+            frm = str(today - timedelta(today.weekday()))
+            #to = str(today + timedelta(4 - today.weekday()))
+
+            if today.weekday() >= 4:
+                #to = (7 - (today.weekday() + 1)) + 5
+                to = str(today + timedelta((7 - (today.weekday() + 1)) + 5))
+            else:
+                # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
+                #to = 4 - today.weekday()
+                to = str(today + timedelta(4 - today.weekday()))
+ 
+            url = url + '?from=' + frm + '&to=' + to 
+            ret = requests.get(url, headers=headers)
+            if ret.status_code > 203:
+                print("Failed to get earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+            else:
+                edf=pd.DataFrame(ret.json())
+                if len(edf) > 0 and edf.iloc[0]['reportDate'] != None:
+                    try:
+                        earnings_date = pd.to_datetime(edf.iloc[0]['reportDate'],unit='s')
+                        earnings_date = dt.combine(earnings_date.to_pydatetime(), dt.min.time())
+                    except:
+                        pass
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_report_date', earnings_date)
+
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
+        except Exception as E:
+            print("update_options: Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
+            return
+
+    finally:
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.options_pull_date', dt.combine(dt.now(), dt.min.time()))
+        if not empty:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.expiration', d['expiration'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price', pr)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.strike_price', d['strike'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.dte', int(d['dte']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.bid', d['bid'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ask', d['ask'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid', d['mid'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.last_price', d['last'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid_pr', d['mid_pr'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.all_pr', round(d['all_pr'],2))
+        else:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.expiration', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.strike_price', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.dte', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.bid', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ask', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.last_price', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid_pr', nan)
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.all_pr', nan)
+
+        if not puts_empty:
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price_80_percent', round(pr*0.8,2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point', round(puts_entry['noloss_point'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike', round(puts_entry['strike'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium', round(puts_entry['mid'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent', round(puts_entry['risk_percent'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down', round(puts_entry['twenty_percent_down'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down', round(puts_entry['ten_percent_down'],2))
+
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point_abs', round(puts_abs_entry['noloss_point_abs'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike_abs', round(puts_abs_entry['strike'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium_abs', round(puts_abs_entry['mid'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent_abs', round(puts_abs_entry['risk_percent_abs'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down_abs', round(puts_abs_entry['twenty_percent_down_abs'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down_abs', round(puts_abs_entry['ten_percent_down_abs'],2))
+
+        if sem:
+            sem.release()
+        if local_db:
+            close_db_client(c)
+
+
+def update_all_options(country='US'):
+    c = open_db_client()
+    db = c['Stocks']
+    collection = get_collection(country, db)
+    #sql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks_Options')
+
+    today = dt.combine(dt.now(), dt.min.time())
+    sort = [1, -1][dt.now().day % 2 == 0]
+
+    #num_processes = int(num_cores) * 5
+    num_processes = 10
+    sem = multiprocessing.BoundedSemaphore(num_processes)
+    processes = [None]*num_processes
+    i=0
+    Mn = 1000000
+    Bn = 1000*Mn
+
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [\
+                                            #            {"dates.options_pull_date": {"$exists": False }},\
+                                            #            {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                            {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
+                                #).batch_size(10)#.sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
+    #stocks = db.US_Stocks.find({'General.Code': 'NXT'})
+    print("Total stocks: %r" %(stocks.count()))
+    try:
+        for stk in stocks:
+           print("%d: Options: Checking: %r" %(i, stk['bscs']['symbol']))
+           sem.acquire()
+           #update_option(stk, core=0, sem=sem, db=db)
+           processes[i%num_processes] = multiprocessing.Process(target=update_option, args=(copy.deepcopy(stk), i%num_cores, sem))
+           processes[i%num_processes].start()
+           i = i + 1
+
+    finally:
+        for j in range(len(processes)):
+            if processes[j] is not None:
+                processes[j].join()
+        print("sleeping 10 sec")
+        time.sleep(10)
+        close_db_client(c)
+
 def update_put_call_ratio(stk, core=None, sem=None, eod_token=True, ratelimit_event=None):
     if core is not None:
         aff = 0 | 1 << core
@@ -6016,7 +6371,7 @@ def update_earnings(stk, core, sem=None, all=False):
             if 'date' in df.columns:
                 df.rename(columns = {'date': 'Date', 'code':'Symbol'}, inplace=True)
             df.index=df['Date']
-            df = df.dropna()
+            #df = df.dropna()
 
             print("%d: %r" %(stk['sno'], stk['bscs']['symbol']))
             #print(df)
@@ -6045,9 +6400,10 @@ def update_all_earnings(all=False):
     db = c['Stocks']
     mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
     table_name = 'Earnings_History'
-    sort = [1, -1][dt.now().day % 2 == 0]
+    sort = [-1, 1][dt.now().day % 2 == 0]
 
     num_processes = 6
+    #num_processes = int(num_cores) #* 5
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     j=0
@@ -6070,8 +6426,8 @@ def update_all_earnings(all=False):
                                                                 },\
                                                             ]\
                                                     }, \
-                                                    {'dates.earnings_pull_date': {'$lt':get_latest_trading_day()}},\
-                                                    {'dates.technicals_pull_date':{'$gte':get_previous_trading_day()}}\
+                                                    #{'dates.earnings_pull_date': {'$lt':get_latest_trading_day()}},\
+                                                    #{'dates.technicals_pull_date':{'$gte':get_previous_trading_day()}}\
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
@@ -6095,7 +6451,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print("Stocks Earnings to be updated: ", stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"TSM"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"PYPL"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()

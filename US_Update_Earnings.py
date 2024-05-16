@@ -6,7 +6,6 @@ if __name__ == "__main__":
 
     # On every weekend, get all stocks earnings information
     all = (False,True)[today.isoweekday() > 5]
-    #all=True
     print("Date: %r" %(str(today)))
     DB.update_all_earnings(all=all)
 

@@ -677,7 +677,22 @@ telegram_tokens = {
                     'token': '/home/vpetla/telegram/destar_token.txt',
                     'chat_id': '/home/vpetla/telegram/destar_chat_id.txt'
                     },
- 
+                  'options' : {
+                    'token': '/home/vpetla/telegram/option_token.txt',
+                    'chat_id': '/home/vpetla/telegram/option_chat_id.txt'
+                    },
+                  'options2' : {
+                    'token': '/home/vpetla/telegram/option2_token.txt',
+                    'chat_id': '/home/vpetla/telegram/option2_chat_id.txt'
+                    },
+                  'strong_buy' : {
+                    'token': '/home/vpetla/telegram/strong_buy_token.txt',
+                    'chat_id': '/home/vpetla/telegram/strong_buy_chat_id.txt'
+                    },
+                  'strong_sell' : {
+                    'token': '/home/vpetla/telegram/strong_sell_token.txt',
+                    'chat_id': '/home/vpetla/telegram/strong_sell_chat_id.txt'
+                    },
                 }
 
 databases_list = {
