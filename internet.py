@@ -720,6 +720,36 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             #low_price = hdf5.hdf_get_low_n_days(df, 365)
             DB.update_field(collection, sym, "bscs.fiftytwoweek_low", low_price)
 
+            # Number of weeks
+            # query='select count(distinct concat(YEAR(Date), '-', WEEK(Date))) AS total_weeks from STKVFS where Date >= CURDATE() - INTERVAL 5 YEAR;'
+            # Number of weeks where the price is down atleast 20 percent
+            # query='select YEAR(Date) AS year, WEEK(Date) as week from STKHPE WHERE `Week Change` <= -0.20 AND Date >= CURDATE() - INTERVAL 5 YEAR GROUP BY YEAR(Date), WEEK(Date) HAVING COUNT(*) > 0 UNION ALL SELECT NULL AS year, COUNT(DISTINCT CONCAT(YEAR(Date), '-', WEEK(Date))) AS week FROM STKHPE WHERE `Week Change` <= -0.20 GROUP BY NULL;'
+
+            #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\''.format(table_name, end_date, end_date)
+            query='select count(distinct concat(YEAR(Date), \'-\', WEEK(Date))) AS total_weeks from {} where Date >= CURDATE() - INTERVAL 5 YEAR;'.format(table_name)
+            rdf=pd.read_sql_query(query, sql_engine)
+            total_weeks = rdf.iloc[0]['total_weeks']
+            # This also works
+            #result=sql_engine.execute(query)
+            #total_weeks = result.first()[0]
+
+            #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' and `Week Change` < -0.10'.format(table_name, end_date, end_date)
+            query='select YEAR(Date) AS year, WEEK(Date) as week from {} WHERE `Week Change` <= -0.10 AND Date >= CURDATE() - INTERVAL 5 YEAR GROUP BY YEAR(Date), WEEK(Date) HAVING COUNT(*) > 0 UNION ALL SELECT NULL AS year, COUNT(DISTINCT CONCAT(YEAR(Date), \'-\', WEEK(Date))) AS week FROM {} WHERE `Week Change` <= -0.10 GROUP BY NULL;'.format(table_name, table_name)
+            rdf=pd.read_sql_query(query, sql_engine)
+            ten_percent_down_times = len(rdf.dropna())
+            #result=sql_engine.execute(query)
+            #ten_percent_down_times = result.first()[0]
+
+            #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' and `Week Change` < -0.20'.format(table_name, end_date, end_date)
+            query='select YEAR(Date) AS year, WEEK(Date) as week from {} WHERE `Week Change` <= -0.20 AND Date >= CURDATE() - INTERVAL 5 YEAR GROUP BY YEAR(Date), WEEK(Date) HAVING COUNT(*) > 0 UNION ALL SELECT NULL AS year, COUNT(DISTINCT CONCAT(YEAR(Date), \'-\', WEEK(Date))) AS week FROM {} WHERE `Week Change` <= -0.20 GROUP BY NULL;'.format(table_name, table_name)
+            rdf=pd.read_sql_query(query, sql_engine)
+            twenty_percent_down_times = len(rdf.dropna())
+            #result=sql_engine.execute(query)
+            #twenty_percent_down_times = result.first()[0]
+            DB.update_field(collection, sym, "price_change.total_weeks", int(total_weeks))
+            DB.update_field(collection, sym, "price_change.ten_percent_down_times", ten_percent_down_times)
+            DB.update_field(collection, sym, "price_change.twenty_percent_down_times", twenty_percent_down_times)
+            
             # Get today's price
             query = 'select `Adj Close` from {} order by Date desc limit 1'.format(table_name)
             result=sql_engine.execute(query)
@@ -923,7 +953,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'MJARF'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'VFS'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

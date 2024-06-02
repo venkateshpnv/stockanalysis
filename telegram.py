@@ -1079,9 +1079,9 @@ def get_options(grp):
                     options_df.at[instrument['bscs']['symbol'], 'MCap'] = round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
 
                     if grp == 'options2':
-                        options_df.at[instrument['bscs']['symbol'],'total_dates'] = instrument['price_change']['total_dates']
-                        options_df.at[instrument['bscs']['symbol'],'ten_percent_down_times'] = instrument['price_change']['ten_percent_chg_times']
-                        options_df.at[instrument['bscs']['symbol'],'twenty_percent_down_times'] = instrument['price_change']['twenty_percent_chg_times']
+                        options_df.at[instrument['bscs']['symbol'],'total_weeks'] = instrument['price_change']['total_weeks']
+                        options_df.at[instrument['bscs']['symbol'],'ten_percent_down_times'] = instrument['price_change']['ten_percent_down_times']
+                        options_df.at[instrument['bscs']['symbol'],'twenty_percent_down_times'] = instrument['price_change']['twenty_percent_down_times']
 
                         options_df.at[instrument['bscs']['symbol'],'price_80_percent'] = instrument['options_data']['price_80_percent']
                         options_df.at[instrument['bscs']['symbol'],'noloss_point'] = instrument['options_data']['noloss_point']
@@ -1096,6 +1096,7 @@ def get_options(grp):
                         options_df.at[instrument['bscs']['symbol'],'Hold'] = instrument['AnalystRatings']['Hold']
                         options_df.at[instrument['bscs']['symbol'],'Sell'] = instrument['AnalystRatings']['Sell']
                         options_df.at[instrument['bscs']['symbol'],'Strong Sell'] = instrument['AnalystRatings']['StrongSell']
+                        options_df.at[instrument['bscs']['symbol'],'Earnings_Pr_Chg'] = instrument['dates']['earnings_pr_change']
                 except Exception as E:
                     print("Options: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
     except Exception as E:
@@ -1112,7 +1113,7 @@ def get_options(grp):
     #save_df_as_image(options_df, "/tmp/options_df.png")
     #save_image(options_df, "/tmp/options_df.png")
 
-    count=7
+    count=6
     l = len(options_df)
     iters = math.ceil(l/count)# + 1
     #options_df = options_df.iloc[0:20]
@@ -1134,8 +1135,9 @@ def get_options(grp):
 
             if grp == 'options2':
                 s = s + \
-                        "10_pcnt_down_times: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n" +\
-                        "20_pcnt_down_times: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n"
+                        "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "earnings_pr_chg: " + d['Earnings_Pr_Chg'] + "\n"
             s = s + \
                 "premium: " + str(d['Premium']) + "%\n" +\
                 "price+premium: " + str(d['AllPremium']) + "%\n" +\
@@ -1178,7 +1180,7 @@ def get_options(grp):
         en = en + count
 
     if grp == 'options2':
-        count=7
+        count=6
         l = len(lcap_df)
         iters = math.ceil(l/count)# + 1
         #options_df = options_df.iloc[0:20]
@@ -1199,8 +1201,9 @@ def get_options(grp):
                     s = s + "earnings_date: "+ d['EarningsDate'] + "\n"
 
                 s = s + \
-                        "10_pcnt_down_times: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n" +\
-                        "20_pcnt_down_times: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n" +\
+                        "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "earnings_pr_chg: " + d['Earnings_Pr_Chg'] + "\n" +\
                         "premium: " + str(d['Premium']) + "%\n" +\
                         "price+premium: " + str(d['AllPremium']) + "%\n" +\
                         "bid: " + d['Bid'] + "\n" +\
