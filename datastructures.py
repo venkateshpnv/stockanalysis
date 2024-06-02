@@ -685,6 +685,10 @@ telegram_tokens = {
                     'token': '/home/vpetla/telegram/option2_token.txt',
                     'chat_id': '/home/vpetla/telegram/option2_chat_id.txt'
                     },
+                  'options50' : {
+                    'token': '/home/vpetla/telegram/option50_token.txt',
+                    'chat_id': '/home/vpetla/telegram/option50_chat_id.txt'
+                    },
                   'strong_buy' : {
                     'token': '/home/vpetla/telegram/strong_buy_token.txt',
                     'chat_id': '/home/vpetla/telegram/strong_buy_chat_id.txt'
@@ -692,6 +696,14 @@ telegram_tokens = {
                   'strong_sell' : {
                     'token': '/home/vpetla/telegram/strong_sell_token.txt',
                     'chat_id': '/home/vpetla/telegram/strong_sell_chat_id.txt'
+                    },
+                  'strong_buy_pure' : {
+                    'token': '/home/vpetla/telegram/strong_buy_pure_token.txt',
+                    'chat_id': '/home/vpetla/telegram/strong_buy_pure_chat_id.txt'
+                    },
+                  'fwh' : { # Fifty two week high
+                    'token': '/home/vpetla/telegram/fwh_token.txt',
+                    'chat_id': '/home/vpetla/telegram/fwh_chat_id.txt'
                     },
                 }
 

@@ -2928,10 +2928,10 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
             # Calculate trend
             update_price_trend_params(collection, sym, df)
 
-        update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
     except Exception as E:
         print(str(E))
     finally:
+        update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
         close_db_client(c)
         close_sql_connection(mysql_engine)
         if sem:
@@ -5596,13 +5596,14 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             local_db = True
 
         token = 'dHVKZE1BOFltVVEwLWhsdF9scC15N2h5X1NaVjF6Yldtdnlzd21mTV85ND0'
+        polygon_token = 'e0qK5Ek50Y7dwPE2U2EnAH2Lxcmz5iQj'
         headers = {
                 'Accept': 'application/json',
                 'Authorization': f'Bearer '+token
                 }
 
         d = dt.now().date()
-        if d.weekday() >= 4:
+        if d.weekday() >= 3:
             dte = (7 - (d.weekday() + 1)) + 5
         else:
             # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
@@ -5790,35 +5791,35 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
                 #d = df.iloc[0]
                 d = otm
 
-            earnings_date = nan
-            url='https://api.marketdata.app/v1/stocks/earnings/'+stk['bscs']['symbol']+'/'
-            today = dt.now().date()
-            frm = str(today - timedelta(today.weekday()))
-            #to = str(today + timedelta(4 - today.weekday()))
+            #earnings_date = nan
+            #url='https://api.marketdata.app/v1/stocks/earnings/'+stk['bscs']['symbol']+'/'
+            #today = dt.now().date()
+            #frm = str(today - timedelta(today.weekday()))
+            ##to = str(today + timedelta(4 - today.weekday()))
 
-            if today.weekday() >= 4:
-                #to = (7 - (today.weekday() + 1)) + 5
-                to = str(today + timedelta((7 - (today.weekday() + 1)) + 5))
-            else:
-                # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
-                #to = 4 - today.weekday()
-                to = str(today + timedelta(4 - today.weekday()))
+            #if today.weekday() >= 4:
+            #    #to = (7 - (today.weekday() + 1)) + 5
+            #    to = str(today + timedelta((7 - (today.weekday() + 1)) + 5))
+            #else:
+            #    # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
+            #    #to = 4 - today.weekday()
+            #    to = str(today + timedelta(4 - today.weekday()))
  
-            url = url + '?from=' + frm + '&to=' + to 
-            ret = requests.get(url, headers=headers)
-            if ret.status_code > 203:
-                print("Failed to get earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-            else:
-                edf=pd.DataFrame(ret.json())
-                if len(edf) > 0 and edf.iloc[0]['reportDate'] != None:
-                    try:
-                        earnings_date = pd.to_datetime(edf.iloc[0]['reportDate'],unit='s')
-                        earnings_date = dt.combine(earnings_date.to_pydatetime(), dt.min.time())
-                    except:
-                        pass
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_report_date', earnings_date)
+            #url = url + '?from=' + frm + '&to=' + to 
+            #ret = requests.get(url, headers=headers)
+            #if ret.status_code > 203:
+            #    print("Failed to get earnings data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+            #else:
+            #    edf=pd.DataFrame(ret.json())
+            #    if len(edf) > 0 and edf.iloc[0]['reportDate'] != None:
+            #        try:
+            #            earnings_date = pd.to_datetime(edf.iloc[0]['reportDate'],unit='s')
+            #            earnings_date = dt.combine(earnings_date.to_pydatetime(), dt.min.time())
+            #        except:
+            #            pass
+            #    update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_report_date', earnings_date)
 
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
+            #update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
         except Exception as E:
             print("update_options: Symbol: %r, exception : %r" %(stk['bscs']['symbol'], str(E)))
             return
@@ -5904,7 +5905,7 @@ def update_all_options(country='US'):
                                                         },\
                                                     ]\
                                             },\
-                                            {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
+                                            {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                                             #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
                                 }\
@@ -6264,70 +6265,107 @@ def update_earnings(stk, core, sem=None, all=False):
 
         table_name = 'Earnings_History'
 
+        price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        price_table = DB.get_symbol_table_name(stk['bscs']['symbol'])
+
+        table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
+        if 'price_change' not in table_cols:
+            print("%s: Adding missing columns: %r"%(table_name, ['price_change']))
+            miss = DB.mysql_add_columns(mysql_engine, table_name, ['price_change'], remove_spaces=False)
+            if miss > 0:
+                PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                PRINT_ERR("Columns: ",['price_change'])
+                sys.exit(1)
+
+
         if mysql_exists_table(mysql_engine, table_name):
             query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date'.format(stk['bscs']['symbol'])
             rdf = read_from_sql(query, mysql_engine)
-            if not rdf.empty:
-                last_row = rdf.iloc[-1]
-            # The eps values are null. Try to fetch again.
-            if not rdf.empty:
-                try:
-                    # If the latest earnings report date is in future,
-                    # take the previous earnings date and find the price change on that date.
-                    if dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d") >= dt.combine(dt.now(), dt.min.time()) \
-                        and len(rdf.index) >= 2:
-                        earnings_row = rdf.iloc[-2]
-                    else:
-                        earnings_row = rdf.iloc[-1]
+            #if not rdf.empty:
+            #    last_row = rdf.iloc[-1]
+            ## The eps values are null. Try to fetch again.
+            #if not rdf.empty:
+            #    try:
+            #        query = 'select `Date`, `Symbol`, `before_after_market`, `report_date`, `price_change` from {} where Symbol=\'{}\' and price_change is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            #        pr_df = read_from_sql(query, mysql_engine)
+            #        for index, d in pr_df.iterrows():
+            #            # If the results are announced after market. Consider the next day's price change.
+            #            report_date = d['report_date']
+            #            # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+            #            query = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+            #            df1 = read_from_sql(query, price_engine)
+            #            query = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+            #            df2 = read_from_sql(query, price_engine)
+
+            #            #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+            #            #pdf = read_from_sql(query, price_engine)
+
+            #            change = percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+            #            pr_df.at[index,'price_change'] = change
+
+            #            #if not pdf.empty:
+            #            #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+            #        if not pr_df.empty:
+            #            pr_df = pr_df.drop(['report_date', 'before_after_market'], axis=1)
+            #            pr_df['price_change'] = pr_df['price_change'].astype(float)
+            #            mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+            #        # If the latest earnings report date is in future,
+            #        # take the previous earnings date and find the price change on that date.
+            #        if dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d") >= dt.combine(dt.now(), dt.min.time()) \
+            #            and len(rdf.index) >= 2:
+            #            earnings_row = rdf.iloc[-2]
+            #        else:
+            #            earnings_row = rdf.iloc[-1]
     
-                    price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-                    price_table = DB.get_symbol_table_name(stk['bscs']['symbol'])
-                    # If the results are announced after market. Consider the next day's price change.
-                    if 'AfterMarket' == earnings_row['before_after_market']:
-                        report_date = earnings_row['report_date']
-                        query='select Date, `Day Change` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
-                        pdf = DB.read_from_sql(query, price_engine)
-                    # Or else consider the price change on the same day
-                    else:
-                        report_date = earnings_row['report_date']
-                        query='select Date, `Day Change` from {} where Date=%r'.format(price_table) %(report_date)
-                        pdf = DB.read_from_sql(query, price_engine)
-                    if not pdf.empty:
-                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change',pdf.iloc[-1]['Day Change'])
-                    # Some times the price might have altered in advace before the earnings date and after the earnings date.
-                    # So take a couple of days before and after the earnings date and calcuate the price change for that duration.
-                    report_date = dt.strptime(report_date, "%Y-%m-%d")
-                    start = report_date - timedelta(7)
-                    end   = report_date + timedelta(7)
-                    dates = list(pd.bdate_range(start=start, end=end))
-                    start = str(dates[dates.index(report_date) - 2].date())
-                    end   = str(dates[dates.index(report_date) + 2].date())
-                    query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(price_table, start, end)
-                    pdf   = DB.read_from_sql(query, price_engine)
+            #        # If the results are announced after market. Consider the next day's price change.
+            #        if 'AfterMarket' == earnings_row['before_after_market']:
+            #            report_date = earnings_row['report_date']
+            #            query='select Date, `Day Change` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+            #            pdf = DB.read_from_sql(query, price_engine)
+            #        # Or else consider the price change on the same day
+            #        else:
+            #            report_date = earnings_row['report_date']
+            #            query='select Date, `Day Change` from {} where Date=%r'.format(price_table) %(report_date)
+            #            pdf = DB.read_from_sql(query, price_engine)
+            #        if not pdf.empty:
+            #            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change',pdf.iloc[-1]['Day Change'])
+            #        # Some times the price might have altered in advace before the earnings date and after the earnings date.
+            #        # So take a couple of days before and after the earnings date and calcuate the price change for that duration.
+            #        report_date = dt.strptime(report_date, "%Y-%m-%d")
+            #        start = report_date - timedelta(7)
+            #        end   = report_date + timedelta(7)
+            #        dates = list(pd.bdate_range(start=start, end=end))
+            #        start = str(dates[dates.index(report_date) - 2].date())
+            #        end   = str(dates[dates.index(report_date) + 2].date())
+            #        query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(price_table, start, end)
+            #        pdf   = DB.read_from_sql(query, price_engine)
 
-                    if not pdf.empty:
-                        change = percent_change(pdf.iloc[0]['Adj Close'], pdf.iloc[-1]['Adj Close'])
-                        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change_that_week',change)
-                except Exception as E:
-                    print(str(E))
-                finally:
-                    DB.close_sql_connection(price_engine)
+            #        if not pdf.empty:
+            #            change = percent_change(pdf.iloc[0]['Adj Close'], pdf.iloc[-1]['Adj Close'])
+            #            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change_that_week',change)
+            #    except Exception as E:
+            #        print(str(E))
+            #    finally:
+            #        DB.close_sql_connection(price_engine)
 
-                if rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual']):
-                    # Temporary fix
-                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
-                    # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
-                    # So, repull the data for such entries and update accordingly.
-                    rdf = rdf[rdf['actual'].notna()]
-                    insert = False
+            #    if rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual']):
+            #        # Temporary fix
+            #        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
+            #        # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
+            #        # So, repull the data for such entries and update accordingly.
+            #        rdf = rdf[rdf['actual'].notna()]
+            #        insert = False
  
         url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&symbols='+stk['bscs']['symbol']+'.US'
-        if not rdf.empty:
-            url = url + \
-                    '&from='+ \
-                    str(dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d").date() + timedelta(1))
-        else:
-            url = url + '&from=1970-01-01'
+        #if not rdf.empty:
+        #    url = url + \
+        #            '&from='+ \
+        #            str(dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d").date() + timedelta(1))
+        #else:
+        #    url = url + '&from=1970-01-01'
+        url = url + '&from=1970-01-01'
 
         url = url + '&to='+str(dt.now().date()+timedelta(30))
         url = url + '&fmt=json'
@@ -6359,6 +6397,7 @@ def update_earnings(stk, core, sem=None, all=False):
             update = True
             return
 
+        update_df = True
         df = pd.DataFrame(earnings['earnings'])
         if not df.empty:
             df['Symbol'] = stk['bscs']['symbol']
@@ -6370,21 +6409,144 @@ def update_earnings(stk, core, sem=None, all=False):
                 del df['Ex']
             if 'date' in df.columns:
                 df.rename(columns = {'date': 'Date', 'code':'Symbol'}, inplace=True)
-            df.index=df['Date']
-            #df = df.dropna()
 
-            print("%d: %r" %(stk['sno'], stk['bscs']['symbol']))
-            #print(df)
-            mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+            if not rdf.empty:
+                df['Date'] = pd.to_datetime(df['Date'])
+                df.index=df['Date']
+
+                if 'price_change' in rdf.columns:
+                    del rdf['price_change']
+                cols=list(rdf.columns)
+                df = df[cols]
+                df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+                wrong_entries = list(rdf.index.difference(df.index))
+                if len(wrong_entries) > 0:
+                    for entry in wrong_entries:
+                        query = 'delete from ' + table_name + ' where Symbol = \'{}\' and Date = \'{}\''.format(stk['bscs']['symbol'],entry.strftime("%Y-%m-%d"))
+                        mysql_engine.execute(query)
+
+                indices=list(df.index)
+                rdf = rdf.loc[indices]
+                compare=df.compare(rdf)
+                if len(compare) > 0:
+                    indices=list(compare.index)
+                    df = df.loc[indices]
+                    df.index = df['Date']
+                    #df = df.dropna()
+                    query = 'update ' + table_name + ' set price_change=NULL where Symbol = \'{}\''.format(stk['bscs']['symbol'])
+                    mysql_engine.execute(query)
+                else:
+                    update_df = False
+
+            if update_df:
+                print("%d: %r" %(stk['sno'], stk['bscs']['symbol']))
+                #print(df)
+                mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+        query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date'.format(stk['bscs']['symbol'])
+        rdf = read_from_sql(query, mysql_engine)
+        if not rdf.empty:
+            last_row = rdf.iloc[-1]
+        # The eps values are null. Try to fetch again.
+        if not rdf.empty:
+            try:
+                query = 'select `Date`, `Symbol`, `before_after_market`, `report_date`, `price_change` from {} where Symbol=\'{}\' and price_change is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+                pr_df = read_from_sql(query, mysql_engine)
+                for index, d in pr_df.iterrows():
+                    # If the results are announced after market. Consider the next day's price change.
+                    report_date = d['report_date']
+                    # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+                    query = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+                    df1 = read_from_sql(query, price_engine)
+                    query = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+                    df2 = read_from_sql(query, price_engine)
+
+                    #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                    #pdf = read_from_sql(query, price_engine)
+
+                    if len(df1) == 0:
+                        change = 0
+                    elif len(df2) == 0:
+                        if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date():
+                            change = None
+                        else:
+                            change = 0
+                    else:
+                        change = percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+                    pr_df.at[index,'price_change'] = change
+
+                    #if not pdf.empty:
+                    #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+                if not pr_df.empty:
+                    pr_df = pr_df.drop(['report_date', 'before_after_market'], axis=1)
+                    pr_df = pr_df.dropna()
+                    pr_df['price_change'] = pr_df['price_change'].astype(float)
+                    mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+                # If the latest earnings report date is in future,
+                # take the previous earnings date and find the price change on that date.
+                if dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d") >= dt.combine(dt.now(), dt.min.time()) \
+                    and len(rdf.index) >= 2:
+                    earnings_row = rdf.iloc[-2]
+                else:
+                    earnings_row = rdf.iloc[-1]
+    
+                # If the results are announced after market. Consider the next day's price change.
+                if 'AfterMarket' == earnings_row['before_after_market']:
+                    report_date = earnings_row['report_date']
+                    query='select Date, `Day Change` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                    pdf = DB.read_from_sql(query, price_engine)
+                # Or else consider the price change on the same day
+                else:
+                    report_date = earnings_row['report_date']
+                    query='select Date, `Day Change` from {} where Date=%r'.format(price_table) %(report_date)
+                    pdf = DB.read_from_sql(query, price_engine)
+                if not pdf.empty:
+                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change',pdf.iloc[-1]['Day Change'])
+                # Some times the price might have altered in advace before the earnings date and after the earnings date.
+                # So take a couple of days before and after the earnings date and calcuate the price change for that duration.
+                report_date = dt.strptime(report_date, "%Y-%m-%d")
+                start = report_date - timedelta(7)
+                end   = report_date + timedelta(7)
+                dates = list(pd.bdate_range(start=start, end=end))
+                start = str(dates[dates.index(report_date) - 2].date())
+                end   = str(dates[dates.index(report_date) + 2].date())
+                query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(price_table, start, end)
+                pdf   = DB.read_from_sql(query, price_engine)
+
+                if not pdf.empty:
+                    change = percent_change(pdf.iloc[0]['Adj Close'], pdf.iloc[-1]['Adj Close'])
+                    update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_day_price_change_that_week',change)
+            except Exception as E:
+                print(str(E))
+            finally:
+                DB.close_sql_connection(price_engine)
+
+            if rdf.iloc[-1]['actual'] is None or isnan(rdf.iloc[-1]['actual']):
+                # Temporary fix
+                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(rdf.iloc[-1]['report_date'], "%Y-%m-%d"))
+                # Sometimes the actual values for the latest earnings are empty. In that case, there is chance that they may be updated later.
+                # So, repull the data for such entries and update accordingly.
+                rdf = rdf[rdf['actual'].notna()]
+                insert = False
+ 
+
+        today = str(dt.now().date())
+        query ='select Date, Symbol, price_change from {} where Symbol=\'{}\' and Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' order by Date desc'.format(table_name, stk['bscs']['symbol'], today, today)
+        pr_df = read_from_sql(query, mysql_engine)
+        pr_df = pr_df.dropna()
+        result = pr_df['price_change'].apply(lambda x: round(x * 100, 2))
+        res = '%,'.join(result.astype(str))
+        res=res+'%'
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pr_change', res)
+
         update = True
  
     finally:
         if update:
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
-            if not df.empty:
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(df.iloc[-1]['Date'], "%Y-%m-%d"))
-                update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(df.iloc[-1]['report_date'], "%Y-%m-%d"))
-            elif not rdf.empty:
+            if not rdf.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(last_row['Date'], "%Y-%m-%d"))
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(last_row['report_date'], "%Y-%m-%d"))
             else:
@@ -6451,7 +6613,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print("Stocks Earnings to be updated: ", stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"PYPL"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"CRWD"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
