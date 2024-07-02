@@ -5589,6 +5589,8 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
     local_db = False
     empty = True
     puts_empty = True
+    max_loss_percent = 0
+    max_loss_price_percent = 0 
     try:
         if db is None:
             c  = open_db_client()
@@ -5611,7 +5613,7 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             #url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=call&weekly=true'
 
         call_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=call&range=otm&strikeLimit=1&dte='+str(dte)
-        put_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=put&range=otm&strikeLimit=2&dte='+str(dte)
+        #put_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=put&range=otm&strikeLimit=2&dte='+str(dte)
         ##dte = 4 - d.weekday()
         #url=url+'&dte='+str(dte)
         ##url=url+'?dte='+str(dte)
@@ -5620,7 +5622,7 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             ret = requests.get(call_url, headers=headers)
             if ret.status_code > 203:
                 empty = True
-                print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                print("Failed to get call options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
                 return
             
             print("%s: calls: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
@@ -5639,21 +5641,21 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             odf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
             odf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
 
-            ret = requests.get(put_url, headers=headers)
-            if ret.status_code > 203:
-                empty = True
-                print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                return
-            
-            print("%s: puts: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
-            if int(ret.headers['x-api-ratelimit-consumed']) == 0:
-                #empty = True
-                print("puts: No APIs consumed for %r, status_code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
-                #return
+            #ret = requests.get(put_url, headers=headers)
+            #if ret.status_code > 203:
+            #    empty = True
+            #    print("Failed to get options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+            #    return
+            #
+            #print("%s: puts: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
+            #if int(ret.headers['x-api-ratelimit-consumed']) == 0:
+            #    #empty = True
+            #    print("puts: No APIs consumed for %r, status_code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+            #    #return
  
-            idf = pd.DataFrame(ret.json())
-            idf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
-            idf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
+            #idf = pd.DataFrame(ret.json())
+            #idf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
+            #idf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
 
             #df=pd.concat([odf, idf], axis=0)
 
@@ -5679,6 +5681,43 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             premium_percent = (premium/pr) * 100
             noloss_point = pr - premium/2
             otm_strike = otm['strike']
+            
+            maxBid = round(premium/2,2)
+            maxAsk = round(maxBid * 1.10,2)
+            #maxStrike = int(round(noloss_point,0))
+            maxStrike = str(math.floor(noloss_point))
+            if pr is None or math.isnan(pr):
+                pr = stk['price_change']['price']
+
+            #minStrike = str(int(round(pr * 0.9,0)))
+            minStrike = str(math.floor(pr * 0.9))
+
+            # For CRWD stock price of $308.69, premium=17.98, noloss_point=299.7(308.69-premium/2), minStrike=90%(308.69),maxBid=premium/2, maxAsk=110%(maxBid)
+            #put_url='https://api.marketdata.app/v1/options/chain/CRWD/?side=put&range=otm&strike=277-299&maxBid=8.99&maxAsk=9.89&strikeLimit=1&dte=4'
+            put_url='https://api.marketdata.app/v1/options/chain/'+stk['bscs']['symbol']+'/?side=put&range=otm&strike='+minStrike+'-'+maxStrike+'&maxBid='+str(maxBid)+'&maxAsk='+str(maxAsk)+'&strikeLimit=1&dte='+str(dte)
+            ret = requests.get(put_url, headers=headers)
+            if ret.status_code > 203:
+                empty = True
+                print("Failed to get puts options data for %r, error code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                return
+            
+            print("%s: puts: ratelimit: %s, calls consumed: %s" %(stk['bscs']['symbol'], ret.headers['x-api-ratelimit-remaining'], ret.headers['x-api-ratelimit-consumed']))
+            if int(ret.headers['x-api-ratelimit-consumed']) == 0:
+                #empty = True
+                print("puts: No APIs consumed for %r, status_code: %r, error: %r" %(stk['bscs']['symbol'], ret.status_code, ret.text))
+                #return
+ 
+            idf = pd.DataFrame(ret.json())
+            idf['expiration'] = pd.to_datetime(odf['expiration'],unit='s')
+            idf['expiration'] = pd.to_datetime(odf['expiration'].dt.strftime('%Y-%m-%d'))
+
+            puts_strike_price = idf.iloc[0]['strike']
+            puts_premium = idf.iloc[0]['mid']
+            puts_premium_diff = round((premium/2) - puts_premium,2) # Puts premium is 8.6, halfpremium is 8.99. So 8.99-8.6 = 0.39 is our savings for buying puts. Exclude this from loss percent
+            max_loss_percent  = round(((noloss_point - puts_strike_price - puts_premium_diff)/noloss_point) * 100, 2)
+
+            # To reach the max loss percent, how much price should go down from the price we have bought the stock
+            max_loss_price_down = round(((pr - puts_strike_price - puts_premium_diff)/pr) * 100, 2)
 
             pr = idf.iloc[0]['underlyingPrice']
             idf['mid_pr'] = idf['mid'].map(lambda x: round((x/pr)*100,2))
@@ -5854,6 +5893,8 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point', round(puts_entry['noloss_point'],2))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike', round(puts_entry['strike'],2))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium', round(puts_entry['mid'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_percent', round(max_loss_percent,2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_price_down', round(max_loss_price_down,2))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent', round(puts_entry['risk_percent'],2))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down', round(puts_entry['twenty_percent_down'],2))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down', round(puts_entry['ten_percent_down'],2))
@@ -5880,8 +5921,8 @@ def update_all_options(country='US'):
     today = dt.combine(dt.now(), dt.min.time())
     sort = [1, -1][dt.now().day % 2 == 0]
 
-    #num_processes = int(num_cores) * 5
-    num_processes = 10
+    num_processes = int(num_cores) #* 2
+    #num_processes = 16
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     i=0
@@ -5889,11 +5930,11 @@ def update_all_options(country='US'):
     Bn = 1000*Mn
 
     stocks = db.US_Stocks.find({"$and" : [ \
-                                            #{"$or": [\
-                                            #            {"dates.options_pull_date": {"$exists": False }},\
-                                            #            {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
-                                            #        ]\
-                                            #},\
+                                            {"$or": [\
+                                                        {"dates.options_pull_date": {"$exists": False }},\
+                                                        {"dates.options_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                    ]\
+                                            },\
                                             {"General.IsDelisted": False},\
                                             {'General.Type':'Common Stock'},\
                                             {"$or": [\
@@ -5911,7 +5952,7 @@ def update_all_options(country='US'):
                                 }\
                                 ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
                                 #).batch_size(10)#.sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({'General.Code': 'NXT'})
+    #stocks = db.US_Stocks.find({'General.Code': 'CRWD'})
     print("Total stocks: %r" %(stocks.count()))
     try:
         for stk in stocks:
@@ -6268,17 +6309,74 @@ def update_earnings(stk, core, sem=None, all=False):
         price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
         price_table = DB.get_symbol_table_name(stk['bscs']['symbol'])
 
-        table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
-        if 'price_change' not in table_cols:
-            print("%s: Adding missing columns: %r"%(table_name, ['price_change']))
-            miss = DB.mysql_add_columns(mysql_engine, table_name, ['price_change'], remove_spaces=False)
-            if miss > 0:
-                PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
-                PRINT_ERR("Columns: ",['price_change'])
-                sys.exit(1)
-
-
         if mysql_exists_table(mysql_engine, table_name):
+            table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
+            if 'price_change' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['price_change']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['price_change'], remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['price_change'])
+                    sys.exit(1)
+            if 'mcap' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['mcap']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['mcap'], remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['mcap'])
+                    sys.exit(1)
+            if 'Name' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['Name']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['Name'], cols_type='text', remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['Name'])
+                    sys.exit(1)
+            if 'Industry' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['Industry']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['Industry'], cols_type='text', remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['Industry'])
+                    sys.exit(1)
+            if 'Sector' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['Sector']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['Sector'], cols_type='text', remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['Sector'])
+                    sys.exit(1)
+
+            query = 'select `Date`, `Symbol` from {} where Symbol=\'{}\' and mcap is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            mcap_df = read_from_sql(query, mysql_engine)
+            if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys():
+                mcap_df['mcap'] = stk['Highlights']['MarketCapitalization']
+                mysql_update_table(mysql_engine, table_name, mcap_df, check=True, insert=insert, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+            query = 'select `Date`, `Symbol` from {} where Symbol=\'{}\' and Name is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            name_df = read_from_sql(query, mysql_engine)
+            if 'General' in stk.keys() and 'Name' in stk['General'].keys():
+                name_df['Name'] = stk['General']['Name']
+                mysql_update_table(mysql_engine, table_name, name_df, check=True, insert=insert, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+            query = 'select `Date`, `Symbol` from {} where Symbol=\'{}\' and Name is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            sector_df = read_from_sql(query, mysql_engine)
+            if 'General' in stk.keys() and 'Name' in stk['General'].keys():
+                name_df['Name'] = stk['General']['Name']
+                mysql_update_table(mysql_engine, table_name, name_df, check=True, insert=insert, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+            query = 'select `Date`, `Symbol` from {} where Symbol=\'{}\' and Industry is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            industry_df = read_from_sql(query, mysql_engine)
+            if 'General' in stk.keys() and 'Industry' in stk['General'].keys():
+                industry_df['Industry'] = stk['General']['Industry']
+                mysql_update_table(mysql_engine, table_name, industry_df, check=True, insert=insert, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
+            query = 'select `Date`, `Symbol` from {} where Symbol=\'{}\' and Sector is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+            sector_df = read_from_sql(query, mysql_engine)
+            if 'General' in stk.keys() and 'Sector' in stk['General'].keys():
+                sector_df['Sector'] = stk['General']['Sector']
+                mysql_update_table(mysql_engine, table_name, sector_df, check=True, insert=insert, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+
             query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date'.format(stk['bscs']['symbol'])
             rdf = read_from_sql(query, mysql_engine)
             #if not rdf.empty:
@@ -6397,7 +6495,7 @@ def update_earnings(stk, core, sem=None, all=False):
             update = True
             return
 
-        update_df = True
+        update_df = False
         df = pd.DataFrame(earnings['earnings'])
         if not df.empty:
             df['Symbol'] = stk['bscs']['symbol']
@@ -6410,12 +6508,34 @@ def update_earnings(stk, core, sem=None, all=False):
             if 'date' in df.columns:
                 df.rename(columns = {'date': 'Date', 'code':'Symbol'}, inplace=True)
 
+            #if 'actual' in df.columns:
+            #    df['actual'] = df['actual'].astype('float32')
+            #    rdf['actual'] = rdf['actual'].astype('float32')
+            #if 'difference' in df.columns:
+            #    df['difference'] = df['difference'].astype('float32')
+            #    rdf['difference'] = rdf['difference'].astype('float32')
+            #if 'estimate' in df.columns:
+            #    df['estimate'] = df['estimate'].astype('float32')
+            #    rdf['estimate'] = rdf['estimate'].astype('float32')
+            #if 'percent' in df.columns:
+            #    df['percent'] = df['percent'].astype('float32')
+            #    rdf['percent'] = rdf['percent'].astype('float32')
+
             if not rdf.empty:
                 df['Date'] = pd.to_datetime(df['Date'])
                 df.index=df['Date']
 
                 if 'price_change' in rdf.columns:
                     del rdf['price_change']
+                if 'mcap' in rdf.columns:
+                    del rdf['mcap']
+                if 'Industry' in rdf.columns:
+                    del rdf['Industry']
+                if 'Name' in rdf.columns:
+                    del rdf['Name']
+                if 'Sector' in rdf.columns:
+                    del rdf['Sector']
+
                 cols=list(rdf.columns)
                 df = df[cols]
                 df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -6426,22 +6546,52 @@ def update_earnings(stk, core, sem=None, all=False):
                         mysql_engine.execute(query)
 
                 indices=list(df.index)
-                rdf = rdf.loc[indices]
-                compare=df.compare(rdf)
-                if len(compare) > 0:
-                    indices=list(compare.index)
-                    df = df.loc[indices]
-                    df.index = df['Date']
-                    #df = df.dropna()
-                    query = 'update ' + table_name + ' set price_change=NULL where Symbol = \'{}\''.format(stk['bscs']['symbol'])
-                    mysql_engine.execute(query)
-                else:
-                    update_df = False
+                #rdf_indices = list(rdf.index)
+                # Get all new latest earnings that are not present in the database.
+                additional_rows = df.loc[~df.index.isin(rdf.index)]
+                df = df.drop(additional_rows.index)
+                #common_rows = df.loc[df.index.isin(rdf.index)]
+                #diff_rows = common_rows[~(common_rows == rdf).all(axis=1)]
 
+                #try:
+                #    rdf = rdf.loc[indices]
+                #except Exception as E:
+                #    print("symbol: %s, error: %s" %(stk['bscs']['symbol'], str(E)))
+                #    return
+
+                udf = pd.DataFrame()
+                if len(additional_rows) > 0:
+                    print("New date for %r, %r" %(stk['bscs']['symbol'], additional_rows))
+                    udf = additional_rows
+                    update_df = True
+
+                # If any values are not matching for the existing entries in the database, update them
+                try:
+                    compare=df.compare(rdf)
+                    if len(compare) > 0:
+                        changed_columns = list(compare.columns.get_level_values(0).unique())
+                        contains_any = any(element in ['actual', 'estimate', 'report_date']  for element in changed_columns)
+                        if contains_any is True:
+                            print("changed columns for %r, %r" %(stk['bscs']['symbol'], changed_columns))
+                            indices=list(compare.index)
+                            df = df.loc[indices]
+                            if len(udf) > 0:
+                                udf = pd.concat([udf, df], ignore_index=True)
+                                udf.index = udf['Date']
+                            else:
+                                udf = df
+                            #udf = udf.dropna()
+                            if 'report_date' in changed_columns:
+                                for i in indices:
+                                    query = 'update ' + table_name + ' set price_change=NULL where Symbol = \'{}\' and Date = \'{}\''.format(stk['bscs']['symbol'], str(i.date()))
+                                    mysql_engine.execute(query)
+                            update_df = True
+                except Exception as E:
+                    print("Error comparing, %d: %r, err: %s" %(stk['sno'], stk['bscs']['symbol'], str(E)))
             if update_df:
                 print("%d: %r" %(stk['sno'], stk['bscs']['symbol']))
-                #print(df)
-                mysql_update_table(mysql_engine, table_name, df, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
+                #print(udf)
+                mysql_update_table(mysql_engine, table_name, udf, check=True, insert=insert, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=stk['bscs']['symbol'])
 
         query = 'select * from '+table_name +' where Symbol = \'{}\' order by Date'.format(stk['bscs']['symbol'])
         rdf = read_from_sql(query, mysql_engine)
@@ -6450,7 +6600,7 @@ def update_earnings(stk, core, sem=None, all=False):
         # The eps values are null. Try to fetch again.
         if not rdf.empty:
             try:
-                query = 'select `Date`, `Symbol`, `before_after_market`, `report_date`, `price_change` from {} where Symbol=\'{}\' and price_change is NULL order by Date'.format(table_name, stk['bscs']['symbol'])
+                query = 'select `Date`, `Symbol`, `before_after_market`, `report_date`, `price_change` from {} where Symbol=\'{}\' and price_change is NULL and report_date <= CURDATE() order by Date'.format(table_name, stk['bscs']['symbol'])
                 pr_df = read_from_sql(query, mysql_engine)
                 for index, d in pr_df.iterrows():
                     # If the results are announced after market. Consider the next day's price change.
@@ -6544,8 +6694,8 @@ def update_earnings(stk, core, sem=None, all=False):
         update = True
  
     finally:
+        update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
         if update:
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.earnings_pull_date', dt.combine(dt.now(), dt.min.time()))
             if not rdf.empty:
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_date', dt.strptime(last_row['Date'], "%Y-%m-%d"))
                 update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.last_earnings_report_date', dt.strptime(last_row['report_date'], "%Y-%m-%d"))
@@ -6564,13 +6714,15 @@ def update_all_earnings(all=False):
     table_name = 'Earnings_History'
     sort = [-1, 1][dt.now().day % 2 == 0]
 
-    num_processes = 6
-    #num_processes = int(num_cores) #* 5
+    #num_processes = 6
+    num_processes = int(num_cores) * 5
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
     j=0
  
     today = dt.combine(dt.now(), dt.min.time())
+    Mn = 1000000
+    Bn = 1000*Mn
 
     try:
         # First get earnings for all new stocks
@@ -6593,10 +6745,12 @@ def update_all_earnings(all=False):
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
-        else: 
+        else:
+            # Get only the stocks with 5Bn or above mcap
             stocks = db.US_Stocks.find({"$and": [\
                                                     {'General.Type':'Common Stock'},\
-                                                    {"dates.earnings_pull_date": {"$exists": False}},\
+                                                    #{"dates.earnings_pull_date": {"$exists": False}},\
+                                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                                                     {"General.IsDelisted": False},\
                                                     #{'General.Exchange':{"$in":major_exchanges}}\
                                                     {"$or": [\
@@ -6607,13 +6761,15 @@ def update_all_earnings(all=False):
                                                                         ] \
                                                                 },\
                                                             ]\
-                                                    } \
+                                                    }, \
+                                                    {'dates.earnings_pull_date': {'$lt':get_latest_trading_day()}},\
+                                                    #{'dates.technicals_pull_date':{'$gte':get_previous_trading_day()}}\
                                                 ]\
                                         },\
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print("Stocks Earnings to be updated: ", stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"CRWD"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"ASML"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -6629,7 +6785,7 @@ def update_all_earnings(all=False):
             while True:
                 # Now fetch the bulk earnings for the next 60 days
                 #url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&fmt=json'
-                url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&from='+str(dt.now().date())+'&to='+str(dt.now().date()+timedelta(60))+'&fmt=json'
+                url='https://eodhd.com/api/calendar/earnings?api_token='+get_eod_token_id()+'&from='+str(dt.now().date())+'&to='+str(dt.now().date()+timedelta(30))+'&fmt=json'
                 ret = requests.get(url)
                 if ret.status_code == 402 or int(ret.headers['X-RateLimit-Remaining']) < 1 :
                     print("%s: Ratelimit: %r, %r, waiting for 10 secs" %(stk['bscs']['symbol'], int(ret.headers['X-RateLimit-Remaining']), ret.text))

@@ -175,6 +175,13 @@ Query OK, 0 rows affected (0.01 sec)
 mysql> DELIMITER ;
 
 mysql> DELIMITER $$
+mysql> CREATE PROCEDURE latest_earnings() BEGIN  select Symbol, Name, Report_Date, Date, Actual, Estimate, Difference, FORMAT(Percent, 2) as Percent, CONCAT(FORMAT(Price_Change,2),'%') as Price_Change, CONCAT('$', FORMAT(MCap/1000000000,2),'Bn') as MCap from Earnings_History where report_date >=DATE_SUB(NOW(), INTERVAL 1 MONTH) and mcap >= 5000000000 and price_change < -0.05 order by price_change desc ; END$$
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> DELIMITER ;
+
+
+mysql> DELIMITER $$
 mysql> CREATE PROCEDURE balance(IN sym CHAR(12))
     -> BEGIN
     ->   select FORMAT(`Total_Assets_$M`,2) as Tot_Assets, FORMAT(Total_Liabilities,2) as Tot_Liabilities, FORMAT(Total_Current_Assets,2) as Tot_Cur_Assets, FORMAT(Total_Current_Liabilities,2) as Tot_Cur_Liablilities, FORMAT(`Long_Term_Debt_$M`,2) as LongTerm_Debt, FORMAT(`Short_Term_Debt`,2) as ShortTerm_Debt, FORMAT(`PPE_Gross`,2) as PPE, FORMAT(`Intangibles`,2) as Intangibles, FORMAT(`Cash_&_Cash_Equivalents`,2) as Cash, FORMAT(`Common_Shares`,2) as Common_Shares, FORMAT(`Shares_Outstanding,_K`,2) as Tot_Shares from balance_table where Symbol=sym;

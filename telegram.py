@@ -346,6 +346,88 @@ def earnings_date(instrument, radar_syms=None):
                     notify_message(message)
 
 # Earnings with in a week
+def earnings_week():
+    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name'])
+    #fields = {
+    #                'Name':'',
+    #                'Trend':int(),
+    #                'Price': float(), 
+    #                'Day_Change': float(),
+    #                'Avg_Vol_X_Price_Mn': float(),
+    #                'Cur_Price_Max_Rsi_Change': float(),
+    #                'Trend_Sequence':'',
+    #                'Trend_Sequence_Change':'',
+    #                'Prev_Trend_Change':float(),
+    #                'Days_To_Earnings':'',
+    #                'MCap':float()
+    #            }
+    c  = DB.open_db_client()
+    db = c['Stocks']
+    Mn = 1000000
+    Bn = 1000*Mn
+    today = dt.combine(dt.now().date(), dt.min.time())
+    week = today + timedelta(6)
+    conditions = [ \
+                    {"General.IsDelisted": False},\
+                    {'General.Type':'Common Stock'},\
+                    {"$or": [\
+                                {'General.Exchange':{"$in":major_exchanges}},\
+                                {"$and": [ \
+                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                            {'bscs.tracking':{'$exists':True}}, \
+                                        ] \
+                                },\
+                            ]\
+                    },\
+                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                    {"$and": [\
+                                {'dates.last_earnings_report_date' :{"$gte":today}},\
+                                {'dates.last_earnings_report_date' :{"$lte":week}},\
+                        ]\
+                    },\
+                ]
+
+    week_earnings_stks = {}
+    tomorrow_earnings_stks = {}
+
+    stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.last_earnings_report_date",1]]).allow_disk_use(True)
+    print("Week earnings stocks: ", stocks.count())
+    try:
+        for i, instrument in enumerate(stocks):
+            print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
+            if instrument['bscs']['symbol'] == 'AVGO':
+                print("AVGO")
+            # Earnings dates
+            if 'dates' in instrument.keys() and 'last_earnings_report_date' in instrument['dates'].keys():
+                edate = instrument['dates']['last_earnings_report_date'].date()
+                sym = instrument['bscs']['symbol']
+                if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
+                    if sym not in week_earnings_stks.keys():
+                        week_earnings_stks[sym] = instrument['bscs']['symbol']
+                        week_df.loc[i] = [str(edate), sym, instrument['General']['Name']]
+                # If earnings is tomorrow, send a notification
+                if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
+                    if sym not in tomorrow_earnings_stks.keys():
+                        tomorrow_earnings_stks[sym] = instrument['General']['Name']
+        if len(week_df) > 0:
+            message = "Earnings in 7 days\n"
+            for index, d in week_df.iterrows():
+                s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                    "earnings_date: "+ d['Date'] +"\n\n"
+                message = message + s
+            notify_message(message, token='earnings_dates')
+
+        if len(tomorrow_earnings_stks) > 0:
+            message = "Earnings Tomorrow\n"
+            for sym, name in tomorrow_earnings_stks.items():
+                s = sym + ":" + name + "\n"
+                message = message + s
+            notify_message(message, token='earnings_dates')
+
+    finally:
+        DB.close_db_client(c)
+
+# Earnings with in a week
 def week_earnings_date():
     wb = xlrd.open_workbook(radar_stocks_file)
     if wb.nsheets < 1:
@@ -662,9 +744,9 @@ def get_ratings(fwh=False, purebuy=False):
 
                 df.at[instrument['bscs']['symbol'], 'Name'] = instrument['General']['Name']
 
-                df.at[instrument['bscs']['symbol'],'total_dates'] = instrument['price_change']['total_dates']
-                df.at[instrument['bscs']['symbol'],'ten_percent_down_times'] = instrument['price_change']['ten_percent_chg_times']
-                df.at[instrument['bscs']['symbol'],'twenty_percent_down_times'] = instrument['price_change']['twenty_percent_chg_times']
+                df.at[instrument['bscs']['symbol'],'total_weeks'] = instrument['price_change']['total_weeks']
+                df.at[instrument['bscs']['symbol'],'ten_percent_down_times'] = instrument['price_change']['ten_percent_down_times']
+                df.at[instrument['bscs']['symbol'],'twenty_percent_down_times'] = instrument['price_change']['twenty_percent_down_times']
                 if 'AnalystRatings' in instrument.keys():
                     df.at[instrument['bscs']['symbol'],'Rating'] = instrument['AnalystRatings']['Rating']
                     df.at[instrument['bscs']['symbol'],'Target Price'] = instrument['AnalystRatings']['TargetPrice']
@@ -684,10 +766,6 @@ def get_ratings(fwh=False, purebuy=False):
                 df.at[instrument['bscs']['symbol'], 'Bid'] = '$'+str(instrument['options_data']['bid'])
                 df.at[instrument['bscs']['symbol'], 'Mid'] = '$'+str(instrument['options_data']['mid'])
                 df.at[instrument['bscs']['symbol'], 'Ask'] = '$'+str(instrument['options_data']['ask'])
-                if 'risk_percent' in instrument['options_data'].keys():
-                    df.at[instrument['bscs']['symbol'],'risk_percent'] = instrument['options_data']['risk_percent']
-                if 'twenty_percent_down' in instrument['options_data'].keys():
-                    df.at[instrument['bscs']['symbol'],'twenty_percent_down'] = instrument['options_data']['twenty_percent_down']
                 if 'dte' in instrument['options_data'].keys():
                     df.at[instrument['bscs']['symbol'], 'DTE'] = instrument['options_data']['dte']
                 df.at[instrument['bscs']['symbol'], 'DaysToEarnings'] = days_to_earnings
@@ -744,15 +822,13 @@ def get_ratings(fwh=False, purebuy=False):
                     "strike_price: "+ str(d['StrikePrice']) + "\n" +\
                     "expiration: "+ d['Expiry'] + "\n" +\
                     "earnings_date: "+ d['EarningsDate'] + "\n" +\
-                    "10_pcnt_down_times: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n" +\
-                    "20_pcnt_down_times: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_dates'])) + "\n" +\
+                    "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                    "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
                     "premium: " + str(d['Premium']) + "%\n" +\
                     "price+premium: " + str(d['AllPremium']) + "%\n" +\
                     "bid: " + d['Bid'] + "\n" +\
                     "mid: " + d['Mid'] + "\n" +\
                     "ask: " + d['Ask'] + "\n" +\
-                    "Risk Percent: " + str(d['risk_percent']) + "%\n" +\
-                    "TwentyPercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
                     "dte: " + str(d['DTE']) + " days\n" +\
                     "days_to_earnings: " + str(d['DaysToEarnings']) + " days\n" +\
                     "Mcap: $" + str(d['MCap']) + "Bn\n"
@@ -811,10 +887,6 @@ def get_ratings(fwh=False, purebuy=False):
                 df.at[instrument['bscs']['symbol'], 'Bid'] = '$'+str(instrument['options_data']['bid'])
                 df.at[instrument['bscs']['symbol'], 'Mid'] = '$'+str(instrument['options_data']['mid'])
                 df.at[instrument['bscs']['symbol'], 'Ask'] = '$'+str(instrument['options_data']['ask'])
-                if 'risk_percent' in instrument['options_data'].keys():
-                    df.at[instrument['bscs']['symbol'],'risk_percent'] = instrument['options_data']['risk_percent']
-                if 'twenty_percent_down' in instrument['options_data'].keys():
-                    df.at[instrument['bscs']['symbol'],'twenty_percent_down'] = instrument['options_data']['twenty_percent_down']
                 if 'dte' in instrument['options_data'].keys():
                     df.at[instrument['bscs']['symbol'], 'DTE'] = instrument['options_data']['dte']
  
@@ -866,8 +938,6 @@ def get_ratings(fwh=False, purebuy=False):
                 "bid: " + str(d['Bid']) + "\n" +\
                 "mid: " + str(d['Mid']) + "\n" +\
                 "ask: " + str(d['Ask']) + "\n" +\
-                "Risk Percent: " + str(d['risk_percent']) + "%\n" +\
-                "TwentyPercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
                 "dte: " + str(d['DTE']) + " days\n" +\
                 "days_to_earnings: " + str(d['DaysToEarnings']) + " days\n" +\
                 "Mcap: $" + str(d['MCap']) + "Bn\n"
@@ -954,7 +1024,7 @@ def get_options(grp):
                     #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                 ]
     if grp == 'options2':
-        conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
+        conditions.append({'Highlights.MarketCapitalization':{'$gte':1 * Bn}})
     else:
         conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
  
@@ -1084,6 +1154,8 @@ def get_options(grp):
                         options_df.at[instrument['bscs']['symbol'],'twenty_percent_down_times'] = instrument['price_change']['twenty_percent_down_times']
 
                         options_df.at[instrument['bscs']['symbol'],'price_80_percent'] = instrument['options_data']['price_80_percent']
+                        options_df.at[instrument['bscs']['symbol'],'max_loss_percent'] = instrument['options_data']['max_loss_percent']
+                        options_df.at[instrument['bscs']['symbol'],'max_loss_price_down'] = instrument['options_data']['max_loss_price_down']
                         options_df.at[instrument['bscs']['symbol'],'noloss_point'] = instrument['options_data']['noloss_point']
                         options_df.at[instrument['bscs']['symbol'],'risk_percent'] = instrument['options_data']['risk_percent']
                         options_df.at[instrument['bscs']['symbol'],'puts_strike'] = instrument['options_data']['puts_strike']
@@ -1104,7 +1176,7 @@ def get_options(grp):
     finally:
         DB.close_db_client(c)
 
-    options_df = options_df.loc[options_df['DTE'] <= 10]
+    options_df = options_df.loc[options_df['DTE'] <= 9]
     if len(options_df) == 0:
         return
     options_df = options_df.sort_values(by=['Premium'], ascending=False)
@@ -1135,8 +1207,10 @@ def get_options(grp):
 
             if grp == 'options2':
                 s = s + \
-                        "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
-                        "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "10%down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "(" +\
+                            str(round((int(d['ten_percent_down_times'])/int(d['total_weeks']))*100,2)) +"%)\n" +\
+                        "20%down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) +"(" +\
+                            str(round((int(d['twenty_percent_down_times'])/int(d['total_weeks']))*100,2)) +"%)\n" +\
                         "earnings_pr_chg: " + d['Earnings_Pr_Chg'] + "\n"
             s = s + \
                 "premium: " + str(d['Premium']) + "%\n" +\
@@ -1152,11 +1226,13 @@ def get_options(grp):
                 "Mcap: $" + str(d['MCap']) + "Bn\n"
 
             if grp == 'options2':
+                        #"Risk Percent: " + str(d['risk_percent']) + "%\n" +\
+                        #"Loss_20PercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
+                        #"Price_20PercentDown: $" + str(d['price_80_percent']) +"\n" +\
                 s = s + \
-                        "Risk Percent: " + str(d['risk_percent']) + "%\n" +\
-                        "Loss_20PercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
-                        "Price_20PercentDown: $" + str(d['price_80_percent']) +"\n" +\
-                        "NolossPoint: $" + str(d['noloss_point']) +"\n" +\
+                        "NoLossPoint: $" + str(d['noloss_point']) +"\n" +\
+                        "MaxLoss%: " + str(d['max_loss_percent']) +"%\n" +\
+                        "MaxLossPriceDown: " + str(d['max_loss_price_down']) +"%\n" +\
                         "PutsStrike: $" + str(d['puts_strike']) + "\n" +\
                         "PutsPremium: $" + str(d['puts_premium']) + "\n" +\
                         "Rating: " + str(d['Rating']) + "\n" +\
@@ -1201,8 +1277,10 @@ def get_options(grp):
                     s = s + "earnings_date: "+ d['EarningsDate'] + "\n"
 
                 s = s + \
-                        "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
-                        "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
+                        "10%down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "(" +\
+                            str(round((int(d['ten_percent_down_times'])/int(d['total_weeks']))*100,2)) +"%)\n" +\
+                        "20%down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) +"(" +\
+                            str(round((int(d['twenty_percent_down_times'])/int(d['total_weeks']))*100,2)) +"%)\n" +\
                         "earnings_pr_chg: " + d['Earnings_Pr_Chg'] + "\n" +\
                         "premium: " + str(d['Premium']) + "%\n" +\
                         "price+premium: " + str(d['AllPremium']) + "%\n" +\
@@ -1213,12 +1291,14 @@ def get_options(grp):
                 if not isnan(d['DaysToEarnings']):
                     s = s + "days_to_earnings: " + str(int(d['DaysToEarnings'])) + "\n"
 
+                    #"Risk Percent: " + str(d['risk_percent']) + "%\n" +\
+                    #"Loss_20PercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
+                    #"Price_20PercentDown: $" + str(d['price_80_percent']) +"\n" +\
                 s = s + \
                     "Mcap: $" + str(d['MCap']) + "Bn\n" +\
-                    "Risk Percent: " + str(d['risk_percent']) + "%\n" +\
-                    "Loss_20PercentDown: " + str(d['twenty_percent_down']) + "%\n" +\
-                    "Price_20PercentDown: $" + str(d['price_80_percent']) +"\n" +\
                     "NolossPoint: $" + str(d['noloss_point']) +"\n" +\
+                    "MaxLoss%: " + str(d['max_loss_percent']) +"%\n" +\
+                    "MaxLossPriceDown: " + str(d['max_loss_price_down']) +"%\n" +\
                     "PutsStrike: $" + str(d['puts_strike']) + "\n" +\
                     "PutsPremium: $" + str(d['puts_premium']) + "\n" +\
                     "Rating: " + str(d['Rating']) + "\n" +\
@@ -1655,7 +1735,8 @@ if __name__ == "__main__":
     elif len(sys.argv) == 3 and 'ratings' in sys.argv[1] and 'pure' in sys.argv[2]:
         get_ratings(purebuy=True)
     else:
-        week_earnings_date()
+        #week_earnings_date()
+        earnings_week()
         #notify_radar_stocks()
         #notify_all_stocks()
         #notify_message("test")
