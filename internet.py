@@ -1924,9 +1924,9 @@ def get_price_changes(s, country, duration):
         s = build_html_price_change(s, 'US', 100*Bn, 100*Tn, 1, pcent_chg[duration][0], duration, ["MCap 100 Bn and above"])
         s = build_html_price_change(s, 'US', 10*Bn, 100*Bn,  1, pcent_chg[duration][1], duration, ["MCap 10 Bn and 100 Bn"])
         s = build_html_price_change(s, 'US', 5*Bn, 10*Bn,    1, pcent_chg[duration][2], duration, ["MCap 5 Bn and 10 Bn"])
-        s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,     1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
-        s = build_html_price_change(s, 'US', 500*Mn, 1*Bn,   1, pcent_chg[duration][4], duration, ["MCap 500Mn and 1 Bn"])
-        s = build_html_price_change(s, 'US', 1, 500*Mn,      1, pcent_chg[duration][4], duration, ["MCap < 500 Mn"])
+        #s = build_html_price_change(s, 'US', 1*Bn, 5*Bn,     1, pcent_chg[duration][3], duration, ["MCap 1 Bn and 5 Bn"])
+        #s = build_html_price_change(s, 'US', 500*Mn, 1*Bn,   1, pcent_chg[duration][4], duration, ["MCap 500Mn and 1 Bn"])
+        #s = build_html_price_change(s, 'US', 1, 500*Mn,      1, pcent_chg[duration][4], duration, ["MCap < 500 Mn"])
     elif country == 'India':
         Bn = 100 # crores
         Tn = 100 * Bn

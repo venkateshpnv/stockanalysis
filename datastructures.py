@@ -442,6 +442,15 @@ price_fields = {'Date':'varchar(12)',
                 'Adj Close':'float', 
                 'Short':'BIGINT UNSIGNED',
                 }
+stock_fields = {
+                'Sector': 'text',
+                'Industry': 'text',
+                'reportDate' : 'varchar(12)',
+                'lastYearRptDt' : 'varchar(12)',
+                'time': 'text',
+                'marketCap': 'DECIMAL(20, 2)',
+                'mCap': 'DECIMAL(20, 2)',
+                }
 price_fields_datatypes = ['varchar(12)', 'float', 'float', 'float', 'float', 'BIGINT UNSIGNED', 'float', 'BIGINT UNSIGNED']
 
 price_change_fields = {'Day Change':'float', 
@@ -710,3 +719,5 @@ telegram_tokens = {
 databases_list = {
         'US_Stocks': ['Date'],
         }
+
+non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']

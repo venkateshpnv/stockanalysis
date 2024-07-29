@@ -347,7 +347,10 @@ def earnings_date(instrument, radar_syms=None):
 
 # Earnings with in a week
 def earnings_week():
-    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name'])
+    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
+    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
+    earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
+
     #fields = {
     #                'Name':'',
     #                'Trend':int(),
@@ -365,8 +368,11 @@ def earnings_week():
     db = c['Stocks']
     Mn = 1000000
     Bn = 1000*Mn
-    today = dt.combine(dt.now().date(), dt.min.time())
-    week = today + timedelta(6)
+    Bn = 1000000000
+    today = DB.trading_day(dt.combine(dt.now().date(), dt.min.time()))
+    #today = DB.trading_day(dt.combine(dt.strptime("2024-07-23", "%Y-%m-%d").date(), dt.min.time()))
+    yesterday = DB.get_previous_trading_day(today)
+    week = DB.trading_day(today + timedelta(6))
     conditions = [ \
                     {"General.IsDelisted": False},\
                     {'General.Type':'Common Stock'},\
@@ -379,50 +385,145 @@ def earnings_week():
                                 },\
                             ]\
                     },\
+                    {"$or":[\
+                                {'General.Sector': 'Technology'},\
+                                {"$and": [ \
+                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
+                            ]\
+                    },\
                     {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                     {"$and": [\
-                                {'dates.last_earnings_report_date' :{"$gte":today}},\
-                                {'dates.last_earnings_report_date' :{"$lte":week}},\
+                                {'dates.ndaq_last_earnings_date' :{"$gte":today}},\
+                                {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
                         ]\
                     },\
                 ]
 
+    conditions2 = [ \
+                    {"General.IsDelisted": False},\
+                    {'General.Type':'Common Stock'},\
+                    {"$or": [\
+                                {'General.Exchange':{"$in":major_exchanges}},\
+                                {"$and": [ \
+                                            {'General.Exchange':{"$nin":major_exchanges}},\
+                                            {'bscs.tracking':{'$exists':True}}, \
+                                        ] \
+                                },\
+                            ]\
+                    },\
+                    {"$or":[\
+                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                                {"$and": [ \
+                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
+                            ]\
+                    },\
+                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                    {"$or": [\
+                                {"$and": [\
+                                            {'dates.ndaq_last_earnings_date' :{"$eq":today}},\
+                                            {'dates.ndaq_last_earnings_time' :{"$in":["BeforeMarket", np.nan]}},\
+                                    ]\
+                                },\
+                                {"$and": [\
+                                            {'dates.ndaq_last_earnings_date' :{"$eq":yesterday}},\
+                                            {'dates.ndaq_last_earnings_time' :{"$in":["AfterMarket", None]}},\
+                                    ]\
+                                },\
+                            ]\
+                    },\
+                    {"$or": [\
+                                {'price_change.ndaq_earnings_change' : {"$lte": -0.05}},\
+                                {'price_change.ndaq_earnings_change' : {"$gte": 0.05}},\
+                            ]\
+                    },\
+                ]
+
+ 
     week_earnings_stks = {}
     tomorrow_earnings_stks = {}
 
-    stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.last_earnings_report_date",1]]).allow_disk_use(True)
+    stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
     print("Week earnings stocks: ", stocks.count())
     try:
         for i, instrument in enumerate(stocks):
             print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
-            if instrument['bscs']['symbol'] == 'AVGO':
-                print("AVGO")
             # Earnings dates
-            if 'dates' in instrument.keys() and 'last_earnings_report_date' in instrument['dates'].keys():
-                edate = instrument['dates']['last_earnings_report_date'].date()
+            if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                edate = instrument['dates']['ndaq_last_earnings_date'].date()
                 sym = instrument['bscs']['symbol']
                 if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
                     if sym not in week_earnings_stks.keys():
                         week_earnings_stks[sym] = instrument['bscs']['symbol']
-                        week_df.loc[i] = [str(edate), sym, instrument['General']['Name']]
+                        week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
                 # If earnings is tomorrow, send a notification
                 if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
                     if sym not in tomorrow_earnings_stks.keys():
-                        tomorrow_earnings_stks[sym] = instrument['General']['Name']
+                        today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                        #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
+
+        week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
+        today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
         if len(week_df) > 0:
             message = "Earnings in 7 days\n"
             for index, d in week_df.iterrows():
                 s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                    "earnings_date: "+ d['Date'] +"\n\n"
+                        "MCap: " + str(d['MCap']) + "Bn\n" +\
+                        "Time : " + str(d['Time']) + "\n" +\
+                        "earnings_date: "+ str(d['Date']) +"\n\n"
+                message = message + s
+            #notify_message(message, token='earnings_dates')
+
+        if len(today_df) > 0:
+            message = "Earnings Tomorrow\n"
+            for index, d in today_df.iterrows():
+                s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                        "MCap: " + str(d['MCap']) + "Bn\n" +\
+                        "Time : " + str(d['Time']) + "\n" +\
+                        "earnings_date: "+ str(d['Date']) +"\n\n"
                 message = message + s
             notify_message(message, token='earnings_dates')
 
-        if len(tomorrow_earnings_stks) > 0:
-            message = "Earnings Tomorrow\n"
-            for sym, name in tomorrow_earnings_stks.items():
-                s = sym + ":" + name + "\n"
+        stocks = db.US_Stocks.find({'$and':conditions2}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
+        print("Stocks with earnings today: ", stocks.count())
+        #earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
+        stks = []
+        for i, instrument in enumerate(stocks):
+            sym = instrument['bscs']['symbol']
+            if sym not in stks:
+                stks.append(sym)
+                earnings_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['price_change']['ndaq_earnings_change']*100, 2), round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+
+        if len(earnings_df) > 0:
+            up_df = earnings_df[earnings_df['Price_Change'] >= 0]
+            up_df = up_df.sort_values(by=['Price_Change'], ascending=[False])
+            down_df = earnings_df[earnings_df['Price_Change'] < 0]
+            down_df = down_df.sort_values(by=['Price_Change'], ascending=[True])
+
+            message = "Earnings Down Today:\n=====================\n"
+            for index, d in down_df.iterrows():
+                s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                        "MCap: " + str(d['MCap']) + "Bn\n" +\
+                        "Time : " + str(d['Time']) + "\n" +\
+                        "earnings_date: "+ str(d['Date']) + "\n" +\
+                        "price_change: "+ str(d['Price_Change']) + "%\n\n"
                 message = message + s
             notify_message(message, token='earnings_dates')
+            message = "Earnings Up Today:\n=====================\n"
+            for index, d in up_df.iterrows():
+                s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                        "MCap: " + str(d['MCap']) + "Bn\n" +\
+                        "Time : " + str(d['Time']) + "\n" +\
+                        "earnings_date: "+ str(d['Date']) + "\n" +\
+                        "price_change: "+ str(d['Price_Change']) + "%\n\n"
+                message = message + s
+            notify_message(message, token='earnings_dates')
+
 
     finally:
         DB.close_db_client(c)
@@ -1324,11 +1425,13 @@ def get_uptrend():
                     'Trend':int(),
                     'Price': float(), 
                     'Day_Change': float(),
+                    'Year_Change': float(),
                     'Avg_Vol_X_Price_Mn': float(),
                     'Cur_Price_Max_Rsi_Change': float(),
                     'Trend_Sequence':'',
                     'Trend_Sequence_Change':'',
                     'Prev_Trend_Change':float(),
+                    'Cur_Trend_Change':float(),
                     'MCap':float()
                 }
     uptrend_df = pd.DataFrame(fields, index=[])
@@ -1336,26 +1439,105 @@ def get_uptrend():
     c  = DB.open_db_client()
     db = c['Stocks']
 
-    stocks = db.US_Stocks.find({"$and":[\
+    stocks = list(db.US_Stocks.find({"$and":[\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
-                                            {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
-                                            {'technicals.sar.ta_psar_trend':{"$eq":1}},\
-                                            {"$and": [ \
-                                                        {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
-                                                        {'dates.mysql_price_pull_success': True},\
-                                                        {'failcount.mysql_price_failcount': {'$eq': 0}},\
-                                                        #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                                    ]\
-                                            }, \
                                             {"$or":[\
-                                                    {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
-                                                    {'price_change.date': {"$exists": False}}\
+                                                        {'General.Sector': 'Technology'},\
+                                                        {"$and": [ \
+                                                                    {'General.Sector': {"$nin": ['Technology']}},\
+                                                                    {'General.Code' : {"$in": non_tech_stocks}},\
+                                                                ]\
+                                                        },\
                                                     ]\
                                             },\
+                                            {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
+                                            {"$or":[\
+                                                        {"$and": [ \
+                                                                    {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+                                                                    {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
+                                                                ]\
+                                                        },\
+                                                        {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
+                                                        {'technicals.sar.ta_psar_cur_trend_price_change':{"$lte":-0.15}},\
+                                                    ]\
+                                            },\
+                                            #{"$and": [ \
+                                            #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                            #            {'dates.mysql_price_pull_success': True},\
+                                            #            {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                            #            #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                            #        ]\
+                                            #}, \
+                                            #{"$or":[\
+                                            #        {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+                                            #        {'price_change.date': {"$exists": False}}\
+                                            #        ]\
+                                            #},\
  
-                                        ]}).batch_size(10)
-    print("uptrend stocks: %d" %(stocks.count()))
+                                        ]}))
+    #res2 = list(db.US_Stocks.find({"$and":[\
+    #                                        {'General.Type':'Common Stock'},\
+    #                                        {'General.IsDelisted': False},\
+    #                                        {'Highlights.MarketCapitalizationMln': {"$gte":50000}},\
+    #                                        {'General.Code' : {"$in": non_tech_stocks}},\
+    #                                        {"$or":[\
+    #                                                    {"$and": [ \
+    #                                                                {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+    #                                                                {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
+    #                                                            ]\
+    #                                                    },\
+    #                                                    {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
+    #                                                ]\
+    #                                        },\
+    #                                        #{"$and": [ \
+    #                                        #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+    #                                        #            {'dates.mysql_price_pull_success': True},\
+    #                                        #            {'failcount.mysql_price_failcount': {'$eq': 0}},\
+    #                                        #            #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+    #                                        #        ]\
+    #                                        #}, \
+    #                                        #{"$or":[\
+    #                                        #        {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+    #                                        #        {'price_change.date': {"$exists": False}}\
+    #                                        #        ]\
+    #                                        #},\
+ 
+    #                                    ]}))
+    #combined_results = res1 + res2
+    #stocks = {doc['_id']: doc for doc in combined_results}.values()
+
+    #stocks = db.US_Stocks.find({"$and":[\
+    #                                        {'General.Type':'Common Stock'},\
+    #                                        {'General.IsDelisted': False},\
+    #                                        {'General.Sector': 'Technology'},\
+    #                                        {'Highlights.MarketCapitalizationMln': {"$gte":50000}},\
+    #                                        {"$or":[\
+    #                                                    {"$and": [ \
+    #                                                                {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+    #                                                                {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
+    #                                                            ]\
+    #                                                    },\
+    #                                                    {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
+    #                                                ]\
+    #                                        },\
+    #                                        {"$and": [ \
+    #                                                    {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+    #                                                    {'dates.mysql_price_pull_success': True},\
+    #                                                    {'failcount.mysql_price_failcount': {'$eq': 0}},\
+    #                                                    #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+    #                                                ]\
+    #                                        }, \
+    #                                        {"$or":[\
+    #                                                {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+    #                                                {'price_change.date': {"$exists": False}}\
+    #                                                ]\
+    #                                        },\
+ 
+    #                                    ]}).batch_size(10)
+
+    print("uptrend stocks: %d" %(len(stocks)))
+    #print("uptrend stocks: %d" %(stocks.count()))
 
     # Uptrend
     try:
@@ -1369,11 +1551,13 @@ def get_uptrend():
                                         trend, 
                                         round(instrument['price_change']['price'],2),
                                         round(instrument['price_change']['day']*100,2),
+                                        round(instrument['price_change']['year']*100,2),
                                         round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
                                         cur_price_max_rsi_change,
                                         str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
                                         str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change'],2),
+                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                        round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
                                         round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
                                         #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
                                         ]
@@ -1384,8 +1568,8 @@ def get_uptrend():
 
     if len(uptrend_df) == 0:
         return
-    # Get only stocks whose previous trend has lost atleast 20%
-    trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -20].sort_values(by=['Prev_Trend_Change'], ascending=True)
+    ## Get only stocks whose previous trend has lost atleast 10%
+    trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
     trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
     trend1 = trend1.iloc[0:9]
     # Get only stocks that are atleast 5% up on today
@@ -1393,29 +1577,46 @@ def get_uptrend():
     trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
     trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
     trend2 = trend2.iloc[0:9]
-    uptrend_df = pd.concat([trend1, trend2])
-    uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
+    # Get stocks where current trend is down by atleast 10%
+    trend3 = uptrend_df[uptrend_df.Cur_Trend_Change <= -10]
+    trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+    #trend3 = trend3.iloc[0:9]
+    trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
+    uptrend_df = pd.concat([trend1, trend3])
+    #uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
     uptrend_df.drop_duplicates(keep=False,inplace=True)
-    if len(trend1) > 0:
-        message = "Stocks Uptrend:\n=====================\n"
-        for index,d in trend1.iterrows():
-            s = str(index) + ":" +d['Name'] +"\n" +\
-                    "trend: "
-            if d['Trend'] > 0:
-                s = s + str(d['Trend']) + "L\n"
-            else:
-                s = s + str(abs(d['Trend'])) + "S\n"
-            s = s + "price: $"+ str(d['Price']) + "\n" +\
-                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-                "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-                "trend: " + d['Trend_Sequence'] + "\n" +\
-                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+    count = 6
+    st = 0
+    en = count
+    l = len(uptrend_df)
+    iters = math.ceil(l/count)# + 1
+    if len(uptrend_df) > 0:
+        for i in range(iters):
+            message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
+            df = uptrend_df.iloc[st:en]
+            if len(df) == 0:
+                break
+            for index,d in df.iterrows():
+                s = str(index) + ":" +d['Name'] +"\n" +\
+                        "trend: "
+                if d['Trend'] > 0:
+                    s = s + str(d['Trend']) + "L\n"
+                else:
+                    s = s + str(abs(d['Trend'])) + "S\n"
+                s = s + "price: $"+ str(d['Price']) + "\n" +\
+                    "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                    "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
+                    "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+                    "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+                    "trend: " + d['Trend_Sequence'] + "\n" +\
+                    "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                    "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+                    "Mcap: $" + str(d['MCap']) + "Bn\n\n"
 
-            message = message + s
-        notify_message(message)
+                message = message + s
+            notify_message(message)
+            st = en
+            en = en + count
     if len(trend2) > 0:
         message = "Stocks Uptrend(Day Change):\n=====================\n"
         for index,d in trend2.iterrows():
@@ -1437,6 +1638,7 @@ def get_uptrend():
                 s = s + str(abs(d['Trend'])) + "S\n"
             s = s + "price: $"+ str(d['Price']) + "\n" +\
                 "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+                "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
                 "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
                 "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
                 "trend: " + d['Trend_Sequence'] + "\n" +\
@@ -1693,6 +1895,15 @@ def get_all_indicators():
     conditions = [\
                     {'General.Type':'Common Stock'},\
                     {'General.IsDelisted': False},\
+                    {"$or":[\
+                                {'General.Sector': 'Technology'},\
+                                {"$and": [ \
+                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
+                            ]\
+                    },\
                     {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
                     {'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
                     {"$and": [ \
@@ -1726,20 +1937,24 @@ def get_all_indicators():
     get_indicator('estar', conds, fields)
 
 if __name__ == "__main__":
+    if is_holiday():
+        sys.exit(0)
     if len(sys.argv) == 2 and 'options' in sys.argv[1]:
         get_options(sys.argv[1])
     elif len(sys.argv) == 2 and 'ratings' in sys.argv[1]:
         get_ratings()
     elif len(sys.argv) == 2 and 'fwh' in sys.argv[1]:
         get_ratings(fwh=True)
+    elif len(sys.argv) == 2 and 'earnings' in sys.argv[1]:
+        earnings_week()
     elif len(sys.argv) == 3 and 'ratings' in sys.argv[1] and 'pure' in sys.argv[2]:
         get_ratings(purebuy=True)
     else:
-        #week_earnings_date()
+        ##week_earnings_date()
         earnings_week()
-        #notify_radar_stocks()
-        #notify_all_stocks()
-        #notify_message("test")
-        get_all_indicators()
+        ##notify_radar_stocks()
+        ##notify_all_stocks()
+        ##notify_message("test")
+        #get_all_indicators()
         get_uptrend()
-        ##get_mstar()
+        ###get_mstar()

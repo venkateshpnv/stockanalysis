@@ -249,7 +249,7 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
     all_fields = {**price_fields, **price_change_fields,\
                 **fin_year_fields, **fin_quarter_fields, \
                 **income_fields, **balance_fields, **cash_fields,\
-                **generic_fields, **trends_fields}
+                **generic_fields, **trends_fields, **stock_fields}
     if cols_type == 'text':
         for c in sorted(missing_cols):
             c_dtype = 'text'
@@ -393,8 +393,14 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
 
                 # If you are sure that this is the new record
                 if insert:
+                    print("%s: mysql_update_table, new entry." %(symbol))
                     stmt=table.insert().values(items)
                 else:
+                    for item in items.keys():
+                        if item.lower() == 'symbol':
+                            symbol = items[item]
+                            break
+
                     # check if the key exists. If so, update the record,
                     # else create a new record. 
                     # This is for backward compatibility only.
@@ -493,7 +499,9 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
 
                     #stmt=table.update().where(table.c.Date==key).values(items)
                 try:
-                    conn.execute(stmt)
+                    ret = conn.execute(stmt)
+                    if ret.rowcount is None:
+                        print("Executing stmt: %r has failed" %(str(stmt)))
                 except Exception as E:
                     print("mysql update table: %r" %(str(E)))
                     pass
@@ -2343,7 +2351,7 @@ def calc_psar(df, duration=None, trend_only=False):
         # If long, return +trend_days, if short return -trend_days
         trend_days = (-trend_days,trend_days)[position == 'long']
         # Current trend price change
-        ct_pr_change = percent_change(psar.loc[start]['Adj Close'], psar.iloc[-1]['Adj Close'])
+        ct_pr_change = percent_change(psar.loc[trading_day(start-timedelta(1))]['Adj Close'], psar.iloc[-1]['Adj Close'])
 
         # Calculate Trend Pattern
         # Like 5L_6S_4L_12S etc
@@ -2373,10 +2381,10 @@ def calc_psar(df, duration=None, trend_only=False):
             trend_sequence = trend_sequence +\
                                 str(num_days) +\
                                 trend + '-'
-            st = start - timedelta(1)
+            st = trading_day(start - timedelta(1))
             st = get_nearest_index(df, st)
             st_price = df.iloc[st]['Adj Close']
-            en = end - timedelta(1)
+            en = trading_day(end - timedelta(1))
             #en = get_valid_date('US', en)
             en = get_nearest_index(df, en)
             en_price = df.iloc[en]['Adj Close']
@@ -2406,20 +2414,20 @@ def calc_psar(df, duration=None, trend_only=False):
         if len(long_short_df) < 2:
             pt_pr_change = nan
         else:
-            #s = long_short_df.index[-2] - timedelta(1)
+            #s = trading_day(long_short_df.index[-2] - timedelta(1))
             #s = get_nearest_index(df, s)
             #st_price = df.iloc[s]['Adj Close']
-            #en = long_short_df.index[-1] - timedelta(1)
+            #en = trading_day(long_short_df.index[-1] - timedelta(1))
             ##en = get_valid_date('US', en)
             #en = get_nearest_index(df, en)
             #en_price = df.iloc[en]['Adj Close']
  
             #pt_pr_change = percent_change(st_price, en_price)
-            pt_pr_change = trend_pcnt_change_list[-1]
+            pt_pr_change = trend_pcnt_change_list[-1]/100
 
         # Add latest on-going trend
         trend_sequence = trend_sequence + str(abs(trend_days)) + ('S','L')[trend_days>0]
-        st = long_short_df.index[-1] - timedelta(1)
+        st = trading_day(long_short_df.index[-1] - timedelta(1))
         st = get_nearest_index(df, st)
         st_price = df.iloc[st]['Adj Close']
         en = df.index[-1]# - timedelta(1)
@@ -3115,8 +3123,16 @@ def get_last_weekday(d):
 def get_latest_trading_day():
     return trading_day()
 
-def get_previous_trading_day():
-    day = trading_day() - timedelta(1)
+def get_previous_trading_day(date=None):
+    if date is None:
+        day = trading_day() - timedelta(1)
+    else:
+        try:
+            if isinstance(date, str):
+                date = dt.strptime(date, "%Y-%m-%d").date()
+        except:
+            return None
+        day = date - timedelta(1)
     return trading_day(day)
 
 def get_next_trading_day(date=None):
@@ -6769,7 +6785,7 @@ def update_all_earnings(all=False):
                                         no_cursor_timeout=True).sort([["sno",sort]]).allow_disk_use(True)
         print("Stocks Earnings to be updated: ", stocks.count())
 
-        #stocks = db.US_Stocks.find({"bscs.symbol":"ASML"})
+        #stocks = db.US_Stocks.find({"bscs.symbol":"MSM"})
         for i, stk in enumerate(stocks):
             print("%d: %r" %(i, stk['bscs']['symbol']))
             sem.acquire()
@@ -10220,3 +10236,316 @@ def check_all_stocks_uniqueness():
         #time.sleep(30)
         close_db_client(c)
 
+def update_nasdaq_all_earnings():
+
+    try:
+        mysql_engine = open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        c  = open_db_client()
+        db = c['Stocks']
+        c  = open_db_client()
+        db = c['Stocks']
+        table_name = 'Nasdaq_Earnings_History'
+        mysql_check_n_create_table(mysql_engine, table_name, fin_table=True)
+        if mysql_exists_table(mysql_engine, table_name):
+            table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
+            if 'price_change' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['price_change']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['price_change'], remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['price_change'])
+                    sys.exit(1)
+ 
+        headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0'}
+
+        edf = pd.DataFrame()
+        all_entries = []
+        start = trading_day(dt.now().date() - timedelta(5))
+        #start = dt.strptime('2024-01-01', "%Y-%m-%d").date()
+        end = trading_day(dt.now().date() + timedelta(45))
+        
+        d = start
+        while d <= end:
+            url = 'https://api.nasdaq.com/api/calendar/earnings?date=' + str(d)
+            ret = requests.get(url, headers=headers)
+            if ret.status_code != 200:
+                print("Failed to get data for url: %r" %(url))
+                return
+
+            print(url)
+            df = pd.DataFrame(ret.json()['data']['rows'])
+            if len(df) == 0:
+                if d.weekday() == 4:
+                    d = trading_day(d + timedelta(3))
+                else:
+                    d = trading_day(d + timedelta(1))
+                continue
+            df.rename(columns={'symbol': 'Symbol'}, inplace=True)
+            #try:
+            def convert_marketcap(value):
+                try:
+                    if value == '':
+                        return 0
+
+                    value = value.replace('$', '').replace(',', '')
+                    return float(value)
+                except Exception as E:
+                    print("value: %r, error: %r" %(value, str(E)))
+                    return 0
+
+            try:
+                bdf = df.copy()
+                df['marketCap'] = df['marketCap'].apply(convert_marketcap)
+            except Exception as E:
+                print(url)
+
+            #df['marketCap'] = df['marketCap'].str.replace('[\$,]', '', regex=True).astype(int)
+            df['Date'] = pd.to_datetime(df['fiscalQuarterEnding'], format='%b/%Y') + pd.offsets.MonthEnd(0)
+            df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+            del df['fiscalQuarterEnding']
+            df['reportDate'] = str(d)
+            #df['reportDate'] = pd.to_datetime(d)
+            if 'lastYearRptDt' in df.columns:
+                df['lastYearRptDt'] = pd.to_datetime(df['lastYearRptDt'], errors='coerce')
+                df['lastYearRptDt'] = df['lastYearRptDt'].dt.strftime('%Y-%m-%d')
+            df['time'] = df['time'].replace({'time-after-hours': 'AfterMarket', 'time-pre-market': 'BeforeMarket', 'time-not-supplied': np.nan})
+            #except Exception as E:
+            #    print("error while converting entries, err: %s" %(str(E)))
+            #    pass
+
+            # Function to convert the string values
+            def convert_amount(value):
+                if value == 'N/A' or len(value) == 0:
+                    return np.nan
+                # Check for negative values in parentheses
+                if value.startswith('(') and value.endswith(')'):
+                    value = '-' + value[1:-1]
+                # Remove the dollar sign
+                value = value.replace('$', '')
+                try:
+                    return float(value)
+                except ValueError:
+                    return np.nan
+
+            if 'lastYearEPS' in df.columns:
+                df['lastYearEPS'] = df['lastYearEPS'].apply(convert_amount)
+            if 'epsForecast' in df.columns:
+                df['epsForecast'] = df['epsForecast'].apply(convert_amount)
+            if 'eps' in df.columns:
+                df['eps'] = df['eps'].apply(convert_amount)
+            if 'surprise' in df.columns:
+                df['surprise'] = df['surprise'].apply(convert_amount)
+                df['surprise'] = df['surprise']/100
+            if 'noOfEsts' in df.columns:
+                df['noOfEsts'] = pd.to_numeric(df['noOfEsts'], errors='coerce').fillna(0).astype(float)
+            
+            edf = edf.append(df, ignore_index=True)
+    
+            if d.weekday() == 4:
+                d = trading_day(d + timedelta(3))
+            else:
+                d = trading_day(d + timedelta(1))
+
+        # Get all stocks with mcap >= 1Bn
+        edf = edf[edf['marketCap'] >= 100000000]
+        # Replace all NaN with None. That would be easy to search from python
+        edf = edf.applymap(lambda x: None if pd.isna(x) else x)
+        edf.index=edf.Date
+        #for index, d in edf.iterrows():
+        #stocks = db.US_Stocks.find({'General.Code':d['Symbol']}, {'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
+        stocks = db.US_Stocks.find({'General.Code':{'$in': edf['Symbol'].tolist()}}, {'General.Code':1, 'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
+        #if stocks.count() > 0:
+        for stk in stocks:
+            #print(stk)
+            if 'General' in stk.keys():
+                if 'Sector' in stk['General'].keys():
+                    edf.loc[edf['Symbol'] == stk['General']['Code'], 'Sector'] = stk['General']['Sector']
+                if 'Industry' in stk['General'].keys():
+                    edf.loc[edf['Symbol'] == stk['General']['Code'], 'Industry'] = stk['General']['Industry']
+                #edf.at[index,'Sector'] = stocks[0]['General']['Sector']
+            res = edf.loc[edf['Symbol'] == stk['General']['Code']]
+            if not res.empty:
+                db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_date": dt.combine(dt.strptime(res.iloc[0]['reportDate'], "%Y-%m-%d").date(), dt.min.time())}})
+                db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_time": res.iloc[0]['time']}})
+
+    #edf.at[index,'Industry'] = stocks[0]['General']['Industry']
+
+        metadata = MetaData()
+        table = Table(table_name, metadata, autoload=True, autoload_with=mysql_engine)
+        table_cols = sorted(mysql_get_columns(table))
+        if 'price_change' in table_cols:
+            table_cols.remove('price_change')
+        columns_present = set(table_cols).issubset(sorted(list(edf.columns)))
+        if columns_present:
+            udf = pd.DataFrame()
+            query = 'select * from {} where reportDate >=\'{}\' order by Date'.format(table_name, str(start))
+            rdf = read_from_sql(query, mysql_engine)
+            rcols = list(rdf.columns)
+            if 'price_change' in rcols:
+                rcols.remove('price_change')
+            ecols = list(edf.columns)
+            # Columns are different. Throw error and exit
+            if set(rcols) != set(ecols):
+                print("earings db cols : %r are different from the url cols: %r" %(rcols, ecols))
+                return
+            #rdf = rdf.set_index(['Date', 'Symbol'])
+            #edf = edf.set_index(['Date', 'Symbol'])
+            rdf = rdf[ecols]
+            rdf['Index'] = rdf['Date'] + '_' + rdf['Symbol']
+            rdf.set_index('Index', inplace=True)
+            edf['Index'] = edf['Date'] + '_' + edf['Symbol']
+            edf.set_index('Index', inplace=True)
+            edf.sort_index(inplace=True)
+            rdf.sort_index(inplace=True)
+            edf = edf.round(2)
+            rdf = rdf.round(2)
+
+            # Get all new latest earnings that are not present in the database.
+            #udf = edf.loc[~edf.index.isin(rdf.index)]
+            new_indices = edf.index.difference(rdf.index)
+            if len(new_indices) > 0:
+                udf = edf.loc[new_indices]
+            else:
+                udf = pd.DataFrame()
+
+            try:
+                rdf['Index'] = rdf['reportDate'] + '_' + rdf['Symbol']
+                rdf.set_index('Index', inplace=True)
+                edf['Index'] = edf['reportDate'] + '_' + edf['Symbol']
+                edf.set_index('Index', inplace=True)
+                edf.sort_index(inplace=True)
+                rdf.sort_index(inplace=True)
+                edf = edf.round(2)
+                rdf = rdf.round(2)
+
+                common_indices = edf.index.intersection(rdf.index)
+                edf_common = edf.loc[common_indices]
+                rdf_common = rdf.loc[common_indices]
+                if 'time' in edf_common.columns and 'time' in rdf.columns:
+                    edf_common.loc[common_indices, 'time'] = rdf_common.loc[common_indices, 'time']
+                else:
+                    print("error: time column not present")
+                    return
+                if 'lastYearRptDt' in edf_common.columns and 'lastYearRptDt' in rdf.columns:
+                    edf_common.loc[common_indices, 'lastYearRptDt'] = rdf_common.loc[common_indices, 'lastYearRptDt']
+                else:
+                    print("error: lastYearRptDt column not present")
+                    return
+                if 'lastYearEPS' in edf_common.columns and 'lastYearEPS' in rdf.columns:
+                    edf_common.loc[common_indices, 'lastYearEPS'] = rdf_common.loc[common_indices, 'lastYearEPS']
+                else:
+                    print("error: lastYearEPS column not present")
+                    return
+ 
+                del edf_common['marketCap']
+                del rdf_common['marketCap']
+                compare=edf_common.compare(rdf_common)
+                if len(compare) > 0:
+                    #indices=list(compare.index)
+                    self_columns = [col for col in compare.columns if col[1] == 'self']
+                    non_nan_indices = compare[self_columns].apply(lambda row: any(pd.notna(row)), axis=1)
+                    indices = non_nan_indices[non_nan_indices].index
+                    if len(indices) > 0:
+                        changed_columns = list(compare.columns.get_level_values(0).unique())
+                        print("changed columns for %r" %(changed_columns))
+                        edf = edf.loc[indices]
+                        edf.index = edf['Date']
+                        #mysql_update_table(mysql_engine, table_name, edf, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+                        if len(udf) > 0:
+                            udf = pd.concat([udf, edf], ignore_index=True)
+                        else:
+                            udf = edf
+            except ValueError:
+                pass
+            if len(udf) > 0:
+                udf.index = udf['Date']
+                #stocks = db.US_Stocks.find({'General.Code':{'$in': udf['Symbol'].tolist()}}, {'General.Code':1, 'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
+                #for stk in stocks:
+                #    if 'General' in stk.keys():
+                #        if 'Sector' in stk['General'].keys():
+                #            udf.loc[udf['Symbol'] == stk['General']['Code'], 'Sector'] = stk['General']['Sector']
+                #        if 'Industry' in stk['General'].keys():
+                #            udf.loc[udf['Symbol'] == stk['General']['Code'], 'Industry'] = stk['General']['Industry']
+
+                mysql_update_table(mysql_engine, table_name, udf, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+        else:
+            mysql_update_table(mysql_engine, table_name, edf, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+
+        print("Calculating price changes")
+        query = 'select `Date`, `Symbol`, `reportDate`, `time`, `price_change` from {} where price_change is NULL and reportDate <= CURDATE() order by reportDate'.format(table_name)
+        pr_df = read_from_sql(query, mysql_engine)
+        pr_df['reportDate'] = pd.to_datetime(pr_df['reportDate'])
+        pr_df = pr_df[pr_df['reportDate'] <= pd.to_datetime(dt.now().date())]
+        pr_df['reportDate'] = pr_df['reportDate'].dt.strftime('%Y-%m-%d')
+
+        pr_df['Index'] = pr_df['reportDate'] + '_' + pr_df['Symbol']
+        pr_df.set_index('Index', inplace=True)
+        for index, d in pr_df.iterrows():
+            # If the results are announced after market. Consider the next day's price change.
+            report_date = d['reportDate']
+            price_table = DB.get_symbol_table_name(d['Symbol'])
+            if not mysql_exists_table(price_engine, price_table):
+                print("price data for %s doesn't exist" %(price_table))
+                continue
+            rdate = pd.to_datetime(d['reportDate'])
+            if d['time'] == None:
+                if rdate < dt.now().date():
+                    prev = get_previous_trading_day(rdate)
+                    after = get_next_trading_day(rdate)
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                else:
+                    continue
+            elif 'AfterMarket' in d['time']:
+                if rdate == dt.now().date():
+                    continue
+                prev = rdate
+                after = get_next_trading_day(rdate)
+                query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+            elif 'BeforeMarket' in d['time']:
+                prev = get_previous_trading_day(rdate)
+                after = rdate
+                query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+            else:
+                continue
+            # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+            #query1 = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+            #query2 = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+            df1 = read_from_sql(query1, price_engine)
+            df2 = read_from_sql(query2, price_engine)
+
+            #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+            #pdf = read_from_sql(query, price_engine)
+
+            if len(df1) == 0:
+                change = 0
+            elif len(df2) == 0:
+                if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date()-timedelta(3):
+                    change = None
+                    print("Change is None")
+                else:
+                    change = 0
+                    print("Change is zero")
+            else:
+                change = percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+            pr_df.at[index,'price_change'] = change
+            db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
+
+            #if not pdf.empty:
+            #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+        if not pr_df.empty:
+            pr_df = pr_df.drop(['reportDate'], axis=1)
+            pr_df = pr_df.drop(['time'], axis=1)
+            pr_df.index= pr_df['Date']
+            pr_df = pr_df.dropna()
+            pr_df['price_change'] = pr_df['price_change'].astype(float)
+            mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+
+    finally:
+        close_db_client(c)
+        close_sql_connection(mysql_engine)
+        close_sql_connection(price_engine)
