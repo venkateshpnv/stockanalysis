@@ -714,6 +714,11 @@ telegram_tokens = {
                     'token': '/home/vpetla/telegram/fwh_token.txt',
                     'chat_id': '/home/vpetla/telegram/fwh_chat_id.txt'
                     },
+                  'selected_stocks' : {
+                    'token': '/home/vpetla/telegram/selected_stocks_token.txt',
+                    'chat_id': '/home/vpetla/telegram/selected_stocks_chat_id.txt'
+                    },
+
                 }
 
 databases_list = {
@@ -721,3 +726,4 @@ databases_list = {
         }
 
 non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']
+selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM']

@@ -202,6 +202,24 @@ def exception_info(E):
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
     print("Exception: %s, filename: %r, line no: %d" %(exc_type, fname, exc_tb.tb_lineno))
 
+def is_holiday(d=None):
+    if d is None:
+        d = str(dt.now().date())
+    else:
+        try:
+            if isinstance(d, datetime.date):
+                d = date.strftime("%Y-%m-%d")
+        except:
+           return None
+
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
+    query = 'select Date from {} where Date = \'{}\''.format('US_Holiday_List', d)
+    df = pd.read_sql_query(query, mysql_engine)
+    DB.close_sql_connection(mysql_engine)
+    if len(df) > 0:
+        return True
+    return False
+
 def get_holiday_list(start=None, end=None, datetime_format=True):
     mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
     query = 'select Date from {} where Date between \'{}\' and \'{}\''.format('US_Holiday_List', str(start), str(end))

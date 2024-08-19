@@ -770,9 +770,13 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
 
-            query = 'select max(`Adj Close`) from {}'.format(table_name)
+            #query = 'select max(`Adj Close`) from {}'.format(table_name)
+            query = 'select Date, `Adj Close` from {} where `Adj Close` = (SELECT MAX(`Adj Close`) FROM {})'.format(table_name, table_name)
+            #adf = DB.read_from_sql(query, sql_engine)
             result = sql_engine.execute(query)
-            all_time_high_price = result.first()[0]
+            ret = result.first()
+            all_time_high_date = dt.strptime(ret[0], "%Y-%m-%d")
+            all_time_high_price = ret[1]
             if not all_time_high_price or all_time_high_price == 0:
                 change = 0
             else:
@@ -780,7 +784,30 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             DB.update_field(collection, sym, "price_change.with_all_time_high", change)
             DB.update_field(collection, sym, "price_change.all_time_high_price", all_time_high_price)
-           
+            DB.update_field(collection, sym, "price_change.all_time_high_date", all_time_high_date)
+
+            query = 'select Date, `Adj Close` from {} where `Adj Close` = (SELECT MIN(`Adj Close`) FROM {})'.format(table_name, table_name)
+            #adf = DB.read_from_sql(query, sql_engine)
+            result = sql_engine.execute(query)
+            ret = result.first()
+            all_time_low_date = dt.strptime(ret[0], "%Y-%m-%d")
+            all_time_low_price = ret[1]
+            if not all_time_low_price or all_time_low_price == 0:
+                change = 0
+            else:
+                change = percent_change(all_time_low_price, price)
+
+            DB.update_field(collection, sym, "price_change.with_all_time_low", change)
+            DB.update_field(collection, sym, "price_change.all_time_low_price", all_time_low_price)
+            DB.update_field(collection, sym, "price_change.all_time_low_date", all_time_low_date)
+            
+            if all_time_high_date < all_time_low_date:
+                change = percent_change(all_time_high_price, all_time_low_price)
+            else:
+                change = percent_change(all_time_low_price, all_time_high_price)
+
+            DB.update_field(collection, sym, "price_change.with_all_time_low_high_change", change)
+ 
             if 'Highlights' in stk.keys() and 'MarketCapitalization' in stk['Highlights'].keys() and stk['Highlights']['MarketCapitalization'] != None:
                 if price > 0:
                     num_shares = stk['Highlights']['MarketCapitalization']/price
@@ -939,7 +966,7 @@ def fork_hdf5_process(country):
                                             {"$or": [\
                                                         #{'dates.mysql_price_date': {'exists':False}},\
                                                         {"$and": [ \
-                                                                    {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                                                                    #vpetla{'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                                                     {'dates.mysql_price_pull_success': True},\
                                                                     {'failcount.mysql_price_failcount': {'$eq': 0}},\
                                                                     #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
@@ -947,13 +974,13 @@ def fork_hdf5_process(country):
                                                         }, \
                                                     ] \
                                             },\
-                                            {"$or":[\
-                                                    {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
-                                                    {'price_change.date': {"$exists": False}}\
-                                                    ]\
-                                            },\
+                                            #{"$or":[\
+                                            #        {'price_change.date': {"$lt":DB.get_latest_trading_day()}},\
+                                            #        {'price_change.date': {"$exists": False}}\
+                                            #        ]\
+                                            #},\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'VFS'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CVNA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

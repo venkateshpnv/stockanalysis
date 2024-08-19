@@ -346,7 +346,7 @@ def earnings_date(instrument, radar_syms=None):
                     notify_message(message)
 
 # Earnings with in a week
-def earnings_week():
+def earnings_week(earnings_dates=True, earnings_results=True):
     week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
     today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
     earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
@@ -444,86 +444,93 @@ def earnings_week():
                     },\
                 ]
 
- 
     week_earnings_stks = {}
     tomorrow_earnings_stks = {}
 
-    stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
-    print("Week earnings stocks: ", stocks.count())
+
     try:
-        for i, instrument in enumerate(stocks):
-            print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
-            # Earnings dates
-            if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
-                edate = instrument['dates']['ndaq_last_earnings_date'].date()
+        if earnings_dates:
+            stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
+            print("Week earnings stocks: ", stocks.count())
+            for i, instrument in enumerate(stocks):
+                print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
+                # Earnings dates
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    edate = instrument['dates']['ndaq_last_earnings_date'].date()
+                    sym = instrument['bscs']['symbol']
+                    if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
+                        if sym not in week_earnings_stks.keys():
+                            week_earnings_stks[sym] = instrument['bscs']['symbol']
+                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                    # If earnings is tomorrow, send a notification
+                    if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
+                        if sym not in tomorrow_earnings_stks.keys():
+                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                            #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
+
+            week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
+            today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
+            if len(week_df) > 0:
+                message = "Earnings in 7 days\n"
+                for index, d in week_df.iterrows():
+                    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                            "Time : " + str(d['Time']) + "\n" +\
+                            "earnings_date: "+ str(d['Date']) +"\n\n"
+                    message = message + s
+                #notify_message(message, token='earnings_dates')
+
+            if len(today_df) > 0:
+                message = "Earnings Tomorrow\n"
+                for index, d in today_df.iterrows():
+                    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                            "Time : " + str(d['Time']) + "\n" +\
+                            "earnings_date: "+ str(d['Date']) +"\n\n"
+                    message = message + s
+                notify_message(message, token='earnings_dates')
+
+        if earnings_results:
+            stocks = db.US_Stocks.find({'$and':conditions2}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
+            print("Stocks with earnings today: ", stocks.count())
+            #earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
+            stks = []
+            for i, instrument in enumerate(stocks):
                 sym = instrument['bscs']['symbol']
-                if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
-                    if sym not in week_earnings_stks.keys():
-                        week_earnings_stks[sym] = instrument['bscs']['symbol']
-                        week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
-                # If earnings is tomorrow, send a notification
-                if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
-                    if sym not in tomorrow_earnings_stks.keys():
-                        today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
-                        #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
+                if sym not in stks:
+                    stks.append(sym)
+                    if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                        edate = instrument['dates']['ndaq_last_earnings_date'].date()
+                    else:
+                        edate = ""
+                    earnings_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['price_change']['ndaq_earnings_change']*100, 2), round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
 
-        week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
-        today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
-        if len(week_df) > 0:
-            message = "Earnings in 7 days\n"
-            for index, d in week_df.iterrows():
-                s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                        "MCap: " + str(d['MCap']) + "Bn\n" +\
-                        "Time : " + str(d['Time']) + "\n" +\
-                        "earnings_date: "+ str(d['Date']) +"\n\n"
-                message = message + s
-            #notify_message(message, token='earnings_dates')
+            if len(earnings_df) > 0:
+                up_df = earnings_df[earnings_df['Price_Change'] >= 0]
+                up_df = up_df.sort_values(by=['Price_Change'], ascending=[False])
+                down_df = earnings_df[earnings_df['Price_Change'] < 0]
+                down_df = down_df.sort_values(by=['Price_Change'], ascending=[True])
 
-        if len(today_df) > 0:
-            message = "Earnings Tomorrow\n"
-            for index, d in today_df.iterrows():
-                s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                        "MCap: " + str(d['MCap']) + "Bn\n" +\
-                        "Time : " + str(d['Time']) + "\n" +\
-                        "earnings_date: "+ str(d['Date']) +"\n\n"
-                message = message + s
-            notify_message(message, token='earnings_dates')
-
-        stocks = db.US_Stocks.find({'$and':conditions2}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
-        print("Stocks with earnings today: ", stocks.count())
-        #earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
-        stks = []
-        for i, instrument in enumerate(stocks):
-            sym = instrument['bscs']['symbol']
-            if sym not in stks:
-                stks.append(sym)
-                earnings_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['price_change']['ndaq_earnings_change']*100, 2), round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
-
-        if len(earnings_df) > 0:
-            up_df = earnings_df[earnings_df['Price_Change'] >= 0]
-            up_df = up_df.sort_values(by=['Price_Change'], ascending=[False])
-            down_df = earnings_df[earnings_df['Price_Change'] < 0]
-            down_df = down_df.sort_values(by=['Price_Change'], ascending=[True])
-
-            message = "Earnings Down Today:\n=====================\n"
-            for index, d in down_df.iterrows():
-                s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                        "MCap: " + str(d['MCap']) + "Bn\n" +\
-                        "Time : " + str(d['Time']) + "\n" +\
-                        "earnings_date: "+ str(d['Date']) + "\n" +\
-                        "price_change: "+ str(d['Price_Change']) + "%\n\n"
-                message = message + s
-            notify_message(message, token='earnings_dates')
-            message = "Earnings Up Today:\n=====================\n"
-            for index, d in up_df.iterrows():
-                s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                        "MCap: " + str(d['MCap']) + "Bn\n" +\
-                        "Time : " + str(d['Time']) + "\n" +\
-                        "earnings_date: "+ str(d['Date']) + "\n" +\
-                        "price_change: "+ str(d['Price_Change']) + "%\n\n"
-                message = message + s
-            notify_message(message, token='earnings_dates')
-
+                if len(down_df) > 0:
+                    message = "Earnings Down :\n=====================\n"
+                    for index, d in down_df.iterrows():
+                        s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                                "MCap: " + str(d['MCap']) + "Bn\n" +\
+                                "Time : " + str(d['Time']) + "\n" +\
+                                "earnings_date: "+ str(d['Date']) + "\n" +\
+                                "price_change: "+ str(d['Price_Change']) + "%\n\n"
+                        message = message + s
+                    notify_message(message, token='earnings_dates')
+                if len(up_df) > 0:
+                    message = "Earnings Up:\n=====================\n"
+                    for index, d in up_df.iterrows():
+                        s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                                "MCap: " + str(d['MCap']) + "Bn\n" +\
+                                "Time : " + str(d['Time']) + "\n" +\
+                                "earnings_date: "+ str(d['Date']) + "\n" +\
+                                "price_change: "+ str(d['Price_Change']) + "%\n\n"
+                        message = message + s
+                    notify_message(message, token='earnings_dates')
 
     finally:
         DB.close_db_client(c)
@@ -770,7 +777,7 @@ def notify_all_stocks():
 
     DB.close_db_client(c)
 
-def get_ratings(fwh=False, purebuy=False):
+def get_ratings(fwh=False, purebuy=False, tech=True):
     fields = {
                     'Name':'',
                     'Rating': int(),
@@ -792,7 +799,9 @@ def get_ratings(fwh=False, purebuy=False):
                     'Ask':'',
                     'DTE':int(),
                     'DaysToEarnings': int(),
-                    'MCap':float()
+                    'MCap':float(),
+                    'Avg_Vol_X_Price_Mn': float(),
+                    'with_52week_high': float()
                 }
 
     df = pd.DataFrame(fields, index=[])
@@ -820,23 +829,35 @@ def get_ratings(fwh=False, purebuy=False):
                 ]
     if fwh is True:
         conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
+        conditions.append({'price_change.price_times_avg_vol_in_mn':{'$gte':60}})
+    if tech is True:
+        conditions.append({"$or":[\
+                                    {'General.Sector': 'Technology'},\
+                                    {"$and": [ \
+                                                {'General.Sector': {"$nin": ['Technology']}},\
+                                                {'General.Code' : {"$in": non_tech_stocks}},\
+                                            ]\
+                                    },\
+                                ]\
+                            })
+ 
     else:
         conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
  
     # Get top 10 stocks with StrongBuy rating
     if fwh is True:
-        stocks = db.US_Stocks.find({'$and':conditions}).sort([["price_change.with_52week_high", 1]]).allow_disk_use(True).sort([["price_change.year", -1]]).allow_disk_use(True).limit(100)
+        stocks = db.US_Stocks.find({'$and':conditions}).sort([["price_change.with_52week_high", 1]]).allow_disk_use(True).sort([["price_change.year", -1]]).allow_disk_use(True)#.limit(100)
     else:
         #stocks = db.US_Stocks.find({'$and':conditions}).sort([["AnalystRatings.Rating", -1]]).allow_disk_use(True).limit(100)
         stocks = db.US_Stocks.find({'$and':conditions}).sort([["AnalystRatings.StrongBuy", -1]]).allow_disk_use(True).limit(100)
 
-    print("Strong Buy stocks: %d" %(stocks.count()))
+    print("Fifty Two Week High stocks: %d" %(stocks.count()))
 
     td = dt.now()
     try:
         for i, instrument in enumerate(stocks):
-            if i > 100:
-                break
+            #if i > 100:
+            #    break
             try:
                 earnings_date = instrument['dates']['last_earnings_report_date'].date()
                 today = dt.combine(dt.now(), dt.min.time()).date()
@@ -857,7 +878,8 @@ def get_ratings(fwh=False, purebuy=False):
                     df.at[instrument['bscs']['symbol'],'Hold'] = instrument['AnalystRatings']['Hold']
                     df.at[instrument['bscs']['symbol'],'Sell'] = instrument['AnalystRatings']['Sell']
                     df.at[instrument['bscs']['symbol'],'Strong Sell'] = instrument['AnalystRatings']['StrongSell']
-                df.at[instrument['bscs']['symbol'], 'Price'] = instrument['options_data']['price']
+                df.at[instrument['bscs']['symbol'], 'Price'] = instrument['price_change']['price']
+                #df.at[instrument['bscs']['symbol'], 'Price'] = instrument['options_data']['price']
                 df.at[instrument['bscs']['symbol'], 'StrikePrice'] = instrument['options_data']['strike_price']
                 if isinstance(instrument['options_data']['expiration'], td.__class__):
                     df.at[instrument['bscs']['symbol'], 'Expiry'] = str(instrument['options_data']['expiration'].date())
@@ -873,6 +895,8 @@ def get_ratings(fwh=False, purebuy=False):
                 df.at[instrument['bscs']['symbol'], 'MCap'] = round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
                 if fwh:
                     df.at[instrument['bscs']['symbol'], 'YearChange'] = instrument['price_change']["year"]
+                df.at[instrument['bscs']['symbol'], 'Avg_Vol_X_Price_Mn'] = round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2)
+                df.at[instrument['bscs']['symbol'],'with_52week_high'] = instrument['price_change']['with_52week_high']
 
             except Exception as E:
                 print("Ratings: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
@@ -887,7 +911,11 @@ def get_ratings(fwh=False, purebuy=False):
     if len(df) == 0:
         return
 
-    df = df.loc[df['DTE'] < 10]
+    df = df[df.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['with_52week_high'], ascending=False)
+    df = df[df['with_52week_high'] >= -0.02]
+    df = df.sort_values(by=['ten_percent_down_times'], ascending=False)
+
+    #df = df.loc[df['DTE'] < 10]
 
     if fwh is True: 
         df = df.iloc[0:20]
@@ -904,7 +932,7 @@ def get_ratings(fwh=False, purebuy=False):
     st = 0
     en = count
     for i in range(iters):
-        message = str(i+1) +": Strong Buy Stocks:\n=====================\n"
+        message = str(i+1) +": 52 Week High Stocks:\n=====================\n"
         sdf = df.iloc[st:en]
         if len(sdf) == 0:
             break
@@ -914,25 +942,27 @@ def get_ratings(fwh=False, purebuy=False):
                     "Rating: " + str(d['Rating']) + "\n" +\
                     "Target Price: $" + str(d['Target Price']) + "\n" +\
                     "WallSt Target Price: $" + str(d['WallSt Target Price']) + "\n" +\
-                    "Strong Buy: " + str(d['Strong Buy']) + "\n" +\
-                    "Buy: " + str(d['Buy']) + "\n" +\
-                    "Hold: " + str(d['Hold']) + "\n" +\
-                    "Sell: " + str(d['Sell']) + "\n" +\
-                    "Strong Sell: " + str(d['Strong Sell']) + "\n" +\
                     "price: $"+ str(d['Price']) + "\n" +\
-                    "strike_price: "+ str(d['StrikePrice']) + "\n" +\
-                    "expiration: "+ d['Expiry'] + "\n" +\
+                    "with_52week_high: " + str(round(d['with_52week_high']*100,2)) + "%\n" +\
+                    "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
                     "earnings_date: "+ d['EarningsDate'] + "\n" +\
                     "10%_down_weeks: " + str(int(d['ten_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
                     "20%_down_weeks: " + str(int(d['twenty_percent_down_times'])) + "/" + str(int(d['total_weeks'])) + "\n" +\
-                    "premium: " + str(d['Premium']) + "%\n" +\
-                    "price+premium: " + str(d['AllPremium']) + "%\n" +\
-                    "bid: " + d['Bid'] + "\n" +\
-                    "mid: " + d['Mid'] + "\n" +\
-                    "ask: " + d['Ask'] + "\n" +\
-                    "dte: " + str(d['DTE']) + " days\n" +\
                     "days_to_earnings: " + str(d['DaysToEarnings']) + " days\n" +\
                     "Mcap: $" + str(d['MCap']) + "Bn\n"
+                    #"strike_price: "+ str(d['StrikePrice']) + "\n" +\
+                    #"expiration: "+ d['Expiry'] + "\n" +\
+                    #"Strong Buy: " + str(d['Strong Buy']) + "\n" +\
+                    #"Buy: " + str(d['Buy']) + "\n" +\
+                    #"Hold: " + str(d['Hold']) + "\n" +\
+                    #"Sell: " + str(d['Sell']) + "\n" +\
+                    #"Strong Sell: " + str(d['Strong Sell']) + "\n" +\
+                    #"premium: " + str(d['Premium']) + "%\n" +\
+                    #"price+premium: " + str(d['AllPremium']) + "%\n" +\
+                    #"bid: " + d['Bid'] + "\n" +\
+                    #"mid: " + d['Mid'] + "\n" +\
+                    #"ask: " + d['Ask'] + "\n" +\
+                    #"dte: " + str(d['DTE']) + " days\n" +\
             if fwh:
                 s = s + "YearChange: " + str(round(d['YearChange']*100,2)) + "%\n"
 
@@ -950,6 +980,8 @@ def get_ratings(fwh=False, purebuy=False):
         en = en + count
 
     if purebuy:
+        return
+    if fwh:
         return
     # Get top 10 stocks with StrongSell rating
     stks = db.US_Stocks.find({'$and':conditions}).sort([["AnalystRatings.StrongSell", -1]]).allow_disk_use(True).limit(30)
@@ -1419,7 +1451,7 @@ def get_options(grp):
             st = en
             en = en + count
 
-def get_uptrend():
+def get_uptrend(selected=False):
     fields = {
                     'Name':'',
                     'Trend':int(),
@@ -1439,43 +1471,49 @@ def get_uptrend():
     c  = DB.open_db_client()
     db = c['Stocks']
 
-    stocks = list(db.US_Stocks.find({"$and":[\
-                                            {'General.Type':'Common Stock'},\
-                                            {'General.IsDelisted': False},\
-                                            {"$or":[\
-                                                        {'General.Sector': 'Technology'},\
-                                                        {"$and": [ \
-                                                                    {'General.Sector': {"$nin": ['Technology']}},\
-                                                                    {'General.Code' : {"$in": non_tech_stocks}},\
-                                                                ]\
-                                                        },\
-                                                    ]\
-                                            },\
-                                            {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
-                                            {"$or":[\
-                                                        {"$and": [ \
-                                                                    {'technicals.sar.ta_psar_trend':{"$eq":1}},\
-                                                                    {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
-                                                                ]\
-                                                        },\
-                                                        {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
-                                                        {'technicals.sar.ta_psar_cur_trend_price_change':{"$lte":-0.15}},\
-                                                    ]\
-                                            },\
-                                            #{"$and": [ \
-                                            #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
-                                            #            {'dates.mysql_price_pull_success': True},\
-                                            #            {'failcount.mysql_price_failcount': {'$eq': 0}},\
-                                            #            #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                            #        ]\
-                                            #}, \
-                                            #{"$or":[\
-                                            #        {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
-                                            #        {'price_change.date': {"$exists": False}}\
-                                            #        ]\
-                                            #},\
+    conditions = [\
+                     {'General.Type':'Common Stock'},\
+                     {'General.IsDelisted': False},\
+                     #{"$and": [ \
+                     #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
+                     #            {'dates.mysql_price_pull_success': True},\
+                     #            {'failcount.mysql_price_failcount': {'$eq': 0}},\
+                     #            #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                     #        ]\
+                     #}, \
+                     #{"$or":[\
+                     #        {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
+                     #        {'price_change.date': {"$exists": False}}\
+                     #        ]\
+                     #},\
  
-                                        ]}))
+                 ]
+    if selected:
+        conditions.append({'General.Code' : {"$in": selected_stocks}})
+    else:
+        conditions.append({"$or":[\
+                                        {'General.Sector': 'Technology'},\
+                                        {"$and": [ \
+                                                    {'General.Sector': {"$nin": ['Technology']}},\
+                                                    {'General.Code' : {"$in": non_tech_stocks}},\
+                                                ]\
+                                        },\
+                                    ]\
+                            })
+        conditions.append({'Highlights.MarketCapitalizationMln': {"$gte":5000}})
+        conditions.append({"$or":[\
+                                        {"$and": [ \
+                                                    {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+                                                    {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
+                                                ]\
+                                        },\
+                                        {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
+                                        {'technicals.sar.ta_psar_cur_trend_price_change':{"$lte":-0.15}},\
+                                    ]\
+                            })
+
+    stocks = db.US_Stocks.find({"$and": conditions}).batch_size(10)
+    #stocks = list(db.US_Stocks.find({"$and": conditions}))
     #res2 = list(db.US_Stocks.find({"$and":[\
     #                                        {'General.Type':'Common Stock'},\
     #                                        {'General.IsDelisted': False},\
@@ -1536,12 +1574,20 @@ def get_uptrend():
  
     #                                    ]}).batch_size(10)
 
-    print("uptrend stocks: %d" %(len(stocks)))
-    #print("uptrend stocks: %d" %(stocks.count()))
+    #print("uptrend stocks: %d" %(len(stocks)))
+    print("uptrend stocks: %d" %(stocks.count()))
+
+    results_list = list(stocks)
+    if selected:
+        sorted_results = sorted(results_list, key=lambda doc: selected_stocks.index(doc['General']['Code']))
+    else:
+        sorted_results = results_list
 
     # Uptrend
     try:
-        for i, instrument in enumerate(stocks):
+        for i, instrument in enumerate(sorted_results):
+        #for i, instrument in enumerate(stocks):
+            print(instrument['General']['Code'])
             if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
                 trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
@@ -1568,56 +1614,74 @@ def get_uptrend():
 
     if len(uptrend_df) == 0:
         return
-    ## Get only stocks whose previous trend has lost atleast 10%
-    trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
-    trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
-    trend1 = trend1.iloc[0:9]
-    # Get only stocks that are atleast 5% up on today
-    #trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
-    trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
-    trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
-    trend2 = trend2.iloc[0:9]
-    # Get stocks where current trend is down by atleast 10%
-    trend3 = uptrend_df[uptrend_df.Cur_Trend_Change <= -10]
-    trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
-    #trend3 = trend3.iloc[0:9]
-    trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
-    uptrend_df = pd.concat([trend1, trend3])
-    #uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
-    uptrend_df.drop_duplicates(keep=False,inplace=True)
-    count = 6
+    if not selected:
+        ## Get only stocks whose previous trend has lost atleast 10%
+        trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
+        trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
+        trend1 = trend1.iloc[0:9]
+        # Get only stocks that are atleast 5% up on today
+        #trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
+        trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
+        trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+        trend2 = trend2.iloc[0:9]
+        # Get stocks where current trend is down by atleast 10%
+        trend3 = uptrend_df[uptrend_df.Cur_Trend_Change <= -10]
+        trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+        #trend3 = trend3.iloc[0:9]
+        trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
+        uptrend_df = pd.concat([trend1, trend3])
+        #uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
+        uptrend_df.drop_duplicates(keep=False,inplace=True)
+    if not selected:
+        count = 6
+    else:
+        count = 10
     st = 0
     en = count
     l = len(uptrend_df)
     iters = math.ceil(l/count)# + 1
     if len(uptrend_df) > 0:
         for i in range(iters):
-            message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
+            if not selected:
+                message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
+            else:
+                message = str(i+1) +": Selected Stocks:\n======================\n"
+
             df = uptrend_df.iloc[st:en]
             if len(df) == 0:
                 break
             for index,d in df.iterrows():
-                s = str(index) + ":" +d['Name'] +"\n" +\
-                        "trend: "
-                if d['Trend'] > 0:
-                    s = s + str(d['Trend']) + "L\n"
-                else:
-                    s = s + str(abs(d['Trend'])) + "S\n"
+                s = str(index) + ":" +d['Name'] +"\n"
+                if not selected:
+                    s = s + "trend: "
+                    if d['Trend'] > 0:
+                        s = s + str(d['Trend']) + "L\n"
+                    else:
+                        s = s + str(abs(d['Trend'])) + "S\n"
+
                 s = s + "price: $"+ str(d['Price']) + "\n" +\
                     "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
                     "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
-                    "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-                    "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-                    "trend: " + d['Trend_Sequence'] + "\n" +\
-                    "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-                    "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-                    "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+                    "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n"
 
+                if not selected:
+                    s = s + "trend: " + d['Trend_Sequence'] + "\n"
+
+                s = s + "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+                    "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n"
+
+                if not selected:
+                    s = s + "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+                            "Mcap: $" + str(d['MCap']) + "Bn\n"
+                s = s + "\n"
                 message = message + s
-            notify_message(message)
+            if selected:
+                notify_message(message, token='selected_stocks')
+            else:
+                notify_message(message)
             st = en
             en = en + count
-    if len(trend2) > 0:
+    if not selected and len(trend2) > 0:
         message = "Stocks Uptrend(Day Change):\n=====================\n"
         for index,d in trend2.iterrows():
             #s = str(index) + ":" +d['Name'] +"\n" +\
@@ -1945,8 +2009,10 @@ if __name__ == "__main__":
         get_ratings()
     elif len(sys.argv) == 2 and 'fwh' in sys.argv[1]:
         get_ratings(fwh=True)
-    elif len(sys.argv) == 2 and 'earnings' in sys.argv[1]:
-        earnings_week()
+    elif len(sys.argv) == 2 and 'earnings_dates' in sys.argv[1]:
+        earnings_week(earnings_dates=True, earnings_results=False)
+    elif len(sys.argv) == 2 and 'earnings_results' in sys.argv[1]:
+        earnings_week(earnings_dates=False, earnings_results=True)
     elif len(sys.argv) == 3 and 'ratings' in sys.argv[1] and 'pure' in sys.argv[2]:
         get_ratings(purebuy=True)
     else:
@@ -1957,4 +2023,6 @@ if __name__ == "__main__":
         ##notify_message("test")
         #get_all_indicators()
         get_uptrend()
+        get_uptrend(selected=True)
+        get_ratings(fwh=True)
         ###get_mstar()
