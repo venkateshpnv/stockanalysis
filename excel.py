@@ -2700,7 +2700,7 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
         #        not isnan(stk['technicals']['ema']['change_with_price']):
         #    sh_write(ash, conf.COUNT, conf.EMA, stk['technicals']['ema']['change_with_price'], styles['EMA'], ashs=ashs, recent_ipos=recent_ipos)
 
-        if stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
+        if 'rsi' in stk['technicals'].keys() and stk['technicals']['rsi'] is not None and len(stk['technicals']['rsi'].keys()) > 0:
             sh_write(ash, conf.COUNT, conf.RSI, stk['technicals']['rsi']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
             if '60day_min' in stk['technicals']['rsi'].keys():
                 diff = (stk['technicals']['rsi']['latest'] - stk['technicals']['rsi']['60day_min'])
@@ -2730,9 +2730,9 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
             sh_write(ash, conf.COUNT, conf.BBANDS_UPTREND, stk['technicals']['bbands']['uptrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
             sh_write(ash, conf.COUNT, conf.BBANDS_DOWNTREND, stk['technicals']['bbands']['downtrend'], style_percent, ashs=ashs, recent_ipos=recent_ipos)
 
-        if 'up' in stk['technicals']['aroon'].keys():
+        if 'aroon' in stk['technicals'].keys() and 'up' in stk['technicals']['aroon'].keys():
             sh_write(ash, conf.COUNT, conf.AROON_UP, stk['technicals']['aroon']['up'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-        if 'down' in stk['technicals']['aroon'].keys():
+        if 'aroon' in stk['technicals'].keys() and 'down' in stk['technicals']['aroon'].keys():
             sh_write(ash, conf.COUNT, conf.AROON_DOWN, stk['technicals']['aroon']['down'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
 
         ##if 'ep' in stk['technicals']['sar'].keys():
@@ -2743,30 +2743,33 @@ def write_to_excel(country, com, ashs, stk, years, prices_only=False, radar_stoc
 
         #if 'trend' in stk['technicals']['sar'].keys():
         #    sh_write(ash, conf.COUNT, conf.PSAR_TREND, stk['technicals']['sar']['trend'], styles['PSAR_TREND'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'ta_psar_trend' in stk['technicals']['sar'].keys():
-            if stk['technicals']['sar']['ta_psar_trend'] == 1:
-                psar_style = styles['PSAR_TA_TREND_APPEALING']
-            else:
-                psar_style = styles['PSAR_TA_TREND']
-            sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], psar_style, ashs=ashs, recent_ipos=recent_ipos)
-        if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR_TA_CUR_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_cur_trend_price_change'], styles['PSAR_TA_CUR_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'ta_psar_prev_trend' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND, stk['technicals']['sar']['ta_psar_prev_trend'], styles['PSAR_TA_PREV_TREND'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_prev_trend_price_change'], styles['PSAR_TA_PREV_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND_SEQUENCE, stk['technicals']['sar']['ta_psar_trend_sequence'], style_num, ashs=ashs, recent_ipos=recent_ipos)
+        if 'sar' in stk['technicals'].keys():
+            if 'ta_psar_trend' in stk['technicals']['sar'].keys():
+                if stk['technicals']['sar']['ta_psar_trend'] == 1:
+                    psar_style = styles['PSAR_TA_TREND_APPEALING']
+                else:
+                    psar_style = styles['PSAR_TA_TREND']
+                sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND, stk['technicals']['sar']['ta_psar_trend'], psar_style, ashs=ashs, recent_ipos=recent_ipos)
+            if 'ta_psar_cur_trend_price_change' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR_TA_CUR_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_cur_trend_price_change'], styles['PSAR_TA_CUR_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+            if 'ta_psar_prev_trend' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND, stk['technicals']['sar']['ta_psar_prev_trend'], styles['PSAR_TA_PREV_TREND'], ashs=ashs, recent_ipos=recent_ipos)
+            if 'ta_psar_prev_trend_price_change' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR_TA_PREV_TREND_PR_CHANGE, stk['technicals']['sar']['ta_psar_prev_trend_price_change'], styles['PSAR_TA_PREV_TREND_PR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+            if 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR_TA_TREND_SEQUENCE, stk['technicals']['sar']['ta_psar_trend_sequence'], style_num, ashs=ashs, recent_ipos=recent_ipos)
 
-        if 'latest' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-        if 'change' in stk['technicals']['sar'].keys():
-            sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], styles['PSAR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
-        if 'long' in stk['technicals']['chandelier'].keys():
-            sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
-        if 'short' in stk['technicals']['chandelier'].keys():
-            sh_write(ash, conf.COUNT, conf.CHANDELIER_SHORT, stk['technicals']['chandelier']['short'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+            if 'latest' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR, stk['technicals']['sar']['latest'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+            if 'change' in stk['technicals']['sar'].keys():
+                sh_write(ash, conf.COUNT, conf.PSAR_CHANGE, stk['technicals']['sar']['change'], styles['PSAR_CHANGE'], ashs=ashs, recent_ipos=recent_ipos)
+        if 'chandelier' in stk['technicals'].keys():
+            if 'long' in stk['technicals']['chandelier'].keys():
+                sh_write(ash, conf.COUNT, conf.CHANDELIER_LONG, stk['technicals']['chandelier']['long'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
+            if 'short' in stk['technicals']['chandelier'].keys():
+                sh_write(ash, conf.COUNT, conf.CHANDELIER_SHORT, stk['technicals']['chandelier']['short'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
     
+        if 'ulcer_index' in stk['technicals'].keys():
             sh_write(ash, conf.COUNT, conf.ULCER_INDEX, stk['technicals']['ulcer_index'], style_decimal, ashs=ashs, recent_ipos=recent_ipos)
     
         if 'candlesticks' in stk['technicals'].keys() and stk['technicals']['candlesticks'] is not None and 'MORNINGSTAR' in stk['technicals']['candlesticks'].keys() and stk['technicals']['candlesticks']['MORNINGSTAR'] != 0:

@@ -362,3 +362,10 @@ Generally under ~/.local/lib/python3.8/site-packages
  
 # Normalize the price data
 cur_df = (cur_df - cur_df.mean())/cur_df.std()
+
+
+CREATE OR REPLACE PROCEDURE earnings_down() BEGIN  select Symbol, Name, Industry, Sector, Report_Date, Date, Actual, Estimate, Difference, FORMAT(Percent, 2) as Percent,
+CONCAT(FORMAT(Price_Change,2),'%') as Price_Change, CONCAT('$', FORMAT(MCap/1000000000,2),'Bn') as MCap from Earnings_History where report_date >=DATE_SUB(NOW(), INTERVAL 1 MONTH) and mcap >= 5000000000 and price_change >= 0.05 order by price_change desc ; END$$
+
+
+select Symbol, Report_Date, CONCAT(FORMAT(Price_Change*100,2),'%') as PriceChange, CONCAT('$', FORMAT(MCap/1000000000,2),'Bn') as MCap, Name, Industry, Sector, Date, Actual, Estimate, Difference, FORMAT(Percent, 2) as Percent from Earnings_History where report_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 MONTH) AND CURDATE() and mcap >= 5000000000 and price_change <= -0.05 order by Report_Date asc;

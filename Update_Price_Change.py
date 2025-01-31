@@ -15,6 +15,10 @@ if __name__ == "__main__":
 
 
     print("Start Time: %r" %(str(dt.now())))
+    if is_holiday():
+        print("Holiday today")
+        sys.exit()
+
     ## Get today's price from yahoo and update db and hdf5
     try:
        DB.update_all_price_volume_db('US')

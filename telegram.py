@@ -1189,39 +1189,39 @@ def get_options(grp):
                 if instrument['Highlights']['MarketCapitalization'] < 20 * Bn and instrument['options_data']['mid_pr'] < 4:
                     continue
                         
-                if 'earnings_pull_date' not in instrument['options_data'].keys() or \
-                    instrument['options_data']['earnings_pull_date'] < DB.get_latest_trading_day():
+                #if 'earnings_pull_date' not in instrument['options_data'].keys() or \
+                #    instrument['options_data']['earnings_pull_date'] < DB.get_latest_trading_day():
 
-                    url='https://api.marketdata.app/v1/stocks/earnings/'+instrument['bscs']['symbol']+'/'
-                    today = dt.now().date()
-                    frm = str(today - timedelta(today.weekday()))
-                    #to = str(today + timedelta(4 - today.weekday()))
+                #    url='https://api.marketdata.app/v1/stocks/earnings/'+instrument['bscs']['symbol']+'/'
+                #    today = dt.now().date()
+                #    frm = str(today - timedelta(today.weekday()))
+                #    #to = str(today + timedelta(4 - today.weekday()))
 
-                    if today.weekday() >= 4:
-                        #to = (7 - (today.weekday() + 1)) + 5
-                        to = str(today + timedelta((7 - (today.weekday() + 1)) + 5))
-                    else:
-                        # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
-                        #to = 4 - today.weekday()
-                        to = str(today + timedelta(4 - today.weekday()))
+                #    if today.weekday() >= 4:
+                #        #to = (7 - (today.weekday() + 1)) + 5
+                #        to = str(today + timedelta((7 - (today.weekday() + 1)) + 5))
+                #    else:
+                #        # 0-Mon,1-Tue,2-Wed,3-Thu,4-Fri,5-Sat,6-Sun
+                #        #to = 4 - today.weekday()
+                #        to = str(today + timedelta(4 - today.weekday()))
  
-                    url = url + '?from=' + frm + '&to=' + to 
-                    ret = requests.get(url, headers=headers)
-                    if ret.status_code > 203:
-                        print("Failed to get earnings data for %r, error code: %r, error: %r" %(instrument['bscs']['symbol'], ret.status_code, ret.text))
-                    else:
-                        edf=pd.DataFrame(ret.json())
-                        if len(edf) > 0 and edf.iloc[0]['reportDate'] != None:
-                            try:
-                                earnings_date = pd.to_datetime(edf.iloc[0]['reportDate'],unit='s')
-                                earnings_date = dt.combine(earnings_date.to_pydatetime(), dt.min.time())
-                            except:
-                                pass
-                        instrument['options_data']['earnings_report_date'] = earnings_date
-                        DB.update_field(db.US_Stocks, instrument['bscs']['symbol'], 'options_data.earnings_report_date', earnings_date)
+                #    url = url + '?from=' + frm + '&to=' + to 
+                #    ret = requests.get(url, headers=headers)
+                #    if ret.status_code > 203:
+                #        print("Failed to get earnings data for %r, error code: %r, error: %r" %(instrument['bscs']['symbol'], ret.status_code, ret.text))
+                #    else:
+                #        edf=pd.DataFrame(ret.json())
+                #        if len(edf) > 0 and edf.iloc[0]['reportDate'] != None:
+                #            try:
+                #                earnings_date = pd.to_datetime(edf.iloc[0]['reportDate'],unit='s')
+                #                earnings_date = dt.combine(earnings_date.to_pydatetime(), dt.min.time())
+                #            except:
+                #                pass
+                #        instrument['options_data']['earnings_report_date'] = earnings_date
+                #        DB.update_field(db.US_Stocks, instrument['bscs']['symbol'], 'options_data.earnings_report_date', earnings_date)
 
-                    instrument['options_data']['earnings_pull_date'] = dt.combine(dt.now(), dt.min.time())
-                    DB.update_field(db.US_Stocks, instrument['bscs']['symbol'], 'options_data.earnings_pull_date', instrument['options_data']['earnings_pull_date'])
+                #    instrument['options_data']['earnings_pull_date'] = dt.combine(dt.now(), dt.min.time())
+                #    DB.update_field(db.US_Stocks, instrument['bscs']['symbol'], 'options_data.earnings_pull_date', instrument['options_data']['earnings_pull_date'])
 
 
                 bid = instrument['options_data']['bid']
@@ -1233,8 +1233,9 @@ def get_options(grp):
                 td = dt.now()
                 days_to_earnings = nan
                 earnings_date = nan
-                if 'earnings_report_date' in instrument['options_data'].keys() and isinstance(instrument['options_data']['earnings_report_date'], td.__class__):
-                    earnings_date = instrument['options_data']['earnings_report_date'].date()
+                #if 'earnings_report_date' in instrument['options_data'].keys() and isinstance(instrument['options_data']['earnings_report_date'], td.__class__):
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
                     today = dt.combine(dt.now(), dt.min.time()).date()
                     #days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
                     days = (earnings_date - today).days
@@ -1472,8 +1473,6 @@ def get_uptrend(selected=False):
     db = c['Stocks']
 
     conditions = [\
-                     {'General.Type':'Common Stock'},\
-                     {'General.IsDelisted': False},\
                      #{"$and": [ \
                      #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                      #            {'dates.mysql_price_pull_success': True},\
@@ -1491,6 +1490,8 @@ def get_uptrend(selected=False):
     if selected:
         conditions.append({'General.Code' : {"$in": selected_stocks}})
     else:
+        conditions.append({'General.Type':'Common Stock'})
+        conditions.append({'General.IsDelisted': False})
         conditions.append({"$or":[\
                                         {'General.Sector': 'Technology'},\
                                         {"$and": [ \
@@ -1592,21 +1593,37 @@ def get_uptrend(selected=False):
                 trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
                 pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change']
-                uptrend_df.loc[instrument['bscs']['symbol']] = [
-                                        instrument['General']['Name'], 
-                                        trend, 
-                                        round(instrument['price_change']['price'],2),
-                                        round(instrument['price_change']['day']*100,2),
-                                        round(instrument['price_change']['year']*100,2),
-                                        round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
-                                        cur_price_max_rsi_change,
-                                        str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
-                                        str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
-                                        round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
-                                        round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
-                                        #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
-                                        ]
+                if instrument['bscs']['symbol'] in US_indices:
+                    uptrend_df.loc[instrument['bscs']['symbol']] = [
+                                            instrument['General']['Name'], 
+                                            trend, 
+                                            round(instrument['price_change']['price'],2),
+                                            round(instrument['price_change']['day']*100,2),
+                                            round(instrument['price_change']['year']*100,2),
+                                            round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                            cur_price_max_rsi_change,
+                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                            round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                            round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
+                                            0
+                                            #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
+                                            ]
+                else:
+                    uptrend_df.loc[instrument['bscs']['symbol']] = [
+                                            instrument['General']['Name'], 
+                                            trend, 
+                                            round(instrument['price_change']['price'],2),
+                                            round(instrument['price_change']['day']*100,2),
+                                            round(instrument['price_change']['year']*100,2),
+                                            round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                            cur_price_max_rsi_change,
+                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                            round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                            round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
+                                            round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2),
+                                            ]
     except Exception as E:
         print("Uptrend: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
     finally:
@@ -1838,11 +1855,25 @@ def get_indicator(indicator, conditions, fields=None):
                 trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
 
-                earnings_date = instrument['dates']['last_earnings_report_date'].date()
-                today = dt.combine(dt.now(), dt.min.time()).date()
-                days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
-                days = int(days)
+                #earnings_date = instrument['dates']['last_earnings_report_date'].date()
+                #today = dt.combine(dt.now(), dt.min.time()).date()
+                #days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
+                #days = int(days)
 
+                #df.loc[instrument['bscs']['symbol']] = [
+                #                        instrument['General']['Name'], 
+                #                        trend, 
+                #                        round(instrument['price_change']['price'],2),
+                #                        round(instrument['price_change']['day']*100,2),
+                #                        round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                #                        cur_price_max_rsi_change,
+                #                        str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                #                        str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                #                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change'],2),
+                #                        str(days), 
+                #                        round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
+                #                        #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
+                #                        ]
                 df.loc[instrument['bscs']['symbol']] = [
                                         instrument['General']['Name'], 
                                         trend, 
@@ -1852,11 +1883,11 @@ def get_indicator(indicator, conditions, fields=None):
                                         cur_price_max_rsi_change,
                                         str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
                                         str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change'],2),
-                                        str(days), 
+                                        round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
                                         round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
                                         #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
                                         ]
+
     except Exception as E:
         print("Indicator: %s: Err for sym: %s, err: %s" %(indicator, instrument['bscs']['symbol'], str(E)))
     finally:
@@ -1882,8 +1913,8 @@ def get_indicator(indicator, conditions, fields=None):
                 "trend: " + d['Trend_Sequence'] + "\n" +\
                 "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
                 "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-                "Days_To_Earnings: " + d['Days_To_Earnings'] +"\n" +\
                 "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+                #"Days_To_Earnings: " + d['Days_To_Earnings'] +"\n" +\
 
         message = message + s
     notify_message(message, token=indicator)
@@ -1959,15 +1990,15 @@ def get_all_indicators():
     conditions = [\
                     {'General.Type':'Common Stock'},\
                     {'General.IsDelisted': False},\
-                    {"$or":[\
-                                {'General.Sector': 'Technology'},\
-                                {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology']}},\
-                                            {'General.Code' : {"$in": non_tech_stocks}},\
-                                        ]\
-                                },\
-                            ]\
-                    },\
+                    #{"$or":[\
+                    #            {'General.Sector': 'Technology'},\
+                    #            {"$and": [ \
+                    #                        {'General.Sector': {"$nin": ['Technology']}},\
+                    #                        {'General.Code' : {"$in": non_tech_stocks}},\
+                    #                    ]\
+                    #            },\
+                    #        ]\
+                    #},\
                     {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
                     {'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
                     {"$and": [ \
@@ -1985,20 +2016,33 @@ def get_all_indicators():
                 ]
 
     # morning doji star
-    conds = conditions + [{'technicals.candlesticks.MORNINGDOJISTAR':{"$eq":100}}]
-    get_indicator('dojimstar', conds, fields)
+    try:
+        conds = conditions + [{'technicals.candlesticks.MORNINGDOJISTAR':{"$eq":100}}]
+        get_indicator('dojimstar', conds, fields)
+    except:
+        pass
 
-    # morning star
-    conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
-    get_indicator('mstar', conds, fields)
+    ## morning star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
+    #    get_indicator('mstar', conds, fields)
+    #except exception as E:
+    #    print("mstar error: %r" %(str(E)))
+    #    pass
 
-    # evening doji star
-    conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
-    get_indicator('dojiestar', conds, fields)
+    ## evening doji star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
+    #    get_indicator('dojiestar', conds, fields)
+    #except:
+    #    pass
 
-    # evening star
-    conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
-    get_indicator('estar', conds, fields)
+    ## evening star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
+    #    get_indicator('estar', conds, fields)
+    #except:
+    #    pass
 
 if __name__ == "__main__":
     if is_holiday():
@@ -2021,8 +2065,8 @@ if __name__ == "__main__":
         ##notify_radar_stocks()
         ##notify_all_stocks()
         ##notify_message("test")
-        #get_all_indicators()
+        get_all_indicators()
         get_uptrend()
         get_uptrend(selected=True)
         get_ratings(fwh=True)
-        ###get_mstar()
+        #get_mstar()

@@ -1302,10 +1302,10 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                     DB.mysql_update_table(sql_engine, DB.get_symbol_table_name(symbol), copy.deepcopy(df), insert=True, check=True, date_column=False, format_columns=False)
                     # Update the date on which the price is updated
                     #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
+                    DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
                     if not index:
                         # Reset mysql_price_failcount
                         DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
-                        DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
                         DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
                         data_update = True
                     if percent_change:
@@ -1474,9 +1474,11 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                         #DB.update_field(collection, symbol, "dates.mysql_price_date", dt.combine(dt.now(), dt.min.time()))
                         # Reset mysql_price_failcount
                         if not index:
-                            DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                             DB.update_field(collection, symbol, "price_change.price", df['Adj Close'][-1])
+                            DB.update_field(collection, symbol, "failcount.mysql_price_failcount", 0)
                             DB.update_field(collection, symbol, "price_change.volume", df['Volume'][-1])
+                        else:
+                            DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", df['Adj Close'][-1])
                         data_update = True
 
                         if percent_change:
