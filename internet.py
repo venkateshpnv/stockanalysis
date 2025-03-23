@@ -496,10 +496,12 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
         db = c['Stocks']
         collection=db.US_Stocks
         sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        fin_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
     else:
         db = c['Cryptos']
         collection=db.Cryptos
         sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
+        fin_engine = None
 
     #print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
@@ -836,7 +838,25 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
                 DB.update_field(collection, sym, "price_change.avg_volume", None)
                 DB.update_field(collection, sym, "price_change.price_times_avg_vol_in_mn", None)
                 DB.update_field(collection, sym, "price_change.avg_vol_pcent_in_mcap_mn", None)
- 
+
+            # Update price change since last earnings date
+            if type == 'Stocks' and sym not in US_indices.keys():
+                query = 'select Symbol, Date, reportDate, marketCap, name from Nasdaq_Earnings_History where Symbol=\'{}\' order by date desc limit 2'.format(sym)
+                rdf = DB.read_from_sql(query, fin_engine)
+                if rdf.empty:
+                    DB.update_field(collection, sym, "price_change.since_ndaq_last_earnings", None)
+                else:
+                    report_date=dt.strptime(rdf.iloc[0]['reportDate'], "%Y-%m-%d")
+                    # Future date is already updated in the database. So consider previous date
+                    if report_date > dt.now():
+                        report_date=dt.strptime(rdf.iloc[-1]['reportDate'], "%Y-%m-%d")
+
+                    DB.update_field(collection, sym, "dates.ndaq_previous_earnings_date", report_date)
+                    query = 'select * from {} where Date >=\'{}\' order by Date'.format(table_name, str(report_date.date()))
+                    df = DB.read_from_sql(query, sql_engine)
+                    change = percent_change(df.iloc[0]['Adj Close'], df.iloc[-1]['Adj Close'])
+                    DB.update_field(collection, sym, "price_change.since_ndaq_last_earnings", change)
+
         else:
             change=None
             DB.update_field(collection, sym, "price_change.day", change)
@@ -850,6 +870,8 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             DB.update_field(collection, sym, "bscs.fiftytwoweek_low", change)
             DB.update_field(collection, sym, "price_change.with_52week_high", change)
             DB.update_field(collection, sym, "price_change.with_52week_low", change)
+            DB.update_field(collection, sym, "price_change.since_last_earnings", change)
+            DB.update_field(collection, sym, "price_change.since_ndaq_last_earnings", None)
         update = True
     except Exception as E:
         print("Error: price_change: %s, %s" %(stk['bscs'], str(E)))
@@ -858,6 +880,8 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
             print("price_change: sym: %s" %(sym))
             DB.update_field(collection, sym, "price_change.date", dt.combine(dt.now(), dt.min.time()))
         DB.close_sql_connection(sql_engine)
+        if fin_engine:
+            DB.close_sql_connection(fin_engine)
         DB.close_db_client(c)
         if sem:
             sem.release()
@@ -980,7 +1004,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'CVNA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'NVDA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

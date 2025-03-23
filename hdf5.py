@@ -1165,6 +1165,7 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
 
     print("Total bulk stock candidates: %r" %(stocks.count()))
 
+    df = pd.DataFrame()
     if stocks.count() > 0:
         url='https://eodhd.com/api/eod-bulk-last-day/US?api_token='+get_eod_token_id()+'&date='+str(DB.get_latest_trading_day().date())
         ret = requests.get(url)
@@ -1204,15 +1205,16 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
     print("Checking if any new symbols are added")
     try:
         syms = DB.get_symbols_from_mongo()
-        for index, d in df.iterrows():
-            #stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
-            #if stks.count() == 0:
-            if d['Symbol'] not in syms:
-                sem.acquire()
-                #add_new_symbol(d, db, sem)
-                processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
-                processes[i%num_processes].start()
-                i = i + 1
+        if len(df) > 0:
+            for index, d in df.iterrows():
+                #stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+                #if stks.count() == 0:
+                if d['Symbol'] not in syms:
+                    sem.acquire()
+                    #add_new_symbol(d, db, sem)
+                    processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
+                    processes[i%num_processes].start()
+                    i = i + 1
     finally:
             for j in range(len(processes)):
                 if processes[j] is not None:

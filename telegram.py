@@ -7,9 +7,11 @@ from datetime import timedelta
 from datetime import datetime as dt
 import time
 import pandas as pd
+import matplotlib.pyplot as plt
 import copy
 import math
 from math import nan, isnan
+import os
 
 from bokeh.io import export_png, export_svgs
 from bokeh.models import ColumnDataSource, DataTable, TableColumn
@@ -23,7 +25,7 @@ import DB
 from common import *
 import hdf5
 
-def save_df_as_image(df, path):
+def save_df_as_image(df, path="df_image.png"):
     source = ColumnDataSource(df)
     #df_columns = [df.index.name]
     #df_columns.extend(df.columns.values)
@@ -35,6 +37,58 @@ def save_df_as_image(df, path):
     
     data_table = DataTable(source=source, columns=columns_for_table,height_policy="auto",width_policy="auto",index_position=None)
     export_png(data_table, filename = path)
+    return path
+
+# Function to wrap text for better readability
+def wrap_text(text, width=15):
+    if isinstance(text, str):
+        return "\n".join(textwrap.wrap(text, width))
+    return text  # Return numbers as is
+
+# Function to convert DataFrame to high-resolution image
+def dataframe_to_image(df, image_path="df_image.png", wrap_text=True,banner=None):
+    #if wrap_text:
+    #    df = df.applymap(lambda x: wrap_text(str(x)))
+
+    fig, ax = plt.subplots(figsize=(6, 2), dpi=600)  # Increase figure size & DPI
+    ax.axis("tight")
+    ax.axis("off")
+
+    if banner:
+        plt.text(0.5, 0.9, banner, fontsize=10, fontweight="bold", ha="center",
+                bbox=dict(facecolor="lightblue", edgecolor="black", boxstyle="round,pad=0.1"), color="white",
+                transform=ax.transAxes)  # Blue background, white text
+
+    table = ax.table(
+        cellText=df.values, 
+        colLabels=df.columns, 
+        cellLoc="center", 
+        loc="center",
+        colColours=["#f2b134"] * df.shape[1]  # Header color
+    )
+
+    table.auto_set_font_size(False)
+    #table.set_fontsize(12)  # Increase font size
+    #table.scale(2, 2)  # Scale table for better clarity
+
+    for i, key in enumerate(df.columns):
+        table.auto_set_column_width([i])
+
+    plt.savefig(image_path, bbox_inches="tight", dpi=600)  # High DPI
+    plt.close()
+
+    return image_path
+
+# Function to send image to Telegram group
+def send_telegram_photo(image_path, token='stock_notify'):
+    time.sleep(1)
+    chat_id = get_telegram_chat_id(token=token)
+    token = get_telegram_token_id(token=token)
+
+    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    with open(image_path, "rb") as photo:
+        response = requests.post(url, data={"chat_id": chat_id}, files={"photo": photo})
+    return response.json()
 
 #def save_image(df, filename):
 #    ax = plt.subplot(111, frame_on=False) # no visible frame
@@ -347,9 +401,10 @@ def earnings_date(instrument, radar_syms=None):
 
 # Earnings with in a week
 def earnings_week(earnings_dates=True, earnings_results=True):
-    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
-    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Time'])
-    earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Time'])
+    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
+    three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
+    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
+    earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Price', 'Time'])
 
     #fields = {
     #                'Name':'',
@@ -373,6 +428,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
     #today = DB.trading_day(dt.combine(dt.strptime("2024-07-23", "%Y-%m-%d").date(), dt.min.time()))
     yesterday = DB.get_previous_trading_day(today)
     week = DB.trading_day(today + timedelta(6))
+    three_weeks = DB.trading_day(today + timedelta(6+7+7+7)) # make it four weeks
+
     conditions = [ \
                     {"General.IsDelisted": False},\
                     {'General.Type':'Common Stock'},\
@@ -386,21 +443,36 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                             ]\
                     },\
                     {"$or":[\
-                                {'General.Sector': 'Technology'},\
+                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
                                 {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
                                             {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
+                                {"$and": [ \
+                                            {'General.Code' : {"$in": selected_stocks}},\
                                         ]\
                                 },\
                             ]\
                     },\
                     {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
-                    {"$and": [\
-                                {'dates.ndaq_last_earnings_date' :{"$gte":today}},\
-                                {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
-                        ]\
-                    },\
                 ]
+    week_conditions = conditions + \
+                                    [
+                                        {"$and": [\
+                                                    {'dates.ndaq_last_earnings_date' :{"$gte":today}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
+                                            ]\
+                                        },\
+                                    ]
+    three_week_conditions = conditions + \
+                                    [
+                                        {"$and": [\
+                                                    {'dates.ndaq_last_earnings_date' :{"$gte":week}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks}},\
+                                            ]\
+                                        },\
+                                    ]
 
     conditions2 = [ \
                     {"General.IsDelisted": False},\
@@ -417,7 +489,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     {"$or":[\
                                 {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
                                 {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
                                             {'General.Code' : {"$in": non_tech_stocks}},\
                                         ]\
                                 },\
@@ -446,11 +518,11 @@ def earnings_week(earnings_dates=True, earnings_results=True):
 
     week_earnings_stks = {}
     tomorrow_earnings_stks = {}
-
+    three_week_earnings_stks = []
 
     try:
         if earnings_dates:
-            stocks = db.US_Stocks.find({'$and':conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
+            stocks = db.US_Stocks.find({'$and':week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
             print("Week earnings stocks: ", stocks.count())
             for i, instrument in enumerate(stocks):
                 print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
@@ -461,34 +533,79 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
                         if sym not in week_earnings_stks.keys():
                             week_earnings_stks[sym] = instrument['bscs']['symbol']
-                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
                     # If earnings is tomorrow, send a notification
                     if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
                         if sym not in tomorrow_earnings_stks.keys():
-                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
                             #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
+
+            stocks = db.US_Stocks.find({'$and':three_week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
+            print("stocks with earnings from next week to next three weeks: ", stocks.count())
+            for i, instrument in enumerate(stocks):
+                print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
+                # Earnings dates
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    edate = instrument['dates']['ndaq_last_earnings_date'].date()
+                    sym = instrument['bscs']['symbol']
+                    if sym not in three_week_earnings_stks:
+                        three_week_earnings_stks.append(instrument['bscs']['symbol'])
+                        three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
 
             week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
             today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
+
+            three_week_df = three_week_df.loc[three_week_df["Week Change"] <= -0.05]
+            three_week_df = three_week_df.sort_values(by=['Week Change'], ascending=[True])
+
+            week_df["Week Change"] = week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+            today_df["Week Change"] = today_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+            three_week_df["Week Change"] = three_week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+
+            # strip the company name from second space to avoid long names
+            week_df['Name'] = week_df['Name'].str.split(' ').str[:2].str.join(' ')
+            today_df['Name'] = today_df['Name'].str.split(' ').str[:2].str.join(' ')
+            three_week_df['Name'] = three_week_df['Name'].str.split(' ').str[:2].str.join(' ')
+
+            week_df['Price'] = '$' + week_df['Price'].astype(str)
+            today_df['Price'] = '$' + today_df['Price'].astype(str)
+            three_week_df['Price'] = '$' + three_week_df['Price'].astype(str)
+
+            if len(three_week_df) > 0:
+                #message = "Earnings in Four Weeks\n"
+                #notify_message(message, token='earnings_dates')
+                image_path = dataframe_to_image(three_week_df, banner="Earnings in Four Weeks")
+                send_telegram_photo(image_path, token='earnings_dates')
+
             if len(week_df) > 0:
-                message = "Earnings in 7 days\n"
-                for index, d in week_df.iterrows():
-                    s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                            "MCap: " + str(d['MCap']) + "Bn\n" +\
-                            "Time : " + str(d['Time']) + "\n" +\
-                            "earnings_date: "+ str(d['Date']) +"\n\n"
-                    message = message + s
+                #message = "Earnings in 7 days\n"
+                #notify_message(message, token='earnings_dates')
+                image_path = dataframe_to_image(week_df, banner="Earnings in 7 days")
+                send_telegram_photo(image_path, token='earnings_dates')
+                #image_path = save_df_as_image(week_df)
+                #send_telegram_photo(image_path, token='earnings_dates')
+
+                #for index, d in week_df.iterrows():
+                #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                #            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                #            "Time : " + str(d['Time']) + "\n" +\
+                #            "earnings_date: "+ str(d['Date']) +"\n\n"
+                #    message = message + s
                 #notify_message(message, token='earnings_dates')
 
             if len(today_df) > 0:
-                message = "Earnings Tomorrow\n"
-                for index, d in today_df.iterrows():
-                    s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                            "MCap: " + str(d['MCap']) + "Bn\n" +\
-                            "Time : " + str(d['Time']) + "\n" +\
-                            "earnings_date: "+ str(d['Date']) +"\n\n"
-                    message = message + s
-                notify_message(message, token='earnings_dates')
+                #message = "Earnings Tomorrow\n"
+                #notify_message(message, token='earnings_dates')
+                image_path = dataframe_to_image(today_df, banner="Earnings Tomorrow")
+                send_telegram_photo(image_path, token='earnings_dates')
+
+                #for index, d in today_df.iterrows():
+                #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                #            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                #            "Time : " + str(d['Time']) + "\n" +\
+                #            "earnings_date: "+ str(d['Date']) +"\n\n"
+                #    message = message + s
+                #notify_message(message, token='earnings_dates')
 
         if earnings_results:
             stocks = db.US_Stocks.find({'$and':conditions2}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
@@ -503,7 +620,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                         edate = instrument['dates']['ndaq_last_earnings_date'].date()
                     else:
                         edate = ""
-                    earnings_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['price_change']['ndaq_earnings_change']*100, 2), round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['dates']['ndaq_last_earnings_time']]
+                    earnings_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['price_change']['ndaq_earnings_change']*100, 2), round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time']]
 
             if len(earnings_df) > 0:
                 up_df = earnings_df[earnings_df['Price_Change'] >= 0]
@@ -1488,7 +1605,13 @@ def get_uptrend(selected=False):
  
                  ]
     if selected:
-        conditions.append({'General.Code' : {"$in": selected_stocks}})
+        conditions.append(
+                            {"$and":[\
+                                        {'General.Code' : {"$in": selected_stocks}},\
+                                        {'technicals.sar.date':{'$gte': DB.get_latest_trading_day()}},\
+                                    ]\
+                            }
+                        )
     else:
         conditions.append({'General.Type':'Common Stock'})
         conditions.append({'General.IsDelisted': False})
@@ -1502,16 +1625,22 @@ def get_uptrend(selected=False):
                                     ]\
                             })
         conditions.append({'Highlights.MarketCapitalizationMln': {"$gte":5000}})
-        conditions.append({"$or":[\
-                                        {"$and": [ \
-                                                    {'technicals.sar.ta_psar_trend':{"$eq":1}},\
-                                                    {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
-                                                ]\
-                                        },\
-                                        {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
-                                        {'technicals.sar.ta_psar_cur_trend_price_change':{"$lte":-0.15}},\
-                                    ]\
-                            })
+        conditions.append(
+                            {"$and":[\
+                                    {"$or":[\
+                                                {"$and": [ \
+                                                            {'technicals.sar.ta_psar_trend':{"$eq":1}},\
+                                                            {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
+                                                        ]\
+                                                },\
+                                                {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
+                                                {'technicals.sar.ta_psar_cur_trend_price_change':{"$lte":-0.15}},\
+                                            ]\
+                                    },\
+                                    {'technicals.sar.date':{'$gte': DB.get_latest_trading_day()}},\
+                                ]\
+                            }
+                        )
 
     stocks = db.US_Stocks.find({"$and": conditions}).batch_size(10)
     #stocks = list(db.US_Stocks.find({"$and": conditions}))

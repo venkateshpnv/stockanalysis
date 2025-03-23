@@ -726,4 +726,4 @@ databases_list = {
         }
 
 non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']
-selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM']
+selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM', 'GSPC']

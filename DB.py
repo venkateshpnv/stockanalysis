@@ -393,7 +393,7 @@ def mysql_update_table(mysql_engine, table_name, df, check=False, insert=False, 
 
                 # If you are sure that this is the new record
                 if insert:
-                    print("%s: mysql_update_table, new entry." %(symbol))
+                    print("%s: mysql_update_table, new entry." %(table_name))
                     stmt=table.insert().values(items)
                 else:
                     for item in items.keys():
@@ -689,6 +689,19 @@ def get_symbols_from_sql(country, engine):
     #if not rdf.empty:
     #    symbols = list(rdf['Symbol'])
     #return symbols
+
+def update_mcap(df):
+    from bson import Int64
+
+    db_client = DB.open_db_client()
+    db = db_client['Stocks']
+
+    try:
+        for index,d in df.iterrows():
+            DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalization', Int64(int(d['marketCap'])))
+            DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalizationMln', round(d['marketCap']/1000000,2))
+    finally:
+        DB.close_db_client(db_client)
 
 def get_radar_symbols(country='US'):
     if country != 'US':
@@ -1735,7 +1748,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
         #stocks=db.US_Stocks.find({"$and":[{'General.Exchange':{"$in":major_exchanges}}, {'General.Type':'Common Stock'}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'ABZT'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'CRDO'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Total non-bulk stocks: %r" %(stocks.count()))
 
         for stk in stocks:
@@ -2194,7 +2207,9 @@ def update_stk_bscs_db(country, db, mysql_engine, stk, core, sem, lock, vpn_even
         if sem:
             sem.release()
 
-def update_candlesticks(collection, sym, df):
+def update_candlesticks(collection, sym, df_orig):
+    # Only take last one year data
+    df = df_orig.tail(250)
     update_field(collection, sym, "technicals.candlesticks.TWOCROWS",float(talib.CDL2CROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
     update_field(collection, sym, "technicals.candlesticks.THREECROWS",float(talib.CDL3BLACKCROWS(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
     update_field(collection, sym, "technicals.candlesticks.THREEINSIDE",float(talib.CDL3INSIDE(df['Open'],df['High'],df['Low'], df['Adj Close'])[-1]))
@@ -2512,7 +2527,8 @@ def update_SAR_params(collection, sym, df):
         alpha = np.nan
         if not sw['ep'].empty:
             ep = sw.ep[-1] - 1
-            alpha = percent_change(change, ep)
+            #alpha = percent_change(change, ep)
+            alpha = ep - change
         update_field(collection, sym, "technicals.sar.ep.one_year.ep", ep)
         update_field(collection, sym, "technicals.sar.ep.one_year.num_trades", len(sw))
         update_field(collection, sym, "technicals.sar.ep.one_year.price_change", change)
@@ -2526,7 +2542,8 @@ def update_SAR_params(collection, sym, df):
         alpha = np.nan
         if not sw['ep'].empty:
             ep = sw.ep[-1] - 1
-            alpha = percent_change(change, ep)
+            #alpha = percent_change(change, ep)
+            alpha = ep - change
         update_field(collection, sym, "technicals.sar.ep.six_months.ep", ep)
         update_field(collection, sym, "technicals.sar.ep.six_months.num_trades", len(sw))
         update_field(collection, sym, "technicals.sar.ep.six_months.price_change", change)
@@ -2540,7 +2557,8 @@ def update_SAR_params(collection, sym, df):
         alpha = np.nan
         if not sw['ep'].empty:
             ep = sw.ep[-1] - 1
-            alpha = percent_change(change, ep)
+            #alpha = percent_change(change, ep)
+            alpha = ep - change
         update_field(collection, sym, "technicals.sar.ep.three_months.ep", ep)
         update_field(collection, sym, "technicals.sar.ep.three_months.num_trades", len(sw))
         update_field(collection, sym, "technicals.sar.ep.three_months.price_change", change)
@@ -2554,11 +2572,13 @@ def update_SAR_params(collection, sym, df):
         alpha = np.nan
         if not sw['ep'].empty:
             ep = sw.ep[-1] - 1
-            alpha = percent_change(change, ep)
+            #alpha = percent_change(change, ep)
+            alpha = ep - change
         update_field(collection, sym, "technicals.sar.ep.one_month.ep", ep)
         update_field(collection, sym, "technicals.sar.ep.one_month.num_trades", len(sw))
         update_field(collection, sym, "technicals.sar.ep.one_month.price_change", change)
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
+        #return
 
         psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(copy.deepcopy(df), trend_only=True)
         update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
@@ -2880,6 +2900,8 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
         df = read_from_sql(query, mysql_engine)
  
         df = normalize_cols_with_adj_close(df)
+        # Take only last one year data
+        df = df.tail(250)
 
         if df.empty or len(df.index) == 1:
             print("Empty df")
@@ -2895,46 +2917,47 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
             update_field(collection, sym, "technicals.ulcer_index", nan)
             update_field(collection, sym, "technicals.price_trend", {})
         else:
-            # bollinger bands
-            update_BB_params(collection, sym, df)
+            ### bollinger bands
+            ##update_BB_params(collection, sym, df)
 
-            # AROON Indicator. Its a trend indicator.
-            # A high or low are tracked by AROON up and AROON down respectively.
-            update_AROON_params(collection, sym, df)
+            ### AROON Indicator. Its a trend indicator.
+            ### A high or low are tracked by AROON up and AROON down respectively.
+            ##update_AROON_params(collection, sym, df)
 
-            ## SAR Calculation
+            ### SAR Calculation
             update_SAR_params(collection, sym, df)
 
-            # 100 day Exponential Moving Avegare Calculation
-            update_EMA_params(collection, sym, df)
+            ### 100 day Exponential Moving Avegare Calculation
+            ##update_EMA_params(collection, sym, df)
 
-            # MACD
-            update_MACD_params(collection, sym, df)
+            ### MACD
+            ##update_MACD_params(collection, sym, df)
 
-            # RSI Calculation
-            rsi = update_RSI_params(collection, sym, df)
+            ## RSI Calculation
+            #rsi = update_RSI_params(collection, sym, df)
 
-            # ATR. Average True Range. Its a volatility Indicator.
-            # High and low values represents respective volatility.
-            atr = update_ATR_params(collection, sym, df, rsi)
+            ### ATR. Average True Range. Its a volatility Indicator.
+            ### High and low values represents respective volatility.
+            ##atr = update_ATR_params(collection, sym, df, rsi)
 
-            # Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
-            # too early in an uptrend or too late in a downtrend.
-            # http://kaushik316-blog.logdown.com/posts/1964522
-            # https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
-            update_chandelier_params(collection, sym, df, atr)
+            ### Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
+            ### too early in an uptrend or too late in a downtrend.
+            ### http://kaushik316-blog.logdown.com/posts/1964522
+            ### https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
+            ##update_chandelier_params(collection, sym, df, atr)
 
-            # Ulcer Index. ITs a volatility tracker designed to measure downside risk.
-            # Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
-            # a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
-            # downside risk is zero since the price steadily increases without ever falling.
-            update_ulcer_index_params(collection, sym, df)
+            ### Ulcer Index. ITs a volatility tracker designed to measure downside risk.
+            ### Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
+            ### a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
+            ### downside risk is zero since the price steadily increases without ever falling.
+            ##update_ulcer_index_params(collection, sym, df)
 
-            # Money Flow index
-            update_money_flow_index_params(collection, sym, df)
+            ## Calculate trend
+            #update_price_trend_params(collection, sym, df)
+            #
+            #### Money Flow index
+            ##update_money_flow_index_params(collection, sym, df)
 
-            # Calculate trend
-            update_price_trend_params(collection, sym, df)
 
     except Exception as E:
         print(str(E))
@@ -2953,20 +2976,28 @@ def update_all_tech_analysis_params(country='US'):
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
 
+    try:
+        #Indices
+        for i, k in enumerate(US_indices.keys()):
+            update_tech_analysis_params(k, 0, sem=None)
+    except Exception as E:
+        print("Update_all_tech_analysis_params: error: %s" %(str(E)))
+        pass
+
     sort = [1, -1][dt.now().day % 2 == 0]
     stocks=db.US_Stocks.find({"$and":[ \
                                         ##{'General.Exchange':{"$in":major_exchanges}},\
-                                        #{"$or": [\
-                                        #            {'General.Exchange':{"$in":major_exchanges}},\
-                                        #            {"$and": [ \
-                                        #                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                        #                        {'bscs.tracking':{'$exists':True}}, \
-                                        #                    ] \
-                                        #            },\
-                                        #        ]\
-                                        #},\
                                         {'General.Type':'Common Stock'}, \
                                         {'General.IsDelisted': False}, \
+                                        {"$or": [\
+                                                    {'General.Exchange':{"$in":major_exchanges}},\
+                                                    {"$and": [ \
+                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                {'bscs.tracking':{'$exists':True}}, \
+                                                            ] \
+                                                    },\
+                                                ]\
+                                        },\
                                         {'$or':[\
                                                 {'failcount.mysql_price_failcount': {"$exists": False}},\
                                                 {'failcount.mysql_price_failcount': {'$eq': 0}},\
@@ -2984,7 +3015,20 @@ def update_all_tech_analysis_params(country='US'):
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'AAPL'})
+    #Mn = 1000000
+    #Bn = 1000*Mn
+    #stocks=db.US_Stocks.find({"$and":[ \
+    #                                    {'General.Type':'Common Stock'}, \
+    #                                    {'General.IsDelisted': False}, \
+    #                                    {'$or':[\
+    #                                            {'failcount.mysql_price_failcount': {'$eq': 0}},\
+    #                                            ]\
+    #                                    },\
+    #                                    {'technicals.sar.ep.one_year.alpha': {'$gt': 0}},\
+    #                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+    #                                ]}).batch_size(10).sort([["technicals.sar.ep.one_year.alpha",-1]]).allow_disk_use(True)
+
+    #stocks=db.US_Stocks.find({'General.Code':'AMD'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
@@ -3003,6 +3047,117 @@ def update_all_tech_analysis_params(country='US'):
 
     close_db_client(c)
     close_sql_connection(mysql_engine)
+
+#def detect_stock_decline(sym, start_date=None, end_date=None, decline_threshold=-50, flatten_period=250, flat_variation=15, core=None, sem=None, Type='Stocks'):
+#
+#    if core is not None:
+#        aff = 0 | 1 << core
+#        os.system("taskset -p %r %d >/dev/null 2>&1" %(str(hex(aff)), os.getpid()))
+#
+#    #set_cpu_affinity()
+#
+#    c  = open_db_client()
+#    if Type == 'Stocks':
+#        db = c['Stocks']
+#        collection=db.US_Stocks
+#        mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+#    else:
+#        db = c['Cryptos']
+#        collection=db.Cryptos
+#        mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
+#
+#    try:
+#        if not mysql_exists_table(mysql_engine, get_symbol_table_name(sym)):
+#            print("Empty df")
+#            update_field(collection, sym, "stock_decline", {})
+#            return
+#
+#        if start_date != None and end_date != None:
+#            query = 'select Date, Open, High, Low, Volume, Close, `Adj Close` from {} where Date BETWEEN {} and {}'.format(get_symbol_table_name(sym), start_date, end_date)
+#        else:
+#            query = 'select Date, Open, High, Low, Volume, Close, `Adj Close` from {}'.format(get_symbol_table_name(sym))
+#        #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
+#        df = read_from_sql(query, mysql_engine)
+# 
+#        df = normalize_cols_with_adj_close(df)
+#        # Take only last two year data
+#        df = df.tail(500)
+#
+#        if df.empty or len(df.index) == 1:
+#            print("Empty df")
+#            update_field(collection, sym, "stock_decline", {})
+#        else:
+#            significant_declines = []
+#            for i in range(len(df) - flatten_period * 2):
+#
+#    except Exception as E:
+#        print(str(E))
+#    finally:
+#        update_field(collection, sym, "stock_decline.date", dt.combine(dt.now(), dt.min.time()))
+#        close_db_client(c)
+#        close_sql_connection(mysql_engine)
+#        if sem:
+#            sem.release()
+#
+#def detect_all_stocks_decline(country='US'):
+#    c  = open_db_client()
+#    db = c['Stocks']
+#    mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+#    num_processes = num_cores #* 2
+#    sem = multiprocessing.BoundedSemaphore(num_processes)
+#    processes = [None]*num_processes
+#
+#    sort = [1, -1][dt.now().day % 2 == 0]
+#    stocks=db.US_Stocks.find({"$and":[ \
+#                                        ##{'General.Exchange':{"$in":major_exchanges}},\
+#                                        {'General.Type':'Common Stock'}, \
+#                                        {'General.IsDelisted': False}, \
+#                                        {"$or": [\
+#                                                    {'General.Exchange':{"$in":major_exchanges}},\
+#                                                    {"$and": [ \
+#                                                                {'General.Exchange':{"$nin":major_exchanges}},\
+#                                                                {'bscs.tracking':{'$exists':True}}, \
+#                                                            ] \
+#                                                    },\
+#                                                ]\
+#                                        },\
+#                                        {'$or':[\
+#                                                {'failcount.mysql_price_failcount': {"$exists": False}},\
+#                                                {'failcount.mysql_price_failcount': {'$eq': 0}},\
+#                                                ]\
+#                                        },\
+#                                        #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+#                                        #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+#                                        {'$or':[\
+#                                                {'technicals.date': {"$exists": False}},\
+#                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
+#                                                ]\
+#                                        },\
+#                                        {'dates.mysql_price_pull_success':True}, \
+#                                        {'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
+#                                    ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
+#                                    #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
+#
+#
+#    stocks=db.US_Stocks.find({'General.Code':'CVNA'})
+#    print("Tech analysis, total stocks:", stocks.count())
+#    i=0
+#    try:
+#        for i, stk in enumerate(stocks):
+#            print("Tech analysis params: %d: Symbol: %r" %(i, stk['bscs']['symbol']))
+#            sem.acquire()
+#            detect_stock_decline(stk['bscs']['symbol'], start_date='2021-04-07', end_date='2023-08-07', core=0, sem=sem)
+#            #processes[i%num_processes] = multiprocessing.Process(target=detect_stock_decline, args=(stk['bscs']['symbol'], start_date=None, end_date=None, core=i%num_cores, sem=sem,))
+#            processes[i%num_processes].start()
+#    finally:
+#        for j in range(len(processes)):
+#            if processes[j] is not None:
+#                processes[j].join()
+#
+#    print("Detect Stock Decline: Stocks tried :%r"%(i))
+#
+#    close_db_client(c)
+#    close_sql_connection(mysql_engine)
 
 def price_range_anomoly(country, mysql_engine, sym, df):
     if len(df.index) < 1:
@@ -3245,7 +3400,8 @@ def add_all_stock_data(stk, general_only=False):
     finally:
         close_db_client(c)
 
-def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False, technicals=True):
+# vpetla: Change technicals=True when you resume back your subscription
+def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False, technicals=False):
     local_db    = False
     local_mysql = False
 
@@ -5883,15 +6039,15 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
         update_field(db.US_Stocks, stk['bscs']['symbol'], 'dates.options_pull_date', dt.combine(dt.now(), dt.min.time()))
         if not empty:
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.expiration', d['expiration'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price', pr)
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.strike_price', d['strike'])
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price', float(pr))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.strike_price', float(d['strike']))
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.dte', int(d['dte']))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.bid', d['bid'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ask', d['ask'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid', d['mid'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.last_price', d['last'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid_pr', d['mid_pr'])
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.all_pr', round(d['all_pr'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.bid', float(d['bid']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ask', float(d['ask']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid', float(d['mid']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.last_price', float(d['last']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.mid_pr', float(d['mid_pr']))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.all_pr', round(float(d['all_pr']),2))
         else:
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.expiration', nan)
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price', nan)
@@ -5905,22 +6061,22 @@ def update_option(stk, core=None, sem=None, db=None, ratelimit_event=None):
             update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.all_pr', nan)
 
         if not puts_empty:
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price_80_percent', round(pr*0.8,2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point', round(puts_entry['noloss_point'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike', round(puts_entry['strike'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium', round(puts_entry['mid'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_percent', round(max_loss_percent,2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_price_down', round(max_loss_price_down,2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent', round(puts_entry['risk_percent'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down', round(puts_entry['twenty_percent_down'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down', round(puts_entry['ten_percent_down'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.price_80_percent', round(float(pr)*0.8,2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point', round(float(puts_entry['noloss_point']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike', round(float(puts_entry['strike']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium', round(float(puts_entry['mid']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_percent', round(float(max_loss_percent),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.max_loss_price_down', round(float(max_loss_price_down),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent', round(float(puts_entry['risk_percent']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down', round(float(puts_entry['twenty_percent_down']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down', round(float(puts_entry['ten_percent_down']),2))
 
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point_abs', round(puts_abs_entry['noloss_point_abs'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike_abs', round(puts_abs_entry['strike'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium_abs', round(puts_abs_entry['mid'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent_abs', round(puts_abs_entry['risk_percent_abs'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down_abs', round(puts_abs_entry['twenty_percent_down_abs'],2))
-            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down_abs', round(puts_abs_entry['ten_percent_down_abs'],2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.noloss_point_abs', round(float(puts_abs_entry['noloss_point_abs']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_strike_abs', round(float(puts_abs_entry['strike']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.puts_premium_abs', round(float(puts_abs_entry['mid']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.risk_percent_abs', round(float(puts_abs_entry['risk_percent_abs']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.twenty_percent_down_abs', round(float(puts_abs_entry['twenty_percent_down_abs']),2))
+            update_field(db.US_Stocks, stk['bscs']['symbol'], 'options_data.ten_percent_down_abs', round(float(puts_abs_entry['ten_percent_down_abs']),2))
 
         if sem:
             sem.release()
@@ -5968,7 +6124,7 @@ def update_all_options(country='US'):
                                 }\
                                 ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
                                 #).batch_size(10)#.sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
-    #stocks = db.US_Stocks.find({'General.Code': 'CRWD'})
+    #stocks = db.US_Stocks.find({'General.Code': 'MET'})
     print("Total stocks: %r" %(stocks.count()))
     try:
         for stk in stocks:
@@ -7587,6 +7743,9 @@ def update_all_technicals():
     #df.dropna(axis=0,inplace=True)
     df = df[df['Symbol'].notna()]
     print("Update Technicals: Total Symbols: %r" %(len(df)))
+    # vpetla: Remove return after you enable your subscription
+    return
+
     try:
         # First get dividends for all new stocks
         #stocks = db.US_Stocks.find({"$and": [{'General.Type':'Common Stock'}, {"dates.dividends_pull_date": {"$exists": False}}, {'General.Exchange':{"$in":major_exchanges}}]}, no_cursor_timeout=True).sort([["sno",1]]).allow_disk_use(True)
@@ -9261,7 +9420,7 @@ def update_all_US_fin_percent_change():
                                                     ]\
                                             },\
  
-                                            {'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
+                                            #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}\
                                         ]\
                                 }\
                                 ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -10347,28 +10506,34 @@ def update_nasdaq_all_earnings():
             else:
                 d = trading_day(d + timedelta(1))
 
+        update_mcap(edf[['Symbol', 'marketCap']])
+
         # Get all stocks with mcap >= 1Bn
         edf = edf[edf['marketCap'] >= 100000000]
         # Replace all NaN with None. That would be easy to search from python
         edf = edf.applymap(lambda x: None if pd.isna(x) else x)
         edf.index=edf.Date
-        #for index, d in edf.iterrows():
-        #stocks = db.US_Stocks.find({'General.Code':d['Symbol']}, {'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
+        ##for index, d in edf.iterrows():
+        ##stocks = db.US_Stocks.find({'General.Code':d['Symbol']}, {'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
         stocks = db.US_Stocks.find({'General.Code':{'$in': edf['Symbol'].tolist()}}, {'General.Code':1, 'General.Sector':1, 'General.Industry':1, '_id':0}, no_cursor_timeout=True)
-        #if stocks.count() > 0:
-        for stk in stocks:
-            #print(stk)
-            if 'General' in stk.keys():
-                if 'Sector' in stk['General'].keys():
-                    edf.loc[edf['Symbol'] == stk['General']['Code'], 'Sector'] = stk['General']['Sector']
-                if 'Industry' in stk['General'].keys():
-                    edf.loc[edf['Symbol'] == stk['General']['Code'], 'Industry'] = stk['General']['Industry']
-                #edf.at[index,'Sector'] = stocks[0]['General']['Sector']
-            res = edf.loc[edf['Symbol'] == stk['General']['Code']]
-            if not res.empty:
-                db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_date": dt.combine(dt.strptime(res.iloc[0]['reportDate'], "%Y-%m-%d").date(), dt.min.time())}})
-                db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_time": res.iloc[0]['time']}})
-
+        ###if stocks.count() > 0:
+        try:
+            for stk in stocks:
+                #print(stk)
+                if 'General' in stk.keys():
+                    if 'Sector' in stk['General'].keys():
+                        edf.loc[edf['Symbol'] == stk['General']['Code'], 'Sector'] = stk['General']['Sector']
+                    if 'Industry' in stk['General'].keys():
+                        edf.loc[edf['Symbol'] == stk['General']['Code'], 'Industry'] = stk['General']['Industry']
+                    #edf.at[index,'Sector'] = stocks[0]['General']['Sector']
+                res = edf.loc[edf['Symbol'] == stk['General']['Code']]
+                if not res.empty: 
+                    db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_date": dt.combine(dt.strptime(res.iloc[0]['reportDate'], "%Y-%m-%d").date(), dt.min.time())}})
+                    if res.iloc[0]['time'] != None:
+                        db.US_Stocks.update({'General.Code': stk['General']['Code']}, {'$set': {"dates.ndaq_last_earnings_time": res.iloc[0]['time']}})
+        except Exception as E:
+            print("Failed to update the ndaq earnings date and tim for symbol: %r" %(res.iloc[0]))
+            pass
     #edf.at[index,'Industry'] = stocks[0]['General']['Industry']
 
         metadata = MetaData()
@@ -10376,14 +10541,27 @@ def update_nasdaq_all_earnings():
         table_cols = sorted(mysql_get_columns(table))
         if 'price_change' in table_cols:
             table_cols.remove('price_change')
-        columns_present = set(table_cols).issubset(sorted(list(edf.columns)))
+        #if 'Industry' in table_cols:
+        #    table_cols.remove('Industry')
+        #if 'Sector' in table_cols:
+        #    table_cols.remove('Sector')
+        #columns_present = set(table_cols).issubset(sorted(list(edf.columns)))
+        if all(item in table_cols for item in list(edf.columns)):
+            columns_present = True
+        else:
+            columns_present = False
         if columns_present:
             udf = pd.DataFrame()
             query = 'select * from {} where reportDate >=\'{}\' order by Date'.format(table_name, str(start))
             rdf = read_from_sql(query, mysql_engine)
+            #if 'Industry' in rdf.columns:
+            #    rdf = rdf.drop(columns='Industry')
+            #if 'Sector' in rdf.columns:
+            #    rdf = rdf.drop(columns='Sector')
+            if 'price_change' in rdf.columns:
+                rdf = rdf.drop(columns='price_change')
+
             rcols = list(rdf.columns)
-            if 'price_change' in rcols:
-                rcols.remove('price_change')
             ecols = list(edf.columns)
             # Columns are different. Throw error and exit
             if set(rcols) != set(ecols):
@@ -10468,8 +10646,10 @@ def update_nasdaq_all_earnings():
                 #        if 'Industry' in stk['General'].keys():
                 #            udf.loc[udf['Symbol'] == stk['General']['Code'], 'Industry'] = stk['General']['Industry']
 
+                print("udf has entries, updating the database with udf values: %r" %(udf))
                 mysql_update_table(mysql_engine, table_name, udf, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
         else:
+            print("edf all new entries, updating the database with edf values: %r" %(edf))
             mysql_update_table(mysql_engine, table_name, edf, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
 
         print("Calculating price changes")
@@ -10498,13 +10678,15 @@ def update_nasdaq_all_earnings():
                 else:
                     continue
             elif 'AfterMarket' in d['time']:
-                if rdate == dt.now().date():
+                if rdate >= dt.now().date():
                     continue
                 prev = rdate
                 after = get_next_trading_day(rdate)
                 query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
                 query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
             elif 'BeforeMarket' in d['time']:
+                if rdate > dt.now().date():
+                    continue
                 prev = get_previous_trading_day(rdate)
                 after = rdate
                 query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))

@@ -230,6 +230,18 @@ def get_holiday_list(start=None, end=None, datetime_format=True):
         return [dt.strptime(x, "%Y-%m-%d").date() for x in list(df['Date'])]
     return list(df['Date'])
 
+def get_next_business_day(days_ahead=7):
+    today = dt.today()
+    target_day = today + timedelta(days=days_ahead)
+
+    # Adjust if the target day falls on a weekend
+    if target_day.weekday() == 5:  # Saturday -> move to Monday
+        target_day += timedelta(days=2)
+    elif target_day.weekday() == 6:  # Sunday -> move to Monday
+        target_day += timedelta(days=1)
+
+    return dt.combine(target_day.date(), dt.min.time())
+
 def get_duration_human(start, end):
     delta = relativedelta.relativedelta(end, start)
     dur = ""
