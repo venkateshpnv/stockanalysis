@@ -1760,105 +1760,136 @@ def get_uptrend(selected=False):
 
     if len(uptrend_df) == 0:
         return
+
     if not selected:
         ## Get only stocks whose previous trend has lost atleast 10%
-        trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
+        #trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
+        trend1 = uptrend_df[(uptrend_df['Trend'] == 1) & (uptrend_df['Prev_Trend_Change'] < -10)]
         trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
+        trend1 = trend1.sort_values(by='Prev_Trend_Change', ascending=True)
         trend1 = trend1.iloc[0:9]
-        # Get only stocks that are atleast 5% up on today
-        #trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
-        trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
-        trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
-        trend2 = trend2.iloc[0:9]
+        ## Get only stocks that are atleast 5% up on today
+        ##trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
+        #trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
+        #trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+        #trend2 = trend2.iloc[0:9]
         # Get stocks where current trend is down by atleast 10%
         trend3 = uptrend_df[uptrend_df.Cur_Trend_Change <= -10]
-        trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+        trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60]
+        #trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
         #trend3 = trend3.iloc[0:9]
         trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
         uptrend_df = pd.concat([trend1, trend3])
         #uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
+
+        #df1 = uptrend_df[uptrend_df.Trend == 1]
+        #df2 = uptrend_df[uptrend_df.Trend < 1]
+        #df1 = df1.sort_values(by=['Trend', 'Prev_Trend_Change'],ascending=[False, True])
+        #df2 = df2.sort_values(by=['Cur_Trend_Change'],ascending=[True])
+        #uptrend_df = df1.append(df2)
+
         uptrend_df.drop_duplicates(keep=False,inplace=True)
-    if not selected:
-        count = 6
+
+    def get_last_three_trends(trend_string):
+        """Extracts the last three trend values from the string."""
+        trends = trend_string.split('-')
+        return '-'.join(trends[-3:])
+
+    uptrend_df['Trend_Sequence'] = uptrend_df['Trend_Sequence'].apply(get_last_three_trends)
+    uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence':'Trend_Seq'}, inplace=True)
+    uptrend_df['Name'] = uptrend_df['Name'].str.split(' ').str[:2].str.join(' ')
+    uptrend_df['Sym'] = uptrend_df.index
+    uptrend_df['PTChg'] = uptrend_df['PTChg'].astype(str)  + '%'
+    uptrend_df['CTChg'] = uptrend_df['CTChg'].astype(str) + '%'
+    uptrend_df['MCap'] = uptrend_df['MCap'].astype(str) + 'Bn'
+    image_path = dataframe_to_image(uptrend_df[['Sym', 'Name', 'Tr', 'Trend_Seq', 'PTChg', 'CTChg', 'MCap']])
+    if selected:
+        send_telegram_photo(image_path, token='selected_stocks')
     else:
-        count = 10
-    st = 0
-    en = count
-    l = len(uptrend_df)
-    iters = math.ceil(l/count)# + 1
-    if len(uptrend_df) > 0:
-        for i in range(iters):
-            if not selected:
-                message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
-            else:
-                message = str(i+1) +": Selected Stocks:\n======================\n"
+        send_telegram_photo(image_path, token='stock_notify')
+    return
 
-            df = uptrend_df.iloc[st:en]
-            if len(df) == 0:
-                break
-            for index,d in df.iterrows():
-                s = str(index) + ":" +d['Name'] +"\n"
-                if not selected:
-                    s = s + "trend: "
-                    if d['Trend'] > 0:
-                        s = s + str(d['Trend']) + "L\n"
-                    else:
-                        s = s + str(abs(d['Trend'])) + "S\n"
+    #if not selected:
+    #    count = 6
+    #else:
+    #    count = 10
+    #st = 0
+    #en = count
+    #l = len(uptrend_df)
+    #iters = math.ceil(l/count)# + 1
+    #if len(uptrend_df) > 0:
+    #    for i in range(iters):
+    #        if not selected:
+    #            message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
+    #        else:
+    #            message = str(i+1) +": Selected Stocks:\n======================\n"
 
-                s = s + "price: $"+ str(d['Price']) + "\n" +\
-                    "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-                    "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
-                    "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n"
+    #        df = uptrend_df.iloc[st:en]
+    #        if len(df) == 0:
+    #            break
+    #        for index,d in df.iterrows():
+    #            s = str(index) + ":" +d['Name'] +"\n"
+    #            if not selected:
+    #                s = s + "trend: "
+    #                if d['Trend'] > 0:
+    #                    s = s + str(d['Trend']) + "L\n"
+    #                else:
+    #                    s = s + str(abs(d['Trend'])) + "S\n"
 
-                if not selected:
-                    s = s + "trend: " + d['Trend_Sequence'] + "\n"
+    #            s = s + "price: $"+ str(d['Price']) + "\n" +\
+    #                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+    #                "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
+    #                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n"
 
-                s = s + "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-                    "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n"
+    #            if not selected:
+    #                s = s + "trend: " + d['Trend_Sequence'] + "\n"
 
-                if not selected:
-                    s = s + "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-                            "Mcap: $" + str(d['MCap']) + "Bn\n"
-                s = s + "\n"
-                message = message + s
-            if selected:
-                notify_message(message, token='selected_stocks')
-            else:
-                notify_message(message)
-            st = en
-            en = en + count
-    if not selected and len(trend2) > 0:
-        message = "Stocks Uptrend(Day Change):\n=====================\n"
-        for index,d in trend2.iterrows():
-            #s = str(index) + ":" +d['Name'] +"\n" +\
-            #        "uptrend: "+ str(d['Trend']) + "L\n" + \
-            #        "price: $"+ str(d['Price']) + "\n" +\
-            #        "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-            #        "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-            #        "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-            #        "trend: " + d['Trend_Sequence'] + "\n" +\
-            #        "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-            #        "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-            #        "Mcap: $" + str(d['MCap']) + "Bn\n\n"
-            s = str(index) + ":" +d['Name'] +"\n" +\
-                    "trend: "
-            if d['Trend'] > 0:
-                s = s + str(d['Trend']) + "L\n"
-            else:
-                s = s + str(abs(d['Trend'])) + "S\n"
-            s = s + "price: $"+ str(d['Price']) + "\n" +\
-                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-                "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
-                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-                "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-                "trend: " + d['Trend_Sequence'] + "\n" +\
-                "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-                "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+    #            s = s + "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+    #                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n"
+
+    #            if not selected:
+    #                s = s + "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+    #                        "Mcap: $" + str(d['MCap']) + "Bn\n"
+    #            s = s + "\n"
+    #            message = message + s
+    #        if selected:
+    #            notify_message(message, token='selected_stocks')
+    #        else:
+    #            notify_message(message)
+    #        st = en
+    #        en = en + count
+    #if not selected and len(trend2) > 0:
+    #    message = "Stocks Uptrend(Day Change):\n=====================\n"
+    #    for index,d in trend2.iterrows():
+    #        #s = str(index) + ":" +d['Name'] +"\n" +\
+    #        #        "uptrend: "+ str(d['Trend']) + "L\n" + \
+    #        #        "price: $"+ str(d['Price']) + "\n" +\
+    #        #        "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+    #        #        "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+    #        #        "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+    #        #        "trend: " + d['Trend_Sequence'] + "\n" +\
+    #        #        "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+    #        #        "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+    #        #        "Mcap: $" + str(d['MCap']) + "Bn\n\n"
+    #        s = str(index) + ":" +d['Name'] +"\n" +\
+    #                "trend: "
+    #        if d['Trend'] > 0:
+    #            s = s + str(d['Trend']) + "L\n"
+    #        else:
+    #            s = s + str(abs(d['Trend'])) + "S\n"
+    #        s = s + "price: $"+ str(d['Price']) + "\n" +\
+    #            "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
+    #            "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
+    #            "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
+    #            "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
+    #            "trend: " + d['Trend_Sequence'] + "\n" +\
+    #            "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
+    #            "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
+    #            "Mcap: $" + str(d['MCap']) + "Bn\n\n"
 
 
-            message = message + s
-        notify_message(message)
+    #        message = message + s
+    #    notify_message(message)
 
 def get_mstar():
     fields = {
