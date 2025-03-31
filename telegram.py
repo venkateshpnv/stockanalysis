@@ -2079,6 +2079,36 @@ def get_indicator(indicator, conditions, fields=None):
         message = message + s
     notify_message(message, token=indicator)
 
+def get_rsi_min(indicator, conditions, fields=None):
+    df = pd.DataFrame(columns=['Sym', 'Name', 'MCap', 'RSI', 'Price',])
+
+    c  = DB.open_db_client()
+    db = c['Stocks']
+    collection = db.US_Stocks
+
+    stocks = collection.find({'$and':conditions}).batch_size(10)
+    #print("Indicator: %s, stocks: %d" %(indicator, stocks.count()))
+    print("Indicator: %s" %(indicator))
+
+    try:
+        for i, instrument in enumerate(stocks):
+            print("%d: %s: %s" %(i, instrument['bscs']['symbol'], instrument['General']['Name']))
+            if 'technicals' in instrument.keys() and \
+                    'rsi' in instrument['technicals'].keys():
+                df.loc[i] = [instrument['General']['Code'], instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), round(instrument['technicals']['rsi']['latest'],2), instrument['price_change']['price']]
+
+        df['Name'] = df['Name'].str.split(' ').str[:2].str.join(' ')
+        df['Price'] = '$' + df['Price'].astype(str)
+        df = df.sort_values(by=['MCap'], ascending=[False])
+        df = df.iloc[0:10]
+        if len(df) > 0:
+            image_path = dataframe_to_image(df)
+            send_telegram_photo(image_path, token='rsi_min')
+
+    except Exception as E:
+        print("Indicator: %s: Err for sym: %s, err: %s" %(indicator, instrument['bscs']['symbol'], str(E)))
+    finally:
+        DB.close_db_client(c)
 
 calls = {
         ##'min_rsi': min_rsi,
@@ -2160,7 +2190,7 @@ def get_all_indicators():
                     #        ]\
                     #},\
                     {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
-                    {'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
+                    #{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
                     {"$and": [ \
                                 {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
                                 {'dates.mysql_price_pull_success': True},\
@@ -2182,29 +2212,49 @@ def get_all_indicators():
     except:
         pass
 
-    ## morning star
-    #try:
-    #    conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
-    #    get_indicator('mstar', conds, fields)
-    #except exception as E:
-    #    print("mstar error: %r" %(str(E)))
-    #    pass
+    # Min rsi
+    try:
+        conds = conditions + [{'technicals.rsi.with_60day_min':{"$eq":0}}]
+        conds = conds + [\
+                    {"$or":[\
+                                {'General.Sector': 'Technology'},\
+                                {"$and": [ \
+                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
+                            ]\
+                    },\
+                    ]
+ 
+        get_rsi_min('rsi_min', conds)
+    except exception as E:
+        print("mstar error: %r" %(str(E)))
+        pass
 
-    ## evening doji star
-    #try:
-    #    conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
-    #    get_indicator('dojiestar', conds, fields)
-    #except:
-    #    pass
+    # morning star
+    try:
+        conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
+        get_indicator('mstar', conds, fields)
+    except exception as E:
+        print("mstar error: %r" %(str(E)))
+        pass
 
-    ## evening star
-    #try:
-    #    conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
-    #    get_indicator('estar', conds, fields)
-    #except:
-    #    pass
+    # evening doji star
+    try:
+        conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
+        get_indicator('dojiestar', conds, fields)
+    except:
+        pass
 
-if __name__ == "__main__":
+    # evening star
+    try:
+        conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
+        get_indicator('estar', conds, fields)
+    except:
+        pass
+
+if _name__ == "__main__":
     if is_holiday():
         sys.exit(0)
     if len(sys.argv) == 2 and 'options' in sys.argv[1]:
