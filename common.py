@@ -221,6 +221,11 @@ def is_holiday(d=None):
     return False
 
 def get_holiday_list(start=None, end=None, datetime_format=True):
+    if start is None:
+        start = "1970-01-01"
+    if end is None:
+        end = str(dt.now().date())
+
     mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Data')
     query = 'select Date from {} where Date between \'{}\' and \'{}\''.format('US_Holiday_List', str(start), str(end))
     df = pd.read_sql_query(query, mysql_engine)
