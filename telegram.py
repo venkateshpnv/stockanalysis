@@ -8,6 +8,7 @@ from datetime import datetime as dt
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 import copy
 import math
 from math import nan, isnan
@@ -55,6 +56,7 @@ def dataframe_to_image(df, image_path="df_image.png", wrap_text=True,banner=None
     ax.axis("off")
 
     if banner:
+        ax.set_title('banner', fontsize=16, fontweight='bold')
         plt.text(0.5, 0.9, banner, fontsize=10, fontweight="bold", ha="center",
                 bbox=dict(facecolor="lightblue", edgecolor="black", boxstyle="round,pad=0.1"), color="white",
                 transform=ax.transAxes)  # Blue background, white text
@@ -77,6 +79,55 @@ def dataframe_to_image(df, image_path="df_image.png", wrap_text=True,banner=None
     plt.savefig(image_path, bbox_inches="tight", dpi=600)  # High DPI
     plt.close()
 
+    return image_path
+
+
+# Function to convert DataFrame to high-resolution image
+def dataframe_to_image2(df, image_path="df_image.png", banner=None):
+    max_height = 1200
+    fixed_width = 800
+    dpi = 100
+
+    # Calculate dynamic height based on rows but cap it
+    row_height_px = 40
+    calculated_height = int(0.15 * fixed_width + len(df) * row_height_px)
+    final_height = min(calculated_height, max_height)
+
+    fig_width_in = fixed_width / dpi
+    fig_height_in = final_height / dpi
+
+    fig = plt.figure(figsize=(fig_width_in, fig_height_in), dpi=dpi)
+    gs = gridspec.GridSpec(2, 1, height_ratios=[0.15, 0.85], figure=fig)
+
+    # Banner section
+    if banner:
+        ax_banner = fig.add_subplot(gs[0])
+        ax_banner.axis("off")
+        ax_banner.text(0.5, 0.5, banner, fontsize=12, fontweight="bold", ha="center", va="center",
+                       bbox=dict(facecolor="lightblue", edgecolor="black", boxstyle="round,pad=0.3"), color="white")
+
+    # Table section
+    ax_table = fig.add_subplot(gs[1])
+    ax_table.axis("off")
+
+    table = ax_table.table(
+        cellText=df.values,
+        colLabels=df.columns,
+        cellLoc="center",
+        loc="center",
+        colColours=["#f2b134"] * df.shape[1]
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.0, 1.2)
+
+    for i in range(len(df.columns)):
+        table.auto_set_column_width([i])
+
+    plt.tight_layout(pad=0.5)
+    plt.savefig(image_path, bbox_inches="tight", dpi=dpi, format="png")
+    plt.close()
     return image_path
 
 # Function to send image to Telegram group
@@ -546,6 +597,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
                 # Earnings dates
                 if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    if 'ndaq_last_earnings_time' not in instrument['dates'].keys():
+                        instrument['dates']['ndaq_last_earnings_time'] = ''
                     edate = instrument['dates']['ndaq_last_earnings_date'].date()
                     sym = instrument['bscs']['symbol']
                     if sym not in three_week_earnings_stks:
@@ -571,19 +624,38 @@ def earnings_week(earnings_dates=True, earnings_results=True):
             today_df['Price'] = '$' + today_df['Price'].astype(str)
             three_week_df['Price'] = '$' + three_week_df['Price'].astype(str)
 
+            count=40
             if len(three_week_df) > 0:
-                #message = "Earnings in Four Weeks\n"
-                #notify_message(message, token='earnings_dates')
-                image_path = dataframe_to_image(three_week_df, banner="Earnings in Four Weeks")
-                send_telegram_photo(image_path, token='earnings_dates')
+                st=0
+                en=count
+                l = len(three_week_df)
+                iters = math.ceil(l/count)
+                for i in range(iters):
+                    df = three_week_df[st:en]
+                    if len(df) == 0:
+                        break
+                    #message = "Earnings in Four Weeks\n"
+                    #notify_message(message, token='earnings_dates')
+                    image_path = dataframe_to_image2(df, banner="Earnings in Four Weeks")
+                    send_telegram_photo(image_path, token='earnings_dates')
+                    st = en
+                    en = en + count
 
             if len(week_df) > 0:
-                #message = "Earnings in 7 days\n"
-                #notify_message(message, token='earnings_dates')
-                image_path = dataframe_to_image(week_df, banner="Earnings in 7 days")
-                send_telegram_photo(image_path, token='earnings_dates')
-                #image_path = save_df_as_image(week_df)
-                #send_telegram_photo(image_path, token='earnings_dates')
+                st=0
+                en=count
+                l = len(week_df)
+                iters = math.ceil(l/count)
+                for i in range(iters):
+                    df = week_df[st:en]
+                    if len(df) == 0:
+                        break
+                    #message = "Earnings in 7 days\n"
+                    #notify_message(message, token='earnings_dates')
+                    image_path = dataframe_to_image2(df, banner="Earnings in 7 days")
+                    send_telegram_photo(image_path, token='earnings_dates')
+                    #image_path = save_df_as_image(week_df)
+                    #send_telegram_photo(image_path, token='earnings_dates')
 
                 #for index, d in week_df.iterrows():
                 #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
@@ -594,10 +666,19 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 #notify_message(message, token='earnings_dates')
 
             if len(today_df) > 0:
-                #message = "Earnings Tomorrow\n"
-                #notify_message(message, token='earnings_dates')
-                image_path = dataframe_to_image(today_df, banner="Earnings Tomorrow")
-                send_telegram_photo(image_path, token='earnings_dates')
+                st=0
+                en=count
+                l = len(today_df)
+                iters = math.ceil(l/count)
+                for i in range(iters):
+                    df = today_df[st:en]
+                    if len(df) == 0:
+                        break
+ 
+                    #message = "Earnings Tomorrow\n"
+                    #notify_message(message, token='earnings_dates')
+                    image_path = dataframe_to_image2(today_df, banner="Earnings Tomorrow")
+                    send_telegram_photo(image_path, token='earnings_dates')
 
                 #for index, d in today_df.iterrows():
                 #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
@@ -2254,7 +2335,7 @@ def get_all_indicators():
     except:
         pass
 
-if _name__ == "__main__":
+if __name__ == "__main__":
     if is_holiday():
         sys.exit(0)
     if len(sys.argv) == 2 and 'options' in sys.argv[1]:
