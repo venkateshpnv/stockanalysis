@@ -2653,6 +2653,12 @@ def update_MACD_params(collection, sym, df):
         update_field(collection, sym, "technicals.macd.histogram", histogram.iloc[-1])
         update_field(collection, sym, "technicals.macd.macd_signal_diff", diff)
 
+def update_STOCHF_params(collection, sym, df):
+    fastk, fastd = talib.STOCHF(df['High'], df['Low'], df['Adj Close'])
+    update_field(collection, sym, "technicals.stochf.fastk", fastk)
+    update_field(collection, sym, "technicals.stochf.fastd", fastd)
+
+
 def update_EMA_params(collection, sym, df):
     if len(df.index) < 100:
         return
@@ -2674,6 +2680,7 @@ def update_RSI_params(collection, sym, df):
         update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
         idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
         if type(idx) is pd.Timestamp:
+            update_field(collection, sym, "technicals.rsi.with_60day_min", rsi.iloc[-1] - rsi[idx])
             update_field(collection, sym, "technicals.rsi.60day_min", rsi[idx])
             update_field(collection, sym, "technicals.rsi.60day_min_price", df.loc[idx]['Adj Close'])
             update_field(collection, sym, "technicals.rsi.60day_min_price_date", idx.to_pydatetime())
@@ -2697,6 +2704,7 @@ def update_RSI_params(collection, sym, df):
 
             cur_price_max_rsi_change = percent_change(df.iloc[-1]['Adj Close'], df.loc[idx]['Adj Close'])
 
+            update_field(collection, sym, "technicals.rsi.with_60day_max", rsi[idx] - rsi.iloc[-1])
             update_field(collection, sym, "technicals.rsi.60day_max", rsi[idx])
             update_field(collection, sym, "technicals.rsi.60day_max_price", df.loc[idx]['Adj Close'])
             update_field(collection, sym, "technicals.rsi.60day_max_price_date", idx.to_pydatetime())
@@ -2894,6 +2902,8 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
             update_field(collection, sym, "technicals.mf", nan)
             update_field(collection, sym, "technicals.ulcer_index", nan)
             update_field(collection, sym, "technicals.price_trend", {})
+            update_field(collection, sym, "technicals.stochf.fastk", nan)
+            update_field(collection, sym, "technicals.stochf.fastd", nan)
             return
         query = 'select Date, Open, High, Low, Volume, Close, `Adj Close` from {}'.format(get_symbol_table_name(sym))
         #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
@@ -2931,10 +2941,13 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
             ##update_EMA_params(collection, sym, df)
 
             ### MACD
-            ##update_MACD_params(collection, sym, df)
+            update_MACD_params(collection, sym, df)
 
-            ## RSI Calculation
-            #rsi = update_RSI_params(collection, sym, df)
+            ## STOCHF
+            #update_STOCHF_params(collection, sym, df)
+
+            # RSI Calculation
+            rsi = update_RSI_params(collection, sym, df)
 
             ### ATR. Average True Range. Its a volatility Indicator.
             ### High and low values represents respective volatility.
@@ -2953,10 +2966,10 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
             ##update_ulcer_index_params(collection, sym, df)
 
             ## Calculate trend
-            #update_price_trend_params(collection, sym, df)
+            update_price_trend_params(collection, sym, df)
             #
             #### Money Flow index
-            ##update_money_flow_index_params(collection, sym, df)
+            update_money_flow_index_params(collection, sym, df)
 
 
     except Exception as E:
