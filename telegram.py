@@ -452,9 +452,9 @@ def earnings_date(instrument, radar_syms=None):
 
 # Earnings with in a week
 def earnings_week(earnings_dates=True, earnings_results=True):
-    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
-    three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
-    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Week Change'])
+    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
+    three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
+    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
     earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Price', 'Time'])
 
     #fields = {
@@ -511,7 +511,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
     week_conditions = conditions + \
                                     [
                                         {"$and": [\
-                                                    {'dates.ndaq_last_earnings_date' :{"$gte":today}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$gt":today}},\
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
                                             ]\
                                         },\
@@ -519,7 +519,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
     three_week_conditions = conditions + \
                                     [
                                         {"$and": [\
-                                                    {'dates.ndaq_last_earnings_date' :{"$gte":week}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$gt":week}},\
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks}},\
                                             ]\
                                         },\
@@ -579,16 +579,18 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
                 # Earnings dates
                 if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    if 'ndaq_last_earnings_time' not in instrument['dates'].keys():
+                        instrument['dates']['ndaq_last_earnings_time']=''
                     edate = instrument['dates']['ndaq_last_earnings_date'].date()
                     sym = instrument['bscs']['symbol']
                     if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
                         if sym not in week_earnings_stks.keys():
                             week_earnings_stks[sym] = instrument['bscs']['symbol']
-                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
                     # If earnings is tomorrow, send a notification
                     if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
                         if sym not in tomorrow_earnings_stks.keys():
-                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
                             #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
 
             stocks = db.US_Stocks.find({'$and':three_week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
@@ -603,7 +605,24 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     sym = instrument['bscs']['symbol']
                     if sym not in three_week_earnings_stks:
                         three_week_earnings_stks.append(instrument['bscs']['symbol'])
-                        three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                        three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+            def get_last_three_trends(trend_string):
+                """Extracts the last three trend values from the string."""
+                trends = trend_string.split('-')
+                return '-'.join(trends[-3:])
+
+            def get_last_three_values(s):
+                try:
+                    values = s.split(',')
+                    if len(values) > 1:
+                        return ','.join(values[-3:])
+                    else:
+                        return ""
+                except AttributeError:
+                    return ""
+            week_df['Tr_Seq'] = week_df['Tr_Seq'].apply(get_last_three_values)
+            today_df['Tr_Seq'] = today_df['Tr_Seq'].apply(get_last_three_values)
+            three_week_df['Tr_Seq'] = three_week_df['Tr_Seq'].apply(get_last_three_values)
 
             week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
             today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
@@ -710,25 +729,32 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 down_df = down_df.sort_values(by=['Price_Change'], ascending=[True])
 
                 if len(down_df) > 0:
-                    message = "Earnings Down :\n=====================\n"
-                    for index, d in down_df.iterrows():
-                        s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                                "MCap: " + str(d['MCap']) + "Bn\n" +\
-                                "Time : " + str(d['Time']) + "\n" +\
-                                "earnings_date: "+ str(d['Date']) + "\n" +\
-                                "price_change: "+ str(d['Price_Change']) + "%\n\n"
-                        message = message + s
-                    notify_message(message, token='earnings_dates')
+                    #message = "Earnings Down :\n=====================\n"
+                    #for index, d in down_df.iterrows():
+                    #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                    #            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                    #            "Time : " + str(d['Time']) + "\n" +\
+                    #            "earnings_date: "+ str(d['Date']) + "\n" +\
+                    #            "price_change: "+ str(d['Price_Change']) + "%\n\n"
+                    #    message = message + s
+                    #notify_message(message, token='earnings_dates')
+
+                    down_df['Price_Change'] = down_df['Price_Change'].astype(str) + '%'
+                    image_path = dataframe_to_image2(down_df, banner="Earnings Price Down")
+                    send_telegram_photo(image_path, token='earnings_dates')
                 if len(up_df) > 0:
-                    message = "Earnings Up:\n=====================\n"
-                    for index, d in up_df.iterrows():
-                        s = d['Sym'] + ":" + d['Name'] + "\n" +\
-                                "MCap: " + str(d['MCap']) + "Bn\n" +\
-                                "Time : " + str(d['Time']) + "\n" +\
-                                "earnings_date: "+ str(d['Date']) + "\n" +\
-                                "price_change: "+ str(d['Price_Change']) + "%\n\n"
-                        message = message + s
-                    notify_message(message, token='earnings_dates')
+                    #message = "Earnings Up:\n=====================\n"
+                    #for index, d in up_df.iterrows():
+                    #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
+                    #            "MCap: " + str(d['MCap']) + "Bn\n" +\
+                    #            "Time : " + str(d['Time']) + "\n" +\
+                    #            "earnings_date: "+ str(d['Date']) + "\n" +\
+                    #            "price_change: "+ str(d['Price_Change']) + "%\n\n"
+                    #    message = message + s
+                    #notify_message(message, token='earnings_dates')
+                    up_df['Price_Change'] = up_df['Price_Change'].astype(str) + '%'
+                    image_path = dataframe_to_image2(up_df, banner="Earnings Price Up")
+                    send_telegram_photo(image_path, token='earnings_dates')
 
     finally:
         DB.close_db_client(c)
@@ -1876,14 +1902,24 @@ def get_uptrend(selected=False):
         trends = trend_string.split('-')
         return '-'.join(trends[-3:])
 
-    uptrend_df['Trend_Sequence'] = uptrend_df['Trend_Sequence'].apply(get_last_three_trends)
-    uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence':'Trend_Seq'}, inplace=True)
+    def get_last_three_values(s):
+        try:
+            values = s.split(',')
+            if len(values) > 1:
+                return ','.join(values[-3:])
+            else:
+                return ""
+        except AttributeError:
+            return ""
+
+    uptrend_df['Trend_Sequence_Change'] = uptrend_df['Trend_Sequence_Change'].apply(get_last_three_values)
+    uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence_Change':'Tr_Seq'}, inplace=True)
     uptrend_df['Name'] = uptrend_df['Name'].str.split(' ').str[:2].str.join(' ')
     uptrend_df['Sym'] = uptrend_df.index
     uptrend_df['PTChg'] = uptrend_df['PTChg'].astype(str)  + '%'
     uptrend_df['CTChg'] = uptrend_df['CTChg'].astype(str) + '%'
     uptrend_df['MCap'] = uptrend_df['MCap'].astype(str) + 'Bn'
-    image_path = dataframe_to_image(uptrend_df[['Sym', 'Name', 'Tr', 'Trend_Seq', 'PTChg', 'CTChg', 'MCap']])
+    image_path = dataframe_to_image(uptrend_df[['Sym', 'Name', 'Tr', 'Tr_Seq', 'PTChg', 'CTChg', 'MCap']])
     if selected:
         send_telegram_photo(image_path, token='selected_stocks')
     else:
@@ -2133,12 +2169,12 @@ def get_indicator(indicator, conditions, fields=None):
         print("Indicator: %s: Err for sym: %s, err: %s" %(indicator, instrument['bscs']['symbol'], str(E)))
     finally:
         DB.close_db_client(c)
-    if len(df) == 0:
-        return
 
     message = "Stocks " + indicator + "\n=====================\n"
     #df = df.sort_values(by=['MCap'], ascending=False)
     df = df[df.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+    if len(df) == 0:
+        return
     df = df.iloc[0:5]
     for index,d in df.iterrows():
         s = str(index) + ":" +d['Name'] +"\n" +\
