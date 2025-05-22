@@ -38,7 +38,7 @@ async def fetch_price(session, ticker):
                 close = data.get("close")
                 prev_close = data.get("previousClose")
                 change_percent = ((close - prev_close) / prev_close) * 100
-                if abs(change_percent) >= 5.0:
+                if abs(change_percent) >= 3.0:
                     return {
                         "Symbol": ticker,
                         "Price": close,
