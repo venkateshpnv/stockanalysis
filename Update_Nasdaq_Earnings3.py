@@ -445,7 +445,7 @@ def main():
                 change = DB.percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
             pr_df.at[index,'price_change'] = change
             db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
-            db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.now()}})
+            db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.combine(dt.now(), dt.min.time())}})
 
             #if not pdf.empty:
             #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
