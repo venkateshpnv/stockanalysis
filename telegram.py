@@ -435,8 +435,8 @@ def earnings_date(instrument, radar_syms=None):
     #    return
     if sym in earnings_stks:
         return
-    if 'dates' in instrument.keys() and 'last_earnings_report_date' in instrument['dates'].keys():
-            earning_date = instrument['dates']['last_earnings_report_date'].date()
+    if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+            earning_date = instrument['dates']['ndaq_last_earnings_date'].date()
             # If earnings is tomorrow, send a notification
             if earning_date == dt.now().date() + timedelta(1) or earning_date == DB.get_next_trading_day():
                 if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
@@ -550,20 +550,20 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     {"$or": [\
                                 {"$and": [\
                                             {'dates.ndaq_last_earnings_date' :{"$eq":today}},\
-                                            {'dates.ndaq_earnings_calc_date' :{"$eq":today}},\
+                                            {'dates.ndaq_earnings_calc_date' :{"$gte":today}},\
                                             {'dates.ndaq_last_earnings_time' :{"$in":["BeforeMarket", np.nan]}},\
                                     ]\
                                 },\
                                 {"$and": [\
                                             {'dates.ndaq_last_earnings_date' :{"$eq":yesterday}},\
-                                            {'dates.ndaq_last_earnings_time' :{"$in":["AfterMarket", None]}},\
+                                            {'dates.ndaq_last_earnings_time' :{"$in":["AfterMarket", np.nan]}},\
                                     ]\
                                 },\
                             ]\
                     },\
                     {"$or": [\
-                                {'price_change.ndaq_earnings_change' : {"$lte": -0.05}},\
-                                {'price_change.ndaq_earnings_change' : {"$gte": 0.05}},\
+                                {'price_change.ndaq_earnings_change' : {"$lte": -0.04}},\
+                                {'price_change.ndaq_earnings_change' : {"$gte": 0.04}},\
                             ]\
                     },\
                 ]
@@ -803,8 +803,8 @@ def week_earnings_date():
                     continue
 
                 # Earnings dates
-                if 'dates' in instrument.keys() and 'last_earnings_report_date' in instrument['dates'].keys():
-                        edate = instrument['dates']['last_earnings_report_date'].date()
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                        edate = instrument['dates']['ndaq_last_earnings_date'].date()
                         if edate > dt.now().date() and edate <= dt.now().date() + timedelta(6):
                             if sym not in week_earnings_stks.keys():
                                 week_earnings_stks[str(edate)] = instrument['General']['Name']
@@ -822,11 +822,13 @@ def week_earnings_date():
                             cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
                             pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change']
 
-                            earnings_date = instrument['dates']['last_earnings_report_date'].date()
-                            today = dt.combine(dt.now(), dt.min.time()).date()
-                            days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
-                            days = int(days)
-
+                            if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                                earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
+                                today = dt.combine(dt.now(), dt.min.time()).date()
+                                days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
+                                days = int(days)
+                            else:
+                                days = ""
                             uptrend_df.loc[sym] = [
                                                     instrument['General']['Name'], 
                                                     trend, 
@@ -1084,11 +1086,13 @@ def get_ratings(fwh=False, purebuy=False, tech=True):
             #if i > 100:
             #    break
             try:
-                earnings_date = instrument['dates']['last_earnings_report_date'].date()
-                today = dt.combine(dt.now(), dt.min.time()).date()
-                days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
-                days_to_earnings = int(days)
-
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
+                    today = dt.combine(dt.now(), dt.min.time()).date()
+                    days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
+                    days_to_earnings = int(days)
+                else:
+                    days_to_earnings = ""
                 df.at[instrument['bscs']['symbol'], 'Name'] = instrument['General']['Name']
 
                 df.at[instrument['bscs']['symbol'],'total_weeks'] = instrument['price_change']['total_weeks']
@@ -1221,11 +1225,13 @@ def get_ratings(fwh=False, purebuy=False, tech=True):
             if instrument['bscs']['symbol'] == 'MTD':
                 print("MTD")
             try:
-                earnings_date = instrument['dates']['last_earnings_report_date'].date()
-                today = dt.combine(dt.now(), dt.min.time()).date()
-                days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
-                days_to_earnings = int(days)
-
+                if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
+                    earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
+                    today = dt.combine(dt.now(), dt.min.time()).date()
+                    days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
+                    days_to_earnings = int(days)
+                else:
+                    days_to_earnings = ""
                 df.at[instrument['bscs']['symbol'], 'Name'] = instrument['General']['Name']
                 df.at[instrument['bscs']['symbol'],'Rating'] = instrument['AnalystRatings']['Rating']
                 df.at[instrument['bscs']['symbol'],'Target Price'] = instrument['AnalystRatings']['TargetPrice']
@@ -1474,7 +1480,7 @@ def get_options(grp):
                     if days_to_earnings < -90:
                         continue
                 #else:
-                #    earnings_date = instrument['dates']['last_earnings_report_date'].date()
+                #    earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
 
                 #options_df.loc[instrument['bscs']['symbol']] = [
                 #                        instrument['General']['Name'], 
@@ -2135,7 +2141,7 @@ def get_indicator(indicator, conditions, fields=None):
                 trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
 
-                #earnings_date = instrument['dates']['last_earnings_report_date'].date()
+                #earnings_date = instrument['dates']['ndaq_last_earnings_date'].date()
                 #today = dt.combine(dt.now(), dt.min.time()).date()
                 #days = date_difference(today, earnings_date, holidays=get_holiday_list(earnings_date, today))
                 #days = int(days)
@@ -2395,7 +2401,7 @@ if __name__ == "__main__":
         ##notify_radar_stocks()
         ##notify_all_stocks()
         ##notify_message("test")
-        get_all_indicators()
+        #get_all_indicators()
         get_uptrend()
         get_uptrend(selected=True)
         #get_ratings(fwh=True)
