@@ -550,6 +550,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     {"$or": [\
                                 {"$and": [\
                                             {'dates.ndaq_last_earnings_date' :{"$eq":today}},\
+                                            {'dates.ndaq_earnings_calc_date' :{"$eq":today}},\
                                             {'dates.ndaq_last_earnings_time' :{"$in":["BeforeMarket", np.nan]}},\
                                     ]\
                                 },\
@@ -1897,6 +1898,8 @@ def get_uptrend(selected=False):
 
         uptrend_df.drop_duplicates(keep=False,inplace=True)
 
+    if len(uptrend_df) == 0:
+        return
     def get_last_three_trends(trend_string):
         """Extracts the last three trend values from the string."""
         trends = trend_string.split('-')
@@ -1919,7 +1922,7 @@ def get_uptrend(selected=False):
     uptrend_df['PTChg'] = uptrend_df['PTChg'].astype(str)  + '%'
     uptrend_df['CTChg'] = uptrend_df['CTChg'].astype(str) + '%'
     uptrend_df['MCap'] = uptrend_df['MCap'].astype(str) + 'Bn'
-    image_path = dataframe_to_image(uptrend_df[['Sym', 'Name', 'Tr', 'Tr_Seq', 'PTChg', 'CTChg', 'MCap']])
+    image_path = dataframe_to_image2(uptrend_df[['Sym', 'Name', 'Price', 'Tr', 'Tr_Seq', 'PTChg', 'CTChg', 'MCap']])
     if selected:
         send_telegram_photo(image_path, token='selected_stocks')
     else:
@@ -2388,12 +2391,12 @@ if __name__ == "__main__":
         get_ratings(purebuy=True)
     else:
         ##week_earnings_date()
-        earnings_week()
+        earnings_week(earnings_dates=False, earnings_results=True)
         ##notify_radar_stocks()
         ##notify_all_stocks()
         ##notify_message("test")
         get_all_indicators()
         get_uptrend()
         get_uptrend(selected=True)
-        get_ratings(fwh=True)
+        #get_ratings(fwh=True)
         #get_mstar()
