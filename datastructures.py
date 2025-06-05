@@ -657,6 +657,10 @@ telegram_token_file='/home/vpetla/telegram_token_file.txt'
 telegram_chat_id_file='/home/vpetla/telegram_chat_id_file.txt'
 
 telegram_tokens = {
+                'sp500_announcement': {
+                    'token': '/home/vpetla/telegram/sp500_announcement_token.txt',
+                    'chat_id': '/home/vpetla/telegram/sp500_announcement_chat_id.txt'
+                    },
                 'rsi_min' : {
                     'token': '/home/vpetla/telegram/rsi_min_token.txt',
                     'chat_id': '/home/vpetla/telegram/rsi_min_chat_id.txt'
@@ -730,4 +734,6 @@ databases_list = {
         }
 
 non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']
-selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM', 'GSPC']
+selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'GSPC']
+options_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'GOOG', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'DELL', 'NET', 'ZS', 'HOOD', 'TSM', 'FICO', 'MRVL', 'SNOW']# 'TTD', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME']
+#selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM', 'GSPC']

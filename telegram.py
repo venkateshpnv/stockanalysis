@@ -173,7 +173,7 @@ def send_telegram_photo(image_path, token='stock_notify'):
 #                             verify=False)
 #    return response
 
-def notify_message(message, token='stock_notify'):
+def notify_message(message, token='stock_notify', html='false'):
     if message is None or message == "":
         return
 
@@ -185,9 +185,19 @@ def notify_message(message, token='stock_notify'):
         print("Invalid token or chat id for %s", token)
         return
 
-    url = 'https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s' % (
+    if html:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False
+        }
+        resp = requests.post(url, json=payload)
+    else:
+        url = 'https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s' % (
         token, chat_id, urllib.parse.quote_plus(message))
-    resp = requests.get(url, timeout=10)
+        resp = requests.get(url, timeout=10)
     #print(resp)
     if resp.status_code != 200:
         print("Failed to send notification with message: %s, err code: %r, err: %r" %(message, resp.status_code, resp.text))
