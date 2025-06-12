@@ -605,7 +605,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                             #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
 
             stocks = db.US_Stocks.find({'$and':three_week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
-            print("stocks with earnings from next week to next three weeks: ", stocks.count())
+            print("stocks with earnings from next week to next four weeks: ", stocks.count())
             for i, instrument in enumerate(stocks):
                 print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
                 # Earnings dates
@@ -638,7 +638,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
             week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
             today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
 
-            three_week_df = three_week_df.loc[three_week_df["Week Change"] <= -0.05]
+            #three_week_df = three_week_df.loc[three_week_df["Week Change"] <= -0.05]
             three_week_df = three_week_df.sort_values(by=['Week Change'], ascending=[True])
 
             week_df["Week Change"] = week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
@@ -1698,9 +1698,9 @@ def get_uptrend(selected=False):
                     'Name':'',
                     'Trend':int(),
                     'Price': float(), 
-                    'Day_Change': float(),
+                    'Chg': float(),
                     'Year_Change': float(),
-                    'Avg_Vol_X_Price_Mn': float(),
+                    'Trade': float(),
                     'Cur_Price_Max_Rsi_Change': float(),
                     'Trend_Sequence':'',
                     'Trend_Sequence_Change':'',
@@ -1729,9 +1729,12 @@ def get_uptrend(selected=False):
  
                  ]
     if selected:
+        #shortlisted_stocks = list(set(selected_stocks))
+        shortlisted_stocks = list(set(selected_stocks + options_stocks + non_tech_stocks))
+
         conditions.append(
                             {"$and":[\
-                                        {'General.Code' : {"$in": selected_stocks}},\
+                                        {'General.Code' : {"$in": shortlisted_stocks}},\
                                         {'technicals.sar.date':{'$gte': DB.get_latest_trading_day()}},\
                                     ]\
                             }
@@ -1833,7 +1836,7 @@ def get_uptrend(selected=False):
 
     results_list = list(stocks)
     if selected:
-        sorted_results = sorted(results_list, key=lambda doc: selected_stocks.index(doc['General']['Code']))
+        sorted_results = sorted(results_list, key=lambda doc: shortlisted_stocks.index(doc['General']['Code']))
     else:
         sorted_results = results_list
 
@@ -1842,6 +1845,8 @@ def get_uptrend(selected=False):
         for i, instrument in enumerate(sorted_results):
         #for i, instrument in enumerate(stocks):
             print(instrument['General']['Code'])
+            if instrument['General']['Code'] == 'SQ':
+                print("SQ")
             if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
                 trend = instrument['technicals']['sar']['ta_psar_trend']
                 cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
@@ -1863,19 +1868,44 @@ def get_uptrend(selected=False):
                                             #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
                                             ]
                 else:
+                    try:
+                        day_change = round(instrument['price_change']['day']*100,2)
+                    except:
+                        day_change = 0
+                    try:
+                        year_change = round(instrument['price_change']['year']*100,2)
+                    except:
+                        year_change = 0
+                    try:
+                        avg_trade = round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2)
+                    except:
+                        avg_trade = 0
+                    try:
+                        pr_trnd_chg = round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2)
+                    except:
+                        pr_trnd_chg = 0
+                    try:
+                        cur_trnd_chg = round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2)
+                    except:
+                        cur_trnd_chg = 0
+                    try:
+                        mcap = round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
+                    except:
+                        mcap = 0
+
                     uptrend_df.loc[instrument['bscs']['symbol']] = [
                                             instrument['General']['Name'], 
                                             trend, 
                                             round(instrument['price_change']['price'],2),
-                                            round(instrument['price_change']['day']*100,2),
-                                            round(instrument['price_change']['year']*100,2),
-                                            round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                            day_change,
+                                            year_change,
+                                            avg_trade,
                                             cur_price_max_rsi_change,
                                             str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
                                             str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                            round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
-                                            round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
-                                            round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2),
+                                            pr_trnd_chg,
+                                            cur_trnd_chg,
+                                            mcap,
                                             ]
     except Exception as E:
         print("Uptrend: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
@@ -1889,17 +1919,17 @@ def get_uptrend(selected=False):
         ## Get only stocks whose previous trend has lost atleast 10%
         #trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
         trend1 = uptrend_df[(uptrend_df['Trend'] == 1) & (uptrend_df['Prev_Trend_Change'] < -10)]
-        trend1 = trend1[trend1.Avg_Vol_X_Price_Mn >= 60]
+        trend1 = trend1[trend1.Trade >= 60]
         trend1 = trend1.sort_values(by='Prev_Trend_Change', ascending=True)
         trend1 = trend1.iloc[0:9]
         ## Get only stocks that are atleast 5% up on today
         ##trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
         #trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
-        #trend2 = trend2[trend2.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
+        #trend2 = trend2[trend2.Trade >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
         #trend2 = trend2.iloc[0:9]
         # Get stocks where current trend is down by atleast 10%
         trend3 = uptrend_df[uptrend_df.Cur_Trend_Change <= -10]
-        trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60]
+        trend3 = trend3[trend3.Trade >= 60]
         #trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
         #trend3 = trend3.iloc[0:9]
         trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
@@ -1933,12 +1963,16 @@ def get_uptrend(selected=False):
 
     uptrend_df['Trend_Sequence_Change'] = uptrend_df['Trend_Sequence_Change'].apply(get_last_three_values)
     uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence_Change':'Tr_Seq'}, inplace=True)
+    if selected:
+        uptrend_df = uptrend_df.sort_values(by='CTChg', ascending=True)
     uptrend_df['Name'] = uptrend_df['Name'].str.split(' ').str[:2].str.join(' ')
     uptrend_df['Sym'] = uptrend_df.index
     uptrend_df['PTChg'] = uptrend_df['PTChg'].astype(str)  + '%'
     uptrend_df['CTChg'] = uptrend_df['CTChg'].astype(str) + '%'
     uptrend_df['MCap'] = uptrend_df['MCap'].astype(str) + 'Bn'
-    image_path = dataframe_to_image2(uptrend_df[['Sym', 'Name', 'Price', 'Tr', 'Tr_Seq', 'PTChg', 'CTChg', 'MCap']])
+    uptrend_df['Trade'] = uptrend_df['Trade'].astype(str) + 'Mn'
+    uptrend_df['Chg'] = uptrend_df['Chg'].astype(str) + '%'
+    image_path = dataframe_to_image2(uptrend_df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'Tr_Seq', 'Trade', 'MCap']])
     if selected:
         send_telegram_photo(image_path, token='selected_stocks')
     else:
@@ -2415,4 +2449,4 @@ if __name__ == "__main__":
         get_uptrend()
         get_uptrend(selected=True)
         #get_ratings(fwh=True)
-        #get_mstar()
+        ##get_mstar()
