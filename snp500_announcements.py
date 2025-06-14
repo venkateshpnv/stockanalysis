@@ -112,8 +112,8 @@ def fetch_sp_announcements_old():
         today_df = df.loc[[today]] if today in df.index else pd.DataFrame()
         if today_df.empty:
             return
-        matches = today_df[today_df['title'].str.contains('Large Cap', case=False, na=False)]
-        #matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
+        #matches = today_df[today_df['title'].str.contains('Large Cap', case=False, na=False)]
+        matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
         if not matches.empty:
             for _, row in matches.iterrows():
                 title = row['title']
@@ -189,22 +189,28 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
         df['date'] = pd.to_datetime(df['date']).dt.date
         df.set_index('date', inplace=True)
         df['fullLink'] = "https://www.spglobal.com" + df['link']
-        today = date.today() - timedelta(days=1)
+        today = date.today() #- timedelta(days=1)
         today_df = df.loc[[today]] if today in df.index else pd.DataFrame()
 
         if today_df.empty:
-            print("No announcements found for yesterday.")
+            print(f"{today}: No announcements found for today.")
             return
 
-        #matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
-        matches = today_df
+        matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
         if not matches.empty:
-            for _, row in matches.iterrows():
+            for i, row in matches.iterrows():
                 title = row['title']
                 if title in sent_titles:
                     continue  # Skip if already sent
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 link = row['fullLink']
-                message = f"<b>{title}</b>\n<a href=\"{link}\">Open Link</a>"
+                #message = f"<b>{title}</b>\n<a href=\"{link}\">Open Link</a>"
+                message = (
+                            f"<b>{title}</b>\n"
+                            #f"📅 Date: {i.strftime('%Y-%m-%d')}\n"
+                            f"⏰ Sent: {timestamp}\n"
+                            f"<a href=\"{link}\">Open Link</a>"
+                        )
                 payload = {
                     "chat_id": chat_id,
                     "text": message,
@@ -221,6 +227,12 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
             print("No matching news titles found for today.")
     except Exception as E:
         print(f"Error : {str(E)}")
+
+def get_diff(time1, time2):
+    dt1 = datetime.combine(datetime.today(), time1)
+    dt2 = datetime.combine(datetime.today(), time2)
+    diff = (dt1 - dt2).total_seconds()
+    return diff
 
 def main():
     parser = argparse.ArgumentParser()
@@ -245,13 +257,23 @@ def main():
     print(f"Monitoring from {start} to {end} every {interval} minutes...")
 
     while True:
-        now = datetime.now().time()
-        if start <= now <= end:
-            print(f"Checking at {datetime.now().strftime('%H:%M:%S')}")
+        now = datetime.now()
+        current_time = now.time()
+        today = now.date()
+        if current_time < start:
+            secs = get_diff(start, current_time)
+            secs = int(secs)
+            print(f"{now}: Waiting {secs} seconds for start time ({start})... Current time: {current_time}")
+            t.sleep(secs)
+            continue
+        elif start <= current_time <= end:
+            print(f"{now}: Checking at {now.strftime('%H:%M:%S')}")
             fetch_sp_announcements(sent_titles, token, chat_id)
         else:
-            print(f"Outside window. Current time: {now}")
-        t.sleep(interval * 60)
+            print(f"{today}: End time reached ({end}). Exiting.")
+            break  # Exit the loop
+
+        t.sleep(args.interval * 60)
 
 if __name__ == "__main__":
     main()
