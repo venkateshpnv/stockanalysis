@@ -734,6 +734,6 @@ databases_list = {
         }
 
 non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']
-selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'GSPC']
+selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'ORCL', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'MU', 'GSPC']
 options_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'GOOG', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'DELL', 'NET', 'ZS', 'HOOD', 'TSM', 'FICO', 'MRVL', 'SNOW']# 'TTD', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME']
 #selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM', 'GSPC']

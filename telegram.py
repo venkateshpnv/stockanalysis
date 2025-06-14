@@ -1697,6 +1697,7 @@ def get_uptrend(selected=False):
     fields = {
                     'Name':'',
                     'Trend':int(),
+                    'Prev_Trend':int(),
                     'Price': float(), 
                     'Chg': float(),
                     'Year_Change': float(),
@@ -1854,7 +1855,8 @@ def get_uptrend(selected=False):
                 if instrument['bscs']['symbol'] in US_indices:
                     uptrend_df.loc[instrument['bscs']['symbol']] = [
                                             instrument['General']['Name'], 
-                                            trend, 
+                                            trend,
+                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
                                             round(instrument['price_change']['price'],2),
                                             round(instrument['price_change']['day']*100,2),
                                             round(instrument['price_change']['year']*100,2),
@@ -1895,7 +1897,8 @@ def get_uptrend(selected=False):
 
                     uptrend_df.loc[instrument['bscs']['symbol']] = [
                                             instrument['General']['Name'], 
-                                            trend, 
+                                            trend,
+                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
                                             round(instrument['price_change']['price'],2),
                                             day_change,
                                             year_change,
@@ -1915,13 +1918,14 @@ def get_uptrend(selected=False):
     if len(uptrend_df) == 0:
         return
 
-    if not selected:
+    if True:
+    #if not selected:
         ## Get only stocks whose previous trend has lost atleast 10%
         #trend1 = uptrend_df[uptrend_df.Prev_Trend_Change< -10].sort_values(by=['Prev_Trend_Change'], ascending=True)
-        trend1 = uptrend_df[(uptrend_df['Trend'] == 1) & (uptrend_df['Prev_Trend_Change'] < -10)]
+        trend1 = uptrend_df[(uptrend_df['Trend'] == 1) & ((uptrend_df['Prev_Trend_Change']) < -10 | (uptrend_df['Prev_Trend'] <= -14))]
         trend1 = trend1[trend1.Trade >= 60]
         trend1 = trend1.sort_values(by='Prev_Trend_Change', ascending=True)
-        trend1 = trend1.iloc[0:9]
+        #trend1 = trend1.iloc[0:9]
         ## Get only stocks that are atleast 5% up on today
         ##trend2 = uptrend_df[uptrend_df.Day_Change >= 5].sort_values(by=['MCap'], ascending=False)
         #trend2 = uptrend_df[uptrend_df.Day_Change >= 5]
@@ -1933,7 +1937,7 @@ def get_uptrend(selected=False):
         #trend3 = trend3[trend3.Avg_Vol_X_Price_Mn >= 60].sort_values(by=['Avg_Vol_X_Price_Mn'], ascending=False)
         #trend3 = trend3.iloc[0:9]
         trend3 = trend3.sort_values(by=['Cur_Trend_Change'], ascending=True)
-        uptrend_df = pd.concat([trend1, trend3])
+        cdf = pd.concat([trend1, trend3])
         #uptrend_df = uptrend_df.sort_values(by=['Prev_Trend_Change'], ascending=True)
 
         #df1 = uptrend_df[uptrend_df.Trend == 1]
@@ -1942,7 +1946,14 @@ def get_uptrend(selected=False):
         #df2 = df2.sort_values(by=['Cur_Trend_Change'],ascending=[True])
         #uptrend_df = df1.append(df2)
 
-        uptrend_df.drop_duplicates(keep=False,inplace=True)
+        cdf.drop_duplicates(keep=False,inplace=True)
+        if not selected:
+            uptrend_df = cdf
+        else:
+            mask = ~uptrend_df.apply(tuple, axis=1).isin(cdf.apply(tuple, axis=1))
+            diff = uptrend_df[mask]
+            diff = diff.sort_values(by='Cur_Trend_Change', ascending=True)
+            uptrend_df = pd.concat([cdf, diff])
 
     if len(uptrend_df) == 0:
         return
@@ -1955,28 +1966,62 @@ def get_uptrend(selected=False):
         try:
             values = s.split(',')
             if len(values) > 1:
-                return ','.join(values[-3:])
+                return ','.join(values[-5:])
             else:
                 return ""
         except AttributeError:
             return ""
 
+    def trim_name(name):
+        l=14
+        name = name.strip()
+        if len(name) <= l:
+            return name
+        space_indices = [i for i, c in enumerate(name[:l+1]) if c == ' ']
+        if len(space_indices) >= 2:
+            return name[:space_indices[1]]
+        else:
+            return name[:l]
+
     uptrend_df['Trend_Sequence_Change'] = uptrend_df['Trend_Sequence_Change'].apply(get_last_three_values)
     uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence_Change':'Tr_Seq'}, inplace=True)
     if selected:
         uptrend_df = uptrend_df.sort_values(by='CTChg', ascending=True)
-    uptrend_df['Name'] = uptrend_df['Name'].str.split(' ').str[:2].str.join(' ')
+    #uptrend_df['Name'] = uptrend_df['Name'].str.split(' ').str[:2].str.join(' ')
+    uptrend_df['Name'] = uptrend_df['Name'].apply(trim_name)
+
     uptrend_df['Sym'] = uptrend_df.index
     uptrend_df['PTChg'] = uptrend_df['PTChg'].astype(str)  + '%'
     uptrend_df['CTChg'] = uptrend_df['CTChg'].astype(str) + '%'
     uptrend_df['MCap'] = uptrend_df['MCap'].astype(str) + 'Bn'
     uptrend_df['Trade'] = uptrend_df['Trade'].astype(str) + 'Mn'
     uptrend_df['Chg'] = uptrend_df['Chg'].astype(str) + '%'
-    image_path = dataframe_to_image2(uptrend_df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'Tr_Seq', 'Trade', 'MCap']])
-    if selected:
-        send_telegram_photo(image_path, token='selected_stocks')
+    #image_path = dataframe_to_image2(uptrend_df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'Tr_Seq', 'Trade', 'MCap']])
+    #if selected:
+    #    send_telegram_photo(image_path, token='selected_stocks')
+    #else:
+    #    send_telegram_photo(image_path, token='stock_notify')
+
+    if not selected:
+        count = 10
     else:
-        send_telegram_photo(image_path, token='stock_notify')
+        count = 15
+    st = 0
+    en = count
+    l = len(uptrend_df)
+    iters = math.ceil(l/count)# + 1
+    if len(uptrend_df) > 0:
+        for i in range(iters):
+            df = uptrend_df.iloc[st:en]
+            if len(df) == 0:
+                break
+            image_path = dataframe_to_image2(df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'Tr_Seq', 'Trade', 'MCap']])
+            if selected:
+                send_telegram_photo(image_path, token='selected_stocks')
+            else:
+                send_telegram_photo(image_path, token='stock_notify')
+            st = en
+            en = en + count
     return
 
     #if not selected:
