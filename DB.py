@@ -2317,11 +2317,223 @@ def calculate_ep(df, val, col = 'ep'):
     df[col] = df.apply(ep, axis=1)
     return df
 
-def calc_psar(df, duration=None, trend_only=False):
+def compute_custom_psar1(df, af_start=0.02, af_increment=0.02, af_max=0.2):
+    high = df['High'].values
+    low = df['Low'].values
+
+    length = len(df)
+    psar = []
+    psar_long = []
+    psar_short = []
+    af_series = []
+    trend_reversal = []
+
+    bull = True
+    ep = high[0]
+    af = af_start
+    psar_val = low[0]
+
+    for i in range(length):
+        if i == 0:
+            psar.append(psar_val)
+            psar_long.append(None)
+            psar_short.append(None)
+            af_series.append(af)
+            trend_reversal.append(False)
+            continue
+
+        prev_psar = psar[-1]
+        prev_bull = bull
+
+        if bull:
+            psar_val = prev_psar + af * (ep - prev_psar)
+            psar_val = min(psar_val, low[i-1], low[i-2] if i >= 2 else low[i-1])
+            if low[i] < psar_val:
+                bull = False
+                psar_val = ep
+                ep = low[i]
+                af = af_start
+            else:
+                if high[i] > ep:
+                    ep = high[i]
+                    af = min(af + af_increment, af_max)
+        else:
+            psar_val = prev_psar + af * (ep - prev_psar)
+            psar_val = max(psar_val, high[i-1], high[i-2] if i >= 2 else high[i-1])
+            if high[i] > psar_val:
+                bull = True
+                psar_val = ep
+                ep = high[i]
+                af = af_start
+            else:
+                if low[i] < ep:
+                    ep = low[i]
+                    af = min(af + af_increment, af_max)
+
+        psar.append(psar_val)
+        af_series.append(af)
+        trend_reversal.append(bull != prev_bull)
+        psar_long.append(psar_val if bull else None)
+        psar_short.append(psar_val if not bull else None)
+
+    return pd.DataFrame({
+        f'PSARl_{af_start:.2f}_{af_max:.1f}': psar_long,
+        f'PSARs_{af_start:.2f}_{af_max:.1f}': psar_short,
+        f'PSARaf_{af_start:.2f}_{af_max:.1f}': af_series,
+        f'PSARr_{af_start:.2f}_{af_max:.1f}': trend_reversal,
+    }, index=df.index)
+
+def compute_custom_psar(df, af_start=0.02, af_increment=0.02, af_max=0.2):
+    high = df['High'].values
+    low = df['Low'].values
+    close = df['Close'].values
+
+    length = len(df)
+    psar = np.zeros(length)
+    psar_af = np.full(length, af_start)
+    psar_trend = np.full(length, False)  # False = Bear, True = Bull
+    psar_bull = True
+    ep = high[0]
+    af = af_start
+    reversal_pending = False
+    pending_ep = None
+    pending_af = None
+
+    for i in range(1, length):
+        prev_psar = psar[i-1]
+
+        if psar_bull:
+            new_psar = prev_psar + af * (ep - prev_psar)
+            new_psar = min(new_psar, low[i - 1], low[i - 2] if i >= 2 else low[i - 1])
+            if low[i] < new_psar:
+                if reversal_pending:
+                    # Confirm reversal
+                    psar_bull = False
+                    psar[i] = ep
+                    ep = low[i]
+                    af = af_start
+                    reversal_pending = False
+                else:
+                    # Set pending reversal, but don’t flip yet
+                    reversal_pending = True
+                    pending_ep = low[i]
+                    pending_af = af_start
+                    psar[i] = new_psar  # continue old trend temporarily
+            else:
+                reversal_pending = False
+                psar[i] = new_psar
+                if high[i] > ep:
+                    ep = high[i]
+                    af = min(af + af_increment, af_max)
+        else:
+            new_psar = prev_psar + af * (ep - prev_psar)
+            new_psar = max(new_psar, high[i - 1], high[i - 2] if i >= 2 else high[i - 1])
+            if high[i] > new_psar:
+                if reversal_pending:
+                    psar_bull = True
+                    psar[i] = ep
+                    ep = high[i]
+                    af = af_start
+                    reversal_pending = False
+                else:
+                    reversal_pending = True
+                    pending_ep = high[i]
+                    pending_af = af_start
+                    psar[i] = new_psar
+            else:
+                reversal_pending = False
+                psar[i] = new_psar
+                if low[i] < ep:
+                    ep = low[i]
+                    af = min(af + af_increment, af_max)
+
+        psar_af[i] = af
+        psar_trend[i] = psar_bull
+
+    # Prepare full DataFrame-style output similar to pandas_ta
+    psar_bull_mask = psar_trend
+    psar_bear_mask = ~psar_bull_mask
+
+    df[f'PSARl_{af_start}_{af_max}'] = np.where(psar_bull_mask, psar, np.nan)
+    df[f'PSARs_{af_start}_{af_max}'] = np.where(psar_bear_mask, psar, np.nan)
+    df[f'PSARaf_{af_start}_{af_max}'] = psar_af
+    df[f'PSARr_{af_start}_{af_max}'] = np.append([False], np.diff(psar_bull_mask.astype(int)) != 0)
+
+    return df
+
+def psar3_code(barsdata, iaf = 0.02, maxaf = 0.2):
+    length = len(barsdata)
+    dates = list(barsdata['Date'])
+    high = list(barsdata['High'])
+    low = list(barsdata['Low'])
+    close = list(barsdata['Close'])
+    psar = close[0:len(close)]
+    psarbull = [None] * length
+    psarbear = [None] * length
+    bull = True
+    af = iaf
+    ep = low[0]
+    hp = high[0]
+    lp = low[0]
+
+    for i in range(2,length):
+        if bull:
+            psar[i] = psar[i - 1] + af * (hp - psar[i - 1])
+        else:
+            psar[i] = psar[i - 1] + af * (lp - psar[i - 1])
+
+        reverse = False
+
+        if bull:
+            if low[i] < psar[i]:
+                bull = False
+                reverse = True
+                psar[i] = hp
+                lp = low[i]
+                af = iaf
+        else:
+            if high[i] > psar[i]:
+                bull = True
+                reverse = True
+                psar[i] = lp
+                hp = high[i]
+                af = iaf
+
+        if not reverse:
+            if bull:
+                if high[i] > hp:
+                    hp = high[i]
+                    af = min(af + iaf, maxaf)
+                if low[i - 1] < psar[i]:
+                    psar[i] = low[i - 1]
+                if low[i - 2] < psar[i]:
+                    psar[i] = low[i - 2]
+            else:
+                if low[i] < lp:
+                    lp = low[i]
+                    af = min(af + iaf, maxaf)
+                if high[i - 1] > psar[i]:
+                    psar[i] = high[i - 1]
+                if high[i - 2] > psar[i]:
+                    psar[i] = high[i - 2]
+
+        if bull:
+            psarbull[i] = psar[i]
+        else:
+            psarbear[i] = psar[i]
+
+    return {"dates":dates, "high":high, "low":low, "close":close, "psar":psar, "psarbear":psarbear, "psarbull":psarbull}
+
+
+def calc_psar(df, duration=None, trend_only=False, af=0.01):
     if duration:
         df = df.loc[df.index[-1]-duration:]
 
-    psar = ta.psar(df['High'], df['Low'], df['Adj Close'],af=0.02)
+    #psar = compute_custom_psar(df)
+    psar = ta.psar(df['High'], df['Low'], df['Adj Close'],af=af)
+    #psar3 = pd.DataFrame(psar3_code(df))
+    #pSAR = talib.SAR(df['High'], df['Low'], acceleration=0.02, maximum=0.2)
+    #psarext = talib.SAREXT(df['High'], df['Low'])
 
     if psar.empty:
         if trend_only:
@@ -2332,10 +2544,12 @@ def calc_psar(df, duration=None, trend_only=False):
     psar['Adj Close'] = df['Adj Close']
     
     # Rename columns to simple names for easy reading
-    new_cols={}
-    new_cols['PSARl_0.02_0.2']='long';new_cols['PSARs_0.02_0.2']='short';new_cols['PSARaf_0.02_0.2']='af';new_cols['PSARr_0.02_0.2']='r'
-    psar.rename(columns=new_cols, inplace=True)
-   
+    #new_cols={}
+    #new_cols['PSARl_0.02_0.2']='long';new_cols['PSARs_0.02_0.2']='short';new_cols['PSARaf_0.02_0.2']='af';new_cols['PSARr_0.02_0.2']='r'
+    #psar.rename(columns=new_cols, inplace=True)
+    new_names = ['long', 'short', 'af', 'r']
+    psar.columns = [new_names[i] if i < 4 else col for i, col in enumerate(psar.columns)]
+
     # Calculate the psar long trend.
     # Find the last non NaN long value date
     # Count the number of days since then till today.
@@ -2376,6 +2590,16 @@ def calc_psar(df, duration=None, trend_only=False):
         trend_pcnt_change = ""
         trend_pcnt_change_list = []
         long_short_df = psar.query("r == True").tail(10) # Get only last 10 trends
+        #trend_dates = [ts.to_pydatetime() for ts in list(long_short_df.index)]
+        trend_dates = {}
+        
+        #for date, row in long_short_df.iterrows():
+        #    #iso_date = f'ISODate("{date.strftime("%Y-%m-%dT00:00:00Z")}")'
+        #    iso_date = date.to_pydatetime()
+        #    if not pd.isna(row['long']):
+        #        trend_dates[iso_date] = "L"
+        #    if not pd.isna(row['short']):
+        #        trend_dates[iso_date] = "S"
 
         # Create a small dictionary of trends switch
         # Use this to switch between trends instead of checking every time.
@@ -2396,6 +2620,7 @@ def calc_psar(df, duration=None, trend_only=False):
             trend_sequence = trend_sequence +\
                                 str(num_days) +\
                                 trend + '-'
+
             st = trading_day(start - timedelta(1))
             st = get_nearest_index(df, st)
             st_price = df.iloc[st]['Adj Close']
@@ -2414,6 +2639,8 @@ def calc_psar(df, duration=None, trend_only=False):
                                         "(" + \
                                         str(round(change*100, 2)) + "%)" + ','
             trend_pcnt_change_list.append(round(change*100,2))
+
+            trend_dates[str(start.date())] = [str(num_days)+trend, round(change*100,2)]
 
             # Now move to next trend
             #trend = ('L','S')[isnan(d['long'])]
@@ -2454,7 +2681,8 @@ def calc_psar(df, duration=None, trend_only=False):
                                 str(trend_days) + ('S','L')[trend_days>0] +\
                                 "(" + str(round(change*100, 2)) + "%)"
         trend_pcnt_change_list.append(round(change*100,2))
-        return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_sequence, trend_pcnt_change, trend_pcnt_change_list
+        trend_dates[str(long_short_df.index[-1].date())] = [str(abs(trend_days)) + ('S','L')[trend_days>0], round(change*100,2)] 
+        return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list
 
     # Get the dates of switch between long and short positions of the stock
     # For example,
@@ -2470,6 +2698,40 @@ def calc_psar(df, duration=None, trend_only=False):
     #2021-04-09   20.860    NaN      24.04   0.08  True 
     #2021-04-19      NaN  26.20      21.94   0.08  True 
     #2021-05-18   17.055    NaN      21.24   0.12  True
+
+    #                PSARl_0.015_0.2  PSARs_0.015_0.2  PSARaf_0.015_0.2  PSARr_0.015_0.2  Adj Close
+    #Date
+    #2024-06-18              NaN          5432.39             0.015             True    5487.03
+    #2024-06-20          5471.32              NaN             0.015             True    5473.17
+    #2024-06-21              NaN          5505.53             0.015             True    5464.62
+    #2024-06-28          5446.56              NaN             0.045             True    5460.48
+    #2024-07-01              NaN          5523.64             0.015             True    5475.09
+    #2024-07-03          5446.53              NaN             0.015             True    5537.02
+    #2024-07-18              NaN          5669.67             0.135             True    5544.59
+    #2024-08-13          5119.26              NaN             0.090             True    5434.43
+    #2024-09-03              NaN          5651.62             0.135             True    5528.93
+    #2024-09-12          5402.62              NaN             0.060             True    5595.76
+    #2024-10-22              NaN          5878.46             0.180             True    5851.20
+    #2024-11-06          5696.51              NaN             0.060             True    5929.04
+    #2024-12-13              NaN          6099.97             0.165             True    6051.09
+    #2024-12-24          5832.30              NaN             0.075             True    6040.04
+    #2025-01-02              NaN          6049.75             0.030             True    5868.55
+    #2025-01-17          5773.31              NaN             0.045             True    5996.66
+    #2025-02-03              NaN          6128.18             0.075             True    5994.57
+    #2025-02-13          5923.93              NaN             0.015             True    6115.07
+    #2025-02-25              NaN          6147.43             0.060             True    5955.25
+    #2025-03-19          5504.65              NaN             0.150             True    5675.29
+    #2025-03-31              NaN          5786.95             0.045             True    5611.85
+    #2025-04-23          4835.04              NaN             0.060             True    5375.86
+    #2025-05-22              NaN          5968.61             0.200             True    5842.01
+    #2025-06-03          5767.41              NaN             0.030             True    5970.37
+
+    #psar = psar.rename(columns={
+    #    'PSARl_0.015_0.2': 'long',
+    #    'PSARs_0.015_0.2': 'short',
+    #    'PSARaf_0.015_0.2': 'af',
+    #    'PSARr_0.015_0.2': 'r'
+    #    })
     sw = psar[psar['r'] == True]
     
     # Start from first long position date
@@ -2580,7 +2842,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
         #return
 
-        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(copy.deepcopy(df), trend_only=True)
+        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(copy.deepcopy(df), trend_only=True)
         update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
         update_field(collection, sym, "technicals.sar.ta_psar_cur_trend_price_change", cur_trend_pr_change)
         update_field(collection, sym, "technicals.sar.ta_psar_prev_trend", prev_trend_days)
@@ -2588,6 +2850,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ta_psar_trend_sequence", trend_sequence)
         update_field(collection, sym, "technicals.sar.ta_psar_trend_pcnt_change", trend_pcnt_change)
         update_field(collection, sym, "technicals.sar.ta_psar_trend_pcnt_change_list", trend_pcnt_change_list)
+        update_field(collection, sym, "technicals.sar.ta_psar_trend_dates", trend_dates)
 
         if psar.empty:
             update_field(collection, sym, "technicals.sar.change", nan)
@@ -2870,7 +3133,7 @@ def update_price_trend_params(collection, sym, df):
     update_price_trend(collection, sym, df, end, relativedelta(weeks=1), 'week')
     
 
-def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks'):
+def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices=False):
 
     if core is not None:
         aff = 0 | 1 << core
@@ -2992,7 +3255,7 @@ def update_all_tech_analysis_params(country='US'):
     try:
         #Indices
         for i, k in enumerate(US_indices.keys()):
-            update_tech_analysis_params(k, 0, sem=None)
+            update_tech_analysis_params(k, 0, sem=None, indices=True)
     except Exception as E:
         print("Update_all_tech_analysis_params: error: %s" %(str(E)))
         pass
@@ -3041,7 +3304,7 @@ def update_all_tech_analysis_params(country='US'):
     #                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
     #                                ]}).batch_size(10).sort([["technicals.sar.ep.one_year.alpha",-1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'AMD'})
+    #stocks=db.US_Stocks.find({'General.Code':'AVGO'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
