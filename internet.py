@@ -44,6 +44,7 @@ import yfinance
 import pandas_datareader as pdr
 import pandas_datareader.data as data
 import pandas as pd
+from sqlalchemy import create_engine, text
 
 import timestring
 
@@ -487,6 +488,86 @@ def nullify_price_change_errors():
         DB.close_sql_connection(sql_engine)
         DB.close_db_client(c)
 
+def identify_change_indices(params_engine, table_name, stock_dates, field):
+    with params_engine.connect() as conn:
+        result = conn.execute(text(
+                                f"SELECT `Date` FROM {table_name} WHERE `{field}` IS NOT NULL"
+                            ))
+    
+        param_valid_dates = set(row[0] for row in result)
+    indices = stock_dates - param_valid_dates
+    indices = sorted(indices)
+
+    return indices
+
+def get_rows_from_indices(sql_engine, table_name, indices):
+    df = pd.DataFrame()
+    
+    if indices:
+        CHUNK_SIZE = 1000
+        with sql_engine.connect() as conn:
+            for i in range(0, len(indices), CHUNK_SIZE):
+                chunk = list(indices)[i:i + CHUNK_SIZE]
+                placeholders = ','.join([':val' + str(j) for j in range(len(chunk))])
+                bind_params = {f'val{j}': chunk[j] for j in range(len(chunk))}
+                query = text(f"SELECT * FROM {table_name} WHERE `Date` IN ({placeholders})")
+                chunk_df = pd.read_sql_query(query, conn, params=bind_params)
+                df = pd.concat([df, chunk_df], ignore_index=True)
+    
+        df.index = df.Date
+    return df
+
+def calculate_percent_change(sql_engine, table_name, df, field, start_price=None):
+    wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+    
+    for index, d in df.iloc[1:].iterrows():
+        cur_price = d['Adj Close']
+        cur_date = pd.to_datetime(index).date()
+        cur_date_str = str(cur_date)
+        #wdf.loc[cur_date_str]=nan
+        #wdf.loc[cur_date_str]['Date'] = cur_date_str
+        wdf.loc[cur_date_str, 'Date'] = cur_date_str
+        if not start_price:
+            start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[field]), str(cur_date))
+        change = round(percent_change(start_price, cur_price),7)
+        wdf.loc[cur_date_str, field] = change
+        #wdf.loc[cur_date_str][[*price_change_fields][field_pos]] = change
+    
+    wdf = wdf.dropna(axis=0)
+    return wdf
+
+def insert_or_update(wdf, params_engine, table_name, field):
+    # Write to the database
+    if not wdf.empty:
+        #DB.mysql_update_table(params_engine, table_name, wdf)
+        sql = text(f"""
+                        INSERT INTO `{table_name}` (`Date`, `{field}`)
+                        VALUES (:date, :value)
+                        ON DUPLICATE KEY UPDATE `{field}` = :value
+                    """)
+        with params_engine.begin() as conn:
+            for _, row in wdf.iterrows():
+                result = conn.execute(sql, {
+                    "value": float(row[field]) if pd.notnull(row[field]) else None,
+                    "date": row['Date']
+                })
+    return
+
+def update_price_change_field(params_engine, sql_engine, table_name, stock_dates, field, price_change_last_only, start_price=None):
+    indices = identify_change_indices(params_engine, table_name, stock_dates, field)
+    if len(indices) <= 1:
+        return
+    
+    df = get_rows_from_indices(sql_engine, table_name, indices)
+    
+    if price_change_last_only:
+        if not df.empty:
+            df = df.iloc[-1]
+    if df.empty:
+        return 
+    wdf = calculate_percent_change(sql_engine, table_name, df, field, start_price=start_price)
+    insert_or_update(wdf, params_engine, table_name, field)
+
 def update_price_change(country, stk, core, sem=None, index=False, type='Stocks', price_change_last_only=False):
     #st_price = read.iat[0, read.columns.get_loc('Close')]
     #en_price = read.iat[-1, read.columns.get_loc('Close')]
@@ -497,11 +578,13 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
         collection=db.US_Stocks
         sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
         fin_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+        params_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Tech_Params')
     else:
         db = c['Cryptos']
         collection=db.Cryptos
         sql_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
         fin_engine = None
+        params_engine = None
 
     #print("%s: Core: %r" %(sym, core))
     aff = 0 | 1 << core
@@ -529,70 +612,31 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
         table_name = DB.get_symbol_table_name(sym)
         change = 0
 
-        if DB.mysql_exists_table(sql_engine, table_name):
+        if not DB.mysql_exists_table(params_engine, table_name):
+            DB.mysql_check_n_create_table(params_engine, table_name, primary_key=True)
+        if True:
             print("mysql: percent_change: %s"%(sym))
 
-            table_cols = DB.mysql_get_columns_from_engine(sql_engine, table_name)
+            table_cols = DB.mysql_get_columns_from_engine(params_engine, table_name)
             missing_cols = list_difference([*price_change_fields], table_cols)
             # Some price change fields are not present in the database.
             # The datatype of the fields is taken from the price fields 
             # mentioned in the datastructures.py 
             if len(missing_cols) > 0:
                 print("%s: Adding missing columns: %r"%(table_name, missing_cols))
-                miss = DB.mysql_add_columns(sql_engine, table_name, missing_cols, remove_spaces=False)
+                miss = DB.mysql_add_columns(params_engine, table_name, missing_cols, remove_spaces=False)
                 if miss > 0:
                     PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
                     PRINT_ERR("Columns: ",missing_cols)
                     sys.exit(1)
 
-            for i, field in enumerate([*price_change_fields][:-2]):
-                if price_change_last_only:
-                    query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
-                else:
-                    query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
-                #print(query)
-                #query = 'select `Date`, `Adj Close` from %s order by Date' %(table_name)
-                #query = 'select `Date`, `Adj Close` from %s where `Day Change` is NULL order by Date' %(table_name)
-                #query = 'select `Date`, `Adj Close`, {} from {}'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name)
-                df = DB.read_from_sql(query, sql_engine)
-                if df.empty:
-                    #if sem:
-                    #    sem.release()
-                    continue
-                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+            # Step 1: Fetch all Dates from US_Stocks
+            with sql_engine.connect() as conn:
+                result = conn.execute(text(f"SELECT `Date` FROM {table_name}"))
+                stock_dates = set(row[0] for row in result)
 
-                for index, d in df.iloc[1:].iterrows():
-                    cur_price = d['Adj Close']
-                    cur_date = pd.to_datetime(index).date()
-                    cur_date_str = str(cur_date)
-                    #wdf.loc[cur_date_str]=nan
-                    #wdf.loc[cur_date_str]['Date'] = cur_date_str
-                    wdf.loc[cur_date_str, 'Date'] = cur_date_str
-                    start_price = DB.mysql_get_price(sql_engine, table_name, str(cur_date - price_change_durations[i]), str(cur_date))
-                    change = percent_change(start_price, cur_price)
-                    wdf.loc[cur_date_str][[*price_change_fields][i]] = change
-
-                wdf = wdf.dropna(axis=0)
-                # Write to the database
-                if not wdf.empty:
-                    DB.mysql_update_table(sql_engine, table_name, wdf)
-
-            # To save time in condition checks, calculate the 
-            # whole field seperately outside the loop.
-            #if index is False and 'since' in stk['bscs'].keys() and stk['bscs']['since'] is not None:
-            #    #start_date = str(stk['bscs']['since'].date())
-            #    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
-            #    df = DB.read_from_sql(query, sql_engine)
-            #    if not df.empty:
-            #        start_price = df['Adj Close'][0]
-            #    else:
-            #        query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
-            #        df = DB.read_from_sql(query, sql_engine)
-            #        start_price = df['Adj Close'][0]
-            #else:
-            #    query = 'select `Date`, `Adj Close` from {} order by Date limit 1'.format(table_name)
-            #    df = DB.read_from_sql(query, sql_engine)
-            #    start_price = df['Adj Close'][0]
+            for field_pos, field in enumerate([*price_change_fields][:-2]):
+                update_price_change_field(params_engine, sql_engine, table_name, stock_dates, field, price_change_last_only)
 
             if 'General' in stk.keys() and \
                     'IPODate' in stk['General'].keys() and \
@@ -615,63 +659,40 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             # Whole Change
             field = [*price_change_fields][-2]
-            if price_change_last_only:
-                query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
-            else:
-                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
-            df = DB.read_from_sql(query, sql_engine)
-            if not df.empty:
-                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
-                for index, d in df.iloc[1:].iterrows():
-                    cur_price = d['Adj Close']
-                    cur_date = pd.to_datetime(index).date()
-                    cur_date_str = str(cur_date)
-                    #wdf.loc[cur_date_str]=nan
-                    #wdf.loc[cur_date_str]['Date'] = cur_date_str
-                    wdf.loc[cur_date_str, 'Date'] = cur_date_str
-                    change = percent_change(start_price, cur_price)
-                    #Ewdf.loc[cur_date_str][[*price_change_fields][-2]] = change
-                    wdf.loc[cur_date_str, [*price_change_fields][-2]] = change
-
-            wdf = wdf.dropna(axis=0)
-            # Write to the database
-            DB.mysql_update_table(sql_engine, table_name, wdf)
+            update_price_change_field(params_engine, sql_engine, table_name, stock_dates, field, price_change_last_only, start_price=start_price)
 
             # YTD Change
             field = [*price_change_fields][-1]
-            if price_change_last_only:
-                query = 'select `Date`, `Adj Close` from (select Date, `Adj Close` from {} where `{}` is NULL order by Date desc limit 2) as sub order by Date asc'.format(table_name, field)
-            else:
-                query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
-            df = DB.read_from_sql(query, sql_engine)
-            if not df.empty:
-                wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
-                for index, d in df.iloc[1:].iterrows():
-                    cur_price = d['Adj Close']
-                    cur_date = pd.to_datetime(index).date()
-                    start_year = cur_date.year
-                    cur_date_str = str(cur_date)
-
-                    #query = 'select `Date`, `Adj Close` from {} where `{}` is NULL order by Date'.format(table_name, field)
-                    query = 'select Date, `Adj Close` from {} where Date = (select min(Date) from {} where Year(Date)={})'.format(table_name, table_name, start_year)
-                    start_df = DB.read_from_sql(query, sql_engine)
-                    if not start_df.empty:
-                        start_price = start_df['Adj Close'][0]
-                        #wdf.loc[cur_date_str]=nan
-                        #wdf.loc[cur_date_str]['Date'] = cur_date_str
-                        wdf.loc[cur_date_str, 'Date'] = cur_date_str
-                        change = percent_change(start_price, cur_price)
-                        #Ewdf.loc[cur_date_str][[*price_change_fields][-1]] = change
-                        wdf.loc[cur_date_str, [*price_change_fields][-1]] = change
-                    else:
-                        change = nan
-
-            wdf = wdf.dropna(axis=0)
-            # Write to the database
-            DB.mysql_update_table(sql_engine, table_name, wdf)
+            indices = identify_change_indices(params_engine, table_name, stock_dates, field)
+            if len(indices) >= 1:
+                df = get_rows_from_indices(sql_engine, table_name, indices)
+            
+                if price_change_last_only:
+                    if not df.empty:
+                        df = df.iloc[-1]
+                if not df.empty:
+                    wdf = pd.DataFrame(index=df.index[1:], columns=[field]) 
+                    for index, d in df.iloc[1:].iterrows():
+                        cur_price = d['Adj Close']
+                        cur_date = pd.to_datetime(index).date()
+                        start_year = cur_date.year
+                        cur_date_str = str(cur_date)
+    
+                        query = 'select Date, `Adj Close` from {} where Date = (select min(Date) from {} where Year(Date)={})'.format(table_name, table_name, start_year)
+                        start_df = DB.read_from_sql(query, sql_engine)
+                        if not start_df.empty:
+                            start_price = start_df['Adj Close'][0]
+                            wdf.loc[cur_date_str, 'Date'] = cur_date_str
+                            change = percent_change(start_price, cur_price)
+                            wdf.loc[cur_date_str, [*price_change_fields][-1]] = change
+                        else:
+                            change = nan
+    
+                wdf = wdf.dropna(axis=0)
+                insert_or_update(wdf, params_engine, table_name, field)
 
             query = 'select `Date`, {} from {} order by Date desc limit 2'.format(', '.join(['`{}`'.format(c) for c in [*price_change_fields]]), table_name)
-            df = DB.read_from_sql(query, sql_engine)
+            df = DB.read_from_sql(query, params_engine)
 
             change = get_change(df, 'Day Change')
             DB.update_field(collection, sym, "price_change.day", change)
@@ -729,7 +750,7 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\''.format(table_name, end_date, end_date)
             query='select count(distinct concat(YEAR(Date), \'-\', WEEK(Date))) AS total_weeks from {} where Date >= CURDATE() - INTERVAL 5 YEAR;'.format(table_name)
-            rdf=pd.read_sql_query(query, sql_engine)
+            rdf=pd.read_sql_query(query, params_engine)
             total_weeks = rdf.iloc[0]['total_weeks']
             # This also works
             #result=sql_engine.execute(query)
@@ -737,14 +758,14 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
 
             #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' and `Week Change` < -0.10'.format(table_name, end_date, end_date)
             query='select YEAR(Date) AS year, WEEK(Date) as week from {} WHERE `Week Change` <= -0.10 AND Date >= CURDATE() - INTERVAL 5 YEAR GROUP BY YEAR(Date), WEEK(Date) HAVING COUNT(*) > 0 UNION ALL SELECT NULL AS year, COUNT(DISTINCT CONCAT(YEAR(Date), \'-\', WEEK(Date))) AS week FROM {} WHERE `Week Change` <= -0.10 GROUP BY NULL;'.format(table_name, table_name)
-            rdf=pd.read_sql_query(query, sql_engine)
+            rdf=pd.read_sql_query(query, params_engine)
             ten_percent_down_times = len(rdf.dropna())
             #result=sql_engine.execute(query)
             #ten_percent_down_times = result.first()[0]
 
             #query ='select count(Date) from {} where Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' and `Week Change` < -0.20'.format(table_name, end_date, end_date)
             query='select YEAR(Date) AS year, WEEK(Date) as week from {} WHERE `Week Change` <= -0.20 AND Date >= CURDATE() - INTERVAL 5 YEAR GROUP BY YEAR(Date), WEEK(Date) HAVING COUNT(*) > 0 UNION ALL SELECT NULL AS year, COUNT(DISTINCT CONCAT(YEAR(Date), \'-\', WEEK(Date))) AS week FROM {} WHERE `Week Change` <= -0.20 GROUP BY NULL;'.format(table_name, table_name)
-            rdf=pd.read_sql_query(query, sql_engine)
+            rdf=pd.read_sql_query(query, params_engine)
             twenty_percent_down_times = len(rdf.dropna())
             #result=sql_engine.execute(query)
             #twenty_percent_down_times = result.first()[0]
@@ -882,6 +903,8 @@ def update_price_change(country, stk, core, sem=None, index=False, type='Stocks'
         DB.close_sql_connection(sql_engine)
         if fin_engine:
             DB.close_sql_connection(fin_engine)
+        if params_engine:
+            DB.close_sql_connection(params_engine)
         DB.close_db_client(c)
         if sem:
             sem.release()
@@ -975,16 +998,16 @@ def fork_hdf5_process(country):
 
         #stocks = db.US_Stocks.find({"$and" : [{"price_change.date": {"$lt": DB.get_latest_trading_day()}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
         stocks=db.US_Stocks.find({"$and":[\
-                                            ##{'General.Exchange':{"$in":major_exchanges}},\
-                                            #{"$or": [\
-                                            #            {'General.Exchange':{"$in":major_exchanges}},\
-                                            #            {"$and": [ \
-                                            #                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                            #                        {'bscs.tracking':{'$exists':True}}, \
-                                            #                    ] \
-                                            #            },\
-                                            #        ]\
-                                            #},\
+                                            #{'General.Exchange':{"$in":major_exchanges}},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
                                             {'General.Type':'Common Stock'},\
                                             {'General.IsDelisted': False},\
                                             {"$or": [\
@@ -1004,7 +1027,7 @@ def fork_hdf5_process(country):
                                                     ]\
                                             },\
                                         ]}).batch_size(10).sort([['failcount.mysql_price_failcount',1]]).allow_disk_use(True).sort([['sno',sort]]).allow_disk_use(True)
-        #stocks = collection.find({'bscs.symbol':'NVDA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+        #stocks = collection.find({'bscs.symbol':'AAPL'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
         print("Price Change: Stocks: %r" %(stocks.count())) 
         i=0
         today=dt.now().date()

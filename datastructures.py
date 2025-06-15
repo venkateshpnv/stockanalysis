@@ -467,7 +467,17 @@ price_change_fields = {'Day Change':'float',
                         }
 
 price_change_fields_datatypes = ['float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float', 'float']
-price_change_durations = [relativedelta(days=1), relativedelta(weeks=1), relativedelta(weeks=2), relativedelta(months=1), relativedelta(months=3), relativedelta(months=6), relativedelta(years=1), relativedelta(years=5), relativedelta(years=10)]
+price_change_durations = {
+                            'Day Change' : relativedelta(days=1),
+                            'Week Change' : relativedelta(weeks=1),
+                            'Two Week Change' : relativedelta(weeks=2),
+                            'Month Change' : relativedelta(months=1),
+                            'Quarter Change' : relativedelta(months=3),
+                            'Half Year Change' : relativedelta(months=6),
+                            'Year Change' : relativedelta(years=1),
+                            'Five Year Change' : relativedelta(years=5),
+                            'Ten Year Change' : relativedelta(years=10),
+                        }
 
 beta_change_fields = {'One_Month':relativedelta(months=1), 
                         'Three_Months':relativedelta(months=3), 
