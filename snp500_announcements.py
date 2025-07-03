@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta, date
 import argparse
 import time as t
 import sys
+import time
 
 def get_telegram_token_id(token='stock_notify'):
     if token not in telegram_tokens.keys() or \
@@ -181,7 +182,7 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
 
         if ret.status_code != 200:
             print(f"Failed to fetch the webpage. Status code: {ret.status_code}")
-            return
+            return ret.status_code
 
         output = ret.json()
         df = pd.DataFrame(output['resultData'])
@@ -194,7 +195,7 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
 
         if today_df.empty:
             print(f"{today}: No announcements found for today.")
-            return
+            return ret.status_code
 
         matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
         if not matches.empty:
@@ -228,6 +229,8 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
     except Exception as E:
         print(f"Error : {str(E)}")
 
+    return ret.status_code
+
 def get_diff(time1, time2):
     dt1 = datetime.combine(datetime.today(), time1)
     dt2 = datetime.combine(datetime.today(), time2)
@@ -253,10 +256,13 @@ def main():
     chat_id = get_telegram_chat_id(token='sp500_announcement')
 
     sent_titles = set()
+    sent_failures = set()
 
     print(f"Monitoring from {start} to {end} every {interval} minutes...")
 
     while True:
+        loop_start_time = t.time()  # record the loop start time in seconds since epoch
+
         now = datetime.now()
         current_time = now.time()
         today = now.date()
@@ -268,12 +274,36 @@ def main():
             continue
         elif start <= current_time <= end:
             print(f"{now}: Checking at {now.strftime('%H:%M:%S')}")
-            fetch_sp_announcements(sent_titles, token, chat_id)
+            ret_code = fetch_sp_announcements(sent_titles, token, chat_id)
+            if ret_code != 200 and "fail" not in sent_failures:
+                interval = 0.5 #half minute
+                message = (
+                            f"<b>{title}</b>\n"
+                            #f"📅 Date: {i.strftime('%Y-%m-%d')}\n"
+                            f"⏰ Sent: {timestamp}\n"
+                            f"Error: {ret_code} \n"
+                            f"<a href=\"{link}\">Open Link</a>"
+                        )
+                payload = {
+                    "chat_id": chat_id,
+                    "text": message,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": False
+                }
+                response = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
+                if response.status_code == 200:
+                    sent_failures.add("fail")
+            else:
+                interval = args.interval
+                sent_failure = set()
         else:
             print(f"{today}: End time reached ({end}). Exiting.")
             break  # Exit the loop
 
-        t.sleep(args.interval * 60)
+        # Calculate time taken for the loop iteration
+        elapsed = t.time() - loop_start_time
+        sleep_duration = max(0, interval * 60 - elapsed)  # ensure no negative sleep
+        t.sleep(sleep_duration)
 
 if __name__ == "__main__":
     main()
