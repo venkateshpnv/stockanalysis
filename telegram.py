@@ -26,6 +26,32 @@ import DB
 from common import *
 import hdf5
 
+def get_last_three_trends(trend_string):
+    """Extracts the last three trend values from the string."""
+    trends = trend_string.split('-')
+    return '-'.join(trends[-3:])
+
+def get_last_three_values(s):
+    try:
+        values = s.split(',')
+        if len(values) > 1:
+            return ','.join(values[-5:])
+        else:
+            return ""
+    except AttributeError:
+        return ""
+
+def trim_name(name):
+    l=14
+    name = name.strip()
+    if len(name) <= l:
+        return name
+    space_indices = [i for i, c in enumerate(name[:l+1]) if c == ' ']
+    if len(space_indices) >= 2:
+        return name[:space_indices[1]]
+    else:
+        return name[:l]
+
 def save_df_as_image(df, path="df_image.png"):
     source = ColumnDataSource(df)
     #df_columns = [df.index.name]
@@ -488,8 +514,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
     today = DB.trading_day(dt.combine(dt.now().date(), dt.min.time()))
     #today = DB.trading_day(dt.combine(dt.strptime("2024-07-23", "%Y-%m-%d").date(), dt.min.time()))
     yesterday = DB.get_previous_trading_day(today)
-    week = DB.trading_day(today + timedelta(6))
-    three_weeks = DB.trading_day(today + timedelta(6+7+7+7)) # make it four weeks
+    week = DB.trading_day(today + timedelta(6+7+7)) # make it three weeks
+    three_weeks = DB.trading_day(today + timedelta(6+7+7+7)) # make it between four weeks and five weeks
 
     conditions = [ \
                     {"General.IsDelisted": False},\
@@ -529,8 +555,10 @@ def earnings_week(earnings_dates=True, earnings_results=True):
     three_week_conditions = conditions + \
                                     [
                                         {"$and": [\
-                                                    {'dates.ndaq_last_earnings_date' :{"$gt":week}},\
-                                                    {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks}},\
+                                                    #{'dates.ndaq_last_earnings_date' :{"$gt":week}},\
+                                                    #{'dates.ndaq_last_earnings_date' :{"$lte":three_weeks}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$gte":three_weeks}},\
+                                                    {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks+timedelta(7)}},\
                                             ]\
                                         },\
                                     ]
@@ -594,7 +622,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                         instrument['dates']['ndaq_last_earnings_time']=''
                     edate = instrument['dates']['ndaq_last_earnings_date'].date()
                     sym = instrument['bscs']['symbol']
-                    if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
+                    #if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
+                    if True:
                         if sym not in week_earnings_stks.keys():
                             week_earnings_stks[sym] = instrument['bscs']['symbol']
                             week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
@@ -682,7 +711,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                         break
                     #message = "Earnings in 7 days\n"
                     #notify_message(message, token='earnings_dates')
-                    image_path = dataframe_to_image2(df, banner="Earnings in 7 days")
+                    image_path = dataframe_to_image2(df, banner="Earnings in 3 Weeks")
                     send_telegram_photo(image_path, token='earnings_dates')
                     #image_path = save_df_as_image(week_df)
                     #send_telegram_photo(image_path, token='earnings_dates')
@@ -1693,7 +1722,7 @@ def get_options(grp):
             st = en
             en = en + count
 
-def get_uptrend(selected=False):
+def populate_df(conditions):
     fields = {
                     'Name':'',
                     'Trend':int(),
@@ -1703,17 +1732,109 @@ def get_uptrend(selected=False):
                     'Year_Change': float(),
                     'Trade': float(),
                     'Cur_Price_Max_Rsi_Change': float(),
+                    'RSI': float(),
+                    'MinRSI':float(),
+                    'DMRSI': int(),
+                    'Slope':float(),
                     'Trend_Sequence':'',
                     'Trend_Sequence_Change':'',
                     'Prev_Trend_Change':float(),
                     'Cur_Trend_Change':float(),
                     'MCap':float()
                 }
-    uptrend_df = pd.DataFrame(fields, index=[])
+    df = pd.DataFrame(fields, index=[])
 
     c  = DB.open_db_client()
     db = c['Stocks']
 
+    stocks = db.US_Stocks.find({"$and": conditions}).batch_size(10)
+    print("stocks: %d" %(stocks.count()))
+
+    results_list = list(stocks)
+
+    try:
+        for i, instrument in enumerate(results_list):
+            print(instrument['General']['Code'])
+            if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys() and 'rsi' in instrument['technicals'].keys():
+                trend = instrument['technicals']['sar']['ta_psar_trend']
+                cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
+                pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change']
+                days_from_minrsi = (dt.now().date() - instrument['technicals']['rsi']['60day_min_price_date'].date()).days
+                if instrument['bscs']['symbol'] in US_indices:
+                    df.loc[instrument['bscs']['symbol']] = [
+                                            instrument['General']['Name'], 
+                                            trend,
+                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
+                                            round(instrument['price_change']['price'],2),
+                                            round(instrument['price_change']['day']*100,2),
+                                            round(instrument['price_change']['year']*100,2),
+                                            round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
+                                            cur_price_max_rsi_change,
+                                            round(instrument['technicals']['rsi']['latest'],2),
+                                            round(instrument['technicals']['rsi']['with_60day_min'],2),
+                                            days_from_minrsi,
+                                            round(instrument['technicals']['rsi']['5day_slope'],3),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                            round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
+                                            round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
+                                            0
+                                            #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
+                                            ]
+                else:
+                    try:
+                        day_change = round(instrument['price_change']['day']*100,2)
+                    except:
+                        day_change = 0
+                    try:
+                        year_change = round(instrument['price_change']['year']*100,2)
+                    except:
+                        year_change = 0
+                    try:
+                        avg_trade = round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2)
+                    except:
+                        avg_trade = 0
+                    try:
+                        pr_trnd_chg = round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2)
+                    except:
+                        pr_trnd_chg = 0
+                    try:
+                        cur_trnd_chg = round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2)
+                    except:
+                        cur_trnd_chg = 0
+                    try:
+                        mcap = round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
+                    except:
+                        mcap = 0
+
+                    df.loc[instrument['bscs']['symbol']] = [
+                                            instrument['General']['Name'], 
+                                            trend,
+                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
+                                            round(instrument['price_change']['price'],2),
+                                            day_change,
+                                            year_change,
+                                            avg_trade,
+                                            cur_price_max_rsi_change,
+                                            round(instrument['technicals']['rsi']['latest'],2),
+                                            round(instrument['technicals']['rsi']['with_60day_min'],2),
+                                            days_from_minrsi,
+                                            round(instrument['technicals']['rsi']['5day_slope'],3),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
+                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
+                                            pr_trnd_chg,
+                                            cur_trnd_chg,
+                                            mcap,
+                                            ]
+    except Exception as E:
+        print("Uptrend: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
+    finally:
+        DB.close_db_client(c)
+
+    return df
+
+
+def get_uptrend(selected=False):
     conditions = [\
                      #{"$and": [ \
                      #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
@@ -1770,151 +1891,7 @@ def get_uptrend(selected=False):
                             }
                         )
 
-    stocks = db.US_Stocks.find({"$and": conditions}).batch_size(10)
-    #stocks = list(db.US_Stocks.find({"$and": conditions}))
-    #res2 = list(db.US_Stocks.find({"$and":[\
-    #                                        {'General.Type':'Common Stock'},\
-    #                                        {'General.IsDelisted': False},\
-    #                                        {'Highlights.MarketCapitalizationMln': {"$gte":50000}},\
-    #                                        {'General.Code' : {"$in": non_tech_stocks}},\
-    #                                        {"$or":[\
-    #                                                    {"$and": [ \
-    #                                                                {'technicals.sar.ta_psar_trend':{"$eq":1}},\
-    #                                                                {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
-    #                                                            ]\
-    #                                                    },\
-    #                                                    {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
-    #                                                ]\
-    #                                        },\
-    #                                        #{"$and": [ \
-    #                                        #            {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
-    #                                        #            {'dates.mysql_price_pull_success': True},\
-    #                                        #            {'failcount.mysql_price_failcount': {'$eq': 0}},\
-    #                                        #            #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-    #                                        #        ]\
-    #                                        #}, \
-    #                                        #{"$or":[\
-    #                                        #        {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
-    #                                        #        {'price_change.date': {"$exists": False}}\
-    #                                        #        ]\
-    #                                        #},\
- 
-    #                                    ]}))
-    #combined_results = res1 + res2
-    #stocks = {doc['_id']: doc for doc in combined_results}.values()
-
-    #stocks = db.US_Stocks.find({"$and":[\
-    #                                        {'General.Type':'Common Stock'},\
-    #                                        {'General.IsDelisted': False},\
-    #                                        {'General.Sector': 'Technology'},\
-    #                                        {'Highlights.MarketCapitalizationMln': {"$gte":50000}},\
-    #                                        {"$or":[\
-    #                                                    {"$and": [ \
-    #                                                                {'technicals.sar.ta_psar_trend':{"$eq":1}},\
-    #                                                                {'technicals.sar.ta_psar_prev_trend':{"$lte":-10}},\
-    #                                                            ]\
-    #                                                    },\
-    #                                                    {'technicals.sar.ta_psar_trend':{"$lte":-15}},\
-    #                                                ]\
-    #                                        },\
-    #                                        {"$and": [ \
-    #                                                    {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
-    #                                                    {'dates.mysql_price_pull_success': True},\
-    #                                                    {'failcount.mysql_price_failcount': {'$eq': 0}},\
-    #                                                    #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-    #                                                ]\
-    #                                        }, \
-    #                                        {"$or":[\
-    #                                                {'price_change.date': {"$gte":DB.get_latest_trading_day()}},\
-    #                                                {'price_change.date': {"$exists": False}}\
-    #                                                ]\
-    #                                        },\
- 
-    #                                    ]}).batch_size(10)
-
-    #print("uptrend stocks: %d" %(len(stocks)))
-    print("uptrend stocks: %d" %(stocks.count()))
-
-    results_list = list(stocks)
-    if selected:
-        sorted_results = sorted(results_list, key=lambda doc: shortlisted_stocks.index(doc['General']['Code']))
-    else:
-        sorted_results = results_list
-
-    # Uptrend
-    try:
-        for i, instrument in enumerate(sorted_results):
-        #for i, instrument in enumerate(stocks):
-            print(instrument['General']['Code'])
-            if instrument['General']['Code'] == 'SQ':
-                print("SQ")
-            if 'technicals' in instrument.keys() and 'sar' in instrument['technicals'].keys():
-                trend = instrument['technicals']['sar']['ta_psar_trend']
-                cur_price_max_rsi_change = round(instrument['technicals']['rsi']['cur_price_max_rsi_change']*100, 2)
-                pre_trend_pri_chg = instrument['technicals']['sar']['ta_psar_prev_trend_price_change']
-                if instrument['bscs']['symbol'] in US_indices:
-                    uptrend_df.loc[instrument['bscs']['symbol']] = [
-                                            instrument['General']['Name'], 
-                                            trend,
-                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
-                                            round(instrument['price_change']['price'],2),
-                                            round(instrument['price_change']['day']*100,2),
-                                            round(instrument['price_change']['year']*100,2),
-                                            round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2),
-                                            cur_price_max_rsi_change,
-                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
-                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                            round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2),
-                                            round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2),
-                                            0
-                                            #str(round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)) + "Bn"
-                                            ]
-                else:
-                    try:
-                        day_change = round(instrument['price_change']['day']*100,2)
-                    except:
-                        day_change = 0
-                    try:
-                        year_change = round(instrument['price_change']['year']*100,2)
-                    except:
-                        year_change = 0
-                    try:
-                        avg_trade = round((instrument['price_change']['price']*instrument['price_change']['avg_volume'])/1000000,2)
-                    except:
-                        avg_trade = 0
-                    try:
-                        pr_trnd_chg = round(instrument['technicals']['sar']['ta_psar_prev_trend_price_change']*100,2)
-                    except:
-                        pr_trnd_chg = 0
-                    try:
-                        cur_trnd_chg = round(instrument['technicals']['sar']['ta_psar_cur_trend_price_change']*100,2)
-                    except:
-                        cur_trnd_chg = 0
-                    try:
-                        mcap = round(instrument['Highlights']["MarketCapitalizationMln"]/1000,2)
-                    except:
-                        mcap = 0
-
-                    uptrend_df.loc[instrument['bscs']['symbol']] = [
-                                            instrument['General']['Name'], 
-                                            trend,
-                                            instrument['technicals']['sar']['ta_psar_prev_trend'],
-                                            round(instrument['price_change']['price'],2),
-                                            day_change,
-                                            year_change,
-                                            avg_trade,
-                                            cur_price_max_rsi_change,
-                                            str(instrument['technicals']['sar']['ta_psar_trend_sequence']),
-                                            str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']),
-                                            pr_trnd_chg,
-                                            cur_trnd_chg,
-                                            mcap,
-                                            ]
-    except Exception as E:
-        print("Uptrend: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
-    finally:
-        DB.close_db_client(c)
-
+    uptrend_df = populate_df(conditions)
     if len(uptrend_df) == 0:
         return
 
@@ -1957,31 +1934,6 @@ def get_uptrend(selected=False):
 
     if len(uptrend_df) == 0:
         return
-    def get_last_three_trends(trend_string):
-        """Extracts the last three trend values from the string."""
-        trends = trend_string.split('-')
-        return '-'.join(trends[-3:])
-
-    def get_last_three_values(s):
-        try:
-            values = s.split(',')
-            if len(values) > 1:
-                return ','.join(values[-5:])
-            else:
-                return ""
-        except AttributeError:
-            return ""
-
-    def trim_name(name):
-        l=14
-        name = name.strip()
-        if len(name) <= l:
-            return name
-        space_indices = [i for i, c in enumerate(name[:l+1]) if c == ' ']
-        if len(space_indices) >= 2:
-            return name[:space_indices[1]]
-        else:
-            return name[:l]
 
     uptrend_df['Trend_Sequence_Change'] = uptrend_df['Trend_Sequence_Change'].apply(get_last_three_values)
     uptrend_df.rename(columns={'Trend': 'Tr', 'Prev_Trend_Change': 'PTChg', 'Cur_Trend_Change':'CTChg', 'Trend_Sequence_Change':'Tr_Seq'}, inplace=True)
@@ -2015,7 +1967,7 @@ def get_uptrend(selected=False):
             df = uptrend_df.iloc[st:en]
             if len(df) == 0:
                 break
-            image_path = dataframe_to_image2(df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'Tr_Seq', 'Trade', 'MCap']])
+            image_path = dataframe_to_image2(df[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'MinRSI', 'DMRSI', 'Slope', 'Tr_Seq', 'Trade', 'MCap']])
             if selected:
                 send_telegram_photo(image_path, token='selected_stocks')
             else:
@@ -2023,88 +1975,6 @@ def get_uptrend(selected=False):
             st = en
             en = en + count
     return
-
-    #if not selected:
-    #    count = 6
-    #else:
-    #    count = 10
-    #st = 0
-    #en = count
-    #l = len(uptrend_df)
-    #iters = math.ceil(l/count)# + 1
-    #if len(uptrend_df) > 0:
-    #    for i in range(iters):
-    #        if not selected:
-    #            message = str(i+1) +": Stocks Uptrend/long downtrend:\n=====================\n"
-    #        else:
-    #            message = str(i+1) +": Selected Stocks:\n======================\n"
-
-    #        df = uptrend_df.iloc[st:en]
-    #        if len(df) == 0:
-    #            break
-    #        for index,d in df.iterrows():
-    #            s = str(index) + ":" +d['Name'] +"\n"
-    #            if not selected:
-    #                s = s + "trend: "
-    #                if d['Trend'] > 0:
-    #                    s = s + str(d['Trend']) + "L\n"
-    #                else:
-    #                    s = s + str(abs(d['Trend'])) + "S\n"
-
-    #            s = s + "price: $"+ str(d['Price']) + "\n" +\
-    #                "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-    #                "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
-    #                "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n"
-
-    #            if not selected:
-    #                s = s + "trend: " + d['Trend_Sequence'] + "\n"
-
-    #            s = s + "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-    #                "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n"
-
-    #            if not selected:
-    #                s = s + "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-    #                        "Mcap: $" + str(d['MCap']) + "Bn\n"
-    #            s = s + "\n"
-    #            message = message + s
-    #        if selected:
-    #            notify_message(message, token='selected_stocks')
-    #        else:
-    #            notify_message(message)
-    #        st = en
-    #        en = en + count
-    #if not selected and len(trend2) > 0:
-    #    message = "Stocks Uptrend(Day Change):\n=====================\n"
-    #    for index,d in trend2.iterrows():
-    #        #s = str(index) + ":" +d['Name'] +"\n" +\
-    #        #        "uptrend: "+ str(d['Trend']) + "L\n" + \
-    #        #        "price: $"+ str(d['Price']) + "\n" +\
-    #        #        "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-    #        #        "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-    #        #        "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-    #        #        "trend: " + d['Trend_Sequence'] + "\n" +\
-    #        #        "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-    #        #        "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-    #        #        "Mcap: $" + str(d['MCap']) + "Bn\n\n"
-    #        s = str(index) + ":" +d['Name'] +"\n" +\
-    #                "trend: "
-    #        if d['Trend'] > 0:
-    #            s = s + str(d['Trend']) + "L\n"
-    #        else:
-    #            s = s + str(abs(d['Trend'])) + "S\n"
-    #        s = s + "price: $"+ str(d['Price']) + "\n" +\
-    #            "day change: "+ str(d['Day_Change']) +"%" + "\n" +\
-    #            "year change: "+ str(d['Year_Change']) +"%" + "\n" +\
-    #            "cur_price_max_rsi_change: "+ str(d['Cur_Price_Max_Rsi_Change']) + "%\n" +\
-    #            "Avg_Vol_X_Price: " + str(d['Avg_Vol_X_Price_Mn']) + " Mn\n" + \
-    #            "trend: " + d['Trend_Sequence'] + "\n" +\
-    #            "trend_change: " + d['Trend_Sequence_Change'] + "\n" +\
-    #            "prev_trend_change: " + str(d['Prev_Trend_Change']) +"%" +"\n" +\
-    #            "Mcap: $" + str(d['MCap']) + "Bn\n\n"
-
-
-    #        message = message + s
-    #    notify_message(message)
 
 def get_mstar():
     fields = {
@@ -2305,21 +2175,35 @@ def get_rsi_min(indicator, conditions, fields=None):
     #print("Indicator: %s, stocks: %d" %(indicator, stocks.count()))
     print("Indicator: %s" %(indicator))
 
+    df = populate_df(conditions)
+    df = df[df['Trade'] >= 150]
+    if len(df) == 0:
+        return
     try:
-        for i, instrument in enumerate(stocks):
-            print("%d: %s: %s" %(i, instrument['bscs']['symbol'], instrument['General']['Name']))
-            if 'technicals' in instrument.keys() and \
-                    'rsi' in instrument['technicals'].keys():
-                df.loc[i] = [instrument['General']['Code'], instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), round(instrument['technicals']['rsi']['latest'],2), instrument['price_change']['price']]
 
-        df['Name'] = df['Name'].str.split(' ').str[:2].str.join(' ')
-        df['Price'] = '$' + df['Price'].astype(str)
-        df = df.sort_values(by=['MCap'], ascending=[False])
-        df = df.iloc[0:10]
+        df['Trend_Sequence_Change'] = df['Trend_Sequence_Change'].apply(get_last_three_values)
+        df.rename(columns={'Trend': 'Tr', 'Trend_Sequence_Change':'Tr_Seq'}, inplace=True)
+        df = df.sort_values(by=['MinRSI','RSI'], ascending=True)
+        df['Name'] = df['Name'].apply(trim_name)
+
+        df['Sym'] = df.index
+        df['MCap'] = df['MCap'].astype(str) + 'Bn'
+        df['Trade'] = df['Trade'].astype(str) + 'Mn'
+        df['Chg'] = df['Chg'].astype(str) + '%'
+        count = 15
+        st = 0
+        en = count
+        l = len(df)
+        iters = math.ceil(l/count)# + 1
         if len(df) > 0:
-            image_path = dataframe_to_image(df)
-            send_telegram_photo(image_path, token='rsi_min')
-
+            for i in range(iters):
+                ndf = df.iloc[st:en]
+                if len(ndf) == 0:
+                    break
+                image_path = dataframe_to_image2(ndf[['Sym', 'Name', 'Price', 'Chg', 'Tr', 'RSI', 'MinRSI', 'Slope', 'Tr_Seq', 'Trade', 'MCap']])
+                send_telegram_photo(image_path, token='rsi_min')
+                st = en
+                en = en + count
     except Exception as E:
         print("Indicator: %s: Err for sym: %s, err: %s" %(indicator, instrument['bscs']['symbol'], str(E)))
     finally:
@@ -2404,7 +2288,7 @@ def get_all_indicators():
                     #            },\
                     #        ]\
                     #},\
-                    {'Highlights.MarketCapitalizationMln': {"$gte":1000}},\
+                    {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
                     #{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
                     {"$and": [ \
                                 {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
@@ -2420,12 +2304,12 @@ def get_all_indicators():
                     },\
                 ]
 
-    # morning doji star
-    try:
-        conds = conditions + [{'technicals.candlesticks.MORNINGDOJISTAR':{"$eq":100}}]
-        get_indicator('dojimstar', conds, fields)
-    except:
-        pass
+    ## morning doji star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.MORNINGDOJISTAR':{"$eq":100}}]
+    #    get_indicator('dojimstar', conds, fields)
+    #except:
+    #    pass
 
     # Min rsi
     try:
@@ -2443,31 +2327,32 @@ def get_all_indicators():
                     ]
  
         get_rsi_min('rsi_min', conds)
-    except exception as E:
+    except Exception as E:
         print("mstar error: %r" %(str(E)))
         pass
+    return
 
-    # morning star
-    try:
-        conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
-        get_indicator('mstar', conds, fields)
-    except exception as E:
-        print("mstar error: %r" %(str(E)))
-        pass
+    ## morning star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}}]
+    #    get_indicator('mstar', conds, fields)
+    #except Exception as E:
+    #    print("mstar error: %r" %(str(E)))
+    #    pass
 
-    # evening doji star
-    try:
-        conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
-        get_indicator('dojiestar', conds, fields)
-    except:
-        pass
+    ## evening doji star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.EVENINGDOJISTAR':{"$eq":100}}]
+    #    get_indicator('dojiestar', conds, fields)
+    #except:
+    #    pass
 
-    # evening star
-    try:
-        conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
-        get_indicator('estar', conds, fields)
-    except:
-        pass
+    ## evening star
+    #try:
+    #    conds = conditions + [{'technicals.candlesticks.EVENINGSTAR':{"$eq":100}}]
+    #    get_indicator('estar', conds, fields)
+    #except:
+    #    pass
 
 if __name__ == "__main__":
     if is_holiday():
@@ -2490,7 +2375,7 @@ if __name__ == "__main__":
         ##notify_radar_stocks()
         ##notify_all_stocks()
         ##notify_message("test")
-        #get_all_indicators()
+        get_all_indicators()
         get_uptrend()
         get_uptrend(selected=True)
         #get_ratings(fwh=True)
