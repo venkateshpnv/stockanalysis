@@ -111,7 +111,8 @@ def read_value_from_file(file_path):
         print(f"Error reading value: {e}")
         return None
 
-def log_request(sym):
+#ratelimit_event = threading.Event()
+def log_request(sym, ratelimit_event):
     with rate_lock:
         now = time.time()
 
@@ -130,9 +131,12 @@ def log_request(sym):
 
         # If limit exceeded, wait
         if len(timestamps) >= RATE_LIMIT:
-            wait_time = TIME_WINDOW - (now - min(timestamps)) + 1
+            wait_time = TIME_WINDOW - (now - min(timestamps)) + 3
             print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit hit. Sleeping {wait_time:.2f}s")
+            ratelimit_event.clear()
             time.sleep(wait_time)
+            print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit wait over. Resuming")
+            ratelimit_event.set()
             with open(RATE_FILE, "w") as f:
                 pass
             now = time.time()
@@ -300,7 +304,7 @@ def db_writer_worker_old(sql_engine, table_name, write_queue, shutdown_flag):
                 write_queue.task_done()
     #conn.close()
 
-def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag):
+def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag, ratelimit_event):
     conn = sql_engine.connect()
     buffer = []
     total_inserted = 0
@@ -319,7 +323,8 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag):
             except queue.Empty:
                 pass
 
-            if len(buffer) >= BATCH_SIZE or (shutdown_flag.is_set() and buffer):
+            #if len(buffer) >= BATCH_SIZE:# or (shutdown_flag.is_set() and buffer):
+            if len(buffer) >= BATCH_SIZE or (ratelimit_event.is_set() is False and buffer):
                 try:
                     keys = buffer[0].keys()
                     placeholders = ', '.join(f":{col}" for col in keys)
@@ -344,7 +349,14 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag):
                     total_inserted += batch_size
                     total_duration += duration
 
-                    print(f"[{table_name}] Inserted {batch_size} rows in {duration:.4f} seconds "
+                
+                    if ratelimit_event.is_set() is False:
+                        print(f"[{table_name}] Ratelimit event set: Inserted {batch_size} rows in {duration:.4f} seconds "
+                                f"→ {batch_size / duration:.2f} rows/sec and waiting")
+                        ratelimit_event.wait()
+                        print(f"[{table_name}] Ratelimit event cleared, resuming")
+                    else:
+                        print(f"[{table_name}] Inserted {batch_size} rows in {duration:.4f} seconds "
                           f"→ {batch_size / duration:.2f} rows/sec")
 
                 except IntegrityError:
@@ -366,8 +378,17 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag):
                     INSERT IGNORE INTO `{table_name}` ({columns})
                     VALUES ({placeholders})
                 """)
+                # ⏱ Start timing
+                start_time = time.perf_counter()
                 with conn.begin():
                     conn.execute(sql, buffer)
+                end_time = time.perf_counter()
+                duration = end_time - start_time
+                # 💡 Track stats
+                total_inserted += len(buffer)
+                total_duration += duration
+                print(f"[{table_name}] Last Batch Inserted {len(buffer)} rows in {duration:.4f} seconds "
+                      f"→ {len(buffer) / duration:.2f} rows/sec")
             except Exception as e:
                 print(f"{table_name}: Final batch write failed: {e}")
 
@@ -515,13 +536,15 @@ def create_or_patch_table(engine, table_name):
             #    conn.execute(text(f"ALTER TABLE {table_name} ADD INDEX symbol_date_index (symbol, date)"))
     create_and_check_indexes(engine, table_name)
 
-def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag):
+def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag, ratelimit_event):
     """Fetches option data for a given symbol and date range and directly inserts it into the database."""
     cal = USFederalHolidayCalendar()
     holidays = cal.holidays(start=start_date, end=end_date).to_pydatetime()
     business_days = pd.date_range(start=start_date, end=end_date, freq='B').difference(pd.to_datetime(holidays))
 
-    db_thread = threading.Thread(target=db_writer_worker, args=(engine, table_name, write_queue, shutdown_flag))
+    #ratelimit_event = threading.Event()
+    #ratelimit_event.set()
+    db_thread = threading.Thread(target=db_writer_worker, args=(engine, table_name, write_queue, shutdown_flag, ratelimit_event))
     db_thread.start()
 
     zero_records_cnt = 0
@@ -542,7 +565,7 @@ def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, eng
             #    #request_times.append(now)
             #    break
             #print(f"{symbol}: waiting on log_request") 
-            log_request(symbol)
+            log_request(symbol, ratelimit_event)
             #print(f"{symbol}: Sending request")
             try:
                 response = session.get(URL, timeout=10)
@@ -726,7 +749,7 @@ def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, eng
     db_thread.join()
     #print(f"{i}: {table_name}: Joining db thread completed")
 
-def process_symbol(sem, i, stk, cpu_affinity, request_times):
+def process_symbol(sem, i, stk, cpu_affinity, request_times, ratelimit_event):
     if cpu_affinity is not None:
         try:
             os.sched_setaffinity(0, {cpu_affinity})
@@ -782,7 +805,7 @@ def process_symbol(sem, i, stk, cpu_affinity, request_times):
             #start_date = latest_date + timedelta(days=1) if latest_date else dt(2008, 1, 1).date()
     print(f"{i}:{table_name} : start_date: {start_date}") 
     if start_date <= end_date:
-        fetch_and_insert_records(i, stk['bscs']['symbol'], start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag)
+        fetch_and_insert_records(i, stk['bscs']['symbol'], start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag, ratelimit_event)
     if sem:
         print(f"{i}: {stk['bscs']['symbol']}: Releasing semaphore")
         sem.release()
@@ -845,35 +868,36 @@ if __name__ == "__main__":
                                 },\
                             ]\
                     },\
-                    {"$or":[\
-                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
-                                {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
-                                            {'General.Code' : {"$in": non_tech_stocks}},\
-                                        ]\
-                                },\
-                                {"$and": [ \
-                                            {'General.Code' : {"$in": selected_stocks}},\
-                                        ]\
-                                },\
-                            ]\
-                    },\
+                    #{"$or":[\
+                    #            {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                    #            {"$and": [ \
+                    #                        {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
+                    #                        {'General.Code' : {"$in": non_tech_stocks}},\
+                    #                    ]\
+                    #            },\
+                    #            {"$and": [ \
+                    #                        {'General.Code' : {"$in": selected_stocks}},\
+                    #                    ]\
+                    #            },\
+                    #        ]\
+                    #},\
                     {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                 ]
 
     stocks = db.US_Stocks.find({'$and':conditions}, no_cursor_timeout=True).sort([["Highlights.MarketCapitalization",-1]]).batch_size(10).allow_disk_use(True)
-    #stocks = collection.find({'bscs.symbol':'NVDA'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = collection.find({'bscs.symbol':'NFLX'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total non-bulk stocks: %r" %(stocks.count()))
 
 
     # Start logger
-    threading.Thread(target=log_rate_forever, daemon=True).start()
+    logger_thread = threading.Thread(target=log_rate_forever, daemon=True)
+    logger_thread.start()
     for i, stk in enumerate(stocks):
     #for i, stk in enumerate(options_stocks):
         sem.acquire()
         cpu_affinity = i % num_cores
         print("%d: Stock %r" %(i, stk['bscs']['symbol']))
-        p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times))
+        p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times, ratelimit_event))
         p.start()
         #process_symbol(sem, i, stk, cpu_affinity, request_times)
         #process_symbol(sem, i, stk, cpu_affinity, request_times)
