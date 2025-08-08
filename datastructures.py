@@ -479,6 +479,13 @@ price_change_durations = {
                             'Ten Year Change' : relativedelta(years=10),
                         }
 
+tech_param_fields = {
+                        'RSI': 'float',
+                        'Five Day Slope' : 'float',
+                        'Ten Day Slope' : 'float',
+                        'PSAR' : 'float',
+                        'Sequence' : 'int',
+                    }
 beta_change_fields = {'One_Month':relativedelta(months=1), 
                         'Three_Months':relativedelta(months=3), 
                         'Six_Months':relativedelta(months=6),

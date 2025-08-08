@@ -249,7 +249,8 @@ def mysql_add_columns(mysql_engine, table_name, missing_cols, cols_type='price',
     all_fields = {**price_fields, **price_change_fields,\
                 **fin_year_fields, **fin_quarter_fields, \
                 **income_fields, **balance_fields, **cash_fields,\
-                **generic_fields, **trends_fields, **stock_fields}
+                **generic_fields, **trends_fields, **stock_fields,\
+                **tech_param_fields}
     if cols_type == 'text':
         for c in sorted(missing_cols):
             c_dtype = 'text'
@@ -2525,7 +2526,7 @@ def psar3_code(barsdata, iaf = 0.02, maxaf = 0.2):
     return {"dates":dates, "high":high, "low":low, "close":close, "psar":psar, "psarbear":psarbear, "psarbull":psarbull}
 
 
-def calc_psar(df, duration=None, trend_only=False, af=0.01):
+def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.01):
     if duration:
         df = df.loc[df.index[-1]-duration:]
 
@@ -2534,7 +2535,7 @@ def calc_psar(df, duration=None, trend_only=False, af=0.01):
     #psar3 = pd.DataFrame(psar3_code(df))
     #pSAR = talib.SAR(df['High'], df['Low'], acceleration=0.02, maximum=0.2)
     #psarext = talib.SAREXT(df['High'], df['Low'])
-
+    #psarext = talib.SAREXT(df['High'], df['Low'], startvalue=0, offsetonreverse=0, accelerationinitlong=af, accelerationlong=af, accelerationmaxlong=af, accelerationinitshort=af, accelerationshort=af, accelerationmaxshort=af])
     if psar.empty:
         if trend_only:
             return pd.DataFrame(),np.nan, np.nan, np.nan, np.nan, ""
@@ -2581,6 +2582,62 @@ def calc_psar(df, duration=None, trend_only=False, af=0.01):
         trend_days = (-trend_days,trend_days)[position == 'long']
         # Current trend price change
         ct_pr_change = percent_change(psar.loc[trading_day(start-timedelta(1))]['Adj Close'], psar.iloc[-1]['Adj Close'])
+
+        current_value = 0
+        direction = 0  # Will be either -1 or 1 based on 'short'/'long'
+        active = False
+        col = 'Sequence'
+        table_name = get_symbol_table_name(sym)
+
+        seq_df = pd.DataFrame({"Date": psar.index.strftime('%Y-%m-%d'), col: pd.Series([pd.NA] * len(psar), dtype="Int64")}, index=psar.index)
+        seq_df['PSAR'] = psar.apply(
+                                    lambda row: row['long'] if pd.notna(row['long']) 
+                                    else -row['short'] if pd.notna(row['short']) 
+                                    else pd.NA, 
+                                    axis=1
+                                )
+
+        #query = 'select Date, `{}` from {}'.format(col, table_name)
+        #rdf = read_from_sql(query, params_engine)
+        #seq_df[col] = rdf[col].reindex(rdf.index)
+
+        #prev_idx = psar.index[0]
+        for idx, row in psar.iterrows():
+            #if idx in seq_df.index and (seq_df.loc[idx][col] is None or pd.isna(seq_df.loc[idx][col])):
+                if row['r']:  # If 'r' is True, start/reset sequence
+                    if pd.notnull(row['short']):
+                        direction = -1
+                    elif pd.notnull(row['long']):
+                        direction = 1
+                    #elif seq_df.loc[prev_idx][col] is not None:
+                    #    if seq_df.loc[prev_idx][col] > 0:
+                    #        direction = seq_df.loc[prev_idx][col] + 1
+                    #    else:
+                    #        direction = seq_df.loc[prev_idx][col] + -1
+                    else:
+                        direction = 0  # Just in case both are null
+                    current_value = direction
+                    active = True
+                elif active and direction != 0:
+                    current_value += direction
+        
+                if active and direction != 0:
+                    seq_df.at[idx, 'Sequence'] = current_value
+
+            #prev_idx = idx
+
+        query = 'select Date, `{}` from {} where {} is NULL'.format(col, table_name, col)
+        rdf = read_from_sql(query, params_engine)
+        seq_df = seq_df.reindex(rdf.index)
+        seq_df.dropna(inplace=True)
+        if len(seq_df) > 0:
+            internet.insert_or_update(seq_df, params_engine, table_name, col)
+            internet.insert_or_update(seq_df, params_engine, table_name, 'PSAR')
+
+        #stock_dates = set(seq_df.index.strftime('%Y-%m-%d'))    
+        #table_name = get_symbol_table_name(sym)
+        #indices = internet.identify_change_indices(params_engine, table_name, stock_dates, 'Sequence')
+
 
         # Calculate Trend Pattern
         # Like 5L_6S_4L_12S etc
@@ -2752,7 +2809,7 @@ def calc_psar(df, duration=None, trend_only=False, af=0.01):
     sw = calculate_ep(sw, 1) # Initial investment is $1
     return sw
 
-def update_SAR_params(collection, sym, df):
+def update_SAR_params(params_engine, collection, sym, df):
     # Parabolic SAR
     # Exit the position if the SAR is greater than 'Adj Close'
     # Enter the position if the SAR is less than 'Adj Close'
@@ -2782,7 +2839,7 @@ def update_SAR_params(collection, sym, df):
 
         #ep: estimated profit
         duration=relativedelta(years=1)
-        sw = calc_psar(copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2797,7 +2854,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_year.alpha", alpha)
 
         duration=relativedelta(months=6)
-        sw = calc_psar(copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2812,7 +2869,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.six_months.alpha", alpha)
 
         duration=relativedelta(months=3)
-        sw = calc_psar(copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2827,7 +2884,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.three_months.alpha", alpha)
 
         duration=relativedelta(months=1)
-        sw = calc_psar(copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2842,7 +2899,7 @@ def update_SAR_params(collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
         #return
 
-        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(copy.deepcopy(df), trend_only=True)
+        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(params_engine, sym, copy.deepcopy(df), trend_only=True)
         update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
         update_field(collection, sym, "technicals.sar.ta_psar_cur_trend_price_change", cur_trend_pr_change)
         update_field(collection, sym, "technicals.sar.ta_psar_prev_trend", prev_trend_days)
@@ -2934,12 +2991,94 @@ def update_EMA_params(collection, sym, df):
         change = percent_change(ema.iloc[-1], df['Adj Close'][-1])
         update_field(collection, sym, "technicals.ema.change_with_price", change)
 
-def update_RSI_params(collection, sym, df):
+def update_RSI_params(params_engine, collection, sym, df):
     #rsi = ta.rsi(df['Adj Close'])
     rsi = talib.RSI(df['Adj Close'])
+    rsi = rsi.dropna()
+
     if len(rsi.index) == 0:
         update_field(collection, sym, "technicals.rsi", {})
     else:
+        rsi_df = pd.DataFrame({"Date": rsi.index.strftime('%Y-%m-%d'), "RSI": rsi})
+        stock_dates = set(df.index.strftime('%Y-%m-%d'))    
+        table_name = get_symbol_table_name(sym)
+
+        indices = internet.identify_change_indices(params_engine, table_name, stock_dates, 'RSI')
+        datetime_set = pd.to_datetime(list(indices))
+        rsi_df = rsi_df[rsi_df.index.isin(datetime_set)]
+        if len(rsi_df.index) > 0:
+            internet.insert_or_update(rsi_df, params_engine, table_name, 'RSI')
+
+        # Calculate and store Five Day Slope
+        col = 'Five Day Slope'
+        day_count = 5
+        indices = internet.identify_change_indices(params_engine, table_name, stock_dates, col)
+        datetime_set = pd.to_datetime(list(indices))
+        slope_df = pd.DataFrame({"Date": df.index.strftime('%Y-%m-%d'), col: float('nan')}, index=df.index)
+
+        query = 'select Date, `{}` from {} where `{}` is NULL'.format(col, get_symbol_table_name(sym), col)
+        rdf = read_from_sql(query, params_engine)
+        df[col] = rdf[col].reindex(df.index)
+        # Init slope to nan if it doesn't exist
+        #slope_values = df['Five Day Slope'].copy() if 'Five Day Slope' in df.columns else pd.Series([float('nan')] * len(df), index=df.index)
+        if col in df.columns:
+            slope_values = df[day_count:][col][df[day_count:][col].apply(lambda x: x is None)]
+        else:
+            # If 'Slope' column doesn't exist, create an empty Series
+            slope_values = pd.Series([], dtype=object)
+
+        if len(slope_values) > 0:
+            #for i in range(day_count, len(df)):
+            for index, d in df[day_count:].iterrows():
+                #if pd.isna(slope_values.iloc[i]) or slope_values.iloc[i] is None:
+                if index in slope_values.index and slope_values[index] is None:
+                    end = df.index.get_loc(index)
+                    start = end - day_count
+                    if start >= 0 and end > start:
+                        window = pd.DataFrame(df['Adj Close'].iloc[start:end])
+                        slope_values.loc[index],_ = calculate_slope(window)
+
+            slope_df[col] = slope_values
+            slope_df = slope_df.dropna()
+            if len(slope_df) > 0:
+                internet.insert_or_update(slope_df, params_engine, table_name, col)
+
+        # Calculate and store Ten Day Slope
+        col = 'Ten Day Slope'
+        day_count = 10
+        indices = internet.identify_change_indices(params_engine, table_name, stock_dates, col)
+        datetime_set = pd.to_datetime(list(indices))
+        slope_df = pd.DataFrame({"Date": df.index.strftime('%Y-%m-%d'), col: float('nan')}, index=df.index)
+
+        query = 'select Date, `{}` from {} where `{}` is NULL'.format(col, get_symbol_table_name(sym), col)
+        rdf = read_from_sql(query, params_engine)
+        df[col] = rdf[col].reindex(df.index)
+        # Init slope to nan if it doesn't exist
+        #slope_values = df['Five Day Slope'].copy() if 'Five Day Slope' in df.columns else pd.Series([float('nan')] * len(df), index=df.index)
+        if col in df.columns:
+            slope_values = df[day_count:][col][df[day_count:][col].apply(lambda x: x is None)]
+        else:
+            # If 'Slope' column doesn't exist, create an empty Series
+            slope_values = pd.Series([], dtype=object)
+
+        if len(slope_values) > 0:
+            #for i in range(day_count, len(df)):
+            for index, d in df[day_count:].iterrows():
+                #if pd.isna(slope_values.iloc[i]) or slope_values.iloc[i] is None:
+                if index in slope_values.index and slope_values[index] is None:
+                    end = df.index.get_loc(index)
+                    start = end - day_count
+                    if start >= 0 and end > start:
+                        window = pd.DataFrame(df['Adj Close'].iloc[start:end])
+                        slope_values.loc[index],_ = calculate_slope(window)
+
+            slope_df[col] = slope_values
+            slope_df = slope_df.dropna()
+            if len(slope_df) > 0:
+                internet.insert_or_update(slope_df, params_engine, table_name, col)
+
+        slope,_ = calculate_slope(pd.DataFrame(df.iloc[-10:]['Adj Close']))
+        update_field(collection, sym, "technicals.rsi.5day_slope", slope)
         update_field(collection, sym, "technicals.rsi.latest", rsi.iloc[-1])
         idx = rsi.loc[rsi.index[-1]-timedelta(60):].tail(60).idxmin()
         if type(idx) is pd.Timestamp:
@@ -3146,13 +3285,16 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
         db = c['Stocks']
         collection=db.US_Stocks
         mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+        params_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Tech_Params')
     else:
         db = c['Cryptos']
         collection=db.Cryptos
         mysql_engine = open_sql_connection('localhost', 'root', 'petla123', db='Cryptos')
+        params_engine = None
 
     try:
-        if not mysql_exists_table(mysql_engine, get_symbol_table_name(sym)):
+        table_name = get_symbol_table_name(sym)
+        if not mysql_exists_table(mysql_engine, table_name):
             print("Empty df")
             update_field(collection, sym, "technicals.rsi", {})
             update_field(collection, sym, "technicals.ema", {})
@@ -3168,13 +3310,27 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
             update_field(collection, sym, "technicals.stochf.fastk", nan)
             update_field(collection, sym, "technicals.stochf.fastd", nan)
             return
+
+        table_cols = mysql_get_columns_from_engine(params_engine, table_name)
+        missing_cols = list_difference([*tech_param_fields], table_cols)
+        # Some price change fields are not present in the database.
+        # The datatype of the fields is taken from the price fields 
+        # mentioned in the datastructures.py 
+        if len(missing_cols) > 0:
+            print("%s: Adding missing columns: %r"%(table_name, missing_cols))
+            miss = DB.mysql_add_columns(params_engine, table_name, missing_cols, remove_spaces=False)
+            if miss > 0:
+                PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                PRINT_ERR("Columns: ",missing_cols)
+                sys.exit(1)
+
         query = 'select Date, Open, High, Low, Volume, Close, `Adj Close` from {}'.format(get_symbol_table_name(sym))
         #query = 'select Date, `Adj Close` from {} where Date between \'{}\' and \'{}\''.format(get_symbol_table_name(sym), sdate.strftime("%Y-%m-%d"), edate.strftime("%Y-%m-%d"))
         df = read_from_sql(query, mysql_engine)
  
         df = normalize_cols_with_adj_close(df)
         # Take only last one year data
-        df = df.tail(250)
+        #df = df.tail(250)
 
         if df.empty or len(df.index) == 1:
             print("Empty df")
@@ -3190,43 +3346,43 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
             update_field(collection, sym, "technicals.ulcer_index", nan)
             update_field(collection, sym, "technicals.price_trend", {})
         else:
-            ### bollinger bands
-            ##update_BB_params(collection, sym, df)
+            #### bollinger bands
+            ###update_BB_params(collection, sym, df)
 
-            ### AROON Indicator. Its a trend indicator.
-            ### A high or low are tracked by AROON up and AROON down respectively.
-            ##update_AROON_params(collection, sym, df)
+            #### AROON Indicator. Its a trend indicator.
+            #### A high or low are tracked by AROON up and AROON down respectively.
+            ###update_AROON_params(collection, sym, df)
 
-            ### SAR Calculation
-            update_SAR_params(collection, sym, df)
+            #### SAR Calculation
+            update_SAR_params(params_engine, collection, sym, df)
 
-            ### 100 day Exponential Moving Avegare Calculation
-            ##update_EMA_params(collection, sym, df)
+            #### 100 day Exponential Moving Avegare Calculation
+            ###update_EMA_params(collection, sym, df)
 
-            ### MACD
-            update_MACD_params(collection, sym, df)
+            #### MACD
+            #update_MACD_params(collection, sym, df)
 
-            ## STOCHF
-            #update_STOCHF_params(collection, sym, df)
+            ### STOCHF
+            ##update_STOCHF_params(collection, sym, df)
 
-            # RSI Calculation
-            rsi = update_RSI_params(collection, sym, df)
+            ## RSI Calculation
+            rsi = update_RSI_params(params_engine, collection, sym, df)
 
-            ### ATR. Average True Range. Its a volatility Indicator.
-            ### High and low values represents respective volatility.
-            ##atr = update_ATR_params(collection, sym, df, rsi)
+            #### ATR. Average True Range. Its a volatility Indicator.
+            #### High and low values represents respective volatility.
+            ###atr = update_ATR_params(collection, sym, df, rsi)
 
-            ### Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
-            ### too early in an uptrend or too late in a downtrend.
-            ### http://kaushik316-blog.logdown.com/posts/1964522
-            ### https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
-            ##update_chandelier_params(collection, sym, df, atr)
+            #### Chandelier Exit. Its a volatility based system that is designed to ensure traders do not exit a long position
+            #### too early in an uptrend or too late in a downtrend.
+            #### http://kaushik316-blog.logdown.com/posts/1964522
+            #### https://school.stockcharts.com/doku.php?id=technical_indicators:chandelier_exit
+            ###update_chandelier_params(collection, sym, df, atr)
 
-            ### Ulcer Index. ITs a volatility tracker designed to measure downside risk.
-            ### Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
-            ### a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
-            ### downside risk is zero since the price steadily increases without ever falling.
-            ##update_ulcer_index_params(collection, sym, df)
+            #### Ulcer Index. ITs a volatility tracker designed to measure downside risk.
+            #### Based on the closing prices, the Ulcer Index measures volatility based on price depreciation from its high over
+            #### a specific look-back period. The index is zero if the prcies close higher each period. In such a situation, the
+            #### downside risk is zero since the price steadily increases without ever falling.
+            ###update_ulcer_index_params(collection, sym, df)
 
             ## Calculate trend
             update_price_trend_params(collection, sym, df)
@@ -3241,6 +3397,7 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
         update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
         close_db_client(c)
         close_sql_connection(mysql_engine)
+        close_sql_connection(params_engine)
         if sem:
             sem.release()
 
@@ -3304,7 +3461,7 @@ def update_all_tech_analysis_params(country='US'):
     #                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
     #                                ]}).batch_size(10).sort([["technicals.sar.ep.one_year.alpha",-1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'AVGO'})
+    #stocks=db.US_Stocks.find({'General.Code':'NVDA'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
