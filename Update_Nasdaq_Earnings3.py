@@ -21,6 +21,11 @@ MARKET_CAP_THRESHOLD = 1000000000  # 1 Billion
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+# Add console handler if not already present
+if not logger.hasHandlers():
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(console_handler)
 
 # --- Utility Functions (Refactored) ---
 
@@ -227,7 +232,7 @@ def fetch_existing_earnings_data(engine, start_date, table_name):
         logger.error(f"Error fetching existing earnings data: {e}")
         return pd.DataFrame()
 
-def update_earnings_data_to_sql(engine, table_name, new_data, existing_data):
+def update_earnings_data_to_sql(engine, table_name, new_data, existing_data, mysql_engine):
     """
     Updates earnings data in the SQL database, handling both new and updated records.
 
@@ -296,7 +301,12 @@ def update_earnings_data_to_sql(engine, table_name, new_data, existing_data):
 
             if not new_entries_df.empty:
                 # Insert new entries
-                new_entries_df = new_entries_df[list(new_data.columns) + ['Date', 'Symbol']]
+                cols = list(new_data.columns)
+                if 'Date' not in cols:
+                    cols = cols + ['Date']
+                if 'Symbol' not in cols:
+                    cols = cols + ['Symbol']
+                new_entries_df = new_entries_df[cols]
                 print(f"Inserting new entries: {new_entries_df}")
                 DB.mysql_update_table(mysql_engine, table_name, new_entries_df, check=True, insert=False, unknown_table=False, cols_type='values', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
                 #new_entries_df.to_sql(name=table_name, con=connection, if_exists='append', index=False)
@@ -372,7 +382,7 @@ def main():
 
         # Fetch existing data and update
         existing_earnings_data = fetch_existing_earnings_data(mysql_engine, start_date, table_name)
-        update_earnings_data_to_sql(mysql_engine, table_name, all_earnings_data, existing_earnings_data)
+        update_earnings_data_to_sql(mysql_engine, table_name, all_earnings_data, existing_earnings_data, mysql_engine)
 
         # Update market cap (placeholder)
         update_market_cap(price_engine, all_earnings_data[['Symbol', 'marketCap']])
