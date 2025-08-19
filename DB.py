@@ -5643,14 +5643,18 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
                     holidays=get_holiday_list(start, end)) < 3:
                 continue
 
-            if d['Symbol'] == 'ALRN':
-                print(d['Symbol'])
-
             stocks = db.US_Stocks.find({'bscs.symbol':d['Symbol']}, no_cursor_timeout=True)
             if stocks.count() == 1:
                 stk = stocks[0]
             else:
                 print("Splits: Stock not found: %r" %(d['Symbol']))
+                continue
+
+            if 'exchange' in stk['bscs'].keys() and stk['bscs']['exchange'] not in major_exchanges:
+                print("Skipping stock split for %s, exchange %s" %(stk['bscs']['symbol'], stk['bscs']['exchange']))
+                continue
+            if 'General' in stk.keys() and 'Exchange' in stk['General'].keys() and stk['General']['Exchange'] not in major_exchanges:
+                print("Skipping stock split for %s, exchange %s" %(stk['bscs']['symbol'], stk['General']['Exchange']))
                 continue
 
             # Split information already updated
@@ -5660,8 +5664,8 @@ def repopulate_split_stocks(mysql_engine=None, db=None):
 
             print("%d: Split Action: %r, split date: %s" %(count, d['Symbol'], str(i.date())))
 
-            #repopulate_prices('US', d['Symbol'], stk, count%num_cores, True, False, None)
             sem.acquire()
+            #repopulate_prices('US', d['Symbol'], stk, count%num_cores, True, False, None)
             processes[j%num_processes] = multiprocessing.Process(target=repopulate_prices, args=('US', d['Symbol'], stk, count%num_cores, True, False, sem))
             processes[j%num_processes].start()
             j = j + 1
@@ -8176,8 +8180,8 @@ def update_all_technicals():
     #df.dropna(axis=0,inplace=True)
     df = df[df['Symbol'].notna()]
     print("Update Technicals: Total Symbols: %r" %(len(df)))
-    # vpetla: Remove return after you enable your subscription
-    return
+    ## vpetla: Remove return after you enable your subscription
+    #return
 
     try:
         # First get dividends for all new stocks
@@ -8205,10 +8209,15 @@ def update_all_technicals():
             #stks = db.US_Stocks.find({'bscs.symbol': 'FRC'})
             stks = db.US_Stocks.find({'bscs.symbol': sym})
             if stks.count() == 0:
-                add_symbol_to_database(d, db)
+                # vpetla. only add symbols in major exchanges as of now. ignore otc
+                if d['Exchange'] in major_exchanges:
+                    add_symbol_to_database(d, db)
                 continue
                 ## Pull the updated data
                 #stks = db.US_Stocks.find({'bscs.symbol': sym})
+            else:
+                # vpetla technicals, remove this after you enable subscription
+                continue
             stk = stks[0]
 
             ## Already updated skip
