@@ -316,7 +316,8 @@ def update_earnings_data_to_sql(engine, table_name, new_data, existing_data, mys
         logger.error(f"Error updating table '{table_name}': {e}")
         raise  # Re-raise to stop execution
 
-def update_market_cap(engine, df):
+def update_market_cap(db, engine, df):
+    from bson import Int64
     """
     Placeholder for updating market cap in a separate table or location.
     This function should be implemented according to your specific requirements
@@ -324,6 +325,9 @@ def update_market_cap(engine, df):
     """
     if not df.empty:
         logger.info(f"Market Cap Data to be updated: \n{df.to_string()}")
+        for index,d in df.iterrows():
+            DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalization', Int64(int(d['marketCap'])))
+            DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalizationMln', round(d['marketCap']/1000000,2))
 
 def main():
     """Main function to orchestrate the data update process."""
@@ -385,7 +389,7 @@ def main():
         update_earnings_data_to_sql(mysql_engine, table_name, all_earnings_data, existing_earnings_data, mysql_engine)
 
         # Update market cap (placeholder)
-        update_market_cap(price_engine, all_earnings_data[['Symbol', 'marketCap']])
+        update_market_cap(db, price_engine, all_earnings_data[['Symbol', 'marketCap']])
 
         end_time = time.time()
         logger.info(f"Earnings data update process completed in {end_time - start_time:.2f} seconds.")
