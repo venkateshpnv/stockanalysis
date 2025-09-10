@@ -488,9 +488,11 @@ def earnings_date(instrument, radar_syms=None):
 
 # Earnings with in a week
 def earnings_week(earnings_dates=True, earnings_results=True):
-    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
-    three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
-    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
+    #week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
+    week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Er_Seq', 'Avg Pr', 'Abv Avg Pr' ])
+    #three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Tr_Seq', 'Time', 'Week Change'])
+    three_week_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Er_Seq', 'Avg Pr', 'Abv Avg Pr' ])
+    today_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'MCap', 'Price', 'Time', 'Er_Seq', 'Avg Pr', 'Abv Avg Pr' ])
     earnings_df = pd.DataFrame(columns=['Date', 'Sym', 'Name', 'Price_Change', 'MCap', 'Price', 'Time'])
 
     #fields = {
@@ -529,20 +531,20 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                 },\
                             ]\
                     },\
-                    {"$or":[\
-                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
-                                {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
-                                            {'General.Code' : {"$in": non_tech_stocks}},\
-                                        ]\
-                                },\
-                                {"$and": [ \
-                                            {'General.Code' : {"$in": selected_stocks}},\
-                                        ]\
-                                },\
-                            ]\
-                    },\
-                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+#                    {"$or":[\
+#                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+#                                {"$and": [ \
+#                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
+#                                            {'General.Code' : {"$in": non_tech_stocks}},\
+#                                        ]\
+#                                },\
+#                                {"$and": [ \
+#                                            {'General.Code' : {"$in": selected_stocks}},\
+#                                        ]\
+#                                },\
+#                            ]\
+#                    },\
+                    #{'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                 ]
     week_conditions = conditions + \
                                     [
@@ -551,6 +553,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
                                             ]\
                                         },\
+                                        {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
                                     ]
     three_week_conditions = conditions + \
                                     [
@@ -561,6 +564,21 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks+timedelta(7)}},\
                                             ]\
                                         },\
+                                        {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                                        {"$or":[\
+                                                    {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                                                    {"$and": [ \
+                                                                {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
+                                                                {'General.Code' : {"$in": non_tech_stocks}},\
+                                                            ]\
+                                                    },\
+                                                    {"$and": [ \
+                                                                {'General.Code' : {"$in": selected_stocks}},\
+                                                            ]\
+                                                    },\
+                                                ]\
+                                        },\
+
                                     ]
 
     conditions2 = [ \
@@ -575,16 +593,17 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                 },\
                             ]\
                     },\
-                    {"$or":[\
-                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
-                                {"$and": [ \
-                                            {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
-                                            {'General.Code' : {"$in": non_tech_stocks}},\
-                                        ]\
-                                },\
-                            ]\
-                    },\
-                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                    #{"$or":[\
+                    #            {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                    #            {"$and": [ \
+                    #                        {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
+                    #                        {'General.Code' : {"$in": non_tech_stocks}},\
+                    #                    ]\
+                    #            },\
+                    #        ]\
+                    #},\
+                    {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
+                    #{'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                     {"$or": [\
                                 {"$and": [\
                                             {'dates.ndaq_last_earnings_date' :{"$eq":today}},\
@@ -626,11 +645,14 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     if True:
                         if sym not in week_earnings_stks.keys():
                             week_earnings_stks[sym] = instrument['bscs']['symbol']
-                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
+                            #week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
+                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['earnings']['three_year']['pr_change'], instrument['earnings']['three_year']['avg_pr_change'], instrument['earnings']['three_year']['above_avg_percent']]
                     # If earnings is tomorrow, send a notification
                     if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
+                    #req_date = dt.strptime('2025-09-09', "%Y-%m-%d").date()
+                    #if edate == req_date:
                         if sym not in tomorrow_earnings_stks.keys():
-                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                            today_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['earnings']['three_year']['pr_change'], instrument['earnings']['three_year']['avg_pr_change'], instrument['earnings']['three_year']['above_avg_percent']]
                             #tomorrow_earnings_stks[sym] = {'Name': instrument['General']['Name'], 'Time': instrument['dates']['ndaq_last_earnings_time'], 'MCap': round(instrument['Highlights']['MarketCapitalizationMln']/1000,2)}
 
             stocks = db.US_Stocks.find({'$and':three_week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
@@ -645,7 +667,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     sym = instrument['bscs']['symbol']
                     if sym not in three_week_earnings_stks:
                         three_week_earnings_stks.append(instrument['bscs']['symbol'])
-                        three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                        #three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']]
+                        three_week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['earnings']['three_year']['pr_change'], instrument['earnings']['three_year']['avg_pr_change'], instrument['earnings']['three_year']['above_avg_percent']]
             def get_last_three_trends(trend_string):
                 """Extracts the last three trend values from the string."""
                 trends = trend_string.split('-')
@@ -660,19 +683,29 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                         return ""
                 except AttributeError:
                     return ""
-            week_df['Tr_Seq'] = week_df['Tr_Seq'].apply(get_last_three_values)
-            today_df['Tr_Seq'] = today_df['Tr_Seq'].apply(get_last_three_values)
-            three_week_df['Tr_Seq'] = three_week_df['Tr_Seq'].apply(get_last_three_values)
+            def get_first_five_values(s):
+                try:
+                    values = s.split(',')
+                    if len(values) > 1:
+                        return ','.join(values[:7])
+                    else:
+                        return ""
+                except AttributeError:
+                    return ""
+
+            week_df['Er_Seq'] = week_df['Er_Seq'].apply(get_first_five_values)
+            today_df['Er_Seq'] = today_df['Er_Seq'].apply(get_first_five_values)
+            three_week_df['Er_Seq'] = three_week_df['Er_Seq'].apply(get_first_five_values)
 
             week_df = week_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
             today_df = today_df.sort_values(by=['Date', 'MCap'], ascending=[True, False])
 
-            #three_week_df = three_week_df.loc[three_week_df["Week Change"] <= -0.05]
-            three_week_df = three_week_df.sort_values(by=['Week Change'], ascending=[True])
+            ##three_week_df = three_week_df.loc[three_week_df["Week Change"] <= -0.05]
+            #three_week_df = three_week_df.sort_values(by=['Week Change'], ascending=[True])
 
-            week_df["Week Change"] = week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
-            today_df["Week Change"] = today_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
-            three_week_df["Week Change"] = three_week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+            #week_df["Week Change"] = week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+            ##today_df["Week Change"] = today_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
+            #three_week_df["Week Change"] = three_week_df["Week Change"].apply(lambda x: f"{x * 100:.2f}%")
 
             # strip the company name from second space to avoid long names
             week_df['Name'] = week_df['Name'].str.split(' ').str[:2].str.join(' ')
@@ -725,6 +758,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 #notify_message(message, token='earnings_dates')
 
             if len(today_df) > 0:
+                today_df = today_df.sort_values(by='Avg Pr', ascending=False)
                 st=0
                 en=count
                 l = len(today_df)
@@ -1572,7 +1606,7 @@ def get_options(grp):
                         options_df.at[instrument['bscs']['symbol'],'Hold'] = instrument['AnalystRatings']['Hold']
                         options_df.at[instrument['bscs']['symbol'],'Sell'] = instrument['AnalystRatings']['Sell']
                         options_df.at[instrument['bscs']['symbol'],'Strong Sell'] = instrument['AnalystRatings']['StrongSell']
-                        options_df.at[instrument['bscs']['symbol'],'Earnings_Pr_Chg'] = instrument['dates']['earnings_pr_change']
+                        options_df.at[instrument['bscs']['symbol'],'Earnings_Pr_Chg'] = instrument['earnings']['three_year']['pr_change']
                 except Exception as E:
                     print("Options: Err for sym: %s, err: %s" %(instrument['bscs']['symbol'], str(E)))
     except Exception as E:
@@ -2356,6 +2390,7 @@ def get_all_indicators():
 
 if __name__ == "__main__":
     if is_holiday():
+        earnings_week(earnings_dates=True, earnings_results=True)
         sys.exit(0)
     if len(sys.argv) == 2 and 'options' in sys.argv[1]:
         get_options(sys.argv[1])
