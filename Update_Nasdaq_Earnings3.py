@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
 import requests
+import mysql.connector
 from datetime import datetime as dt, timedelta
 from sqlalchemy import create_engine, MetaData, Table, Column, String, Float, Date, exc
 import logging
 import time
 import DB
+from datastructures import major_exchanges
 
 # --- Database and API Configuration ---
 DB_HOST = 'localhost'
@@ -336,9 +338,9 @@ def main():
     price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
     c = DB.open_db_client() # This is a placeholder.  Replace with your actual MongoDB client.
     db = c['Stocks']
+    table_name = 'Nasdaq_Earnings_History'
 
     try:
-        table_name = 'Nasdaq_Earnings_History'
         DB.mysql_check_n_create_table(mysql_engine, table_name, fin_table=True)
         if DB.mysql_exists_table(mysql_engine, table_name):
             table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
@@ -349,7 +351,7 @@ def main():
                     PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
                     PRINT_ERR("Columns: ",['price_change'])
                     sys.exit(1)
- 
+
         start_date = trading_day(dt.now().date() - timedelta(5))
         end_date = trading_day(dt.now().date() + timedelta(45))
         all_earnings_data = pd.DataFrame()
@@ -398,84 +400,545 @@ def main():
     try:
         print("Calculating price changes")
         query = 'select `Date`, `Symbol`, `reportDate`, `time`, `price_change` from {} where price_change is NULL and reportDate <= CURDATE() order by reportDate'.format(table_name)
-        pr_df = DB.read_from_sql(query, mysql_engine)
-        pr_df['reportDate'] = pd.to_datetime(pr_df['reportDate'])
-        pr_df = pr_df[pr_df['reportDate'] <= pd.to_datetime(dt.now().date())]
-        pr_df['reportDate'] = pr_df['reportDate'].dt.strftime('%Y-%m-%d')
+        price_df = DB.read_from_sql(query, mysql_engine)
+        price_df['reportDate'] = pd.to_datetime(price_df['reportDate'])
+        price_df = price_df[price_df['reportDate'] <= pd.to_datetime(dt.now().date())]
+        price_df['reportDate'] = price_df['reportDate'].dt.strftime('%Y-%m-%d')
 
-        pr_df['Index'] = pr_df['reportDate'] + '_' + pr_df['Symbol']
-        pr_df.set_index('Index', inplace=True)
-        for index, d in pr_df.iterrows():
-            # If the results are announced after market. Consider the next day's price change.
-            report_date = d['reportDate']
-            price_table = DB.get_symbol_table_name(d['Symbol'])
-            if not mysql_exists_table(price_engine, price_table):
-                print("price data for %s doesn't exist" %(price_table))
-                continue
-            rdate = pd.to_datetime(d['reportDate'])
-            if d['time'] == None:
-                if rdate < dt.now().date():
-                    prev = DB.get_previous_trading_day(rdate)
+        price_df['Index'] = price_df['reportDate'] + '_' + price_df['Symbol']
+        price_df.set_index('Index', inplace=True)
+        count = 0
+        l = len(price_df)
+        while count < l:
+            pr_df = price_df.iloc[count:count+1000]
+            for index, d in pr_df.iterrows():
+                count = count + 1
+                if count % 1000 == 0:
+                    break
+                # If the results are announced after market. Consider the next day's price change.
+                report_date = d['reportDate']
+                price_table = DB.get_symbol_table_name(d['Symbol'])
+                if not mysql_exists_table(price_engine, price_table):
+                    print("price data for %s doesn't exist" %(price_table))
+                    continue
+                print("%s: %s" %(count, d['Symbol']))
+                rdate = pd.to_datetime(d['reportDate'])
+                if d['time'] == None:
+                    if rdate < dt.now().date():
+                        prev = DB.get_previous_trading_day(rdate)
+                        after = DB.get_next_trading_day(rdate)
+                        query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                        query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                    else:
+                        continue
+                elif 'AfterMarket' in d['time']:
+                    if rdate >= dt.now().date():
+                        continue
+                    prev = rdate
                     after = DB.get_next_trading_day(rdate)
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                elif 'BeforeMarket' in d['time']:
+                    if rdate > dt.now().date():
+                        continue
+                    prev = DB.get_previous_trading_day(rdate)
+                    after = rdate
                     query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
                     query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
                 else:
                     continue
-            elif 'AfterMarket' in d['time']:
-                if rdate >= dt.now().date():
-                    continue
-                prev = rdate
-                after = DB.get_next_trading_day(rdate)
-                query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
-                query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
-            elif 'BeforeMarket' in d['time']:
-                if rdate > dt.now().date():
-                    continue
-                prev = DB.get_previous_trading_day(rdate)
-                after = rdate
-                query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
-                query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
-            else:
-                continue
-            # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
-            #query1 = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
-            #query2 = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
-            df1 = DB.read_from_sql(query1, price_engine)
-            df2 = DB.read_from_sql(query2, price_engine)
+                # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+                #query1 = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+                #query2 = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+                df1 = DB.read_from_sql(query1, price_engine)
+                df2 = DB.read_from_sql(query2, price_engine)
 
-            #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
-            #pdf = read_from_sql(query, price_engine)
+                #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                #pdf = read_from_sql(query, price_engine)
 
-            if len(df1) == 0:
-                change = 0
-            elif len(df2) == 0:
-                if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date()-timedelta(3):
-                    change = None
-                    print("Change is None")
-                else:
+                if len(df1) == 0:
                     change = 0
-                    print("Change is zero")
+                elif len(df2) == 0:
+                    if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date()-timedelta(3):
+                        change = None
+                        print("Change is None")
+                    else:
+                        change = 0
+                        print("Change is zero")
+                else:
+                    change = DB.percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+                pr_df.at[index,'price_change'] = change
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.combine(dt.now(), dt.min.time())}})
+
+                #if not pdf.empty:
+                #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+            if not pr_df.empty:
+                pr_df = pr_df.drop(['reportDate'], axis=1)
+                pr_df = pr_df.drop(['time'], axis=1)
+                pr_df.index= pr_df['Date']
+                pr_df = pr_df.dropna()
+                pr_df['price_change'] = pr_df['price_change'].astype(float)
+                DB.mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+
+    except Exception as e:
+        pass
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_date": {"$exists": False }},\
+                                            #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                            #            {"dates.mysql_price_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_pull_date": {"$exists": False }},\
+                                            #            {"dates.mysql_price_pull_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                            #{'Highlights.MarketCapitalization':{'$gte':5 * Bn}},
+                                            #{"$or": [\
+                                            #            {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                            #            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                            #            {'failcount.mysql_price_failcount': {'$lt': DB.MAX_FAIL_COUNT}},\
+                                            #        ]\
+                                            #}
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
+    print("Total stocks: %r" %(stocks.count()))
+    #stocks = db.US_Stocks.find({"bscs.symbol":"LULU"})
+    today = str(dt.now().date())
+    try: 
+        for stk in stocks:
+            print("%s: %s" %(stk['bscs']['symbol'], stk['General']['Name'])) 
+            query ='select Date, Symbol, price_change from {} where Symbol=\'{}\' and Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' order by Date desc'.format(table_name, stk['bscs']['symbol'], today, today)
+            pr_df = DB.read_from_sql(query, mysql_engine)
+            pr_df = pr_df.dropna(subset=['price_change'])
+            result = pr_df['price_change'].apply(lambda x: round(x * 100, 2))
+            res = '%,'.join(result.astype(str))
+            res=res+'%'
+            abs_res = result.abs()
+            total = len(abs_res)
+            if total == 0:
+                avg = -1
+                above_avg = -1
+                above_ten = -1
+                above_avg_percent = 0
             else:
-                change = DB.percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
-            pr_df.at[index,'price_change'] = change
-            db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
-            db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.combine(dt.now(), dt.min.time())}})
-
-            #if not pdf.empty:
-            #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
-
-        if not pr_df.empty:
-            pr_df = pr_df.drop(['reportDate'], axis=1)
-            pr_df = pr_df.drop(['time'], axis=1)
-            pr_df.index= pr_df['Date']
-            pr_df = pr_df.dropna()
-            pr_df['price_change'] = pr_df['price_change'].astype(float)
-            DB.mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+                avg = round(abs_res.mean(),2)
+                above_avg = float((abs_res > avg).sum())
+                above_ten = float((abs_res > 10).sum())
+                above_ten_percent = round((above_ten/total)*100, 2)
+                above_avg_percent = round((above_avg/total)*100, 2)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.pr_change', res)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.avg_pr_change', avg)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.total', total)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_avg_count', above_avg)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_ten_count', above_ten)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_avg_percent', above_avg_percent)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_ten_percent', above_ten_percent)
 
     finally:
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
         DB.close_sql_connection(price_engine)
+
+def calc_price_change():
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+    price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    c = DB.open_db_client() # This is a placeholder.  Replace with your actual MongoDB client.
+    db = c['Stocks']
+    table_name = 'Nasdaq_Earnings_History'
+
+    try:
+        DB.mysql_check_n_create_table(mysql_engine, table_name, fin_table=True)
+        if DB.mysql_exists_table(mysql_engine, table_name):
+            table_cols = DB.mysql_get_columns_from_engine(mysql_engine, table_name)
+            if 'price_change' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['price_change']))
+                miss = DB.mysql_add_columns(mysql_engine, table_name, ['price_change'], remove_spaces=False)
+                if miss > 0:
+                    PRINT_ERR("Failed to add %r columns to table %r" %(miss, table_name))
+                    PRINT_ERR("Columns: ",['price_change'])
+                    sys.exit(1)
+
+            if 'pr_change_str' not in table_cols:
+                print("%s: Adding missing columns: %r"%(table_name, ['pr_change_str']))
+                DB.mysql_add_column(mysql_engine, table_name, 'pr_change_str', 'text', remove_spaces=True)
+            cols = ['avg_pr_change', 'above_avg_count', 'above_ten_count', 'above_avg_percent', 'above_ten_percent', 'buy_date', 'price', 'call_strike', 'put_strike', 'call_premium', 'put_premium', 'total_premium_percent', 'call_breakeven', 'put_breakeven']
+            for c in cols:
+                if c not in table_cols:
+                    print("%s: Adding missing columns: %r"%(table_name, [c]))
+                    DB.mysql_add_column(mysql_engine, table_name, c, 'float', remove_spaces=True)
+
+        print("Calculating option values")
+        query = 'select `Date`, `Symbol`, `name`, `reportDate`, `time`, `price_change`, `avg_pr_change` from {} where avg_pr_change is NULL and reportDate >= \'{}\' order by reportDate'.format(table_name, '2011-01-01')
+        price_df = DB.read_from_sql(query, mysql_engine)
+        l = len(price_df)
+        count = 0
+        while count < l:
+            pr_df = price_df.iloc[count:count+1000]
+            for index, d in pr_df.iterrows():
+                count = count + 1
+                if count % 1000 == 0:
+                    break
+                # If the results are announced after market. Consider the next day's price change.
+                report_date = d['reportDate']
+                price_table = DB.get_symbol_table_name(d['Symbol'])
+                if not mysql_exists_table(price_engine, price_table):
+                    print("price data for %s doesn't exist" %(price_table))
+                    continue
+                print("%s: %s" %(count, d['Symbol']))
+                rdate = pd.to_datetime(d['reportDate'])
+                if d['time'] == None:
+                    if rdate < dt.now().date():
+                        prev = DB.get_previous_trading_day(rdate)
+                        after = DB.get_next_trading_day(rdate)
+                        query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                        query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                    else:
+                        continue
+                elif 'AfterMarket' in d['time']:
+                    if rdate >= dt.now().date():
+                        continue
+                    prev = rdate
+                    after = DB.get_next_trading_day(rdate)
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                elif 'BeforeMarket' in d['time']:
+                    if rdate > dt.now().date():
+                        continue
+                    prev = DB.get_previous_trading_day(rdate)
+                    after = rdate
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                else:
+                    continue
+                # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+                #query1 = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+                #query2 = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+                df1 = DB.read_from_sql(query1, price_engine)
+                df2 = DB.read_from_sql(query2, price_engine)
+
+                #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                #pdf = read_from_sql(query, price_engine)
+
+                if len(df1) == 0:
+                    change = 0
+                elif len(df2) == 0:
+                    if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date()-timedelta(3):
+                        change = None
+                        print("Change is None")
+                    else:
+                        change = 0
+                        print("Change is zero")
+                else:
+                    change = DB.percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+                pr_df.at[index,'price_change'] = change
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.combine(dt.now(), dt.min.time())}})
+
+                #if not pdf.empty:
+                #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+            if not pr_df.empty:
+                pr_df = pr_df.drop(['reportDate'], axis=1)
+                pr_df = pr_df.drop(['time'], axis=1)
+                pr_df.index= pr_df['Date']
+                pr_df = pr_df.dropna()
+                pr_df['price_change'] = pr_df['price_change'].astype(float)
+                DB.mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+
+        print("Calculating price changes")
+        query = 'select `Date`, `Symbol`, `reportDate`, `time`, `price_change` from {} where price_change is NULL and reportDate <= CURDATE() order by reportDate'.format(table_name)
+        price_df = DB.read_from_sql(query, mysql_engine)
+        price_df['reportDate'] = pd.to_datetime(price_df['reportDate'])
+        price_df = price_df[price_df['reportDate'] <= pd.to_datetime(dt.now().date())]
+        price_df['reportDate'] = price_df['reportDate'].dt.strftime('%Y-%m-%d')
+
+        price_df['Index'] = price_df['reportDate'] + '_' + price_df['Symbol']
+        price_df.set_index('Index', inplace=True)
+        count = 0
+        l = len(price_df)
+        while count < l:
+            pr_df = price_df.iloc[count:count+1000]
+            for index, d in pr_df.iterrows():
+                count = count + 1
+                if count % 1000 == 0:
+                    break
+                # If the results are announced after market. Consider the next day's price change.
+                report_date = d['reportDate']
+                price_table = DB.get_symbol_table_name(d['Symbol'])
+                if not mysql_exists_table(price_engine, price_table):
+                    print("price data for %s doesn't exist" %(price_table))
+                    continue
+                print("%s: %s" %(count, d['Symbol']))
+                rdate = pd.to_datetime(d['reportDate'])
+                if d['time'] == None:
+                    if rdate < dt.now().date():
+                        prev = DB.get_previous_trading_day(rdate)
+                        after = DB.get_next_trading_day(rdate)
+                        query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                        query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                    else:
+                        continue
+                elif 'AfterMarket' in d['time']:
+                    if rdate >= dt.now().date():
+                        continue
+                    prev = rdate
+                    after = DB.get_next_trading_day(rdate)
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                elif 'BeforeMarket' in d['time']:
+                    if rdate > dt.now().date():
+                        continue
+                    prev = DB.get_previous_trading_day(rdate)
+                    after = rdate
+                    query1 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date desc limit 1'.format(price_table, str(prev.date()))
+                    query2 = 'select Date, `Adj Close` from {} where Date = \'{}\' order by Date asc limit 1'.format(price_table, str(after.date()))
+                else:
+                    continue
+                # select Date, `Adj Close` from (select Date, `Adj Close` from STKDELL where Date < '2024-05-30' order by Date desc limit 2) as sub order by Date asc;
+                #query1 = 'select Date, `Adj Close` from {} where Date < \'{}\' order by Date desc limit 1'.format(price_table, report_date)
+                #query2 = 'select Date, `Adj Close` from {} where Date > \'{}\' order by Date asc limit 1'.format(price_table, report_date)
+                df1 = DB.read_from_sql(query1, price_engine)
+                df2 = DB.read_from_sql(query2, price_engine)
+
+                #query='select Date, `Adj Close` from {} where Date > %r order by Date limit 1'.format(price_table) %(report_date)
+                #pdf = read_from_sql(query, price_engine)
+
+                if len(df1) == 0:
+                    change = 0
+                elif len(df2) == 0:
+                    if dt.strptime(report_date, "%Y-%m-%d").date() > dt.now().date()-timedelta(3):
+                        change = None
+                        print("Change is None")
+                    else:
+                        change = 0
+                        print("Change is zero")
+                else:
+                    change = DB.percent_change(df1.iloc[0]['Adj Close'], df2.iloc[0]['Adj Close'])
+                pr_df.at[index,'price_change'] = change
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"price_change.ndaq_earnings_change": change}})
+                db.US_Stocks.update({'General.Code': d['Symbol']}, {'$set': {"dates.ndaq_earnings_calc_date": dt.combine(dt.now(), dt.min.time())}})
+
+                #if not pdf.empty:
+                #    pr_df.at[index,'price_change'] = pdf.iloc[-1]['Day Change']
+
+            if not pr_df.empty:
+                pr_df = pr_df.drop(['reportDate'], axis=1)
+                pr_df = pr_df.drop(['time'], axis=1)
+                pr_df.index= pr_df['Date']
+                pr_df = pr_df.dropna()
+                pr_df['price_change'] = pr_df['price_change'].astype(float)
+                DB.mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
+
+    except Exception as e:
+        pass
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_date": {"$exists": False }},\
+                                            #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                            #            {"dates.mysql_price_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_pull_date": {"$exists": False }},\
+                                            #            {"dates.mysql_price_pull_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                            #{'Highlights.MarketCapitalization':{'$gte':5 * Bn}},
+                                            #{"$or": [\
+                                            #            {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                            #            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                            #            {'failcount.mysql_price_failcount': {'$lt': DB.MAX_FAIL_COUNT}},\
+                                            #        ]\
+                                            #}
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
+    print("Total stocks: %r" %(stocks.count()))
+    #stocks = db.US_Stocks.find({"bscs.symbol":"LULU"})
+    today = str(dt.now().date())
+    try: 
+        for stk in stocks:
+            print("%s: %s" %(stk['bscs']['symbol'], stk['General']['Name'])) 
+            query ='select Date, Symbol, price_change from {} where Symbol=\'{}\' and Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' order by Date desc'.format(table_name, stk['bscs']['symbol'], today, today)
+            pr_df = DB.read_from_sql(query, mysql_engine)
+            pr_df = pr_df.dropna(subset=['price_change'])
+            result = pr_df['price_change'].apply(lambda x: round(x * 100, 2))
+            res = '%,'.join(result.astype(str))
+            res=res+'%'
+            abs_res = result.abs()
+            total = len(abs_res)
+            if total == 0:
+                avg = -1
+                above_avg = -1
+                above_ten = -1
+                above_avg_percent = 0
+            else:
+                avg = round(abs_res.mean(),2)
+                above_avg = float((abs_res > avg).sum())
+                above_ten = float((abs_res > 10).sum())
+                above_ten_percent = round((above_ten/total)*100, 2)
+                above_avg_percent = round((above_avg/total)*100, 2)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.pr_change', res)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.avg_pr_change', avg)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.total', total)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_avg_count', above_avg)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_ten_count', above_ten)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_avg_percent', above_avg_percent)
+            DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_ten_percent', above_ten_percent)
+
+    finally:
+        DB.close_db_client(c)
+        DB.close_sql_connection(mysql_engine)
+        DB.close_sql_connection(price_engine)
+
+def analyze_price_changes(mysql_engine, symbol, n_years=None):
+
+    if n_years is not None:
+        # Calculate cutoff date
+        cutoff_date = (dt.now() - timedelta(days=365 * n_years)).strftime("%Y-%m-%d")
+    else:
+        cutoff_date = '1970-01-01'
+
+    query='select Date, price_change from Nasdaq_Earnings_History Where Symbol=\'%s\' AND Date >= \'%s\' ORDER BY Date' %(symbol, cutoff_date)
+    df = DB.read_from_sql(query, mysql_engine)
+    df = df.dropna()
+    if len(df) == 0:
+        return {
+            "symbol": symbol,
+            "downs": 0,
+            "ups": 0,
+            "avg": 0,
+            "total": 0,
+        }
+
+    downs, ups, avg, details = 0, 0, 0, []
+    for Date, row in df.iterrows():
+        pc = row["price_change"]
+        avg = avg + abs(pc)
+        if pc is None:
+            continue
+        if pc <= -0.05:
+            downs += 1
+            details.append((row["Date"], "Down", round(pc * 100, 1)))
+        elif pc >= 0.05:
+            ups += 1
+            details.append((row["Date"], "Up", round(pc * 100, 1)))
+
+    avg = round(avg/len(df),2)
+    return {
+        "symbol": symbol,
+        "downs": downs,
+        "ups": ups,
+        "avg": avg,
+        "total": len(df),
+    }
+
+def earnings_price_changes():
+    c = DB.open_db_client()
+    db = c['Stocks']
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+
+    Mn = 1000000
+    Bn = 1000*Mn
+    stocks = db.US_Stocks.find({"$and" : [ \
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_date": {"$exists": False }},\
+                                            #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                            #            {"dates.mysql_price_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            #{"$or": [\
+                                            #            {"dates.mysql_price_pull_date": {"$exists": False }},\
+                                            #            {"dates.mysql_price_pull_date": {"$lt": DB.get_latest_trading_day()}}\
+                                            #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                            #        ]\
+                                            #},\
+                                            {"General.IsDelisted": False},\
+                                            {'General.Type':'Common Stock'},\
+                                            {"$or": [\
+                                                        {'General.Exchange':{"$in":major_exchanges}},\
+                                                        {"$and": [ \
+                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                    {'bscs.tracking':{'$exists':True}}, \
+                                                                ] \
+                                                        },\
+                                                    ]\
+                                            },\
+                                            {'Highlights.MarketCapitalization':{'$gte':5 * Bn}},
+                                            {"$or": [\
+                                                        {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                                        #{'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                        {'failcount.mysql_price_failcount': {'$lt': DB.MAX_FAIL_COUNT}},\
+                                                    ]\
+                                            }
+                                        ]\
+                                }\
+                                ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
+    print("Total stocks: %r" %(stocks.count()))
+    three_year = []
+    all_year = []
+    try: 
+        for stk in stocks:
+            print("%r: %r" %(stk['bscs']['symbol'], stk['General']['Name']))
+            result = analyze_price_changes(mysql_engine, stk['General']['Code'], 3)
+            if result['avg'] >= 0.07:
+                three_year.append(result)
+            #print("3 Years", stk['General']['Code'], stk['General']['Name'], result)
+
+            result = analyze_price_changes(mysql_engine, stk['General']['Code'])
+            if result['avg'] >= 0.07:
+                all_year.append(result)
+            #print("All Years", stk['General']['Code'], stk['General']['Name'], result)
+
+    finally:
+        print("***********************************")
+        print("Three Years")
+        for e in three_year:
+            print(e,"\n")
+        print("***********************************")
+        print("All Years")
+        for e in all_year:
+            print(e, "\n")
+        DB.close_sql_connection(mysql_engine)
+        DB.close_db_client(c)
 if __name__ == "__main__":
+
+    #calc_price_change()
     main()
+    #earnings_price_changes()
 
