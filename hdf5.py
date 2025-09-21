@@ -1076,7 +1076,8 @@ def update_bulk_price_data(stk, stk_df, collection=None, sql_engine=None, i=None
             sem.release()
 
 def add_new_symbol(d, db, sem=None):
-    DB.add_symbol_to_database(d, db, tracking=True, only_mongo=True, technicals=True)
+    # vpeta: Update technicals to True, tracking=True, only_mongo=False after reenabling subscription
+    DB.add_symbol_to_database(d, db, tracking=False, only_mongo=True, technicals=False)
     stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
     stk = stks[0]
     if 'General' in stk.keys() and \
@@ -1186,6 +1187,7 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
                         print("Bulk Update: %r: sno: %r: %r: %r" %(i, stk['sno'], stk['General']['Code'], stk['General']['Name']))
                     except Exception as E:
                         print("bulk_update: error: %s" %(str(E)))
+                        print("Bulk Update: %r: sno: %r: %r" %(i, stk['sno'], stk['bscs']['symbol']))
                     stk_df.index = stk_df['Date']
                     del stk_df['Symbol']
  
@@ -1205,16 +1207,52 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
     print("Checking if any new symbols are added")
     try:
         syms = DB.get_symbols_from_mongo()
-        if len(df) > 0:
-            for index, d in df.iterrows():
-                #stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
-                #if stks.count() == 0:
-                if d['Symbol'] not in syms:
-                    sem.acquire()
-                    #add_new_symbol(d, db, sem)
-                    processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
-                    processes[i%num_processes].start()
-                    i = i + 1
+        #if len(df) > 0:
+        #    for index, d in df.iterrows():
+        #        #stks = db.US_Stocks.find({'bscs.symbol': d['Symbol']})
+        #        #if stks.count() == 0:
+        #        if not pd.isna(d['Symbol']) and d['Symbol'] not in syms:
+        #            sem.acquire()
+        #            add_new_symbol(d, db, sem)
+        #            #processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
+        #            #processes[i%num_processes].start()
+        #            i = i + 1
+        api_token=get_eod_token_id()
+        url = f'https://eodhd.com/api/exchange-symbol-list/US?api_token={api_token}&fmt=json'
+        response = requests.get(url)
+        if response.status_code == 200:
+            tickers = response.json()
+            df = pd.DataFrame(tickers)
+            df.rename(columns={'Code': 'Symbol'}, inplace=True)
+            df = df[df['Type']=='Common Stock']
+            if len(df) > 0:
+                for index, d in df.iterrows():
+                    if not pd.isna(d['Symbol']) and d['Symbol'] not in syms:
+                        sem.acquire()
+                        try:
+                            add_new_symbol(d, db, sem)
+                            #processes[i%num_processes] = multiprocessing.Process(target=add_new_symbol, args=(d, db, sem))
+                            #processes[i%num_processes].start()
+                        except Exception as E:
+                            print(f"Add symbol error: {str(E)}")
+                            if sem:
+                                sem.release()
+                    else:
+                        stocks = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
+                        if stocks.count() > 0:
+                            s = stocks[0]
+                            if 'General' not in s.keys():
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
+                            elif 'General' in s.keys() and 'IsDelisted' not in s['General'].keys():
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
+                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
+
+
     finally:
             for j in range(len(processes)):
                 if processes[j] is not None:

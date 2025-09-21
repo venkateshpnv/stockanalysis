@@ -1715,36 +1715,36 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
 
         #stocks = db.US_Stocks.find({"$and" : [{"$or": [{"dates.mysql_price_date": {"$exists": False }}, {"$and":[{"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}, {"General.IsDelisted": False}]}]}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
         stocks = db.US_Stocks.find({"$and" : [ \
-                                                {"$or": [\
-                                                            {"dates.mysql_price_date": {"$exists": False }},\
-                                                            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
-                                                            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
-                                                        ]\
-                                                },\
-                                                {"$or": [\
-                                                            {"dates.mysql_price_pull_date": {"$exists": False }},\
-                                                            {"dates.mysql_price_pull_date": {"$lt": get_latest_trading_day()}}\
-                                                            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
-                                                        ]\
-                                                },\
-                                                {"General.IsDelisted": False},\
-                                                {'General.Type':'Common Stock'},\
                                                 #{"$or": [\
-                                                #            {'General.Exchange':{"$in":major_exchanges}},\
-                                                #            {"$and": [ \
-                                                #                        {'General.Exchange':{"$nin":major_exchanges}},\
-                                                #                        {'bscs.tracking':{'$exists':True}}, \
-                                                #                    ] \
-                                                #            },\
+                                                #            {"dates.mysql_price_date": {"$exists": False }},\
+                                                #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                                #            {"dates.mysql_price_date": {"$lt": get_latest_trading_day()}}\
                                                 #        ]\
                                                 #},\
-                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                #{"$or": [\
+                                                #            {"dates.mysql_price_pull_date": {"$exists": False }},\
+                                                #            {"dates.mysql_price_pull_date": {"$lt": get_latest_trading_day()}}\
+                                                #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                                #        ]\
+                                                #},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Type':'Common Stock'},\
                                                 {"$or": [\
-                                                            {'failcount.mysql_price_failcount': {"$exists": False}},\
-                                                            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
-                                                            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
                                                         ]\
-                                                }
+                                                },\
+                                                #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
+                                                #{"$or": [\
+                                                #            {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                                #            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                #            {'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                                #        ]\
+                                                #}
                                             ]\
                                     }\
                                     ).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",sort]]).allow_disk_use(True)
@@ -3436,15 +3436,23 @@ def update_all_tech_analysis_params(country='US'):
                                                 {'failcount.mysql_price_failcount': {'$eq': 0}},\
                                                 ]\
                                         },\
-                                        #{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
-                                        #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        ##{'failcount.mysql_price_failcount': {'$lt': MAX_FAIL_COUNT}},\
+                                        ##{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}}, \
+                                        #{'$or':[\
+                                        #        {'technicals.date': {"$exists": False}},\
+                                        #        {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                        #        ]\
+                                        #},\
                                         {'$or':[\
-                                                {'technicals.date': {"$exists": False}},\
-                                                {'technicals.date':{'$lt': get_latest_trading_day()}}
+                                                {'dates.mysql_price_pull_success': {"$exists": False}},\
+                                                {'dates.mysql_price_pull_success':True}, \
                                                 ]\
                                         },\
-                                        {'dates.mysql_price_pull_success':True}, \
-                                        {'dates.mysql_price_date':{'$gte': get_latest_trading_day()}}
+                                        {'$or':[\
+                                                {'dates.mysql_price_pull_date': {"$exists": False}},\
+                                                {'dates.mysql_price_pull_date':{'$gte': get_latest_trading_day()}}, \
+                                                ]\
+                                        },\
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
                                     #]}).batch_size(10).sort([["sno",1]]).allow_disk_use(True)
 
@@ -3833,8 +3841,8 @@ def add_all_stock_data(stk, general_only=False):
     finally:
         close_db_client(c)
 
-# vpetla: Change technicals=True when you resume back your subscription
-def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=False, technicals=False):
+# vpetla: Change technicals=True  and only_mongo to False when you resume back your subscription
+def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_mongo=True, technicals=False):
     local_db    = False
     local_mysql = False
 
@@ -3850,18 +3858,23 @@ def add_symbol_to_database(d, db=None, mysql_engine=None, tracking=False, only_m
     
     sno = db.US_Stocks.find({}).count()
     bscs = {}
+    general = {}
 
     bscs["symbol"] = d['Symbol']
     if 'Name' in d.keys():
         bscs["name"] = d['Name']
     if 'Exchange' in d.keys():
         bscs["exchange"] = d['Exchange']
+        general["Exchange"] = d['Exchange']
     if 'Type' in d.keys():
         bscs["quoteType"] = d['Type']
+        general['Type'] = d['Type']
 
     bscs["since"] = dt.combine(dt.now(), dt.min.time())
+    general['IsDelisted'] = False
+    general['Code'] = d['Symbol']
 
-    stk  = {"bscs" : bscs, "sno": sno}
+    stk  = {"bscs" : bscs, "sno": sno, "General": general}
 
     general_only = False
     #general_only = True
@@ -8997,7 +9010,13 @@ def update_all_stock_betas(country, recession_only=False):
                                                 #            },\
                                                 #        ]\
                                                 #},\
-                                                {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
+
+                                                {'$or':[\
+                                                        {'dates.mysql_price_pull_date': {"$exists": False}},\
+                                                        {"dates.mysql_price_pull_date": {"$gte": get_previous_trading_day()}},\
+                                                        ]\
+
+                                                },\
                                                 #{'dates.technicals_pull_date': {'$gte':get_latest_trading_day()}},\
                                                 {"$or": [\
                                                             {"dates.betas_calc_date_recession_only": {"$exists": False }},\

@@ -7,7 +7,7 @@ if __name__ == "__main__":
     print("Date: %r" %(str(dt.now())))
     if is_holiday():
         print("Holiday today")
-        sys.exit()
+        sys.exit(0)
 
     DB.update_all_technicals()
     print("Date: %r" %(str(dt.now())))
