@@ -969,6 +969,15 @@ def fork_hdf5_process(country):
     processes = [None]*num_processes
 
     try:
+        ## ETFs are not Common Stock, so update them explicitly before the
+        ## regular stock query below.
+        #for k in etfs:
+        #    etf_docs = collection.find({'bscs.symbol': k}, no_cursor_timeout=True).batch_size(10).sort([["sno", 1]])
+        #    if etf_docs.count() == 1:
+        #        etf_stk = etf_docs[0]
+        #        print("Price Change: ETF: %r, Name: %r" %(etf_stk['bscs']['symbol'], etf_stk['General']['Name']))
+        #        update_price_change(country, copy.deepcopy(etf_stk), 0, sem=None, index=False)
+
         #Indices
         for i, k in enumerate(indices.keys()):
             stk['bscs']['symbol']  = k
@@ -3902,5 +3911,3 @@ def get_symbol_and_sector(stk):
             stk['bscs']['sector'] = sheet.cell_value(i,7)
             return
     PRINT_ERR("Cant find symbol name for %s" %(stk['bscs']['bse_symbol']))
-
-

@@ -1673,7 +1673,16 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
             order = 1
         else:
             order = -1
- 
+
+        for k in etfs:
+            stocks = collection.find({'bscs.symbol':k},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+            if stocks.count() == 1:
+                stk = stocks[0]
+                sem.acquire()
+                hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=True)
+                #processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token))
+                #processes[i%num_processes].start()
+
         #Update Indices First
         for k in indices.keys():
             stk = {}
@@ -3408,6 +3417,19 @@ def update_all_tech_analysis_params(country='US'):
     num_processes = num_cores #* 2
     sem = multiprocessing.BoundedSemaphore(num_processes)
     processes = [None]*num_processes
+
+    try:
+        # ETFs are not Common Stock, so update them explicitly before the
+        # regular stock query below.
+        for k in etfs:
+            etf_docs = db.US_Stocks.find({'bscs.symbol': k}, no_cursor_timeout=True).batch_size(10).sort([["sno", 1]])
+            if etf_docs.count() == 1:
+                stk = etf_docs[0]
+                print("Tech analysis params: ETF: %r, Name: %r" %(stk['bscs']['symbol'], stk['General']['Name']))
+                update_tech_analysis_params(stk['bscs']['symbol'], 0, sem=None)
+    except Exception as E:
+        print("Update_all_tech_analysis_params ETFs: error: %s" %(str(E)))
+        pass
 
     try:
         #Indices
@@ -9894,7 +9916,10 @@ def update_all_US_fin_percent_change():
             #if i > 8:
             #    break
             sem.acquire()
-            print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            try:
+                print("%d: %r: %r" %(i, stk['bscs']['symbol'], stk['General']['Name']))
+            except:
+                pass
             #US_fin_percent_change(mysql_engine, db, stk, sem)
             #US_fin_percent_per_process(stk, sem)
             processes[i%num_processes] = multiprocessing.Process(target=US_fin_percent_per_process, args=(stk, sem, i%num_cores,))
