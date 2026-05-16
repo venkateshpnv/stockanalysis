@@ -19,6 +19,7 @@ import pymysql
 import sys
 
 import time
+import threading
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
 import numpy as np
@@ -34,6 +35,7 @@ import DB
 from datastructures import *
 import queue
 import warnings
+from http.client import RemoteDisconnected
 
 # Suppress all warnings
 warnings.filterwarnings('ignore')
@@ -41,10 +43,25 @@ warnings.filterwarnings('ignore')
 # Constants
 RATE_LIMIT = 1200
 TIME_WINDOW = 60  # seconds
+PER_SECOND_RATE_LIMIT = 5
+PER_SECOND_TIME_WINDOW = 1  # second
 RATE_FILE = Path("/tmp/alpha_vantage_rate.json")
 
 # CONFIGURATION
 API_KEY = ''
+#FREE API KEY
+# API_KEY = 'T42G3VDN11BAGNWD'
+
+# 75 calls per min key
+# NEW KEY
+# API_KEY = 'XXXXXXXXXXX'
+
+#PREMIUM KEY 'QV59YK6LOZIOA3KL'
+
+# petlanvenkatesh free key
+#API KEY = 'T1ODHXVLSD93IMYO'
+# Premium API KEY = 'EJBQZ1CMTM557L6E'
+
 try:
     with open('/home/vpetla/alphavantage_token_file.txt', 'r') as f:
         API_KEY = f.read().strip()
@@ -52,6 +69,11 @@ try:
         print("WARNING: API key file is empty.")
 except Exception as e:
     print(f"ERROR: Could not read API key from file: {e}")
+
+## 75 calls per min key
+#API_KEY = 'QV59YK6LOZIOA3KL'
+#RATE_LIMIT = 70
+#RATE_FILE = Path("/tmp/alpha_vantage_rate_75.json")
 
 if not API_KEY:
     print("WARNING: Using placeholder API key. Please provide valid key in /home/vpetla/alphavantage_token_file.txt")
@@ -113,45 +135,55 @@ def read_value_from_file(file_path):
 
 #ratelimit_event = threading.Event()
 def log_request(sym, ratelimit_event):
-    with rate_lock:
-        now = time.time()
-
-        # Read current timestamps
-        if RATE_FILE.exists():
-            with open(RATE_FILE, "r") as f:
-                try:
-                    timestamps = json.load(f)
-                except json.JSONDecodeError:
-                    timestamps = []
-        else:
-            timestamps = []
-
-        # Remove timestamps older than TIME_WINDOW
-        timestamps = [ts for ts in timestamps if now - ts < TIME_WINDOW]
-
-        # If limit exceeded, wait
-        if len(timestamps) >= RATE_LIMIT:
-            wait_time = TIME_WINDOW - (now - min(timestamps)) + 3
-            print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit hit. Sleeping {wait_time:.2f}s")
-            ratelimit_event.clear()
-            time.sleep(wait_time)
-            print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit wait over. Resuming")
-            ratelimit_event.set()
-            with open(RATE_FILE, "w") as f:
-                pass
+    while True:
+        with rate_lock:
             now = time.time()
-            #timestamps = [ts for ts in timestamps if now - ts < TIME_WINDOW]
-            timestamps = []
 
-        # Add new timestamp and write back
-        timestamps.append(now)
-        with open(RATE_FILE, "w") as f:
-            json.dump(timestamps, f)
+            # Read current timestamps
+            if RATE_FILE.exists():
+                with open(RATE_FILE, "r") as f:
+                    try:
+                        timestamps = json.load(f)
+                    except json.JSONDecodeError:
+                        timestamps = []
+            else:
+                timestamps = []
+
+            # Remove timestamps older than the longest active window.
+            timestamps = [ts for ts in timestamps if now - ts < TIME_WINDOW]
+            minute_timestamps = timestamps
+            second_timestamps = [ts for ts in timestamps if now - ts < PER_SECOND_TIME_WINDOW]
+
+            wait_time = 0
+            if len(second_timestamps) >= PER_SECOND_RATE_LIMIT:
+                wait_time = max(wait_time, PER_SECOND_TIME_WINDOW - (now - min(second_timestamps)))
+            if len(minute_timestamps) >= RATE_LIMIT:
+                wait_time = max(wait_time, TIME_WINDOW - (now - min(minute_timestamps)) + 3)
+
+            if wait_time <= 0:
+                # Add new timestamp and write back before the caller sends the request.
+                timestamps.append(now)
+                with open(RATE_FILE, "w") as f:
+                    json.dump(timestamps, f)
+                return
+
+        print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit hit. Sleeping {wait_time:.2f}s")
+        ratelimit_event.clear()
+        time.sleep(wait_time)
+        print(f"[^^^^^^^^^^^^^^^^^^^^^^^^^^^^{sym} : PID {os.getpid()}] Rate limit wait over. Resuming")
+        ratelimit_event.set()
+
+def alphavantage_get(url, sym, ratelimit_event, session=None, **kwargs):
+    log_request(sym, ratelimit_event)
+    if session is None:
+        return requests.get(url, **kwargs)
+    return session.get(url, **kwargs)
 
 stop_event = threading.Event()
 def log_rate_forever():
     while not stop_event.is_set():
-        time.sleep(60)
+        if stop_event.wait(60):
+            break
         if RATE_FILE.exists():
             with open(RATE_FILE, "r") as f:
                 try:
@@ -260,6 +292,7 @@ def create_and_check_indexes(engine, table_name):
 
 SENTINEL = None
 BATCH_SIZE = 10000
+BUFFER_FLUSH_INTERVAL_SECONDS = 180
 
 def db_writer_worker_old(sql_engine, table_name, write_queue, shutdown_flag):
     #conn = sql_engine.connect()
@@ -309,6 +342,7 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag, ratelim
     buffer = []
     total_inserted = 0
     total_duration = 0.0
+    last_flush_time = time.monotonic()
 
     print(f"db_write_worker started for {table_name}")
     try:
@@ -324,7 +358,9 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag, ratelim
                 pass
 
             #if len(buffer) >= BATCH_SIZE:# or (shutdown_flag.is_set() and buffer):
-            if len(buffer) >= BATCH_SIZE or (ratelimit_event.is_set() is False and buffer):
+            time_since_flush = time.monotonic() - last_flush_time
+            should_flush_by_time = buffer and time_since_flush >= BUFFER_FLUSH_INTERVAL_SECONDS
+            if len(buffer) >= BATCH_SIZE or (ratelimit_event.is_set() is False and buffer) or should_flush_by_time:
                 try:
                     keys = buffer[0].keys()
                     placeholders = ', '.join(f":{col}" for col in keys)
@@ -355,6 +391,9 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag, ratelim
                                 f"→ {batch_size / duration:.2f} rows/sec and waiting")
                         ratelimit_event.wait()
                         print(f"[{table_name}] Ratelimit event cleared, resuming")
+                    elif should_flush_by_time:
+                        print(f"[{table_name}] Time flush: Inserted {batch_size} rows in {duration:.4f} seconds "
+                          f"→ {batch_size / duration:.2f} rows/sec")
                     else:
                         print(f"[{table_name}] Inserted {batch_size} rows in {duration:.4f} seconds "
                           f"→ {batch_size / duration:.2f} rows/sec")
@@ -366,6 +405,7 @@ def db_writer_worker(sql_engine, table_name, write_queue, shutdown_flag, ratelim
                     sys.exit(1)
                 finally:
                     buffer.clear()
+                    last_flush_time = time.monotonic()
 
     finally:
         if buffer:  # Write remaining records
@@ -536,11 +576,53 @@ def create_or_patch_table(engine, table_name):
             #    conn.execute(text(f"ALTER TABLE {table_name} ADD INDEX symbol_date_index (symbol, date)"))
     create_and_check_indexes(engine, table_name)
 
-def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag, ratelimit_event):
-    """Fetches option data for a given symbol and date range and directly inserts it into the database."""
+def find_first_valid_date(symbol, start_date, end_date, ratelimit_event):
     cal = USFederalHolidayCalendar()
     holidays = cal.holidays(start=start_date, end=end_date).to_pydatetime()
     business_days = pd.date_range(start=start_date, end=end_date, freq='B').difference(pd.to_datetime(holidays))
+
+    if business_days.empty:
+        return None
+
+    def has_options_data(current_date):
+        date_str = current_date.strftime('%Y-%m-%d')
+        url = f'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={symbol}&date={date_str}&apikey={API_KEY}'
+        try:
+            response = alphavantage_get(url, symbol, ratelimit_event)
+            data = response.json()
+        except Exception as e:
+            print(f"Error checking {date_str}: {e}")
+            return False
+        return len(data.get('data', [])) > 0
+
+    left = 0
+    right = len(business_days) - 1
+    first_valid_date = None
+
+    while left <= right:
+        mid = (left + right) // 2
+        current_date = business_days[mid]
+
+        if has_options_data(current_date):
+            first_valid_date = current_date
+            right = mid - 1
+        else:
+            left = mid + 1
+
+    return first_valid_date  # No valid date found if None
+
+def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, db, engine, table_name, write_queue, shutdown_flag, ratelimit_event):
+    """Fetches option data for a given symbol and date range and directly inserts it into the database."""
+    #first_valid_date = start_date
+    first_valid_date = find_first_valid_date(symbol, start_date, end_date, ratelimit_event)
+    if not first_valid_date:
+        print("No records found in the given date range for symbol {symbol}.")
+        return
+    print("First valid date for {symbol} is {first_valid_date}")
+
+    cal = USFederalHolidayCalendar()
+    holidays = cal.holidays(start=first_valid_date, end=end_date).to_pydatetime()
+    business_days = pd.date_range(start=first_valid_date, end=end_date, freq='B').difference(pd.to_datetime(holidays))
 
     #ratelimit_event = threading.Event()
     #ratelimit_event.set()
@@ -549,286 +631,332 @@ def fetch_and_insert_records(i, symbol, start_date, end_date, request_times, eng
 
     zero_records_cnt = 0
     session = get_session_with_retries()
-    if not business_days.empty:
-        for current_date in business_days:
-            date_str = current_date.strftime('%Y-%m-%d')
-            URL = f'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={symbol}&date={date_str}&apikey={API_KEY}'
-            #while True:
-            #    now = time.time()
-            #    #if len(request_times) >= 75:
-            #    #    print(f"Symbol {symbol} has reached the request limit. Waiting for the oldest request to expire.")
-            #    #    oldest_time = request_times[0]
-            #    #    if now - oldest_time < 60:
-            #    #        time.sleep(60 - (now - oldest_time))
-            #    #    else:
-            #    #        request_times.popleft()
-            #    #request_times.append(now)
-            #    break
-            #print(f"{symbol}: waiting on log_request") 
-            log_request(symbol, ratelimit_event)
-            #print(f"{symbol}: Sending request")
+
+    def enqueue_record(record):
+        while True:
+            if not db_thread.is_alive():
+                raise RuntimeError(f"{table_name}: DB writer thread stopped; refusing to block on write_queue")
             try:
-                response = session.get(URL, timeout=10)
-            except RemoteDisconnected:
-                print(f"[{symbol}] RemoteDisconnected: Retrying after 10s...")
-                time.sleep(100)
-                response = session.get(URL, timeout=10)
-                continue
-            except requests.exceptions.RequestException as e:
-                print(f"[{symbol}] Request failed: {e}")
-                time.sleep(100)
-                response = session.get(URL, timeout=10)
-                continue
-
-            #response = requests.get(URL)
-            if response.status_code != 200:
-                print(f"Failed to get response for url {URL}")
+                write_queue.put(record, timeout=60)
                 return
-            #else:
-            #    print(f"Got response for url {URL}")
-            data = response.json()
-            if 'Note' in data or 'Information' in data:
-                print("Looks like ratelimit have reached wait for a second")
-                time.sleep(20)
-                response = requests.get(URL)
+            except queue.Full:
+                print(f"{table_name}: write_queue is full; waiting for DB writer to catch up")
+
+    try:
+        if not business_days.empty:
+            for current_date in business_days:
+                date_str = current_date.strftime('%Y-%m-%d')
+                URL = f'https://www.alphavantage.co/query?function=HISTORICAL_OPTIONS&symbol={symbol}&date={date_str}&apikey={API_KEY}'
+                #while True:
+                #    now = time.time()
+                #    #if len(request_times) >= 75:
+                #    #    print(f"Symbol {symbol} has reached the request limit. Waiting for the oldest request to expire.")
+                #    #    oldest_time = request_times[0]
+                #    #    if now - oldest_time < 60:
+                #    #        time.sleep(60 - (now - oldest_time))
+                #    #    else:
+                #    #        request_times.popleft()
+                #    #request_times.append(now)
+                #    break
+                #print(f"{symbol}: Sending request")
+                try:
+                    response = alphavantage_get(URL, symbol, ratelimit_event, session=session, timeout=10)
+                except RemoteDisconnected:
+                    print(f"[{symbol}] RemoteDisconnected: Retrying after 100s...")
+                    time.sleep(100)
+                    response = alphavantage_get(URL, symbol, ratelimit_event, session=session, timeout=10)
+                except requests.exceptions.RequestException as e:
+                    print(f"[{symbol}] Request failed: {e}")
+                    time.sleep(100)
+                    response = alphavantage_get(URL, symbol, ratelimit_event, session=session, timeout=10)
+
+                #response = requests.get(URL)
+                if response.status_code != 200:
+                    print(f"Failed to get response for url {URL}")
+                    return
+                #else:
+                #    print(f"Got response for url {URL}")
                 data = response.json()
-            if 'data' in data:
-                num_records = len(data['data'])
-                print(f"{i}: {dt.now()}: {symbol}: {date_str}, num_records: {num_records}")
-                if num_records == 0:
-                    #print(f"{symbol}: Exiting *****************************************")
-                    zero_records_cnt += 1
-                    if zero_records_cnt >= 5:
-                        print(f"{symbol}: Continuously 5 zero record requests, Exiting *****************************************")
-                        write_queue.put(SENTINEL)
-                        write_queue.join()
-                        db_thread.join()
-                        return
-                    continue
+                if 'Note' in data or 'Information' in data:
+                    print("Looks like ratelimit have reached wait for a second")
+                    time.sleep(20)
+                    response = alphavantage_get(URL, symbol, ratelimit_event, session=session, timeout=10)
+                    data = response.json()
+                if 'data' in data:
+                    num_records = len(data['data'])
+                    print(f"{i}: {dt.now()}: {symbol}: {date_str}, num_records: {num_records}")
+                    if num_records == 0:
+                        zero_records_cnt += 1
+                        DB.update_field(db.US_Stocks, symbol, "dates.options_pull_latest_entry_date", dt.combine(current_date, dt.min.time()))
+                        ##print(f"{symbol}: Exiting *****************************************")
+                        #if zero_records_cnt >= 5:
+                        #    print(f"{symbol}: Continuously 5 zero record requests,incrementing to year *****************************************")
+                        #    write_queue.put(SENTINEL)
+                        #    write_queue.join()
+                        #    db_thread.join()
+                        #    return
+                        continue
+                    else:
+                        zero_records_cnt = 0
+                    #conn  = engine.connect()
+                    #with engine.begin() as conn:
+                    if True:
+                        for opt in data.get('data', []):
+                            try:
+                                try:
+                                    strike = float(opt['strike'])
+                                except Exception as e:
+                                    print(f"Error parsing strike for {symbol} on {date_str}, setting -1: {e}")
+                                    strike = -1
+                                try:
+                                    last = float(opt.get('last', 0))
+                                except Exception as e:
+                                    print(f"Error parsing last for {symbol} on {date_str}, setting -1: {e}")
+                                    last = -1
+                                try:
+                                    mark = float(opt.get('mark', 0))
+                                except Exception as e:
+                                    print(f"Error parsing mark for {symbol} on {date_str}, setting -1: {e}")
+                                    mark = -1
+                                try:
+                                    bid = float(opt.get('bid', 0))
+                                except Exception as e:
+                                    print(f"Error parsing bid for {symbol} on {date_str}, setting -1: {e}")
+                                    bid = -1
+                                try:
+                                    bid_size = int(opt.get('bid_size', 0))
+                                except Exception as e:
+                                    print(f"Error parsing bid_size for {symbol} on {date_str}, setting -1: {e}")
+                                    bid_size = -1
+                                try:
+                                    ask = float(opt.get('ask', 0))
+                                except Exception as e:
+                                    print(f"Error parsing ask for {symbol} on {date_str}, setting -1: {e}")
+                                    ask = -1
+                                try:
+                                    ask_size = int(opt.get('ask_size', 0))
+                                except Exception as e:
+                                    print(f"Error parsing ask_size for {symbol} on {date_str}, setting -1: {e}")
+                                    ask_size = -1
+                                try:
+                                    volume = int(opt.get('volume', 0))
+                                except Exception as e:
+                                    print(f"Error parsing volume for {symbol} on {date_str}, setting -1: {e}")
+                                    volume = -1
+                                try:
+                                    open_interest = int(opt.get('open_interest', 0))
+                                except Exception as e:
+                                    print(f"Error parsing open_interest for {symbol} on {date_str}, setting -1: {e}")
+                                    open_interest = -1
+                                try:
+                                    implied_volatility = float(opt.get('implied_volatility', 0))
+                                except Exception as e:
+                                    print(f"Error parsing implied_volatility for {symbol} on {date_str}, setting -1: {e}")
+                                    implied_volatility = -1
+                                try:
+                                    delta = float(opt.get('delta', 0))
+                                except Exception as e:
+                                    print(f"Error parsing delta for {symbol} on {date_str}, setting -1: {e}")
+                                    delta = -1
+                                try:
+                                    gamma = float(opt.get('gamma', 0))
+                                except Exception as e:
+                                    print(f"Error parsing gamma for {symbol} on {date_str}, setting -1: {e}")
+                                    gamma = -1
+                                try:
+                                    theta = float(opt.get('theta', 0))
+                                except Exception as e:
+                                    print(f"Error parsing theta for {symbol} on {date_str}, setting -1: {e}")
+                                    theta = -1
+                                try:
+                                    vega = float(opt.get('vega', 0))
+                                except Exception as e:
+                                    print(f"Error parsing vega for {symbol} on {date_str}, setting -1: {e}")
+                                    vega = -1
+                                try:
+                                    rho = float(opt.get('rho', 0))
+                                except Exception as e:
+                                    print(f"Error parsing rho for {symbol} on {date_str}, setting -1: {e}")
+                                    rho = -1
+
+                                record = {
+                                    'contractID': opt['contractID'],
+                                    #'symbol': opt['symbol'],
+                                    'expiration': dt.strptime(opt['expiration'], '%Y-%m-%d').date(),
+                                    'strike': strike,
+                                    'type': opt['type'],
+                                    'last': last,
+                                    'mark': mark,
+                                    'bid': bid,
+                                    'bid_size': bid_size,
+                                    'ask': ask,
+                                    'ask_size': ask_size,
+                                    'volume': volume,
+                                    'open_interest': open_interest,
+                                    'date': dt.strptime(opt['date'], '%Y-%m-%d').date(),
+                                    'implied_volatility': implied_volatility,
+                                    'delta': delta,
+                                    'gamma': gamma,
+                                    'theta': theta,
+                                    'vega': vega,
+                                    'rho': rho
+                                }
+                                # Insert directly into the database
+                                placeholders = ', '.join(f":{col}" for col in record)
+                                columns = ', '.join(f"`{col}`" for col in record)
+                                sql = text(f"""
+                                    INSERT IGNORE INTO `{table_name}` ({columns})
+                                    VALUES ({placeholders})
+                                """)
+                                #print(record)
+                                #trans = conn.begin()
+
+                                #conn.execute(sql, record)
+                                enqueue_record(record)
+                                #trans.commit()
+                            except RuntimeError as e:
+                                print(f"{table_name} : {str(e)}")
+                                raise
+                            except IntegrityError as e:
+                                print(f"{table_name} : Record already exist")
+                            except sqlite3.OperationalError as e:
+                                #conn.rollback()
+                                print(f"{table_name} : Operational error like connection lost etci, error: {str(e)}")
+                                sys.exit(1)
+                            except sqlite3.ProgrammingError as e:
+                                #conn.rollback()
+                                print(f"{table_name} : Programatical error: {str(e)}")
+                                sys.exit(1)
+                            except Exception as e:
+                                #conn.rollback()
+                                print(f"{table_name} : DB write failed: {str(e)}")
+                                #sys.exit(1)
+                        #conn.close()
                 else:
-                    zero_records_cnt = 0
-                #conn  = engine.connect()
-                #with engine.begin() as conn:
-                if True:
-                    for opt in data.get('data', []):
-                        try:
-                            try:
-                                strike = float(opt['strike'])
-                            except Exception as e:
-                                print(f"Error parsing strike for {symbol} on {date_str}, setting -1: {e}")
-                                strike = -1
-                            try:
-                                last = float(opt.get('last', 0))
-                            except Exception as e:
-                                print(f"Error parsing last for {symbol} on {date_str}, setting -1: {e}")
-                                last = -1
-                            try:
-                                mark = float(opt.get('mark', 0))
-                            except Exception as e:
-                                print(f"Error parsing mark for {symbol} on {date_str}, setting -1: {e}")
-                                mark = -1
-                            try:
-                                bid = float(opt.get('bid', 0))
-                            except Exception as e:
-                                print(f"Error parsing bid for {symbol} on {date_str}, setting -1: {e}")
-                                bid = -1
-                            try:
-                                bid_size = int(opt.get('bid_size', 0))
-                            except Exception as e:
-                                print(f"Error parsing bid_size for {symbol} on {date_str}, setting -1: {e}")
-                                bid_size = -1
-                            try:
-                                ask = float(opt.get('ask', 0))
-                            except Exception as e:
-                                print(f"Error parsing ask for {symbol} on {date_str}, setting -1: {e}")
-                                ask = -1
-                            try:
-                                ask_size = int(opt.get('ask_size', 0))
-                            except Exception as e:
-                                print(f"Error parsing ask_size for {symbol} on {date_str}, setting -1: {e}")
-                                ask_size = -1
-                            try:
-                                volume = int(opt.get('volume', 0))
-                            except Exception as e:
-                                print(f"Error parsing volume for {symbol} on {date_str}, setting -1: {e}")
-                                volume = -1
-                            try:
-                                open_interest = int(opt.get('open_interest', 0))
-                            except Exception as e:
-                                print(f"Error parsing open_interest for {symbol} on {date_str}, setting -1: {e}")
-                                open_interest = -1
-                            try:
-                                implied_volatility = float(opt.get('implied_volatility', 0))
-                            except Exception as e:
-                                print(f"Error parsing implied_volatility for {symbol} on {date_str}, setting -1: {e}")
-                                implied_volatility = -1
-                            try:
-                                delta = float(opt.get('delta', 0))
-                            except Exception as e:
-                                print(f"Error parsing delta for {symbol} on {date_str}, setting -1: {e}")
-                                delta = -1
-                            try:
-                                gamma = float(opt.get('gamma', 0))
-                            except Exception as e:
-                                print(f"Error parsing gamma for {symbol} on {date_str}, setting -1: {e}")
-                                gamma = -1
-                            try:
-                                theta = float(opt.get('theta', 0))
-                            except Exception as e:
-                                print(f"Error parsing theta for {symbol} on {date_str}, setting -1: {e}")
-                                theta = -1
-                            try:
-                                vega = float(opt.get('vega', 0))
-                            except Exception as e:
-                                print(f"Error parsing vega for {symbol} on {date_str}, setting -1: {e}")
-                                vega = -1
-                            try:
-                                rho = float(opt.get('rho', 0))
-                            except Exception as e:
-                                print(f"Error parsing rho for {symbol} on {date_str}, setting -1: {e}")
-                                rho = -1
-
-                            record = {
-                                'contractID': opt['contractID'],
-                                #'symbol': opt['symbol'],
-                                'expiration': dt.strptime(opt['expiration'], '%Y-%m-%d').date(),
-                                'strike': strike,
-                                'type': opt['type'],
-                                'last': last,
-                                'mark': mark,
-                                'bid': bid,
-                                'bid_size': bid_size,
-                                'ask': ask,
-                                'ask_size': ask_size,
-                                'volume': volume,
-                                'open_interest': open_interest,
-                                'date': dt.strptime(opt['date'], '%Y-%m-%d').date(),
-                                'implied_volatility': implied_volatility,
-                                'delta': delta,
-                                'gamma': gamma,
-                                'theta': theta,
-                                'vega': vega,
-                                'rho': rho
-                            }
-                            # Insert directly into the database
-                            placeholders = ', '.join(f":{col}" for col in record)
-                            columns = ', '.join(f"`{col}`" for col in record)
-                            sql = text(f"""
-                                INSERT IGNORE INTO `{table_name}` ({columns})
-                                VALUES ({placeholders})
-                            """)
-                            #print(record)
-                            #trans = conn.begin()
-
-                            #conn.execute(sql, record)
-                            write_queue.put(record)
-                            #trans.commit()
-                        except IntegrityError as e:
-                            print(f"{table_name} : Record already exist")
-                        except sqlite3.OperationalError as e:
-                            #conn.rollback()
-                            print(f"{table_name} : Operational error like connection lost etci, error: {str(e)}")
-                            sys.exit(1)
-                        except sqlite3.ProgrammingError as e:
-                            #conn.rollback()
-                            print(f"{table_name} : Programatical error: {str(e)}")
-                            sys.exit(1)
-                        except Exception as e:
-                            #conn.rollback()
-                            print(f"{table_name} : DB write failed: {str(e)}")
-                            #sys.exit(1)
-                    #conn.close()
-            else:
-                print(f"No data for {symbol} on {date_str}. Response: {data}")
-            time.sleep(1)
-
-    #print(f"{i}: {table_name}: Joining db thread")
-    shutdown_flag.set()
-    write_queue.put(SENTINEL)
-    write_queue.join()
-    db_thread.join()
+                    print(f"No data for {symbol} on {date_str}. Response: {data}")
+                time.sleep(1)
+    finally:
+        #print(f"{i}: {table_name}: Joining db thread")
+        shutdown_flag.set()
+        if db_thread.is_alive():
+            while True:
+                try:
+                    write_queue.put(SENTINEL, timeout=60)
+                    break
+                except queue.Full:
+                    print(f"{table_name}: write_queue is full while shutting down; waiting")
+                    if not db_thread.is_alive():
+                        break
+            if db_thread.is_alive():
+                write_queue.join()
+                db_thread.join()
+        else:
+            print(f"{table_name}: DB writer thread already stopped; skipping write_queue.join()")
     #print(f"{i}: {table_name}: Joining db thread completed")
 
 def process_symbol(sem, i, stk, cpu_affinity, request_times, ratelimit_event):
-    if cpu_affinity is not None:
-        try:
-            os.sched_setaffinity(0, {cpu_affinity})
-        except AttributeError:
-            pass
+    c = None
+    engine = None
+    symbol = stk['bscs']['symbol']
 
-    engine = DB.open_sql_connection('10.89.45.31', 'vpetla', 'petla123', db='US_Stocks_Options')
-    inspector = inspect(engine)
-    #write_queue = queue.Queue(maxsize=1000000)
-    #write_queue = queue.Queue(80000)
-    write_queue = queue.Queue(maxsize=200_000) 
-    shutdown_flag = threading.Event()
-
-    end_date = dt.now().date()
-
-    table_name = f"STK{stk['bscs']['symbol']}"
-    create_or_patch_table(engine, table_name)
-    #sem.release()
-    #write_queue.join()
-    #shutdown_flag.set()
-    #engine.dispose()
-    #print(f"{i} : Finished processing {stk['bscs']['symbol']}")
-    #return
-    if table_name not in inspector.get_table_names():
-        if 'General' in stk.keys() and 'IPODate' in stk['General'].keys():
+    try:
+        if cpu_affinity is not None:
             try:
-                start_date = dt.strptime(stk['General']['IPODate'], "%Y-%m-%d").date()
-                if start_date < dt(2008, 1, 1).date():
-                    start_date = dt(2008, 1, 1).date()
-            except Exception as E:
-                start_date = dt(2008, 1, 1).date()
-    else:
-        with engine.connect() as conn:
-            try:
-                latest_date_result = conn.execute(text(f"SELECT MAX(date) FROM {table_name}")).fetchone()
-            except Exception as e:
-                print(f"{i}: {stk['bscs']['symbol']}: Error : {str(e)}")
-                print(f"{i}: {stk['bscs']['symbol']}: Releasing semaphore")
-                if sem:
-                    sem.release()
-                return
-            latest_date = latest_date_result[0]
-            ipo_date = dt(2008, 1, 1).date()
+                os.sched_setaffinity(0, {cpu_affinity})
+            except AttributeError:
+                pass
+
+        c = open_db_client()
+        db = c['Stocks']
+        engine = DB.open_sql_connection('10.89.45.31', 'vpetla', 'petla123', db='US_Stocks_Options')
+        inspector = inspect(engine)
+        #write_queue = queue.Queue(maxsize=1000000)
+        #write_queue = queue.Queue(80000)
+        write_queue = queue.Queue(maxsize=200_000)
+        shutdown_flag = threading.Event()
+
+        end_date = dt.now().date()
+
+        table_name = f"STK{symbol}"
+        create_or_patch_table(engine, table_name)
+        #write_queue.join()
+        #shutdown_flag.set()
+        #print(f"{i} : Finished processing {symbol}")
+        #return
+        if table_name not in inspector.get_table_names():
             if 'General' in stk.keys() and 'IPODate' in stk['General'].keys():
                 try:
-                    ipo_date = dt.strptime(stk['General']['IPODate'], "%Y-%m-%d").date()
-                    if ipo_date < dt(2008, 1, 1).date():
-                        ipo_date = dt(2008, 1, 1).date()
+                    start_date = dt.strptime(stk['General']['IPODate'], "%Y-%m-%d").date()
+                    if start_date < dt(2008, 1, 1).date():
+                        start_date = dt(2008, 1, 1).date()
                 except Exception as E:
-                    ipo_date = dt(2008, 1, 1).date()
-
-            start_date = latest_date if latest_date else ipo_date
-            #start_date = latest_date + timedelta(days=1) if latest_date else dt(2008, 1, 1).date()
-    print(f"{i}:{table_name} : start_date: {start_date}") 
-    if start_date <= end_date:
-        fetch_and_insert_records(i, stk['bscs']['symbol'], start_date, end_date, request_times, engine, table_name, write_queue, shutdown_flag, ratelimit_event)
-    if sem:
-        print(f"{i}: {stk['bscs']['symbol']}: Releasing semaphore")
-        sem.release()
-
-    #shutdown_flag.set()
-    engine.dispose()
-    print(f"{i} : Finished processing {stk['bscs']['symbol']}")
+                    start_date = dt(2008, 1, 1).date()
+            else:
+                start_date = dt(2008, 1, 1).date()
+        else:
+            with engine.connect() as conn:
+                try:
+                    latest_date_result = conn.execute(text(f"SELECT MAX(date) FROM {table_name}")).fetchone()
+                except Exception as e:
+                    print(f"{i}: {symbol}: Error : {str(e)}")
+                    return
+                latest_date = latest_date_result[0]
+                stks = db.US_Stocks.find({"bscs.symbol": symbol})
+                ipo_date = dt(2008, 1, 1).date()
+                last_pull_date = ipo_date
+                if stks.count() > 0:
+                    stk = stks[0]
+                    if 'options_pull_latest_entry_date' in stk['dates'].keys():
+                        last_pull_date = stk['dates']['options_pull_latest_entry_date'] + timedelta(days=1)
+                        last_pull_date = last_pull_date.date()
+                    else:
+                        if 'General' in stk.keys() and 'IPODate' in stk['General'].keys():
+                            try:
+                                ipo_date = dt.strptime(stk['General']['IPODate'], "%Y-%m-%d").date()
+                                if ipo_date < dt(2008, 1, 1).date():
+                                    ipo_date = dt(2008, 1, 1).date()
+                                last_pull_date = ipo_date
+                            except Exception as E:
+                                last_pull_date = dt(2008, 1, 1).date()
+                else:
+                    return
+                if not latest_date or last_pull_date > latest_date:
+                    start_date = last_pull_date
+                else:
+                    start_date = latest_date
+                #start_date = latest_date if latest_date else last_pull_date
+                #start_date = latest_date + timedelta(days=1) if latest_date else dt(2008, 1, 1).date()
+        print(f"{i}:{table_name} : start_date: {start_date}")
+        if start_date <= end_date:
+            fetch_and_insert_records(i, symbol, start_date, end_date, request_times, db, engine, table_name, write_queue, shutdown_flag, ratelimit_event)
+        print(f"{i} : Finished processing {symbol}")
+    finally:
+        if sem:
+            print(f"{i}: {symbol}: Releasing semaphore")
+            sem.release()
+        if engine:
+            engine.dispose()
+        if c:
+            close_db_client(c)
 
 if __name__ == "__main__":
     c = open_db_client()
     db = c['Stocks']
     collection = get_collection('US', db)
+    engine = DB.open_sql_connection('10.89.45.31', 'vpetla', 'petla123', db='US_Stocks_Options')
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
 
     ratelimit_event = threading.Event()
     ratelimit_event.set()
 
-    num_cores = multiprocessing.cpu_count()
-    num_cores = 30
-    sem = multiprocessing.BoundedSemaphore(num_cores)
+    worker_count = 30
+    sem = multiprocessing.BoundedSemaphore(worker_count)
+    processes = []
+
     manager = Manager()
     request_times = manager.list(deque(maxlen=75))
     i = 0
-    num_cores = multiprocessing.cpu_count()
     sort = 1
     #stocks = db.US_Stocks.find({"$and" : [
     #                                        {"General.IsDelisted": False},
@@ -881,34 +1009,85 @@ if __name__ == "__main__":
                     #            },\
                     #        ]\
                     #},\
-                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                    {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
                 ]
 
     stocks = db.US_Stocks.find({'$and':conditions}, no_cursor_timeout=True).sort([["Highlights.MarketCapitalization",-1]]).batch_size(10).allow_disk_use(True)
-    #stocks = collection.find({'bscs.symbol':'NFLX'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+    #stocks = collection.find({'bscs.symbol':'TLK'},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
     print("Total non-bulk stocks: %r" %(stocks.count()))
 
 
-    # Start logger
-    logger_thread = threading.Thread(target=log_rate_forever, daemon=True)
-    logger_thread.start()
-    for i, stk in enumerate(stocks):
-    #for i, stk in enumerate(options_stocks):
-        sem.acquire()
-        cpu_affinity = i % num_cores
-        print("%d: Stock %r" %(i, stk['bscs']['symbol']))
-        p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times, ratelimit_event))
-        p.start()
-        #process_symbol(sem, i, stk, cpu_affinity, request_times)
-        #process_symbol(sem, i, stk, cpu_affinity, request_times)
-    #process_symbol(sem, 'AMZN', 0, request_times)
-    stop_event.set()
-    logger_thread.join()
-    #for symbol in datastructures.selected_stocks:
-    #    sem.acquire()
-    #    cpu_affinity = i % num_cores
-    #    #p = multiprocessing.Process(target=process_symbol, args=(sem, stk['bscs']['symbol'], cpu_affinity, request_times))
-    #    #p.start()
-    #    process_symbol(sem, symbol, cpu_affinity, request_times)
-        
+    try:
+        # Start logger
+        logger_thread = None
+        logger_thread = threading.Thread(target=log_rate_forever, daemon=True)
+        logger_thread.start()
+
+        # ETFs
+        for i, k in enumerate(etfs):
+            stocks = collection.find({'bscs.symbol':k},no_cursor_timeout=True).batch_size(10).sort([["sno",1]])
+            if stocks.count() == 1:
+                stk = stocks[0]
+                cpu_affinity = i % multiprocessing.cpu_count()
+                sem.acquire()
+                print("%d: ETF %r" %(i, stk['bscs']['symbol']))
+                #process_symbol(sem, i, stk, cpu_affinity, request_times, ratelimit_event)
+                p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times, ratelimit_event))
+                processes.append(p)
+                p.start()
+
+        # Stocks
+        for i, stk in enumerate(stocks):
+        #for i, stk in enumerate(options_stocks):
+            sem.acquire()
+            cpu_affinity = i % multiprocessing.cpu_count()
+            if stk['bscs']['symbol'] in ['USM']:
+                table_name = DB.get_symbol_table_name(stk['bscs']['symbol'])
+                if table_name in table_names:
+                    table_names.remove(table_name)
+                sem.release()
+                continue
+            print("%d: Stock %r" %(i, stk['bscs']['symbol']))
+            p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times, ratelimit_event))
+            processes.append(p)
+            p.start()
+
+            #process_symbol(sem, i, stk, cpu_affinity, request_times, ratelimit_event)
+            #process_symbol(sem, i, stk, cpu_affinity, request_times)
+            table_name = DB.get_symbol_table_name(stk['bscs']['symbol'])
+            if table_name in table_names:
+                table_names.remove(table_name)
+        #process_symbol(sem, 'AMZN', 0, request_times)
+        #for symbol in datastructures.selected_stocks:
+        #    sem.acquire()
+        #    cpu_affinity = i % num_cores
+        #    #p = multiprocessing.Process(target=process_symbol, args=(sem, stk['bscs']['symbol'], cpu_affinity, request_times))
+        #    #p.start()
+        #    process_symbol(sem, symbol, cpu_affinity, request_times)
+
+        for i, table_name in enumerate(table_names):
+            sym = table_name[3:]
+            sem.acquire()
+            cpu_affinity = i % multiprocessing.cpu_count()
+            print("%d: Stock %r" %(i, sym))
+            stks = db.US_Stocks.find({"bscs.symbol" : sym})
+            if stks.count() == 0:
+                sem.release()
+                continue
+            if stks.count() >= 1:
+                stk = stks[0]
+            p = multiprocessing.Process(target=process_symbol, args=(sem, i, stk, cpu_affinity, request_times, ratelimit_event))
+            processes.append(p)
+            p.start()
+
+    finally:
+        stop_event.set()
+        if logger_thread:
+            logger_thread.join()
+        for p in processes:
+            p.join()
+
+        close_db_client(c)
+        close_sql_connection(engine)
+
     print("Finished processing all symbols.")
