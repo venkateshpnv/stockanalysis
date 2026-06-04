@@ -30,7 +30,6 @@ import hdf5
 from hdf5 import *
 import pandas_ta as ta
 from io import StringIO
-from common import *
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table, DDL, Column, Integer, Float, String, select, column, text
@@ -1762,7 +1761,7 @@ def fork_hdf5_process(country, sem, vpn_event=None, eod_token=True):
         print("Total non-bulk stocks: %r" %(stocks.count()))
 
         for stk in stocks:
-            #print("%d: Mysql: Checking: %r" %(i, stk['bscs']['symbol']))
+            print("%d: Mysql: Checking: %r" %(i, stk['General']['Code']))
             sem.acquire()
             #hdf5.update_dataframe_price_volume(country, db, sql_engine, stk['bscs']['symbol'], symbols, stk, 0, sem, vpn_event, eod_token=eod_token, percent_change=percent_change, check_since_ipo_date=check_since_ipo_date)
             processes[i%num_processes] = multiprocessing.Process(target=update_dataframe_price_volume, args=(country, None, None, stk['bscs']['symbol'], symbols, copy.deepcopy(stk), i%num_cores, sem, vpn_event, eod_token, percent_change, check_since_ipo_date))
@@ -2535,7 +2534,7 @@ def psar3_code(barsdata, iaf = 0.02, maxaf = 0.2):
     return {"dates":dates, "high":high, "low":low, "close":close, "psar":psar, "psarbear":psarbear, "psarbull":psarbull}
 
 
-def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.01):
+def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, db_update=True):
     if duration:
         df = df.loc[df.index[-1]-duration:]
 
@@ -2639,7 +2638,7 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.01):
         rdf = read_from_sql(query, params_engine)
         seq_df = seq_df.reindex(rdf.index)
         seq_df.dropna(inplace=True)
-        if len(seq_df) > 0:
+        if db_update == True and len(seq_df) > 0:
             internet.insert_or_update(seq_df, params_engine, table_name, col)
             internet.insert_or_update(seq_df, params_engine, table_name, 'PSAR')
 
@@ -2818,7 +2817,7 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.01):
     sw = calculate_ep(sw, 1) # Initial investment is $1
     return sw
 
-def update_SAR_params(params_engine, collection, sym, df):
+def update_SAR_params(params_engine, collection, sym, df, db_update=True):
     # Parabolic SAR
     # Exit the position if the SAR is greater than 'Adj Close'
     # Enter the position if the SAR is less than 'Adj Close'
@@ -2848,7 +2847,7 @@ def update_SAR_params(params_engine, collection, sym, df):
 
         #ep: estimated profit
         duration=relativedelta(years=1)
-        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration, db_update=db_update)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2863,7 +2862,7 @@ def update_SAR_params(params_engine, collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_year.alpha", alpha)
 
         duration=relativedelta(months=6)
-        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration, db_update=db_update)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2878,7 +2877,7 @@ def update_SAR_params(params_engine, collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.six_months.alpha", alpha)
 
         duration=relativedelta(months=3)
-        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration, db_update=db_update)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2893,7 +2892,7 @@ def update_SAR_params(params_engine, collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.three_months.alpha", alpha)
 
         duration=relativedelta(months=1)
-        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration)
+        sw = calc_psar(params_engine, sym, copy.deepcopy(df), duration, db_update=db_update)
         i = hdf5.get_nearest_index(df, (df.index[-1]-duration).to_pydatetime().date())
         change = percent_change(df.iloc[i]['Adj Close'], df['Adj Close'][-1])
         ep = np.nan
@@ -2908,7 +2907,7 @@ def update_SAR_params(params_engine, collection, sym, df):
         update_field(collection, sym, "technicals.sar.ep.one_month.alpha", alpha)
         #return
 
-        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(params_engine, sym, copy.deepcopy(df), trend_only=True)
+        psar, trend_days, cur_trend_pr_change, prev_trend_days, prev_trend_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list = calc_psar(params_engine, sym, copy.deepcopy(df), trend_only=True, db_update=db_update)
         update_field(collection, sym, "technicals.sar.ta_psar_trend", trend_days)
         update_field(collection, sym, "technicals.sar.ta_psar_cur_trend_price_change", cur_trend_pr_change)
         update_field(collection, sym, "technicals.sar.ta_psar_prev_trend", prev_trend_days)
@@ -3000,7 +2999,7 @@ def update_EMA_params(collection, sym, df):
         change = percent_change(ema.iloc[-1], df['Adj Close'][-1])
         update_field(collection, sym, "technicals.ema.change_with_price", change)
 
-def update_RSI_params(params_engine, collection, sym, df):
+def update_RSI_params(params_engine, collection, sym, df, db_update=True):
     #rsi = ta.rsi(df['Adj Close'])
     rsi = talib.RSI(df['Adj Close'])
     rsi = rsi.dropna()
@@ -3015,7 +3014,7 @@ def update_RSI_params(params_engine, collection, sym, df):
         indices = internet.identify_change_indices(params_engine, table_name, stock_dates, 'RSI')
         datetime_set = pd.to_datetime(list(indices))
         rsi_df = rsi_df[rsi_df.index.isin(datetime_set)]
-        if len(rsi_df.index) > 0:
+        if db_update == True and len(rsi_df.index) > 0:
             internet.insert_or_update(rsi_df, params_engine, table_name, 'RSI')
 
         # Calculate and store Five Day Slope
@@ -3083,7 +3082,7 @@ def update_RSI_params(params_engine, collection, sym, df):
 
             slope_df[col] = slope_values
             slope_df = slope_df.dropna()
-            if len(slope_df) > 0:
+            if db_update == True and len(slope_df) > 0:
                 internet.insert_or_update(slope_df, params_engine, table_name, col)
 
         slope,_ = calculate_slope(pd.DataFrame(df.iloc[-10:]['Adj Close']))
@@ -3320,6 +3319,10 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
             update_field(collection, sym, "technicals.stochf.fastd", nan)
             return
 
+        if params_engine is not None and not mysql_exists_table(params_engine, table_name):
+            print("%s: Creating technical params table" %(table_name))
+            mysql_check_n_create_table(params_engine, table_name, primary_key=True)
+
         table_cols = mysql_get_columns_from_engine(params_engine, table_name)
         missing_cols = list_difference([*tech_param_fields], table_cols)
         # Some price change fields are not present in the database.
@@ -3491,7 +3494,7 @@ def update_all_tech_analysis_params(country='US'):
     #                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
     #                                ]}).batch_size(10).sort([["technicals.sar.ep.one_year.alpha",-1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'NVDA'})
+    #stocks=db.US_Stocks.find({'General.Code':'CBRS'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
