@@ -3,6 +3,7 @@ import asyncio
 import pandas as pd
 import time
 import math
+import multiprocessing
 import DB
 from common import get_eod_token_id, pretty_print, list_difference, percent_change
 from datastructures import *
@@ -165,25 +166,76 @@ def ensure_tech_params_table(params_engine, table_name):
         print("%s: Adding missing technical columns: %r" % (table_name, missing_cols))
         DB.mysql_add_columns(params_engine, table_name, missing_cols, remove_spaces=False)
 
-def update_live_technical_params(results, collection, mysql_engine, params_engine):
-    for result in results:
-        sym = result["Symbol"]
-        print(sym)
-        try:
-            table_name = DB.get_symbol_table_name(sym)
-            df = fetch_price_dataframe(sym, mysql_engine)
-            if df.empty or len(df.index) <= 1:
-                continue
+def update_live_technical_params_for_symbol(result, collection, mysql_engine, params_engine):
+    sym = result["Symbol"]
 
-            ensure_tech_params_table(params_engine, table_name)
-            df = append_live_price_row(df, result)
-            print("calculating SAR")
-            DB.update_SAR_params(params_engine, collection, sym, df, db_update=False)
-            print("calculating RSI")
-            DB.update_RSI_params(params_engine, collection, sym, df, db_update=False)
-            #DB.update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
-        except Exception as e:
-            print("%s: failed to update live technicals: %s" % (sym, str(e)))
+    try:
+        table_name = DB.get_symbol_table_name(sym)
+        df = fetch_price_dataframe(sym, mysql_engine)
+        if df.empty or len(df.index) <= 1:
+            return
+
+        ensure_tech_params_table(params_engine, table_name)
+        df = append_live_price_row(df, result)
+        print("%s: calculating SAR" % sym)
+        DB.update_SAR_params(params_engine, collection, sym, df, db_update=False)
+        print("%s: calculating RSI" % sym)
+        DB.update_RSI_params(params_engine, collection, sym, df, db_update=False)
+        #DB.update_field(collection, sym, "technicals.date", dt.combine(dt.now(), dt.min.time()))
+    except Exception as e:
+        print("%s: failed to update live technicals: %s" % (sym, str(e)))
+
+def live_technical_worker(task_queue):
+    c = None
+    mysql_engine = None
+    params_engine = None
+
+    try:
+        c = DB.open_db_client()
+        db = c['Stocks']
+        collection = DB.get_collection('US', db)
+        mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
+        params_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Tech_Params')
+
+        while True:
+            result = task_queue.get()
+            if result is None:
+                break
+            update_live_technical_params_for_symbol(result, collection, mysql_engine, params_engine)
+    finally:
+        if mysql_engine is not None:
+            DB.close_sql_connection(mysql_engine)
+        if params_engine is not None:
+            DB.close_sql_connection(params_engine)
+        if c is not None:
+            DB.close_db_client(c)
+
+def update_live_technical_params(results):
+    if len(results) == 0:
+        return
+
+    num_processes = min(DB.num_cores, len(results))
+    task_queue = multiprocessing.Queue()
+    processes = [
+        multiprocessing.Process(target=live_technical_worker, args=(task_queue,))
+        for _ in range(num_processes)
+    ]
+    print("Updating live technicals with %d parallel processes" % num_processes)
+
+    for process in processes:
+        process.start()
+
+    for result in results:
+        task_queue.put(result)
+
+    for _ in processes:
+        task_queue.put(None)
+
+    for process in processes:
+        process.join()
+
+    task_queue.close()
+    task_queue.join_thread()
 
 def safe_round(value, digits=2, default=0):
     try:
@@ -270,9 +322,7 @@ def sort_like_get_uptrend(uptrend_df):
 
     cdf = pd.concat([trend1, trend3])
     cdf.drop_duplicates(keep=False, inplace=True)
-    mask = ~uptrend_df.apply(tuple, axis=1).isin(cdf.apply(tuple, axis=1))
-    diff = uptrend_df[mask].sort_values(by='Cur_Trend_Change', ascending=True)
-    return pd.concat([cdf, diff])
+    return cdf
 
 def send_live_uptrend_image(results, collection):
     uptrend_df = build_live_uptrend_df(results, collection)
@@ -311,18 +361,21 @@ def send_live_uptrend_image(results, collection):
 
 if __name__ == '__main__':
 
-    c = DB.open_db_client()
-    db = c['Stocks']
-    collection = DB.get_collection('US', db)
-    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks')
-    params_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Tech_Params')
+    c = None
+    results = []
+    i = -1
 
     try:
         print("Fetching live prices with rate limit handling...")
         results = asyncio.run(fetch_all_prices(stocks))
         if len(results) > 0:
             print("Updating live tech params")
-            update_live_technical_params(results, collection, mysql_engine, params_engine)
+            update_live_technical_params(results)
+
+            c = DB.open_db_client()
+            db = c['Stocks']
+            collection = DB.get_collection('US', db)
+
             print("Preparing telegram df")
             for i, r in enumerate(results):
                 results[i]['Name'] = results[i].get('Symbol', '')
@@ -347,8 +400,10 @@ if __name__ == '__main__':
                 send_telegram_photo(image_path, token='strong_buy_pure')
             send_live_uptrend_image(results, collection)
     except Exception as E:
-        print("i: %d, results[i]: %r, Error: %s" %(i, results[i], str(E)))
+        if 0 <= i < len(results):
+            print("i: %d, results[i]: %r, Error: %s" %(i, results[i], str(E)))
+        else:
+            print("Live price change error: %s" %(str(E)))
     finally:
-        DB.close_sql_connection(mysql_engine)
-        DB.close_sql_connection(params_engine)
-        DB.close_db_client(c)
+        if c is not None:
+            DB.close_db_client(c)
