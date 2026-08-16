@@ -1,3 +1,6 @@
+cd /home/vpetla/work/stockanalysis
+python3 run_dashboard.py --host 0.0.0.0 --port 8050
+
 # stockanalysis
 
 Quandl Key
@@ -242,6 +245,10 @@ Insider Info
 ============
 insiderarbitrage.com
 openinsider.com
+
+Options DashBoard
+===================
+$ python3 run_dashboard.py --host 0.0.0.0 --port 8050
 
 Data Science Beta
 =================
