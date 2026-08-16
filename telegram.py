@@ -553,7 +553,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":week}},\
                                             ]\
                                         },\
-                                        {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
+                                        {'Highlights.MarketCapitalization': {'$gte': 10 * Bn}},\
                                     ]
     three_week_conditions = conditions + \
                                     [
@@ -564,7 +564,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks+timedelta(7)}},\
                                             ]\
                                         },\
-                                        {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                                        {'Highlights.MarketCapitalization': {'$gte': 10 * Bn}},\
                                         {"$or":[\
                                                     {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
                                                     {"$and": [ \
@@ -602,8 +602,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     #            },\
                     #        ]\
                     #},\
-                    {'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
-                    #{'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
+                    #{'Highlights.MarketCapitalization': {'$gte': 1 * Bn}},\
+                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
                     {"$or": [\
                                 {"$and": [\
                                             {'dates.ndaq_last_earnings_date' :{"$eq":today}},\
@@ -634,7 +634,10 @@ def earnings_week(earnings_dates=True, earnings_results=True):
             stocks = db.US_Stocks.find({'$and':week_conditions}).sort([["dates.ndaq_last_earnings_date",1]]).allow_disk_use(True)
             print("Week earnings stocks: ", stocks.count())
             for i, instrument in enumerate(stocks):
-                print("%s: %s" %(instrument['bscs']['symbol'], instrument['General']['Name']))
+                #if instrument['bscs']['symbol'] == 'TTAM':
+                #    print("TTAM")
+                print(f"{instrument['bscs']['symbol']}")
+                #print(f"{instrument['bscs']['symbol']}, {instrument['General']['Name']}")
                 # Earnings dates
                 if 'dates' in instrument.keys() and 'ndaq_last_earnings_date' in instrument['dates'].keys():
                     if 'ndaq_last_earnings_time' not in instrument['dates'].keys():
@@ -644,9 +647,13 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     #if edate >= dt.now().date() and edate <= dt.now().date() + timedelta(6):
                     if True:
                         if sym not in week_earnings_stks.keys():
-                            week_earnings_stks[sym] = instrument['bscs']['symbol']
-                            #week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
-                            week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['earnings']['three_year']['pr_change'], instrument['earnings']['three_year']['avg_pr_change'], instrument['earnings']['three_year']['above_avg_percent']]
+                            try:
+                                week_earnings_stks[sym] = instrument['bscs']['symbol']
+                                #week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], str(instrument['technicals']['sar']['ta_psar_trend_pcnt_change']), instrument['dates']['ndaq_last_earnings_time'], instrument['price_change']['week']] 
+                                week_df.loc[i] = [str(edate), sym, instrument['General']['Name'], round(instrument['Highlights']['MarketCapitalizationMln']/1000,2), instrument['price_change']['price'], instrument['dates']['ndaq_last_earnings_time'], instrument['earnings']['three_year']['pr_change'], instrument['earnings']['three_year']['avg_pr_change'], instrument['earnings']['three_year']['above_avg_percent']]
+                            except Exception as e:
+                                print(str(e))
+                                continue
                     # If earnings is tomorrow, send a notification
                     if edate == dt.now().date() + timedelta(1) or edate == DB.get_next_trading_day():
                     #req_date = dt.strptime('2025-09-09', "%Y-%m-%d").date()
@@ -748,6 +755,8 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                     send_telegram_photo(image_path, token='earnings_dates')
                     #image_path = save_df_as_image(week_df)
                     #send_telegram_photo(image_path, token='earnings_dates')
+                    st = en
+                    en = en + count
 
                 #for index, d in week_df.iterrows():
                 #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
@@ -757,6 +766,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                 #    message = message + s
                 #notify_message(message, token='earnings_dates')
 
+            count=40
             if len(today_df) > 0:
                 today_df = today_df.sort_values(by='Avg Pr', ascending=False)
                 st=0
@@ -770,8 +780,10 @@ def earnings_week(earnings_dates=True, earnings_results=True):
  
                     #message = "Earnings Tomorrow\n"
                     #notify_message(message, token='earnings_dates')
-                    image_path = dataframe_to_image2(today_df, banner="Earnings Tomorrow")
+                    image_path = dataframe_to_image2(df, banner="Earnings Tomorrow")
                     send_telegram_photo(image_path, token='earnings_dates')
+                    st = en
+                    en = en + count
 
                 #for index, d in today_df.iterrows():
                 #    s = d['Sym'] + ":" + d['Name'] + "\n" +\
@@ -2010,6 +2022,145 @@ def get_uptrend(selected=False):
             en = en + count
     return
 
+PRICE_CHANGE_DURATION_LABELS = {
+        'day': 'Daily',
+        'week': 'Weekly',
+        'month': 'Monthly',
+        'quarter': 'Quarterly',
+        'half_year': 'Half Yearly',
+        'year': 'Yearly',
+        }
+
+PRICE_CHANGE_DURATION_ALIASES = {
+        'daily': 'day',
+        'weekly': 'week',
+        'monthly': 'month',
+        'quarterly': 'quarter',
+        'half yearly': 'half_year',
+        'half-yearly': 'half_year',
+        'halfyear': 'half_year',
+        'half_yearly': 'half_year',
+        'yearly': 'year',
+        }
+
+PRICE_CHANGE_COLUMNS = {
+        'day': 'Day Chg',
+        'week': 'Wk Chg',
+        'month': 'Mth Chg',
+        'quarter': 'Qrtr Chg',
+        'half_year': 'Hf Yr Chg',
+        'year': 'Yr Chg',
+        }
+
+def _normalize_price_change_durations(durations):
+    supported = list(PRICE_CHANGE_DURATION_LABELS.keys())
+    if durations is None:
+        return supported
+    if isinstance(durations, str):
+        durations = durations.strip().lower()
+        if durations == 'all':
+            return supported
+        if ',' in durations:
+            durations = durations.split(',')
+        else:
+            durations = [durations]
+
+    normalized = []
+    for duration in durations:
+        duration = duration.strip().lower().replace('-', '_')
+        duration = PRICE_CHANGE_DURATION_ALIASES.get(duration, duration)
+        if duration not in PRICE_CHANGE_DURATION_LABELS:
+            raise ValueError("Unsupported price change duration: %s" %(duration))
+        if duration not in normalized:
+            normalized.append(duration)
+    return normalized
+
+def _price_change_mcap_segments(country):
+    if country == 'US':
+        Mn = 1000000
+        Bn = 1000 * Mn
+        Tn = 1000 * Bn
+        return [
+                #("MCap 100 Bn and above", 100 * Bn, 100 * Tn, 0),
+                #("MCap 10 Bn and 100 Bn", 10 * Bn, 100 * Bn, 1),
+                #("MCap 5 Bn and 10 Bn", 5 * Bn, 10 * Bn, 2),
+                ("MCap 10 Bn and above", 30 * Bn, 100 * Tn, 1),
+                ]
+    elif country == 'India':
+        Bn = 100
+        Tn = 100 * Bn
+        return [
+                ("MCap 10k Cr and above", 100 * Bn, 10 * Tn, 0),
+                ("MCap 1k Cr and 10k Cr", 10 * Bn, 100 * Bn, 1),
+                ("MCap 500 Cr and 1k Cr", 5 * Bn, 10 * Bn, 2),
+                ("MCap 100 Cr and 500 Cr", 1 * Bn, 5 * Bn, 3),
+                ("MCap < 100 Cr", 1, 1 * Bn, 4),
+                ]
+    raise ValueError("Unsupported country for price changes: %s" %(country))
+
+def _price_change_entries_to_df(entries, duration):
+    if len(entries) <= 1:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(entries[1:], columns=entries[0])
+    mcap_col = 'Mcap Bn' if 'Mcap Bn' in df.columns else 'MCap in Crores'
+    duration_col = PRICE_CHANGE_COLUMNS[duration]
+    columns = ['Symbol', 'Name', mcap_col, 'Vol', 'Price', 'VolXPrice', duration_col,
+               'Day Chg', 'Wk Chg', 'Mth Chg', 'Qrtr Chg', 'Hf Yr Chg', 'Yr Chg']
+    if 'PSAR Trend' in df.columns:
+        columns.append('PSAR Trend')
+    columns = [column for column in columns if column in df.columns]
+
+    df = df[columns]
+    if 'Name' in df.columns:
+        df['Name'] = df['Name'].apply(trim_name)
+    return df
+
+def send_telegram_price_changes(country='US', durations='all', token='price_changes', rows_per_image=10):
+    """
+    Send price-change snapshots to Telegram as table images.
+
+    durations can be:
+        'all'
+        'day', 'week', 'month', 'quarter', 'half_year', 'year'
+        ['day', 'month'] or any other list of supported durations.
+    """
+    disconnect_vpn()
+    durations = _normalize_price_change_durations(durations)
+    sent = 0
+
+    for duration in durations:
+        duration_label = PRICE_CHANGE_DURATION_LABELS[duration]
+        for segment, low_mcap, high_mcap, threshold_index in _price_change_mcap_segments(country):
+            change = internet.pcent_chg[duration][threshold_index]
+            for direction, direction_label in [(-1, 'Down')]:
+            #for direction, direction_label in [(1, 'Up'), (-1, 'Down')]:
+                entries = internet.get_stocks_price_change(country, low_mcap, high_mcap, direction, change, duration)
+                df = _price_change_entries_to_df(entries, duration)
+                if len(df) == 0:
+                    continue
+                #df = df[['Symbol', 'Name', 'Mcap Bn', 'Vol', 'Price', 'Mth Chg', 'Day Chg', 'Wk Chg', 'Yr Chg', 'PSAR Trend']]
+                # Selects by column index: 0, 1, 2, 3, 4, 5 (1st Mth Chg), 6, 7, 11 (Yr Chg), 12 (PSAR Trend)
+                df = df.iloc[:, [0, 1, 2, 3, 4, 5, 6, 8, 11, 12]]
+                df = df[0:15]
+                st = 0
+                en = rows_per_image
+                iters = math.ceil(len(df) / rows_per_image)
+                for i in range(iters):
+                    image_df = df.iloc[st:en]
+                    if len(image_df) == 0:
+                        break
+                    banner = "Price Snapshot - %s - %s" %(segment, direction_label)
+                    #banner = "%s %s Price Snapshot - %s - %s" %(country, duration_label, segment, direction_label)
+
+                    image_path = "/tmp/%s_%s_%s_%s_%d.png" %(country, duration, segment.replace(' ', '_').replace('<', 'lt'), direction_label, i)
+                    image_path = dataframe_to_image2(image_df, image_path=image_path, banner=banner)
+                    send_telegram_photo(image_path, token=token)
+                    sent = sent + 1
+                    st = en
+                    en = en + rows_per_image
+    return sent
+
 def get_mstar():
     fields = {
                     'Name':'',
@@ -2348,12 +2499,13 @@ def get_all_indicators():
     # Min rsi
     try:
         conds = conditions + [{'technicals.rsi.with_60day_min':{"$eq":0}}]
+        stocks = non_tech_stocks + selected_stocks + options_stocks
         conds = conds + [\
                     {"$or":[\
                                 {'General.Sector': 'Technology'},\
                                 {"$and": [ \
                                             {'General.Sector': {"$nin": ['Technology']}},\
-                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                            {'General.Code' : {"$in": stocks}},\
                                         ]\
                                 },\
                             ]\
@@ -2389,6 +2541,7 @@ def get_all_indicators():
     #    pass
 
 if __name__ == "__main__":
+    #sys.exit(0)
     if is_holiday():
         earnings_week(earnings_dates=True, earnings_results=True)
         sys.exit(0)
@@ -2398,6 +2551,8 @@ if __name__ == "__main__":
         get_ratings()
     elif len(sys.argv) == 2 and 'fwh' in sys.argv[1]:
         get_ratings(fwh=True)
+    elif len(sys.argv) == 2 and 'price_changes' in sys.argv[1]:
+        send_telegram_price_changes('US', durations=['month'])
     elif len(sys.argv) == 2 and 'earnings_dates' in sys.argv[1]:
         earnings_week(earnings_dates=True, earnings_results=False)
     elif len(sys.argv) == 2 and 'earnings_results' in sys.argv[1]:

@@ -59,10 +59,10 @@ if __name__ == "__main__":
     # send email
     try:
         if len(sys.argv) == 2:
-            internet.send_email_price_changes('US')
-            internet.send_email_rsi_changes('US')
-            internet.send_email_trend_changes('US')
-            # Radar Stocks
+            #internet.send_email_price_changes('US')
+            #internet.send_email_rsi_changes('US')
+            #internet.send_email_trend_changes('US')
+            ## Radar Stocks
             excel.get_radar_stocks('US')
     except Exception as e:
         print('Failed to send email, err: %s' %(str(e)))

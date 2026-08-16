@@ -1874,9 +1874,9 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
     
     entries = []
     if country == 'US':
-        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw", "With Alltime Hgh", "PSAR Trend"]
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "VolXPrice", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw", "With Alltime Hgh", "PSAR Trend"]
     else:
-        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
+        head=["Symbol", "Name", "Since", "Sectr", mcap, "Vol", "Price", "VolXPrice", "6M Beta", "52Wk Hgh", "52Wk Lw", "Day Chg", "Wk Chg", "Mth Chg", "Qrtr Chg", "Hf Yr Chg", "Yr Chg", "With 52Wk Hgh", "With 52Wk Lw"]
 
     entries.append(head)
     today = dt.combine(dt.now(), dt.min.time())
@@ -1885,10 +1885,12 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
     else:
         latest_date = DB.get_previous_trading_day()
 
+    #latest_date = latest_date - timedelta(1)
     #stocks = collection.find({"$and" : [{"dates.mysql_price_date": {"$eq": latest_date}}, {"General.IsDelisted": False}, {'General.Type':'Common Stock'}, {'General.Exchange':{"$in":major_exchanges}}]}).batch_size(10).sort([["failcount.mysql_price_failcount",1]]).allow_disk_use(True).sort([["sno",1]]).allow_disk_use(True)
 
     stocks = collection.find({'$and':[\
-                                        {"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
+                                        {"dates.mysql_price_date": {"$gte": latest_date}},\
+                                        #{"dates.mysql_price_date": {"$gte": DB.get_latest_trading_day()}},\
                                         {"dates.mysql_price_pull_success": True},\
                                         {'Highlights.MarketCapitalization':{'$gte':low_mcap, '$lt':high_mcap}},\
                                         {'General.IsDelisted': False},\
@@ -1903,6 +1905,15 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
                                                     },\
                                                 ]\
                                         },\
+                                        {"$or":[\
+                                                    {'General.Sector': 'Technology'},\
+                                                    {"$and": [ \
+                                                                {'General.Sector': {"$nin": ['Technology']}},\
+                                                                {'General.Code' : {"$in": non_tech_stocks}},\
+                                                            ]\
+                                                    },\
+                                                ]\
+                                        },\
                                         {price_change:{cond:change}},\
                                         ]}).sort([[price_change,-direction]])
     #query = {'$and': [{'bscs.mcap':{'$gte':low_mcap, '$lt':high_mcap}}, {price_change:{cond:change}}]}
@@ -1913,24 +1924,46 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
 
         bscs  = stk['bscs']
         pchg = stk['price_change']
-        print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
+        print("%r: %s" %(stk['sno'], bscs['symbol']))
+        #print("%r: %s: %s" %(stk['sno'], bscs['symbol'], stk['General']['Name']))
         entry = [ ]
         entry.append(bscs['symbol'])
-        entry.append(stk['General']['Name'])
-        entry.append(stk['General']['IPODate'])
-        if stk['General']['GicSubIndustry']:
-            entry.append(stk['General']['GicSubIndustry'])
-        else:
-            entry.append("")
+        if 'General' in stk.keys():
+            if 'Name' in stk['General'].keys():
+                entry.append(stk['General']['Name'])
+            else:
+                entry.append("")
+
+            if 'IPODate' in stk['General'].keys():
+                entry.append(stk['General']['IPODate'])
+            else:
+                entry.append("")
+
+            if 'GicSubIndustry' in stk['General'].keys():
+                entry.append(stk['General']['GicSubIndustry'])
+            else:
+                entry.append("")
+
         entry.append(str(round(stk['Highlights']['MarketCapitalizationMln']*factor, 2)))
         if 'volume' in bscs.keys():
-            entry.append(str(round(bscs['volume']/1000, 2))+'k')
+            entry.append(str(round(stk['price_change']['volume']/1000000, 2))+'Mn')
         else:
             entry.append("-")
         if 'price' in stk['price_change'].keys():
             entry.append(str(stk['price_change']['price']))
         else:
             entry.append("")
+        if 'volume' in bscs.keys() and 'price' in stk['price_change'].keys():
+            val = (round((stk['price_change']['volume'] * stk['price_change']['price'])/1000000, 2))
+            if val < 1000:
+                val = str(val) + 'Mn'
+            else:
+                val = str(round(val/1000,2)) + 'Bn'
+            entry.append(val)
+            #entry.append(str(round((bscs['volume'] * stk['price_change']['price'])/1000000, 2))+'Mn')
+        else:
+            entry.append("")
+
         #try:
         if 'fig' in stk.keys() and \
             'betas' in stk['fig'].keys() and \
@@ -1970,8 +2003,8 @@ def get_stocks_price_change(country, low_mcap, high_mcap, direction, change, dur
         else:
             entry.append("")
         
-        if 'technicals' in stk.keys() and 'sar' in stk['technicals'].keys() and 'ta_psar_trend_sequence' in stk['technicals']['sar'].keys():
-            entry.append(stk['technicals']['sar']['ta_psar_trend_sequence'])
+        if 'technicals' in stk.keys() and 'sar' in stk['technicals'].keys() and 'ta_psar_trend_pcnt_change' in stk['technicals']['sar'].keys():
+            entry.append(stk['technicals']['sar']['ta_psar_trend_pcnt_change'])
         else:
             entry.append("-")
         entries.append(entry)

@@ -13,7 +13,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import inspect, text
 
 
 ACTION_HOLD = 0
@@ -29,9 +29,9 @@ ACTION_NAME = {
 @dataclass
 class DBConfig:
     host: str
-    user: str
-    password: str
     db: str
+    user: str = "vpetla"
+    password: str = "petla123"
     port: int = 3306
 
 
@@ -43,7 +43,7 @@ class StrategyConfig:
     rsi_proximity: float = 0.15
     buy_forward_return: float = 0.08
     sell_forward_return: float = 0.08
-    target_dte_days: int = 180
+    max_dte_days: int = 60
     dte_window_days: int = 45
 
 
@@ -75,8 +75,15 @@ class MarketDataStore:
 
     @staticmethod
     def _build_engine(cfg: DBConfig):
-        url = f"mysql+pymysql://{cfg.user}:{cfg.password}@{cfg.host}:{cfg.port}/{cfg.db}"
-        return create_engine(url, pool_pre_ping=True)
+        from DB import open_sql_connection
+
+        return open_sql_connection(
+            ip=cfg.host,
+            user=cfg.user,
+            passwd=cfg.password,
+            port=cfg.port,
+            db=cfg.db,
+        )
 
     def list_symbols(self, max_symbols: Optional[int] = None) -> List[str]:
         q = "SHOW TABLES LIKE 'STK%'"
@@ -133,12 +140,14 @@ class MarketDataStore:
         trade_date: pd.Timestamp,
         option_type: str,
         spot_price: float,
-        target_dte_days: int,
+        max_dte_days: int,
         dte_window_days: int,
     ) -> pd.DataFrame:
         table = to_table_name(symbol)
-        min_exp = (trade_date + timedelta(days=target_dte_days - dte_window_days)).date()
-        max_exp = (trade_date + timedelta(days=target_dte_days + dte_window_days)).date()
+        max_dte_days = min(max_dte_days, 60)
+        min_dte_days = max(1, max_dte_days - dte_window_days)
+        min_exp = (trade_date + timedelta(days=min_dte_days)).date()
+        max_exp = (trade_date + timedelta(days=max_dte_days)).date()
         query = text(
             f"""
             SELECT contractID, expiration, strike, mark, date
@@ -166,7 +175,7 @@ class MarketDataStore:
         df["mark"] = pd.to_numeric(df["mark"], errors="coerce")
         df = df.dropna(subset=["strike", "mark", "expiration"])
 
-        target_exp = trade_date + timedelta(days=target_dte_days)
+        target_exp = trade_date + timedelta(days=max_dte_days)
         df["expiry_gap"] = (df["expiration"] - target_exp).abs().dt.days
         df["moneyness_gap"] = (df["strike"] - spot_price).abs()
         df = df.sort_values(["expiry_gap", "moneyness_gap", "mark"])  # stable, deterministic choice
@@ -331,11 +340,31 @@ def _add_segment_features(
     return out
 
 
+def _adjusted_ohlc(df: pd.DataFrame) -> pd.DataFrame:
+    factor = (
+        df["Adj Close"].astype(float) / df["Close"].astype(float).replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan)
+    adjusted = pd.DataFrame(index=df.index)
+    adjusted["Open"] = df["Open"].astype(float) * factor
+    adjusted["High"] = df["High"].astype(float) * factor
+    adjusted["Low"] = df["Low"].astype(float) * factor
+    adjusted["Close"] = df["Adj Close"].astype(float)
+    return adjusted
+
+
 def _compute_psar_state(df: pd.DataFrame) -> pd.DataFrame:
-    sar = talib.SAR(df["High"].values, df["Low"].values, acceleration=0.02, maximum=0.2)
-    trend_arr = np.full(len(sar), np.nan)
-    valid_sar = ~np.isnan(sar)
-    trend_arr[valid_sar] = np.where(sar[valid_sar] < df["Adj Close"].values[valid_sar], 1, -1)
+    from common import webull_psar
+
+    adjusted = _adjusted_ohlc(df)
+    sar, direction = webull_psar(
+        adjusted["High"],
+        adjusted["Low"],
+        adjusted["Close"],
+        acceleration=0.02,
+        maximum=0.2,
+        return_trend=True,
+    )
+    trend_arr = np.where(direction == 1, 1, -1).astype(float)
     trend = pd.Series(trend_arr, index=df.index)
 
     switch = trend.ne(trend.shift(1)).fillna(True)
@@ -374,13 +403,11 @@ def build_feature_frame(
 ) -> pd.DataFrame:
     df = price_df.copy()
     close = df["Adj Close"].astype(float)
+    adjusted = _adjusted_ohlc(df)
 
-    psar_state = pd.DataFrame()
-    if tech_psar_df is not None and not tech_psar_df.empty:
-        psar_state = _psar_state_from_tech_params(df, tech_psar_df)
-
-    if psar_state.empty or psar_state["psar_trend"].dropna().empty:
-        psar_state = _compute_psar_state(df)
+    # Recompute PSAR from split-adjusted OHLC. Stored tech sequences may have
+    # been produced from raw OHLC, which creates false trend flips around splits.
+    psar_state = _compute_psar_state(df)
 
     rsi = pd.Series(talib.RSI(close.values, timeperiod=cfg.rsi_period), index=df.index)
     rsi_min = rsi.rolling(cfg.rsi_window).min()
@@ -392,7 +419,7 @@ def build_feature_frame(
     ret_20d = close.pct_change(20)
 
     atr = pd.Series(
-        talib.ATR(df["High"].values, df["Low"].values, close.values, timeperiod=14),
+        talib.ATR(adjusted["High"].values, adjusted["Low"].values, close.values, timeperiod=14),
         index=df.index,
     )
     atr_pct = atr / close
@@ -488,6 +515,7 @@ def prepare_symbol_dataset(
     model_df = attach_labels(feature_df, strategy_cfg)
     model_df["Symbol"] = symbol
     model_df["Date"] = model_df.index
+    model_df.index.name = None
     return model_df
 
 
@@ -582,7 +610,7 @@ def run_leaps_backtest(
                     trade_date=trade_date,
                     option_type=option_type,
                     spot_price=close_price,
-                    target_dte_days=cfg.target_dte_days,
+                    max_dte_days=cfg.max_dte_days,
                     dte_window_days=cfg.dte_window_days,
                 )
                 if candidates.empty:
@@ -695,13 +723,15 @@ def run_pipeline(
     start: Optional[str] = None,
     end: Optional[str] = None,
     output_dir: str = "model_outputs",
+    strategy_cfg: Optional[StrategyConfig] = None,
+    train_cfg: Optional[TrainConfig] = None,
 ) -> None:
-    price_db = DBConfig(host="10.89.45.241", user="root", password="petla123", db="US_Stocks")
-    options_db = DBConfig(host="10.89.45.31", user="root", password="petla123", db="US_Stocks_Options")
-    tech_db = DBConfig(host="10.89.45.241", user="root", password="petla123", db="US_Tech_Params")
+    price_db = DBConfig(host="10.89.45.241", db="US_Stocks")
+    options_db = DBConfig(host="10.89.45.31", db="US_Stocks_Options")
+    tech_db = DBConfig(host="10.89.45.241", db="US_Tech_Params")
 
-    strategy_cfg = StrategyConfig()
-    train_cfg = TrainConfig()
+    strategy_cfg = strategy_cfg or StrategyConfig()
+    train_cfg = train_cfg or TrainConfig()
     store = MarketDataStore(price_db=price_db, options_db=options_db, tech_db=tech_db)
 
     if symbols is None or len(symbols) == 0:
@@ -779,7 +809,7 @@ def run_pipeline(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="PSAR + RSI + pace ML model with LEAPS backtest"
+        description="PSAR + RSI + pace ML model with options backtest"
     )
     parser.add_argument(
         "--symbols",
@@ -791,18 +821,48 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start", type=str, default=None, help="Start date YYYY-MM-DD")
     parser.add_argument("--end", type=str, default=None, help="End date YYYY-MM-DD")
     parser.add_argument("--output-dir", type=str, default="model_outputs")
+    parser.add_argument("--rsi-period", type=int, default=14)
+    parser.add_argument("--rsi-window", type=int, default=60)
+    parser.add_argument("--lookahead-days", type=int, default=20)
+    parser.add_argument("--rsi-proximity", type=float, default=0.15)
+    parser.add_argument("--buy-forward-return", type=float, default=0.08)
+    parser.add_argument("--sell-forward-return", type=float, default=0.08)
+    parser.add_argument("--max-dte-days", type=int, default=60)
+    parser.add_argument("--dte-window-days", type=int, default=45)
+    parser.add_argument("--n-estimators", type=int, default=400)
+    parser.add_argument("--max-depth", type=int, default=10)
+    parser.add_argument("--min-samples-leaf", type=int, default=20)
+    parser.add_argument("--random-state", type=int, default=42)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
+    strategy_cfg = StrategyConfig(
+        rsi_period=args.rsi_period,
+        rsi_window=args.rsi_window,
+        lookahead_days=args.lookahead_days,
+        rsi_proximity=args.rsi_proximity,
+        buy_forward_return=args.buy_forward_return,
+        sell_forward_return=args.sell_forward_return,
+        max_dte_days=args.max_dte_days,
+        dte_window_days=args.dte_window_days,
+    )
+    train_cfg = TrainConfig(
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+        random_state=args.random_state,
+    )
     run_pipeline(
         symbols=symbols,
         max_symbols=args.max_symbols,
         start=args.start,
         end=args.end,
         output_dir=args.output_dir,
+        strategy_cfg=strategy_cfg,
+        train_cfg=train_cfg,
     )
 
 

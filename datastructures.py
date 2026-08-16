@@ -422,6 +422,8 @@ all_exchanges = ['AMEX', 'BATS', 'EXPM', 'LSE', 'NASDAQ', 'NMFQS', 'NYSE', 'NYSE
 
 #all_exchanges = ['NYSE', 'NASDAQ', 'AMEX', 'BATS', 'OTCQB', 'PINK', 'OTCQX', 'OTCMKTS', 'NMFQS', 'NYSE MKT','OTCBB', 'OTCGREY', 'BATS', 'OTC']
 
+etfs = ['VOO', 'SPY', 'FTEC']
+
 India_indices = {'^BSESN': 'BSE', '^NSEI':'NSE'}
 US_indices = {'GSPC':'SP500', 'DJI': 'DowJones', 'IXIC': 'Nasdaq', 'RUT': 'Russel2000'} 
 #US_indices = {'^GSPC':'SP500', '^DJI': 'DowJones', '^IXIC': 'Nasdaq', '^RUT': 'Russel2000'} 
@@ -744,6 +746,10 @@ telegram_tokens = {
                     'chat_id': '/home/vpetla/telegram/selected_stocks_chat_id.txt'
                     },
 
+                  'price_changes' : {
+                    'token': '/home/vpetla/telegram/price_changes_token.txt',
+                    'chat_id': '/home/vpetla/telegram/price_changes_chat_id.txt'
+                    },
                 }
 
 databases_list = {
@@ -751,6 +757,6 @@ databases_list = {
         }
 
 non_tech_stocks = ['TSLA', 'NVO', 'LLY', 'MSTR', 'GOOG', 'COIN', 'ROKU', 'PLAY', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME', 'ROKU', 'SOFI', 'TTD', 'AAP', 'BJRI']
-selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'ORCL', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'MU', 'GSPC']
+selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'ORCL', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'MU', 'NOW', 'SNOW', 'ZS', 'HPE', 'DELL', 'CBRS', 'SMR', 'HOOD', 'GOOG', 'HIMS', 'SEZL', 'PLAY', 'NET', 'AVGO', 'OKTA', 'NTNX', 'GME', 'ROKU', 'NOW', 'WDC', 'CVNA', 'TTD', 'SMCI', 'SYM', 'COHR', 'TXN', 'ENPH', 'TSM', 'MTDR', 'ASML', 'MRVL', 'INTC', 'SNAP', 'GSPC']
 options_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'GOOG', 'TSLA', 'MSTR', 'COIN', 'HIMS', 'AVGO', 'ROKU', 'PANW', 'ANET', 'CRWD', 'NFLX','PLTR', 'AMD', 'NVDA', 'ARM', 'DELL', 'NET', 'ZS', 'HOOD', 'TSM', 'FICO', 'MRVL', 'SNOW']# 'TTD', 'ENPH', 'MTDR', 'FICO', 'ICE', 'HOOD', 'MFA', 'NVAX', 'SNAP', 'SQ', 'DFS', 'CVNA', 'CROX', 'NFLX', 'CLSK', 'MARA', 'GME']
 #selected_stocks = ['AAPL', 'AMZN', 'MSFT', 'META', 'TSLA', 'MSTR', 'COIN', 'AVGO', 'ROKU', 'PANW', 'ANET', 'INTC', 'CRWD', 'NFLX', 'MARA', 'PLAY', 'PLTR', 'MU', 'AMD', 'NVDA', 'ARM', 'GSPC']

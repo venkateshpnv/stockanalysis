@@ -3,7 +3,7 @@ import numpy as np
 import requests
 import mysql.connector
 from datetime import datetime as dt, timedelta
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Float, Date, exc
+from sqlalchemy import create_engine, inspect, text, MetaData, Table, Column, String, Float, Date, exc
 import logging
 import time
 import DB
@@ -331,15 +331,7 @@ def update_market_cap(db, engine, df):
             DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalization', Int64(int(d['marketCap'])))
             DB.update_field(db.US_Stocks, d['Symbol'], 'Highlights.MarketCapitalizationMln', round(d['marketCap']/1000000,2))
 
-def main():
-    """Main function to orchestrate the data update process."""
-    start_time = time.time()
-    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
-    price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
-    c = DB.open_db_client() # This is a placeholder.  Replace with your actual MongoDB client.
-    db = c['Stocks']
-    table_name = 'Nasdaq_Earnings_History'
-
+def update_nasdaq_earnings(mysql_engine, price_engine, db, table_name):
     try:
         DB.mysql_check_n_create_table(mysql_engine, table_name, fin_table=True)
         if DB.mysql_exists_table(mysql_engine, table_name):
@@ -392,11 +384,10 @@ def main():
 
         # Update market cap (placeholder)
         update_market_cap(db, price_engine, all_earnings_data[['Symbol', 'marketCap']])
-
-        end_time = time.time()
-        logger.info(f"Earnings data update process completed in {end_time - start_time:.2f} seconds.")
     except Exception as E:
         pass
+
+def calculate_price_changes(mysql_engine, price_engine, db, table_name):
     try:
         print("Calculating price changes")
         query = 'select `Date`, `Symbol`, `reportDate`, `time`, `price_change` from {} where price_change is NULL and reportDate <= CURDATE() order by reportDate'.format(table_name)
@@ -482,49 +473,46 @@ def main():
                 pr_df['price_change'] = pr_df['price_change'].astype(float)
                 DB.mysql_update_table(mysql_engine, table_name, pr_df, check=True, insert=False, unknown_table=False, cols_type='earnings', temp=False, date_column=False, format_columns=False, primary_key=False, empty_table=False, fin_table=True, symbol=None)
 
-    except Exception as e:
-        pass
+        Mn = 1000000
+        Bn = 1000*Mn
+        stocks = db.US_Stocks.find({"$and" : [ \
+                                                #{"$or": [\
+                                                #            {"dates.mysql_price_date": {"$exists": False }},\
+                                                #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
+                                                #            {"dates.mysql_price_date": {"$lt": DB.get_latest_trading_day()}}\
+                                                #        ]\
+                                                #},\
+                                                #{"$or": [\
+                                                #            {"dates.mysql_price_pull_date": {"$exists": False }},\
+                                                #            {"dates.mysql_price_pull_date": {"$lt": DB.get_latest_trading_day()}}\
+                                                #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
+                                                #        ]\
+                                                #},\
+                                                {"General.IsDelisted": False},\
+                                                {'General.Type':'Common Stock'},\
+                                                {"$or": [\
+                                                            {'General.Exchange':{"$in":major_exchanges}},\
+                                                            {"$and": [ \
+                                                                        {'General.Exchange':{"$nin":major_exchanges}},\
+                                                                        {'bscs.tracking':{'$exists':True}}, \
+                                                                    ] \
+                                                            },\
+                                                        ]\
+                                                },\
+                                                #{'Highlights.MarketCapitalization':{'$gte':5 * Bn}},
+                                                #{"$or": [\
+                                                #            {'failcount.mysql_price_failcount': {"$exists": False}},\
+                                                #            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
+                                                #            {'failcount.mysql_price_failcount': {'$lt': DB.MAX_FAIL_COUNT}},\
+                                                #        ]\
+                                                #}
+                                            ]\
+                                    }\
+                                    ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
+        print("Total stocks: %r" %(stocks.count()))
+        #stocks = db.US_Stocks.find({"bscs.symbol":"LULU"})
+        today = str(dt.now().date())
 
-    Mn = 1000000
-    Bn = 1000*Mn
-    stocks = db.US_Stocks.find({"$and" : [ \
-                                            #{"$or": [\
-                                            #            {"dates.mysql_price_date": {"$exists": False }},\
-                                            #            #{"dates.mysql_price_date": {"$lte": get_latest_trading_day()}}\
-                                            #            {"dates.mysql_price_date": {"$lt": DB.get_latest_trading_day()}}\
-                                            #        ]\
-                                            #},\
-                                            #{"$or": [\
-                                            #            {"dates.mysql_price_pull_date": {"$exists": False }},\
-                                            #            {"dates.mysql_price_pull_date": {"$lt": DB.get_latest_trading_day()}}\
-                                            #            #{"dates.mysql_price_pull_date": {"$lte": get_latest_trading_day()}}\
-                                            #        ]\
-                                            #},\
-                                            {"General.IsDelisted": False},\
-                                            {'General.Type':'Common Stock'},\
-                                            {"$or": [\
-                                                        {'General.Exchange':{"$in":major_exchanges}},\
-                                                        {"$and": [ \
-                                                                    {'General.Exchange':{"$nin":major_exchanges}},\
-                                                                    {'bscs.tracking':{'$exists':True}}, \
-                                                                ] \
-                                                        },\
-                                                    ]\
-                                            },\
-                                            #{'Highlights.MarketCapitalization':{'$gte':5 * Bn}},
-                                            #{"$or": [\
-                                            #            {'failcount.mysql_price_failcount': {"$exists": False}},\
-                                            #            #{'failcount.mysql_price_failcount': {'$eq': 0}},\
-                                            #            {'failcount.mysql_price_failcount': {'$lt': DB.MAX_FAIL_COUNT}},\
-                                            #        ]\
-                                            #}
-                                        ]\
-                                }\
-                                ).batch_size(10).sort([["Highlights.MarketCapitalization",-1]]).allow_disk_use(True)
-    print("Total stocks: %r" %(stocks.count()))
-    #stocks = db.US_Stocks.find({"bscs.symbol":"LULU"})
-    today = str(dt.now().date())
-    try: 
         for stk in stocks:
             print("%s: %s" %(stk['bscs']['symbol'], stk['General']['Name'])) 
             query ='select Date, Symbol, price_change from {} where Symbol=\'{}\' and Date between date_sub(\'{}\', INTERVAL 3 YEAR) and \'{}\' order by Date desc'.format(table_name, stk['bscs']['symbol'], today, today)
@@ -554,10 +542,106 @@ def main():
             DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_avg_percent', above_avg_percent)
             DB.update_field(db.US_Stocks, stk['bscs']['symbol'], 'earnings.three_year.above_ten_percent', above_ten_percent)
 
+    except Exception as e:
+        print(f"Earnings Error: {str(e)}")
+        pass
+
+def sync_table_schema(engine, table_name="Nasdaq_Options_Data", delete_extra=False):
+    columns = {
+        "Symbol": "VARCHAR(12) NOT NULL",
+        "Date": "VARCHAR(12) NOT NULL",
+        "pr_change_str": "TEXT",
+        "avg_pr_change": "FLOAT DEFAULT NULL",
+        "above_avg_count": "FLOAT DEFAULT NULL",
+        "above_ten_count": "FLOAT DEFAULT NULL",
+        "above_avg_percent": "FLOAT DEFAULT NULL",
+        "above_ten_percent": "FLOAT DEFAULT NULL",
+        "buy_date": "VARCHAR(12) NOT NULL",
+        "sell_date": "VARCHAR(12) NOT NULL",
+        "price": "FLOAT DEFAULT NULL",
+        "call_strike": "FLOAT DEFAULT NULL",
+        "put_strike": "FLOAT DEFAULT NULL",
+        "call_premium": "FLOAT DEFAULT NULL",
+        "put_premium": "FLOAT DEFAULT NULL",
+        "call_breakeven": "FLOAT DEFAULT NULL",
+        "puts_breakeven": "FLOAT DEFAULT NULL",
+        "total_premium_percent": "FLOAT DEFAULT NULL"
+    }
+
+    primary_keys = ["Symbol", "Date"]
+
+    foreign_keys = [
+        "FOREIGN KEY (`Symbol`, `Date`) REFERENCES `Nasdaq_Earnings_History`(`Symbol`, `Date`) ON DELETE CASCADE ON UPDATE CASCADE"
+    ]
+
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        if table_name not in existing_tables:
+            col_defs = [f"`{col}` {dtype}" for col, dtype in columns.items()]
+            pk_def = f", PRIMARY KEY ({', '.join([f'`{pk}`' for pk in primary_keys])})"
+            fk_def = f", {', '.join(foreign_keys)}" if foreign_keys else ""
+            create_sql = f"CREATE TABLE `{table_name}` ({', '.join(col_defs)}{pk_def}{fk_def}) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+            conn.execute(text(create_sql))
+            print(f"✅ Created table `{table_name}`")
+            return
+
+        existing_cols = {col['name'] for col in inspector.get_columns(table_name)}
+
+        for col, dtype in columns.items():
+            if col not in existing_cols:
+                alter_sql = f"ALTER TABLE `{table_name}` ADD COLUMN `{col}` {dtype};"
+                conn.execute(text(alter_sql))
+                print(f"➕ Added column `{col}`")
+
+        if delete_extra:
+            for col in existing_cols:
+                if col not in columns and col not in primary_keys:
+                    alter_sql = f"ALTER TABLE `{table_name}` DROP COLUMN `{col}`;"
+                    conn.execute(text(alter_sql))
+                    print(f"🗑️ Dropped column `{col}`")
+
+        print(f"✅ Table `{table_name}` synced successfully.")
+
+def calculate_option_profit(mysql_engine, price_engine, options_engine, db, table_name):
+    sync_table_schema(mysql_engine, table_name="Nasdaq_Options_Data", delete_extra=False)
+
+def main():
+    """Main function to orchestrate the data update process."""
+    start_time = time.time()
+    mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')
+    price_engine = DB.open_sql_connection('localhost', 'root', 'petla123', db='US_Stocks')
+    options_engine = DB.open_sql_connection('10.89.45.31', 'root', 'petla123', db='US_Stocks_Options')
+    c = DB.open_db_client() # This is a placeholder.  Replace with your actual MongoDB client.
+    db = c['Stocks']
+    table_name = 'Nasdaq_Earnings_History'
+
+    try:
+        # Fetch nasdaq earning from the website and update to the database
+        update_nasdaq_earnings(mysql_engine, price_engine, db, table_name)
+
+        end_time = time.time()
+        logger.info(f"Earnings data update process completed in {end_time - start_time:.2f} seconds.")
+
+        # Calculate and update stock price change during earnings report
+        # Also calculate avg earnings change in the last three years,
+        # construct a string of last 7 earnings and update to mongodb
+        calculate_price_changes(mysql_engine, price_engine, db, table_name)
+
+        # Get options premium during earnings and calculate how much profit/loss has been
+        # made for the strike price closest to the earnings day mid price.
+        # Keep in mind if aftermarket, the scenario would be option purchanse on the earnings date
+        # and sell on the next date(open price).
+        # For beforemarket case, buy the option the day before the earnings date and sell on the 
+        # earnings date(open price)
+        #calculate_option_profit(mysql_engine, price_engine, options_engine, db, table_name)
+
     finally:
         DB.close_db_client(c)
         DB.close_sql_connection(mysql_engine)
         DB.close_sql_connection(price_engine)
+        DB.close_sql_connection(options_engine)
 
 def calc_price_change():
     mysql_engine = DB.open_sql_connection('localhost', 'vpetla', 'petla123', db='US_Stocks_Fin')

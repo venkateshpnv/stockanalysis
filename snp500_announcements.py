@@ -10,6 +10,29 @@ import argparse
 import time as t
 import sys
 import time
+import re
+
+headers = {
+    'Host': 'www.spglobal.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0',
+    'Accept': 'application/json',
+    #'Accept': '*/*',
+    'Accept-Encoding': 'gzip',
+    'Accept-Language': 'en-US,en;q=0.5',
+    #'Accept-Encoding': 'gzip, deflate, br, zstd',
+    'Referer': 'https://www.spglobal.com/spdji/en/media-center/news-announcements/',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Connection': 'keep-alive',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'TE': 'trailers',
+}
+
+url = 'https://www.spglobal.com/spdji/en/util/redesign/press-room/get-pr-news-announcements-solr-json.dot?pageNumber=1&queryText=&contentSubType=indexNews&language_id=1'
+pattern = re.compile(r'set to join s&p 500', re.IGNORECASE)
+target_phrase = 'Set to Join S&P 500'
+sessions = requests.Session()
 
 def get_telegram_token_id(token='stock_notify'):
     if token not in telegram_tokens.keys() or \
@@ -162,55 +185,78 @@ def fetch_sp_announcements_old():
 
 def fetch_sp_announcements(sent_titles, token, chat_id):
     try:
-        headers = {
-            'Host': 'www.spglobal.com',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Referer': 'https://www.spglobal.com/spdji/en/media-center/news-announcements/',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Connection': 'keep-alive',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'TE': 'trailers',
-        }
-
-        url = 'https://www.spglobal.com/spdji/en/util/redesign/press-room/get-pr-news-announcements-solr-json.dot?pageNumber=1&queryText=&contentSubType=indexNews&language_id=1'
-        ret = requests.get(url, headers=headers)
+        #start_time = t.time()
+        #ret = requests.get(url, headers=headers)
+        ret = sessions.get(url, headers=headers)
 
         if ret.status_code != 200:
             print(f"Failed to fetch the webpage. Status code: {ret.status_code}")
             return ret.status_code
 
-        output = ret.json()
-        df = pd.DataFrame(output['resultData'])
+        #elapsed = t.time() - start_time
+        #print(f"Time to requests.get(url): {elapsed} sec")
 
+        #start_time = t.time()
+
+        output = ret.json()
+        #df = pd.DataFrame(output['resultData'])
+
+        #elapsed = t.time() - start_time
+        #print(f"Time to convert to json: {elapsed} sec")
+        #start_time = t.time()
+        #for item in output['resultData']:
+        #    title = item['title']
+        #    if target_phrase in item['title']:
+        #        print("Matched Title:", item['title'])
+        #        elapsed = t.time() - start_time
+        #        print(f"Time to find match: {elapsed} sec")
+        #        #sys.exit(0)
+        
+        #df['date'] = pd.to_datetime(df['date']).dt.date
+        #df.set_index('date', inplace=True)
+        ##df['fullLink'] = "https://www.spglobal.com" + df['link']
+        #today = date.today() #- timedelta(days=1)
+        #today_df = df.loc[[today]] if today in df.index else pd.DataFrame()
+
+        #if today_df.empty:
+        #    print(f"{today}: No announcements found for today.")
+        #    return ret.status_code
+
+
+        #elapsed = t.time() - start_time
+        #print(f"Time to process df: {elapsed} sec")
+
+        
+        #start_time = t.time()
+        df = pd.DataFrame(output['resultData'])
         df['date'] = pd.to_datetime(df['date']).dt.date
-        df.set_index('date', inplace=True)
-        df['fullLink'] = "https://www.spglobal.com" + df['link']
         today = date.today() #- timedelta(days=1)
         today_df = df.loc[[today]] if today in df.index else pd.DataFrame()
-
         if today_df.empty:
             print(f"{today}: No announcements found for today.")
             return ret.status_code
+        #elapsed = t.time() - start_time
+        #print(f"Time to create df: {elapsed} sec")
 
-        matches = today_df[today_df['title'].str.contains('Set to Join', case=False, na=False)]
+        #start_time = t.time()
+        matches = today_df[today_df['title'].str.contains('Set to Join S&P 500', case=False, na=False)]
         if not matches.empty:
             for i, row in matches.iterrows():
                 title = row['title']
+                #elapsed = t.time() - start_time
+                #print(f"Time to match using df: {elapsed} sec")
+                #sys.exit(0)
                 if title in sent_titles:
                     continue  # Skip if already sent
+                #start_time = t.time()
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                link = row['fullLink']
+                #link = row['fullLink']
                 #message = f"<b>{title}</b>\n<a href=\"{link}\">Open Link</a>"
                 message = (
                             f"<b>{title}</b>\n"
                             #f"📅 Date: {i.strftime('%Y-%m-%d')}\n"
                             f"⏰ Sent: {timestamp}\n"
-                            f"<a href=\"{link}\">Open Link</a>"
+                            #f"<a href=\"{link}\">Open Link</a>"
                         )
                 payload = {
                     "chat_id": chat_id,
@@ -221,9 +267,12 @@ def fetch_sp_announcements(sent_titles, token, chat_id):
                 response = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload)
                 if response.status_code == 200:
                     sent_titles.add(title)
-                    print(f"Sent: {title}")
+                    print(f"Sent: {title}, {datetime.now().strftime('%H:%M:%S')}")
+                    sys.exit(0)
                 else:
                     print("Failed to send message:", response.text)
+                #elapsed = t.time() - start_time
+                #print(f"Time to send telegram message: {elapsed} sec")
         else:
             print("No matching news titles found for today.")
     except Exception as E:
@@ -240,7 +289,7 @@ def get_diff(time1, time2):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_time', type=str, default="15:30", help="Start time in HH:MM format (24-hr)")
-    parser.add_argument('--end_time', type=str, default="21:30", help="End time in HH:MM format (24-hr)")
+    parser.add_argument('--end_time', type=str, default="16:30", help="End time in HH:MM format (24-hr)")
     parser.add_argument('--interval', type=int, default=5, help="Interval in minutes")
     args = parser.parse_args()
 
@@ -270,6 +319,8 @@ def main():
             secs = get_diff(start, current_time)
             secs = int(secs)
             print(f"{now}: Waiting {secs} seconds for start time ({start})... Current time: {current_time}")
+            if secs == 0:
+                secs = 1
             t.sleep(secs)
             continue
         elif start <= current_time <= end:
@@ -277,6 +328,7 @@ def main():
             ret_code = fetch_sp_announcements(sent_titles, token, chat_id)
             if ret_code != 200 and "fail" not in sent_failures:
                 interval = 0.5 #half minute
+                title = "Failure to get data"
                 message = (
                             f"<b>{title}</b>\n"
                             #f"📅 Date: {i.strftime('%Y-%m-%d')}\n"
@@ -303,7 +355,10 @@ def main():
         # Calculate time taken for the loop iteration
         elapsed = t.time() - loop_start_time
         sleep_duration = max(0, interval * 60 - elapsed)  # ensure no negative sleep
-        t.sleep(sleep_duration)
+        if interval == 0:
+            t.sleep(1)
+        else:
+            t.sleep(sleep_duration)
 
 if __name__ == "__main__":
     main()

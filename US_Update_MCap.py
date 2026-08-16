@@ -13,6 +13,8 @@ def chunks(lst, n):
         yield lst[i:i+n]
 
 def update_mcap():
+    c = DB.open_db_client()
+    db = c['Stocks']
     try:
         url = f"https://financialmodelingprep.com/api/v3/stock/list?apikey={API_KEY}"
         response = requests.get(url)
@@ -31,8 +33,6 @@ def update_mcap():
                         if s.get("exchangeShortName") in us_exchanges and s.get("type") == "stock"
                     ]
 
-        c = DB.open_db_client()
-        db = c['Stocks']
  
         #items = db.US_Stocks.find({"$and" : [ \
         #                                        #{"$or": [\

@@ -1238,21 +1238,24 @@ def bulk_update_price_volume(country, db=None, sql_engine=None):
                             if sem:
                                 sem.release()
                     else:
-                        stocks = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
-                        if stocks.count() > 0:
-                            s = stocks[0]
-                            if 'General' not in s.keys():
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
-                            elif 'General' in s.keys() and 'IsDelisted' not in s['General'].keys():
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
-                                DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
+                        try:
+                            stocks = db.US_Stocks.find({"bscs.symbol":d['Symbol']})
+                            if stocks.count() > 0:
+                                s = stocks[0]
+                                if isinstance(s, dict):
+                                    if 'General' not in s.keys():
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
+                                    elif 'General' in s.keys() and isinstance(s['General'], dict) and 'IsDelisted' not in s['General'].keys():
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Code", d['Symbol'])
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.IsDelisted", False)
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Type", d['Type'])
+                                        DB.update_field(db.US_Stocks, d['Symbol'], "General.Exchange", d['Exchange'])
 
-
+                        except Exception as E:
+                            print(f"hdf5.py:1257 error: {s}")
     finally:
             for j in range(len(processes)):
                 if processes[j] is not None:
@@ -1521,8 +1524,9 @@ def update_dataframe_price_volume(country, db, sql_engine, symbol, symbols, stk,
                             DB.update_field(collection, stk['bscs']['symbol'], "price_change.price", df['Adj Close'][-1])
                         data_update = True
 
-                        if percent_change:
-                            multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
+                    if percent_change:
+                        internet.update_price_change(country, copy.deepcopy(stk), core, None)
+                            #multiprocessing.Process(target=internet.update_price_change, args=(country, copy.deepcopy(stk['bscs']['symbol']), core, None)).start()
                         #threading.Thread(target=internet.update_price_change, args=(country, collection, stk['bscs']['symbol'], None, sql_engine,)).start()
                         #e=time.time()
                         #print("done data for %r to mysql, elapsed time: %r sec" %(stk['bscs']['symbol'], (e-s)))

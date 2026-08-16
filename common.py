@@ -702,6 +702,111 @@ def knee_locator(x, y, S, curve, direction, online=True):
     elbow = kneedle.elbow
     return knee,elbow
 
+def webull_psar(
+    high,
+    low,
+    close=None,
+    acceleration=0.02,
+    maximum=0.20,
+    as_dataframe=False,
+    return_trend=False,
+):
+    high = pd.Series(high).astype(float)
+    low = pd.Series(low).astype(float)
+    if not high.index.equals(low.index):
+        low.index = high.index
+
+    size = len(high)
+    sar = pd.Series(np.nan, index=high.index, dtype=float)
+    direction = pd.Series(np.nan, index=high.index, dtype=float)
+    acceleration_values = pd.Series(np.nan, index=high.index, dtype=float)
+    if size == 0:
+        if as_dataframe:
+            return pd.DataFrame(index=high.index)
+        return (sar, direction) if return_trend else sar
+
+    highs = high.to_numpy(dtype=float)
+    lows = low.to_numpy(dtype=float)
+    sar_values = np.zeros(size, dtype=float)
+    directions = np.zeros(size, dtype=int)
+    accelerations = np.zeros(size, dtype=float)
+    extremes = np.zeros(size, dtype=float)
+    initial_acceleration = 0.02
+
+    directions[0] = 1
+    sar_values[0] = lows[0]
+    accelerations[0] = initial_acceleration
+    extremes[0] = highs[0]
+
+    for index in range(1, size):
+        previous_direction = directions[index - 1]
+        previous_sar = sar_values[index - 1]
+
+        if previous_direction == 1:
+            directions[index] = 2 if previous_sar > lows[index] else 1
+        else:
+            directions[index] = 1 if previous_sar < highs[index] else 2
+
+        same_direction = directions[index] == previous_direction
+        next_acceleration = initial_acceleration
+
+        if same_direction and directions[index] == 1:
+            if highs[index] > highs[index - 1]:
+                next_acceleration = accelerations[index - 1] + acceleration
+            else:
+                next_acceleration = accelerations[index - 1]
+        elif same_direction and directions[index] == 2:
+            if lows[index] < lows[index - 1]:
+                next_acceleration = accelerations[index - 1] + acceleration
+            else:
+                next_acceleration = accelerations[index - 1]
+
+        if next_acceleration <= maximum:
+            accelerations[index] = next_acceleration
+        else:
+            accelerations[index] = initial_acceleration
+
+        target = highs[index - 1] if directions[index] == 1 else lows[index - 1]
+        projected = previous_sar + accelerations[index] * (target - previous_sar)
+
+        if directions[index] == 1:
+            if not same_direction:
+                extremes[index] = highs[index]
+                projected = extremes[index - 1]
+            else:
+                extremes[index] = max(extremes[index - 1], highs[index])
+                projected = min(projected, lows[index], lows[index - 1])
+        elif not same_direction:
+            extremes[index] = lows[index]
+            projected = extremes[index - 1]
+        else:
+            extremes[index] = min(extremes[index - 1], lows[index])
+            projected = max(projected, highs[index], highs[index - 1])
+
+        sar_values[index] = projected
+
+    sar[:] = sar_values
+    direction[:] = directions
+    acceleration_values[:] = accelerations
+
+    if as_dataframe:
+        long = sar.where(direction == 1)
+        short = sar.where(direction == 2)
+        reversal = direction.ne(direction.shift(1)).fillna(False)
+        return pd.DataFrame(
+            {
+                f'PSARl_{acceleration}_{maximum}': long,
+                f'PSARs_{acceleration}_{maximum}': short,
+                f'PSARaf_{acceleration}_{maximum}': acceleration_values,
+                f'PSARr_{acceleration}_{maximum}': reversal,
+            },
+            index=high.index,
+        )
+
+    if return_trend:
+        return sar, direction
+    return sar
+
 def set_cpu_affinity():
     while True:
         cpus  = psutil.cpu_percent(percpu=True)
@@ -721,4 +826,3 @@ def set_cpu_affinity():
             return aff
         # Else, wait for a second and try again.
         time.sleep(1)
-
