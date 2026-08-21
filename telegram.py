@@ -564,9 +564,12 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     {'dates.ndaq_last_earnings_date' :{"$lte":three_weeks+timedelta(7)}},\
                                             ]\
                                         },\
-                                        {'Highlights.MarketCapitalization': {'$gte': 10 * Bn}},\
                                         {"$or":[\
-                                                    {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                                                    {"$and": [ \
+                                                                {'General.Sector': {"$in": ['Technology', 'Communication Services', ]}},\
+                                                                {'Highlights.MarketCapitalization': {'$gte': 10 * Bn}},\
+                                                            ]\
+                                                    },\
                                                     {"$and": [ \
                                                                 {'General.Sector': {"$nin": ['Technology', 'Communication Services', ]}},\
                                                                 {'General.Code' : {"$in": non_tech_stocks}},\
@@ -574,6 +577,7 @@ def earnings_week(earnings_dates=True, earnings_results=True):
                                                     },\
                                                     {"$and": [ \
                                                                 {'General.Code' : {"$in": selected_stocks}},\
+                                                                {'Highlights.MarketCapitalization': {'$gte': 10 * Bn}},\
                                                             ]\
                                                     },\
                                                 ]\
@@ -1139,21 +1143,37 @@ def get_ratings(fwh=False, purebuy=False, tech=True):
                     #{'Highlights.MarketCapitalization':{'$gte':5 * Bn}},\
                     #{'dates.technicals_pull_date': {'$gte':DB.get_latest_trading_day()}}\
                 ]
-    if fwh is True:
+    if fwh is True and tech is not True:
         conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
+    if fwh is True:
         conditions.append({'price_change.price_times_avg_vol_in_mn':{'$gte':60}})
     if tech is True:
-        conditions.append({"$or":[\
-                                    {'General.Sector': 'Technology'},\
-                                    {"$and": [ \
-                                                {'General.Sector': {"$nin": ['Technology']}},\
-                                                {'General.Code' : {"$in": non_tech_stocks}},\
-                                            ]\
-                                    },\
-                                ]\
-                            })
+        if fwh is True:
+            conditions.append({"$or":[\
+                                        {"$and": [ \
+                                                    {'General.Sector': 'Technology'},\
+                                                    {'Highlights.MarketCapitalization':{'$gte':5 * Bn}},\
+                                                ]\
+                                        },\
+                                        {"$and": [ \
+                                                    {'General.Sector': {"$nin": ['Technology']}},\
+                                                    {'General.Code' : {"$in": non_tech_stocks}},\
+                                                ]\
+                                        },\
+                                    ]\
+                                })
+        else:
+            conditions.append({"$or":[\
+                                        {'General.Sector': 'Technology'},\
+                                        {"$and": [ \
+                                                    {'General.Sector': {"$nin": ['Technology']}},\
+                                                    {'General.Code' : {"$in": non_tech_stocks}},\
+                                                ]\
+                                        },\
+                                    ]\
+                                })
  
-    else:
+    elif fwh is not True:
         conditions.append({'Highlights.MarketCapitalization':{'$gte':5 * Bn}})
  
     # Get top 10 stocks with StrongBuy rating
@@ -1911,7 +1931,11 @@ def get_uptrend(selected=False):
         conditions.append({'General.Type':'Common Stock'})
         conditions.append({'General.IsDelisted': False})
         conditions.append({"$or":[\
-                                        {'General.Sector': 'Technology'},\
+                                        {"$and": [ \
+                                                    {'General.Sector': 'Technology'},\
+                                                    {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
+                                                ]\
+                                        },\
                                         {"$and": [ \
                                                     {'General.Sector': {"$nin": ['Technology']}},\
                                                     {'General.Code' : {"$in": non_tech_stocks}},\
@@ -1919,7 +1943,6 @@ def get_uptrend(selected=False):
                                         },\
                                     ]\
                             })
-        conditions.append({'Highlights.MarketCapitalizationMln': {"$gte":5000}})
         conditions.append(
                             {"$and":[\
                                     {"$or":[\
@@ -1933,6 +1956,7 @@ def get_uptrend(selected=False):
                                             ]\
                                     },\
                                     {'technicals.sar.date':{'$gte': DB.get_latest_trading_day()}},\
+                                    #{'technicals.sar.date':{'$gte': DB.get_latest_trading_day()-timedelta(1)}},\
                                 ]\
                             }
                         )
@@ -2473,7 +2497,6 @@ def get_all_indicators():
                     #            },\
                     #        ]\
                     #},\
-                    {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
                     #{'technicals.candlesticks.MORNINGSTAR':{"$eq":100}},\
                     {"$and": [ \
                                 {'dates.mysql_price_date': {"$gte": DB.get_latest_trading_day()}},\
@@ -2499,13 +2522,23 @@ def get_all_indicators():
     # Min rsi
     try:
         conds = conditions + [{'technicals.rsi.with_60day_min':{"$eq":0}}]
-        stocks = non_tech_stocks + selected_stocks + options_stocks
+        stocks = selected_stocks + options_stocks
         conds = conds + [\
                     {"$or":[\
-                                {'General.Sector': 'Technology'},\
+                                {"$and": [ \
+                                            {'General.Sector': 'Technology'},\
+                                            {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
+                                        ]\
+                                },\
+                                {"$and": [ \
+                                            {'General.Sector': {"$nin": ['Technology']}},\
+                                            {'General.Code' : {"$in": non_tech_stocks}},\
+                                        ]\
+                                },\
                                 {"$and": [ \
                                             {'General.Sector': {"$nin": ['Technology']}},\
                                             {'General.Code' : {"$in": stocks}},\
+                                            {'Highlights.MarketCapitalizationMln': {"$gte":5000}},\
                                         ]\
                                 },\
                             ]\

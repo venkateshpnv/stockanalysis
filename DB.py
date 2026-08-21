@@ -2314,6 +2314,27 @@ def normalize_cols_with_adj_close(df, cols=None):
     return df
 
 
+def normalize_cols_with_adj_close2(df):
+    """Return OHLC adjusted to the Adj Close scale without mutating input df."""
+    required_cols = ['Open', 'High', 'Low', 'Close', 'Adj Close']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        print("Columns %r don't exist, available columns: %r" % (missing_cols, df.columns))
+        return pd.DataFrame()
+
+    adjusted = df.copy()
+    factor = (
+        adjusted['Adj Close'].astype(float)
+        / adjusted['Close'].astype(float).replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan)
+
+    adjusted['Open'] = adjusted['Open'].astype(float) * factor
+    adjusted['High'] = adjusted['High'].astype(float) * factor
+    adjusted['Low'] = adjusted['Low'].astype(float) * factor
+    adjusted['Close'] = adjusted['Adj Close'].astype(float)
+    return adjusted
+
+
 
 # Calculates estimated profit and returns the df back
 def calculate_ep(df, val, col = 'ep'):
@@ -2538,12 +2559,13 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, 
     if duration:
         df = df.loc[df.index[-1]-duration:]
 
-    adjustment_factor = (
-        df['Adj Close'].astype(float) / df['Close'].astype(float).replace(0, np.nan)
-    ).replace([np.inf, -np.inf], np.nan)
-    adjusted_high = df['High'].astype(float) * adjustment_factor
-    adjusted_low = df['Low'].astype(float) * adjustment_factor
-    psar = webull_psar(adjusted_high, adjusted_low, df['Adj Close'], acceleration=af, maximum=0.2, as_dataframe=True)
+    #adjustment_factor = (
+    #    df['Adj Close'].astype(float) / df['Close'].astype(float).replace(0, np.nan)
+    #).replace([np.inf, -np.inf], np.nan)
+    #adjusted_high = df['High'].astype(float) * adjustment_factor
+    #adjusted_low = df['Low'].astype(float) * adjustment_factor
+    #psar = webull_psar(adjusted_high, adjusted_low, df['Adj Close'], acceleration=af, maximum=0.2, as_dataframe=True)
+    psar = webull_psar(df['High'], df['Low'], df['Adj Close'], acceleration=af, maximum=0.2, as_dataframe=True)
     #psar3 = pd.DataFrame(psar3_code(df))
     #psarext = talib.SAREXT(df['High'], df['Low'])
     #psarext = talib.SAREXT(df['High'], df['Low'], startvalue=0, offsetonreverse=0, accelerationinitlong=af, accelerationlong=af, accelerationmaxlong=af, accelerationinitshort=af, accelerationshort=af, accelerationmaxshort=af])
@@ -2592,7 +2614,9 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, 
         # If long, return +trend_days, if short return -trend_days
         trend_days = (-trend_days,trend_days)[position == 'long']
         # Current trend price change
-        ct_pr_change = percent_change(psar.loc[trading_day(start-timedelta(1))]['Adj Close'], psar.iloc[-1]['Adj Close'])
+        ct_pr_change = percent_change(psar.loc[trading_day(start)]['Adj Close'], psar.iloc[-1]['Adj Close'])
+        # TRend change calculated from previous trend end date
+        #ct_pr_change = percent_change(psar.loc[trading_day(start-timedelta(1))]['Adj Close'], psar.iloc[-1]['Adj Close'])
 
         current_value = 0
         direction = 0  # Will be either -1 or 1 based on 'short'/'long'
@@ -2689,10 +2713,12 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, 
                                 str(num_days) +\
                                 trend + '-'
 
-            st = trading_day(start - timedelta(1))
+            st = trading_day(start)
+            #st = trading_day(start - timedelta(1))
             st = get_nearest_index(df, st)
             st_price = df.iloc[st]['Adj Close']
-            en = trading_day(end - timedelta(1))
+            en = trading_day(end)
+            #en = trading_day(end - timedelta(1))
             #en = get_valid_date('US', en)
             en = get_nearest_index(df, en)
             en_price = df.iloc[en]['Adj Close']
@@ -2708,7 +2734,7 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, 
                                         str(round(change*100, 2)) + "%)" + ','
             trend_pcnt_change_list.append(round(change*100,2))
 
-            trend_dates[str(start.date())] = [str(num_days)+trend, round(change*100,2)]
+            trend_dates[str(start.date())] = [str(num_days)+trend, round(change*100,2), st_price, en_price]
 
             # Now move to next trend
             #trend = ('L','S')[isnan(d['long'])]
@@ -2749,7 +2775,7 @@ def calc_psar(params_engine, sym, df, duration=None, trend_only=False, af=0.02, 
                                 str(trend_days) + ('S','L')[trend_days>0] +\
                                 "(" + str(round(change*100, 2)) + "%)"
         trend_pcnt_change_list.append(round(change*100,2))
-        trend_dates[str(long_short_df.index[-1].date())] = [str(abs(trend_days)) + ('S','L')[trend_days>0], round(change*100,2)] 
+        trend_dates[str(long_short_df.index[-1].date())] = [str(abs(trend_days)) + ('S','L')[trend_days>0], round(change*100,2), st_price, en_price] 
         return psar, trend_days, ct_pr_change, prev_trend_days, pt_pr_change, trend_dates, trend_sequence, trend_pcnt_change, trend_pcnt_change_list
 
     # Get the dates of switch between long and short positions of the stock
@@ -3356,6 +3382,7 @@ def update_tech_analysis_params(sym, core=None, sem=None, Type='Stocks', indices
         df = read_from_sql(query, mysql_engine)
  
         df = normalize_cols_with_adj_close(df)
+        #df = normalize_cols_with_adj_close2(df)
         # Take only last one year data
         #df = df.tail(250)
 
@@ -3490,7 +3517,7 @@ def update_all_tech_analysis_params(country='US'):
                                         },\
                                         {'$or':[\
                                                 {'dates.mysql_price_pull_date': {"$exists": False}},\
-                                                {'dates.mysql_price_pull_date':{'$gte': get_latest_trading_day()}}, \
+                                                {'dates.mysql_price_pull_date':{'$gte': get_latest_trading_day()}, \
                                                 ]\
                                         },\
                                     ]}).batch_size(10).sort([["General.Code",sort]]).allow_disk_use(True)
@@ -3509,7 +3536,7 @@ def update_all_tech_analysis_params(country='US'):
     #                                    {'Highlights.MarketCapitalization': {'$gte': 5 * Bn}},\
     #                                ]}).batch_size(10).sort([["technicals.sar.ep.one_year.alpha",-1]]).allow_disk_use(True)
 
-    #stocks=db.US_Stocks.find({'General.Code':'CBRS'})
+    #stocks=db.US_Stocks.find({'General.Code':'CLSK'})
     print("Tech analysis, total stocks:", stocks.count())
     i=0
     try:
